@@ -1,5 +1,5 @@
 
-#include "quakedef.h"
+#include "darkplaces.h"
 #include "image.h"
 
 cvar_t r_colormap_palette = {CF_CLIENT, "r_colormap_palette", "gfx/colormap_palette.lmp", "name of a palette lmp file to override the shirt/pants colors of player models. It consists of 16 shirt colors, 16 scoreboard shirt colors, 16 pants colors and 16 scoreboard pants colors"};
@@ -98,7 +98,7 @@ static void Palette_SetupSpecialPalettes(void)
 	}
 	u;
 
-	colormap = FS_LoadFile("gfx/colormap.lmp", tempmempool, true, &filesize);
+	colormap = FS_LoadFile("gfx/colormap.lmp", tempmempool, true, &filesize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 	if (colormap && filesize >= 16385)
 		fullbright_start = 256 - colormap[16384];
 	else
@@ -197,7 +197,7 @@ static void Palette_SetupSpecialPalettes(void)
 static void Palette_LoadQ2Colormap(void)
 {
 	fs_offset_t filesize;
-	unsigned char * q2colormapfile = FS_LoadFile("pics/colormap.pcx", tempmempool, true, &filesize);
+	unsigned char * q2colormapfile = FS_LoadFile("pics/colormap.pcx", tempmempool, true, &filesize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 	if (q2colormapfile && filesize >= 768)
 	{
 		unsigned char q2palette_rgb[256][3];
@@ -283,22 +283,22 @@ static void Palette_Load(void)
 // COMMANDLINEOPTION: Client: -texgamma <number> sets the quake palette gamma, allowing you to make quake textures brighter/darker, not recommended
 	i = Sys_CheckParm("-texgamma");
 	if (i)
-		gamma = atof(sys.argv[i + 1]);
+		gamma = atof(com_argv[i + 1]);
 // COMMANDLINEOPTION: Client: -texcontrast <number> sets the quake palette contrast, allowing you to make quake textures brighter/darker, not recommended
 	i = Sys_CheckParm("-texcontrast");
 	if (i)
-		scale = atof(sys.argv[i + 1]);
+		scale = atof(com_argv[i + 1]);
 // COMMANDLINEOPTION: Client: -texbrightness <number> sets the quake palette brightness (brightness of black), allowing you to make quake textures brighter/darker, not recommended
 	i = Sys_CheckParm("-texbrightness");
 	if (i)
-		base = atof(sys.argv[i + 1]);
+		base = atof(com_argv[i + 1]);
 	gamma = bound(0.01, gamma, 10.0);
 	scale = bound(0.01, scale, 10.0);
 	base = bound(0, base, 0.95);
 
 	BuildGammaTable8(1.0f, gamma, scale, base, 1, texturegammaramp, 256);
 
-	palfile = (unsigned char *)FS_LoadFile ("gfx/palette.lmp", tempmempool, false, &filesize);
+	palfile = (unsigned char *)FS_LoadFile ("gfx/palette.lmp", tempmempool, false, &filesize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 	if (palfile && filesize >= 768)
 		memcpy(palette_rgb, palfile, 768);
 	else
@@ -319,7 +319,7 @@ static void Palette_Load(void)
 	}
 
 	if(*r_colormap_palette.string)
-		palfile = (unsigned char *)FS_LoadFile (r_colormap_palette.string, tempmempool, false, &filesize);
+		palfile = (unsigned char *)FS_LoadFile (r_colormap_palette.string, tempmempool, false, &filesize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 	else
 		palfile = NULL;
 

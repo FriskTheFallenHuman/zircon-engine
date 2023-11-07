@@ -9,7 +9,6 @@
 #include "cl_collision.h"
 #include "libcurl.h"
 #include "csprogs.h"
-#include "r_stats.h"
 #ifdef CONFIG_VIDEO_CAPTURE
 #include "cap_avi.h"
 #include "cap_ogg.h"
@@ -33,8 +32,7 @@ cvar_t scr_conalphafactor = {CF_CLIENT | CF_ARCHIVE, "scr_conalphafactor", "1", 
 cvar_t scr_conalpha2factor = {CF_CLIENT | CF_ARCHIVE, "scr_conalpha2factor", "0", "opacity of console background gfx/conback2 relative to scr_conalpha; when 0, gfx/conback2 is not drawn"};
 cvar_t scr_conalpha3factor = {CF_CLIENT | CF_ARCHIVE, "scr_conalpha3factor", "0", "opacity of console background gfx/conback3 relative to scr_conalpha; when 0, gfx/conback3 is not drawn"};
 cvar_t scr_conbrightness = {CF_CLIENT | CF_ARCHIVE, "scr_conbrightness", "1", "brightness of console background (0 = black, 1 = image)"};
-cvar_t scr_conforcewhiledisconnected = {CF_CLIENT, "scr_conforcewhiledisconnected", "1", "1 forces fullscreen console while disconnected, 2 also forces it when the listen server has started but the client is still loading"}; // SEPUS
-cvar_t scr_conheight = {CF_CLIENT | CF_ARCHIVE, "scr_conheight", "0.5", "fraction of screen height occupied by console (reduced as necessary for visibility of loading progress and infobar)"};
+cvar_t scr_conforcewhiledisconnected = {CF_CLIENT, "scr_conforcewhiledisconnected", "1", "1 forces fullscreen console while disconnected"}; // SEPUS
 cvar_t scr_conscroll_x = {CF_CLIENT | CF_ARCHIVE, "scr_conscroll_x", "0", "scroll speed of gfx/conback in x direction"};
 cvar_t scr_conscroll_y = {CF_CLIENT | CF_ARCHIVE, "scr_conscroll_y", "0", "scroll speed of gfx/conback in y direction"};
 cvar_t scr_conscroll2_x = {CF_CLIENT | CF_ARCHIVE, "scr_conscroll2_x", "0", "scroll speed of gfx/conback2 in x direction"};
@@ -63,9 +61,8 @@ cvar_t scr_loadingscreen_firstforstartup = {CF_CLIENT, "scr_loadingscreen_firstf
 cvar_t scr_loadingscreen_barcolor = {CF_CLIENT, "scr_loadingscreen_barcolor", "0.25 0.25 0.25", "rgb color of loadingscreen progress bar [Zircon default]"}; // Baker r8003 gray progress bar is the default color.
 
 cvar_t scr_loadingscreen_barheight = {CF_CLIENT, "scr_loadingscreen_barheight", "8", "the height of the loadingscreen progress bar"};
-cvar_t scr_loadingscreen_maxfps = {CF_CLIENT, "scr_loadingscreen_maxfps", "20", "maximum FPS for loading screen so it will not update very often (this reduces loading time with lots of models)"};
+cvar_t scr_loadingscreen_maxfps = {CF_CLIENT, "scr_loadingscreen_maxfps", "10", "restrict maximal FPS for loading screen so it will not update very often (this will make lesser loading times on a maps loading large number of models)"};
 cvar_t scr_infobar_height = {CF_CLIENT, "scr_infobar_height", "8", "the height of the infobar items"};
-//cvar_t vid_conwidthauto = {CF_CLIENT | CF_ARCHIVE, "vid_conwidthauto", "1", "automatically update vid_conwidth to match aspect ratio"}; // Baker r0005: 2d sizing needs this removed as is not using value in calc
 cvar_t vid_conwidth = {CF_CLIENT | CF_ARCHIVE, "vid_conwidth", "640", "virtual width of 2D graphics system"};
 cvar_t vid_conheight = {CF_CLIENT | CF_ARCHIVE, "vid_conheight", "480", "virtual height of 2D graphics system"};
 
@@ -74,6 +71,7 @@ cvar_t scr_screenshot_jpeg = {CF_CLIENT | CF_ARCHIVE, "scr_screenshot_jpeg","1",
 cvar_t scr_screenshot_jpeg_quality = {CF_CLIENT | CF_ARCHIVE, "scr_screenshot_jpeg_quality","0.9", "image quality of saved jpeg"};
 cvar_t scr_screenshot_png = {CF_CLIENT | CF_ARCHIVE, "scr_screenshot_png","0", "save png instead of targa"};
 cvar_t scr_screenshot_gammaboost = {CF_CLIENT | CF_ARCHIVE, "scr_screenshot_gammaboost","1", "gamma correction on saved screenshots and videos, 1.0 saves unmodified images"};
+cvar_t scr_screenshot_hwgamma = {CF_CLIENT | CF_ARCHIVE, "scr_screenshot_hwgamma","1", "apply the video gamma ramp to saved screenshots and videos"};
 cvar_t scr_screenshot_alpha = {CF_CLIENT, "scr_screenshot_alpha","0", "try to write an alpha channel to screenshots (debugging feature)"};
 cvar_t scr_screenshot_timestamp = {CF_CLIENT | CF_ARCHIVE, "scr_screenshot_timestamp", "1", "use a timestamp based number of the type YYYYMMDDHHMMSSsss instead of sequential numbering"};
 // scr_screenshot_name is defined in fs.c
@@ -99,33 +97,58 @@ cvar_t r_stereo_redblue = {CF_CLIENT, "r_stereo_redblue", "0", "red/blue anaglyp
 cvar_t r_stereo_redcyan = {CF_CLIENT, "r_stereo_redcyan", "0", "red/cyan anaglyph stereo glasses, the kind given away at drive-in movies like Creature From The Black Lagoon In 3D"};
 cvar_t r_stereo_redgreen = {CF_CLIENT, "r_stereo_redgreen", "0", "red/green anaglyph stereo glasses (for those who don't mind yellow)"};
 cvar_t r_stereo_angle = {CF_CLIENT, "r_stereo_angle", "0", "separation angle of eyes (makes the views look different directions, as an example, 90 gives a 90 degree separation where the views are 45 degrees left and 45 degrees right)"};
+
+cvar_t tool_inspector = {CF_CLIENT, "tool_inspector", "0", "view visible entity QC information [Zircon]"}; // Baker
+cvar_t tool_show_position = {CF_CLIENT, "tool_show_position", "0", "view player origin information [Zircon]"}; // Baker
+cvar_t tool_show_angles = {CF_CLIENT, "tool_show_angles", "0", "view player angle information [Zircon]"}; // Baker
+
 cvar_t scr_stipple = {CF_CLIENT, "scr_stipple", "0", "interlacing-like stippling of the display"};
 cvar_t scr_refresh = {CF_CLIENT, "scr_refresh", "1", "allows you to completely shut off rendering for benchmarking purposes"};
 cvar_t scr_screenshot_name_in_mapdir = {CF_CLIENT | CF_ARCHIVE, "scr_screenshot_name_in_mapdir", "0", "if set to 1, screenshots are placed in a subdirectory named like the map they are from"};
-cvar_t net_graph = {CF_CLIENT | CF_ARCHIVE, "net_graph", "0", "shows a graph of packet sizes and other information, 0 = off, 1 = show client netgraph, 2 = show client and server netgraphs (when hosting a server)"};
+cvar_t net_graph = {CF_CLIENT | CF_ARCHIVE, "shownetgraph", "0", "shows a graph of packet sizes and other information, 0 = off, 1 = show client netgraph, 2 = show client and server netgraphs (when hosting a server)"};
+//cvar_t scr_showpos = {CF_CLIENT | CF_ARCHIVE, "scr_showpos", "0", "shows position on screen"}; // Baker 1025
 cvar_t cl_demo_mousegrab = {CF_CLIENT, "cl_demo_mousegrab", "0", "Allows reading the mouse input while playing demos. Useful for camera mods developed in csqc. (0: never, 1: always)"};
 cvar_t timedemo_screenshotframelist = {CF_CLIENT, "timedemo_screenshotframelist", "", "when performing a timedemo, take screenshots of each frame in this space-separated list - example: 1 201 401"};
 cvar_t vid_touchscreen_outlinealpha = {CF_CLIENT, "vid_touchscreen_outlinealpha", "0", "opacity of touchscreen area outlines"};
 cvar_t vid_touchscreen_overlayalpha = {CF_CLIENT, "vid_touchscreen_overlayalpha", "0.25", "opacity of touchscreen area icons"};
+cvar_t r_speeds_graph = {CF_CLIENT | CF_ARCHIVE, "r_speeds_graph", "0", "display a graph of renderer statistics "};
+cvar_t r_speeds_graph_filter[8] =
+{
+	{CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_filter_r", "timedelta", "Red - display the specified renderer statistic"},
+	{CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_filter_g", "batch_batches", "Green - display the specified renderer statistic"},
+	{CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_filter_b", "batch_triangles", "Blue - display the specified renderer statistic"},
+	{CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_filter_y", "fast_triangles", "Yellow - display the specified renderer statistic"},
+	{CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_filter_c", "copytriangles_triangles", "Cyan - display the specified renderer statistic"},
+	{CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_filter_m", "dynamic_triangles", "Magenta - display the specified renderer statistic"},
+	{CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_filter_w", "animcache_shade_vertices", "White - display the specified renderer statistic"},
+	{CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_filter_o", "animcache_shape_vertices", "Orange - display the specified renderer statistic"},
+};
+cvar_t r_speeds_graph_length = {CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_length", "1024", "number of frames in statistics graph, can be from 4 to 8192"};
+cvar_t r_speeds_graph_seconds = {CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_seconds", "2", "number of seconds in graph, can be from 0.1 to 120"};
+cvar_t r_speeds_graph_x = {CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_x", "0", "position of graph"};
+cvar_t r_speeds_graph_y = {CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_y", "0", "position of graph"};
+cvar_t r_speeds_graph_width = {CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_width", "256", "size of graph"};
+cvar_t r_speeds_graph_height = {CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_height", "128", "size of graph"};
+cvar_t r_speeds_graph_maxtimedelta = {CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_maxtimedelta", "16667", "maximum timedelta to display in the graph (this value will be the top line)"};
+cvar_t r_speeds_graph_maxdefault = {CF_CLIENT | CF_ARCHIVE, "r_speeds_graph_maxdefault", "100", "if the minimum and maximum observed values are closer than this, use this value as the graph range (keeps small numbers from being big graphs)"};
 
+extern cvar_t v_glslgamma;
 extern cvar_t sbar_info_pos;
 extern cvar_t r_fog_clear;
+
+#define WANT_SCREENSHOT_HWGAMMA (scr_screenshot_hwgamma.integer && vid_usinghwgamma)
 
 int jpeg_supported = false;
 
 qbool	scr_initialized;		// ready to draw
 
-static qbool scr_loading = false;  // we are in a loading screen
-
-unsigned int        scr_con_current;
-static unsigned int scr_con_margin_bottom;
+float		scr_con_current;
+int			scr_con_margin_bottom;
 
 extern int	con_vislines;
 
-extern int cl_punchangle_applied;
-
-static void SCR_ScreenShot_f(cmd_state_t *cmd);
-static void R_Envmap_f(cmd_state_t *cmd);
+static void SCR_ScreenShot_f (void);
+static void R_Envmap_f (void);
 
 // backend
 void R_ClearScreen(qbool fogcolor);
@@ -172,7 +195,7 @@ void SCR_CenterPrint(const char *str)
 	}
 }
 
-
+extern cvar_t con_notifysize;
 static void SCR_DrawCenterString (void)
 {
 	char	*start;
@@ -210,19 +233,22 @@ static void SCR_DrawCenterString (void)
 		// scan the number of characters on the line, not counting color codes
 		char *newline = strchr(start, '\n');
 		int l = newline ? (newline - start) : (int)strlen(start);
-		float width = DrawQ_TextWidth(start, l, 8, 8, false, FONT_CENTERPRINT);
+		//float width = DrawQ_TextWidth(start, l, 8, 8, false, FONT_CENTERPRINT);
+		float width = DrawQ_TextWidth(start, l, con_notifysize.value, con_notifysize.value, false, FONT_CENTERPRINT);
 
 		x = (int) (vid_conwidth.integer - width)/2;
 		if (l > 0)
 		{
 			if (remaining < l)
 				l = remaining;
-			DrawQ_String(x, y, start, l, 8, 8, 1, 1, 1, 1, 0, &color, false, FONT_CENTERPRINT);
+			
+			//DrawQ_String(x, y, /*text*/ start, /*len*/ l, /*wh*/ 8, 8, /*rgba*/ 1, 1, 1, 1, /*flags*/ 0, &color, /*ignorecolorcodes*/ false, FONT_CENTERPRINT);
+			DrawQ_String(x, y, /*text*/ start, /*len*/ l, /*wh*/ con_notifysize.value, con_notifysize.value, /*rgba*/ 1, 1, 1, 1, /*flags*/ 0, &color, /*ignorecolorcodes*/ false, FONT_CENTERPRINT);
 			remaining -= l;
 			if (remaining <= 0)
 				return;
 		}
-		y += 8;
+		y += con_notifysize.value;
 
 		if (!newline)
 			break;
@@ -253,19 +279,21 @@ static void SCR_CheckDrawCenterString (void)
 static void SCR_DrawNetGraph_DrawGraph (int graphx, int graphy, int graphwidth, int graphheight, float graphscale, int graphlimit, const char *label, float textsize, int packetcounter, netgraphitem_t *netgraph)
 {
 	netgraphitem_t *graph;
-	int j, x, y;
+	int j, x, y, numlines;
 	int totalbytes = 0;
 	char bytesstring[128];
 	float g[NETGRAPH_PACKETS][7];
 	float *a;
 	float *b;
+	r_vertexgeneric_t vertex[(NETGRAPH_PACKETS+2)*6*2];
+	r_vertexgeneric_t *v;
 	DrawQ_Fill(graphx, graphy, graphwidth, graphheight + textsize * 2, 0, 0, 0, 0.5, 0);
 	// draw the bar graph itself
 	memset(g, 0, sizeof(g));
 	for (j = 0;j < NETGRAPH_PACKETS;j++)
 	{
 		graph = netgraph + j;
-		g[j][0] = 1.0f - 0.25f * (host.realtime - graph->time);
+		g[j][0] = 1.0f - 0.25f * (realtime - graph->time);
 		g[j][1] = 1.0f;
 		g[j][2] = 1.0f;
 		g[j][3] = 1.0f;
@@ -285,7 +313,7 @@ static void SCR_DrawNetGraph_DrawGraph (int graphx, int graphy, int graphwidth, 
 			g[j][4] = g[j][3] - graph->reliablebytes   * graphscale;
 			g[j][5] = g[j][4] - graph->ackbytes        * graphscale;
 			// count bytes in the last second
-			if (host.realtime - graph->time < 1.0f)
+			if (realtime - graph->time < 1.0f)
 				totalbytes += graph->unreliablebytes + graph->reliablebytes + graph->ackbytes;
 		}
 		if(graph->cleartime >= 0)
@@ -298,18 +326,38 @@ static void SCR_DrawNetGraph_DrawGraph (int graphx, int graphy, int graphwidth, 
 		g[j][6] = bound(0.0f, g[j][6], 1.0f);
 	}
 	// render the lines for the graph
+	numlines = 0;
+	v = vertex;
 	for (j = 0;j < NETGRAPH_PACKETS;j++)
 	{
 		a = g[j];
 		b = g[(j+1)%NETGRAPH_PACKETS];
 		if (a[0] < 0.0f || b[0] > 1.0f || b[0] < a[0])
 			continue;
-		DrawQ_Line(1, graphx + graphwidth * a[0], graphy + graphheight * a[2], graphx + graphwidth * b[0], graphy + graphheight * b[2], 1.0f, 1.0f, 1.0f, 1.0f, 0);
-		DrawQ_Line(1, graphx + graphwidth * a[0], graphy + graphheight * a[1], graphx + graphwidth * b[0], graphy + graphheight * b[1], 1.0f, 0.0f, 0.0f, 1.0f, 0);
-		DrawQ_Line(1, graphx + graphwidth * a[0], graphy + graphheight * a[5], graphx + graphwidth * b[0], graphy + graphheight * b[5], 0.0f, 1.0f, 0.0f, 1.0f, 0);
-		DrawQ_Line(1, graphx + graphwidth * a[0], graphy + graphheight * a[4], graphx + graphwidth * b[0], graphy + graphheight * b[4], 1.0f, 1.0f, 1.0f, 1.0f, 0);
-		DrawQ_Line(1, graphx + graphwidth * a[0], graphy + graphheight * a[3], graphx + graphwidth * b[0], graphy + graphheight * b[3], 1.0f, 0.5f, 0.0f, 1.0f, 0);
-		DrawQ_Line(1, graphx + graphwidth * a[0], graphy + graphheight * a[6], graphx + graphwidth * b[0], graphy + graphheight * b[6], 0.0f, 0.0f, 1.0f, 1.0f, 0);
+		VectorSet(v->vertex3f, graphx + graphwidth * a[0], graphy + graphheight * a[2], 0.0f);Vector4Set(v->color4f, 1.0f, 1.0f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+		VectorSet(v->vertex3f, graphx + graphwidth * b[0], graphy + graphheight * b[2], 0.0f);Vector4Set(v->color4f, 1.0f, 1.0f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+
+		VectorSet(v->vertex3f, graphx + graphwidth * a[0], graphy + graphheight * a[1], 0.0f);Vector4Set(v->color4f, 1.0f, 0.0f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+		VectorSet(v->vertex3f, graphx + graphwidth * b[0], graphy + graphheight * b[1], 0.0f);Vector4Set(v->color4f, 1.0f, 0.0f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+
+		VectorSet(v->vertex3f, graphx + graphwidth * a[0], graphy + graphheight * a[5], 0.0f);Vector4Set(v->color4f, 0.0f, 1.0f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+		VectorSet(v->vertex3f, graphx + graphwidth * b[0], graphy + graphheight * b[5], 0.0f);Vector4Set(v->color4f, 0.0f, 1.0f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+
+		VectorSet(v->vertex3f, graphx + graphwidth * a[0], graphy + graphheight * a[4], 0.0f);Vector4Set(v->color4f, 1.0f, 1.0f, 1.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+		VectorSet(v->vertex3f, graphx + graphwidth * b[0], graphy + graphheight * b[4], 0.0f);Vector4Set(v->color4f, 1.0f, 1.0f, 1.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+
+		VectorSet(v->vertex3f, graphx + graphwidth * a[0], graphy + graphheight * a[3], 0.0f);Vector4Set(v->color4f, 1.0f, 0.5f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+		VectorSet(v->vertex3f, graphx + graphwidth * b[0], graphy + graphheight * b[3], 0.0f);Vector4Set(v->color4f, 1.0f, 0.5f, 0.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+
+		VectorSet(v->vertex3f, graphx + graphwidth * a[0], graphy + graphheight * a[6], 0.0f);Vector4Set(v->color4f, 0.0f, 0.0f, 1.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+		VectorSet(v->vertex3f, graphx + graphwidth * b[0], graphy + graphheight * b[6], 0.0f);Vector4Set(v->color4f, 0.0f, 0.0f, 1.0f, 1.0f);Vector2Set(v->texcoord2f, 0.0f, 0.0f);v++;
+
+		numlines += 6;
+	}
+	if (numlines > 0)
+	{
+		R_Mesh_PrepareVertices_Generic(numlines*2, vertex, NULL, 0);
+		DrawQ_Lines(0.0f, numlines, 0, false);
 	}
 	x = graphx;
 	y = graphy + graphheight;
@@ -372,6 +420,79 @@ static void SCR_DrawNetGraph (void)
 	}
 }
 
+#if 0 // Baker 1025
+static void SCR_DrawPos_Sub (int graphx, int graphy, int graphwidth, int graphheight, float graphscale, int graphlimit, const char *label, const char *s_angles, float textsize, int packetcounter, netgraphitem_t *netgraph)
+{
+	int x, y, numlines;
+	float g[NETGRAPH_PACKETS][7];
+	r_vertexgeneric_t vertex[(NETGRAPH_PACKETS+2)*6*2];
+	r_vertexgeneric_t *v;
+	DrawQ_Fill(graphx, graphy, graphwidth, graphheight + textsize * 2, 0, 0, 0, 0.5, 0);
+	// draw the bar graph itself
+	memset(g, 0, sizeof(g));
+	// render the lines for the graph
+	numlines = 0;
+	v = vertex;
+	x = graphx;
+	y = graphy + graphheight;
+	DrawQ_String(x + 8, y - 4, label      , 0, textsize, textsize, 1.0f, 1.0f, 1.0f, 1.0f, 0, NULL, false, FONT_DEFAULT);y += textsize;
+	DrawQ_String(x + 8, y - 4, s_angles, 0, textsize, textsize, 1.0f, 1.0f, 1.0f, 1.0f, 0, NULL, false, FONT_DEFAULT);y += textsize;
+}
+
+// Baker 1025.2
+static void SCR_DrawPos (void)
+{
+	int separator1, separator2, graphwidth, graphheight, netgraph_x, netgraph_y, textsize, index, netgraphsperrow, graphlimit;
+	float graphscale;
+	netconn_t *c;
+
+	if (cls.state != ca_connected)
+		return;
+	if (!cls.netcon)
+		return;
+	if (!scr_showpos.integer)
+		return;
+
+	separator1 = 2;
+	separator2 = 4;
+	textsize = 8;
+	graphwidth = 192;
+	graphheight = 12; // 0;
+	graphscale = 1.0f / 1500.0f;
+	graphlimit = cl_rate.integer;
+
+	netgraphsperrow = (vid_conwidth.integer + separator2) / (graphwidth * 2 + separator1 + separator2);
+	netgraphsperrow = max(netgraphsperrow, 1);
+
+	index = 0;
+	{
+		char vabuf[1024] = {0};
+		char vabuf2[1024] = {0};
+
+		if (cl.entities) {
+			va (vabuf, sizeof(vabuf), "Pos: %5.0f %5.0f %5.0f", 
+				cl.entities[cl.playerentity].state_current.origin[0], 
+				cl.entities[cl.playerentity].state_current.origin[1], 
+				cl.entities[cl.playerentity].state_current.origin[2] 
+				);
+				va (vabuf2, sizeof(vabuf2), "Ang: %5.0f %5.0f %5.0f", 
+				cl.entities[cl.playerentity].state_current.angles[0], 
+				cl.entities[cl.playerentity].state_current.angles[1], 
+				cl.entities[cl.playerentity].state_current.angles[2] 
+				);
+
+		}
+
+		netgraph_x = (vid_conwidth.integer + separator2) - (1 + (index % netgraphsperrow)) * (graphwidth * 2 + separator1 + separator2) + 40;
+		netgraph_y = (vid_conheight.integer - 48 - sbar_info_pos.integer + separator2) - (1 + (index / netgraphsperrow)) * (graphheight + textsize + separator2);
+		c = cls.netcon;
+		SCR_DrawPos_Sub(netgraph_x + (vid_conwidth.integer /6)                          , netgraph_y, graphwidth, graphheight, graphscale, graphlimit, vabuf, vabuf2, textsize, c->incoming_packetcounter, c->incoming_netgraph);
+		//SCR_DrawNetGraph_DrawGraph(netgraph_x + graphwidth + separator1, netgraph_y, graphwidth, graphheight, graphscale, graphlimit, "outgoing", textsize, c->outgoing_packetcounter, c->outgoing_netgraph);
+		index++;
+	}
+}
+#endif
+
 /*
 ==============
 SCR_DrawTurtle
@@ -409,7 +530,7 @@ static void SCR_DrawNet (void)
 {
 	if (cls.state != ca_connected)
 		return;
-	if (host.realtime - cl.last_received_message < 0.3)
+	if (realtime - cl.last_received_message < 0.3)
 		return;
 	if (cls.demoplayback)
 		return;
@@ -436,7 +557,7 @@ static void SCR_DrawPause (void)
 		return;
 
 	pic = Draw_CachePic ("gfx/pause");
-	DrawQ_Pic ((vid_conwidth.integer - Draw_GetPicWidth(pic))/2, (vid_conheight.integer - Draw_GetPicHeight(pic))/2, pic, 0, 0, 1, 1, 1, 1, 0);
+	DrawQ_Pic ((vid_conwidth.integer - pic->width)/2, (vid_conheight.integer - pic->height)/2, pic, 0, 0, 1, 1, 1, 1, 0);
 }
 
 /*
@@ -458,26 +579,26 @@ static void SCR_DrawBrand (void)
 	{
 	case 1:	// bottom left
 		x = 0;
-		y = vid_conheight.integer - Draw_GetPicHeight(pic);
+		y = vid_conheight.integer - pic->height;
 		break;
 	case 2:	// bottom centre
-		x = (vid_conwidth.integer - Draw_GetPicWidth(pic)) / 2;
-		y = vid_conheight.integer - Draw_GetPicHeight(pic);
+		x = (vid_conwidth.integer - pic->width) / 2;
+		y = vid_conheight.integer - pic->height;
 		break;
 	case 3:	// bottom right
-		x = vid_conwidth.integer - Draw_GetPicWidth(pic);
-		y = vid_conheight.integer - Draw_GetPicHeight(pic);
+		x = vid_conwidth.integer - pic->width;
+		y = vid_conheight.integer - pic->height;
 		break;
 	case 4:	// centre right
-		x = vid_conwidth.integer - Draw_GetPicWidth(pic);
-		y = (vid_conheight.integer - Draw_GetPicHeight(pic)) / 2;
+		x = vid_conwidth.integer - pic->width;
+		y = (vid_conheight.integer - pic->height) / 2;
 		break;
 	case 5:	// top right
-		x = vid_conwidth.integer - Draw_GetPicWidth(pic);
+		x = vid_conwidth.integer - pic->width;
 		y = 0;
 		break;
 	case 6:	// top centre
-		x = (vid_conwidth.integer - Draw_GetPicWidth(pic)) / 2;
+		x = (vid_conwidth.integer - pic->width) / 2;
 		y = 0;
 		break;
 	case 7:	// top left
@@ -486,7 +607,7 @@ static void SCR_DrawBrand (void)
 		break;
 	case 8:	// centre left
 		x = 0;
-		y = (vid_conheight.integer - Draw_GetPicHeight(pic)) / 2;
+		y = (vid_conheight.integer - pic->height) / 2;
 		break;
 	default:
 		return;
@@ -511,14 +632,14 @@ static int SCR_DrawQWDownload(int offset)
 	if (!cls.qw_downloadname[0])
 	{
 		cls.qw_downloadspeedrate = 0;
-		cls.qw_downloadspeedtime = host.realtime;
+		cls.qw_downloadspeedtime = realtime;
 		cls.qw_downloadspeedcount = 0;
 		return 0;
 	}
-	if (host.realtime >= cls.qw_downloadspeedtime + 1)
+	if (realtime >= cls.qw_downloadspeedtime + 1)
 	{
 		cls.qw_downloadspeedrate = cls.qw_downloadspeedcount;
-		cls.qw_downloadspeedtime = host.realtime;
+		cls.qw_downloadspeedtime = realtime;
 		cls.qw_downloadspeedcount = 0;
 	}
 	if (cls.protocol == PROTOCOL_QUAKEWORLD)
@@ -609,13 +730,11 @@ SCR_DrawInfobar
 */
 static void SCR_DrawInfobar(void)
 {
-	unsigned int offset = 0;
+	int offset = 0;
 	offset += SCR_DrawQWDownload(offset);
 	offset += SCR_DrawCurlDownload(offset);
 	if(scr_infobartime_off > 0)
 		offset += SCR_DrawInfobarString(offset);
-	if(!offset && scr_loading)
-		offset = scr_loadingscreen_barheight.integer;
 	if(offset != scr_con_margin_bottom)
 		Con_DPrintf("broken console margin calculation: %d != %d\n", offset, scr_con_margin_bottom);
 }
@@ -646,16 +765,18 @@ static int SCR_InfobarHeight(void)
 	return offset;
 }
 
+#include "jackit.c.h"
+
 /*
 ==============
 SCR_InfoBar_f
 ==============
 */
-static void SCR_InfoBar_f (cmd_state_t *cmd)
+static void SCR_InfoBar_f (void)
 {
-	if(Cmd_Argc(cmd) == 3) {
-		scr_infobartime_off = atof(Cmd_Argv(cmd, 1));
-		strlcpy(scr_infobarstring, Cmd_Argv(cmd, 2), sizeof(scr_infobarstring));
+	if(Cmd_Argc() == 3) {
+		scr_infobartime_off = atof(Cmd_Argv(1));
+		strlcpy(scr_infobarstring, Cmd_Argv(2), sizeof(scr_infobarstring));
 	} else {
 		Con_PrintLinef("usage:\ninfobar expiretime \"string\"");
 	}
@@ -669,6 +790,8 @@ SCR_SetUpToDrawConsole
 */
 static void SCR_SetUpToDrawConsole (void)
 {
+	// lines of console to display
+	float conlines;
 #ifdef CONFIG_MENU
 	static int framecounter = 0;
 #endif
@@ -687,20 +810,45 @@ static void SCR_SetUpToDrawConsole (void)
 		framecounter = 0;
 #endif
 
-	if (scr_conforcewhiledisconnected.integer >= 2 && key_dest == key_game && cls.signon != SIGNONS)
-		Flag_Add_To(key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4);
-	else if (scr_conforcewhiledisconnected.integer >= 1 && key_dest == key_game && cls.signon != SIGNONS && !sv.active)
-		Flag_Add_To(key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4); // |= KEY_CONSOLEACTIVE_FORCED;
-	else
-		Flag_Remove_From(key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4); // &= ~KEY_CONSOLEACTIVE_FORCED_4;
+	// Baker: let's show the console less during map load
+	// Let's give it a few frames before showing it
+	// In single player, it is very unlikely it will show if we have it wait
+	// for 20 frames.  That solves most of the issue.
+	// While still showing the console all the damn time if disconnected
+	// like how DarkPlaces is designed.
+	if (scr_conforcewhiledisconnected.integer && key_dest == key_game && cls.signon != SIGNONS) {
+		if (cls.connect_trying || cls.netcon) {
+			cls.connect_trying_frames ++;
+			if (cls.connect_trying_frames > 20 && cls.connect_trying_frames > (cl.loadmodel_total + 20) ) {
+				Flag_Add_To (key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4); // SUAVE Frames
+			} else {
+				goto wait_for_it;
+			}
+		} else {
+			Flag_Add_To (key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4); // SUAVE typical situatio
+		}
+	}
+	else {
+		
+wait_for_it:
+		Flag_Remove_From (key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4); // SUAVE ISH
+	}
 
-	// decide on the height of the console
-	if (Have_Flag(key_consoleactive, KEY_CONSOLEACTIVE_USER_1)) {
+// decide on the height of the console
+	if (Have_Flag (key_consoleactive, KEY_CONSOLEACTIVE_USER_1)) {
+		// Baker 1032.2
+		// Ok ... scr_con_current is a pixel amount often vid_conheight/2
+		// This is unadjusted so it might be, for example, 400 if height is 800
+		// This is the maximum, vid_conyheight - scr_con_margin_bottom)
+
+		//conlines = vid_conyheight/2;	// half screen
 		// Baker r0004: Ctrl + up/down size console like JoeQuake
-		scr_con_current = vid_conheight.integer *scr_conheight.value * console_user_pct; // Baker 1032.2
+		conlines = vid_conheight.integer * console_user_pct; // Baker 1032.2
 	}
 	else
-		scr_con_current = 0; // none visible
+		conlines = 0;				// none visible
+
+	scr_con_current = conlines;
 }
 
 /*
@@ -710,19 +858,555 @@ SCR_DrawConsole
 */
 void SCR_DrawConsole (void)
 {
-	// infobar and loading progress are not drawn simultaneously
-	scr_con_margin_bottom = SCR_InfobarHeight() ? scr_loading * scr_loadingscreen_barheight.integer : 0;
-	if (Have_Flag (key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4)) {
+	scr_con_margin_bottom = SCR_InfobarHeight();
+	if (Have_Flag (key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4))
+	{
 		// full screen
-		Con_DrawConsole (vid_conheight.integer - scr_con_margin_bottom);
+		Con_DrawConsole (vid_conheight.integer - scr_con_margin_bottom); // SUAVE
 	}
 	else if (scr_con_current)
-		Con_DrawConsole (min(scr_con_current, vid_conheight.integer - scr_con_margin_bottom));
+		Con_DrawConsole (min((int)scr_con_current, vid_conheight.integer - scr_con_margin_bottom)); // SUAVE
 	else
 		con_vislines = 0;
 }
 
+/*
+===============
+SCR_BeginLoadingPlaque
+
+================
+*/
+void SCR_BeginLoadingPlaque (qbool startup)
+{
+	// save console log up to this point to log_file if it was set by configs
+	Log_Start();
+
+	Host_StartVideo();
+	SCR_UpdateLoadingScreen(false, startup);
+}
+
 //=============================================================================
+
+const char *r_stat_name[r_stat_count] =
+{
+	"timedelta",
+	"quality",
+	"renders",
+	"entities",
+	"entities_surfaces",
+	"entities_triangles",
+	"world_leafs",
+	"world_portals",
+	"world_surfaces",
+	"world_triangles",
+	"lightmapupdates",
+	"lightmapupdatepixels",
+	"particles",
+	"drawndecals",
+	"totaldecals",
+	"draws",
+	"draws_vertices",
+	"draws_elements",
+	"lights",
+	"lights_clears",
+	"lights_scissored",
+	"lights_lighttriangles",
+	"lights_shadowtriangles",
+	"lights_dynamicshadowtriangles",
+	"bouncegrid_lights",
+	"bouncegrid_particles",
+	"bouncegrid_traces",
+	"bouncegrid_hits",
+	"bouncegrid_splats",
+	"bouncegrid_bounces",
+	"photoncache_animated",
+	"photoncache_cached",
+	"photoncache_traced",
+	"bloom",
+	"bloom_copypixels",
+	"bloom_drawpixels",
+	"indexbufferuploadcount",
+	"indexbufferuploadsize",
+	"vertexbufferuploadcount",
+	"vertexbufferuploadsize",
+	"framedatacurrent",
+	"framedatasize",
+	"bufferdatacurrent_vertex", // R_BUFFERDATA_ types are added to this index
+	"bufferdatacurrent_index16",
+	"bufferdatacurrent_index32",
+	"bufferdatacurrent_uniform",
+	"bufferdatasize_vertex", // R_BUFFERDATA_ types are added to this index
+	"bufferdatasize_index16",
+	"bufferdatasize_index32",
+	"bufferdatasize_uniform",
+	"animcache_vertexmesh_count",
+	"animcache_vertexmesh_vertices",
+	"animcache_vertexmesh_maxvertices",
+	"animcache_skeletal_count",
+	"animcache_skeletal_bones",
+	"animcache_skeletal_maxbones",
+	"animcache_shade_count",
+	"animcache_shade_vertices",
+	"animcache_shade_maxvertices",
+	"animcache_shape_count",
+	"animcache_shape_vertices",
+	"animcache_shape_maxvertices",
+	"batch_batches",
+	"batch_withgaps",
+	"batch_surfaces",
+	"batch_vertices",
+	"batch_triangles",
+	"fast_batches",
+	"fast_surfaces",
+	"fast_vertices",
+	"fast_triangles",
+	"copytriangles_batches",
+	"copytriangles_surfaces",
+	"copytriangles_vertices",
+	"copytriangles_triangles",
+	"dynamic_batches",
+	"dynamic_surfaces",
+	"dynamic_vertices",
+	"dynamic_triangles",
+	"dynamicskeletal_batches",
+	"dynamicskeletal_surfaces",
+	"dynamicskeletal_vertices",
+	"dynamicskeletal_triangles",
+	"dynamic_batches_because_cvar",
+	"dynamic_surfaces_because_cvar",
+	"dynamic_vertices_because_cvar",
+	"dynamic_triangles_because_cvar",
+	"dynamic_batches_because_lightmapvertex",
+	"dynamic_surfaces_because_lightmapvertex",
+	"dynamic_vertices_because_lightmapvertex",
+	"dynamic_triangles_because_lightmapvertex",
+	"dynamic_batches_because_deformvertexes_autosprite",
+	"dynamic_surfaces_because_deformvertexes_autosprite",
+	"dynamic_vertices_because_deformvertexes_autosprite",
+	"dynamic_triangles_because_deformvertexes_autosprite",
+	"dynamic_batches_because_deformvertexes_autosprite2",
+	"dynamic_surfaces_because_deformvertexes_autosprite2",
+	"dynamic_vertices_because_deformvertexes_autosprite2",
+	"dynamic_triangles_because_deformvertexes_autosprite2",
+	"dynamic_batches_because_deformvertexes_normal",
+	"dynamic_surfaces_because_deformvertexes_normal",
+	"dynamic_vertices_because_deformvertexes_normal",
+	"dynamic_triangles_because_deformvertexes_normal",
+	"dynamic_batches_because_deformvertexes_wave",
+	"dynamic_surfaces_because_deformvertexes_wave",
+	"dynamic_vertices_because_deformvertexes_wave",
+	"dynamic_triangles_because_deformvertexes_wave",
+	"dynamic_batches_because_deformvertexes_bulge",
+	"dynamic_surfaces_because_deformvertexes_bulge",
+	"dynamic_vertices_because_deformvertexes_bulge",
+	"dynamic_triangles_because_deformvertexes_bulge",
+	"dynamic_batches_because_deformvertexes_move",
+	"dynamic_surfaces_because_deformvertexes_move",
+	"dynamic_vertices_because_deformvertexes_move",
+	"dynamic_triangles_because_deformvertexes_move",
+	"dynamic_batches_because_tcgen_lightmap",
+	"dynamic_surfaces_because_tcgen_lightmap",
+	"dynamic_vertices_because_tcgen_lightmap",
+	"dynamic_triangles_because_tcgen_lightmap",
+	"dynamic_batches_because_tcgen_vector",
+	"dynamic_surfaces_because_tcgen_vector",
+	"dynamic_vertices_because_tcgen_vector",
+	"dynamic_triangles_because_tcgen_vector",
+	"dynamic_batches_because_tcgen_environment",
+	"dynamic_surfaces_because_tcgen_environment",
+	"dynamic_vertices_because_tcgen_environment",
+	"dynamic_triangles_because_tcgen_environment",
+	"dynamic_batches_because_tcmod_turbulent",
+	"dynamic_surfaces_because_tcmod_turbulent",
+	"dynamic_vertices_because_tcmod_turbulent",
+	"dynamic_triangles_because_tcmod_turbulent",
+	"dynamic_batches_because_interleavedarrays",
+	"dynamic_surfaces_because_interleavedarrays",
+	"dynamic_vertices_because_interleavedarrays",
+	"dynamic_triangles_because_interleavedarrays",
+	"dynamic_batches_because_nogaps",
+	"dynamic_surfaces_because_nogaps",
+	"dynamic_vertices_because_nogaps",
+	"dynamic_triangles_because_nogaps",
+	"dynamic_batches_because_derived",
+	"dynamic_surfaces_because_derived",
+	"dynamic_vertices_because_derived",
+	"dynamic_triangles_because_derived",
+	"entitycache_count",
+	"entitycache_surfaces",
+	"entitycache_vertices",
+	"entitycache_triangles",
+	"entityanimate_count",
+	"entityanimate_surfaces",
+	"entityanimate_vertices",
+	"entityanimate_triangles",
+	"entityskeletal_count",
+	"entityskeletal_surfaces",
+	"entityskeletal_vertices",
+	"entityskeletal_triangles",
+	"entitystatic_count",
+	"entitystatic_surfaces",
+	"entitystatic_vertices",
+	"entitystatic_triangles",
+	"entitycustom_count",
+	"entitycustom_surfaces",
+	"entitycustom_vertices",
+	"entitycustom_triangles",
+};
+
+char r_speeds_timestring[4096];
+int speedstringcount, r_timereport_active;
+double r_timereport_temp = 0, r_timereport_current = 0, r_timereport_start = 0;
+int r_speeds_longestitem = 0;
+
+void R_TimeReport(const char *desc)
+{
+	char tempbuf[256];
+	int length;
+	int t;
+
+	if (r_speeds.integer < 2 || !r_timereport_active)
+		return;
+
+	CHECKGLERROR
+	if (r_speeds.integer == 2)
+		GL_Finish();
+	CHECKGLERROR
+	r_timereport_temp = r_timereport_current;
+	r_timereport_current = Sys_DirtyTime();
+	t = (int) ((r_timereport_current - r_timereport_temp) * 1000000.0 + 0.5);
+
+	length = dpsnprintf(tempbuf, sizeof(tempbuf), "%8i %s", t, desc);
+	if (length < 0)
+		length = (int)sizeof(tempbuf) - 1;
+	if (r_speeds_longestitem < length)
+		r_speeds_longestitem = length;
+	for (;length < r_speeds_longestitem;length++)
+		tempbuf[length] = ' ';
+	tempbuf[length] = 0;
+
+	if (speedstringcount + length > (vid_conwidth.integer / 8))
+	{
+		strlcat(r_speeds_timestring, "\n", sizeof(r_speeds_timestring));
+		speedstringcount = 0;
+	}
+	strlcat(r_speeds_timestring, tempbuf, sizeof(r_speeds_timestring));
+	speedstringcount += length;
+}
+
+static void R_TimeReport_BeginFrame(void)
+{
+	speedstringcount = 0;
+	r_speeds_timestring[0] = 0;
+	r_timereport_active = false;
+	memset(&r_refdef.stats, 0, sizeof(r_refdef.stats));
+
+	if (r_speeds.integer >= 2)
+	{
+		r_timereport_active = true;
+		r_timereport_start = r_timereport_current = Sys_DirtyTime();
+	}
+}
+
+static int R_CountLeafTriangles(const model_t *model, const mleaf_t *leaf)
+{
+	int i, triangles = 0;
+	for (i = 0;i < leaf->numleafsurfaces;i++)
+		triangles += model->data_surfaces[leaf->firstleafsurface[i]].num_triangles;
+	return triangles;
+}
+
+#define R_SPEEDS_GRAPH_COLORS 8
+#define R_SPEEDS_GRAPH_TEXTLENGTH 64
+static float r_speeds_graph_colors[R_SPEEDS_GRAPH_COLORS][4] = {{1, 0, 0, 1}, {0, 1, 0, 1}, {0, 0, 1, 1}, {1, 1, 0, 1}, {0, 1, 1, 1}, {1, 0, 1, 1}, {1, 1, 1, 1}, {1, 0.5f, 0, 1}};
+
+extern cvar_t r_viewscale;
+extern float viewscalefpsadjusted;
+static void R_TimeReport_EndFrame(void)
+{
+	int j, lines;
+	cl_locnode_t *loc;
+	char string[1024+4096];
+	mleaf_t *viewleaf;
+	static double oldtime = 0;
+
+	r_refdef.stats[r_stat_timedelta] = (int)((realtime - oldtime) * 1000000.0);
+	oldtime = realtime;
+	r_refdef.stats[r_stat_quality] = (int)(100 * r_refdef.view.quality);
+
+	string[0] = 0;
+	if (r_speeds.integer)
+	{
+		// put the location name in the r_speeds display as it greatly helps
+		// when creating loc files
+		loc = CL_Locs_FindNearest(cl.movement_origin);
+		viewleaf = (r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->brush.PointInLeaf) ? r_refdef.scene.worldmodel->brush.PointInLeaf(r_refdef.scene.worldmodel, r_refdef.view.origin) : NULL;
+		dpsnprintf(string, sizeof(string),
+"%6ius time delta %s%s %.3f cl.time%2.4f brightness\n"
+"%3i renders org:'%+8.2f %+8.2f %+8.2f' dir:'%+2.3f %+2.3f %+2.3f'\n"
+"%5i viewleaf%5i cluster%3i area%4i brushes%4i surfaces(%7i triangles)\n"
+"%7i surfaces%7i triangles %5i entities (%7i surfaces%7i triangles)\n"
+"%5i leafs%5i portals%6i/%6i particles%6i/%6i decals %3i%% quality\n"
+"%7i lightmap updates (%7i pixels)%8i/%8i framedata\n"
+"%4i lights%4i clears%4i scissored%7i light%7i shadow%7i dynamic\n"
+"bouncegrid:%4i lights%6i particles%6i traces%6i hits%6i splats%6i bounces\n"
+"photon cache efficiency:%6i cached%6i traced%6ianimated\n"
+"%6i draws%8i vertices%8i triangles bloompixels%8i copied%8i drawn\n"
+"updated%5i indexbuffers%8i bytes%5i vertexbuffers%8i bytes\n"
+"animcache%5ib gpuskeletal%7i vertices (%7i with normals)\n"
+"fastbatch%5i count%5i surfaces%7i vertices %7i triangles\n"
+"copytris%5i count%5i surfaces%7i vertices %7i triangles\n"
+"dynamic%5i count%5i surfaces%7i vertices%7i triangles\n"
+"%s"
+, r_refdef.stats[r_stat_timedelta], loc ? "Location: " : "", loc ? loc->name : "", cl.time, r_refdef.view.colorscale
+, r_refdef.stats[r_stat_renders], r_refdef.view.origin[0], r_refdef.view.origin[1], r_refdef.view.origin[2], r_refdef.view.forward[0], r_refdef.view.forward[1], r_refdef.view.forward[2]
+, viewleaf ? (int)(viewleaf - r_refdef.scene.worldmodel->brush.data_leafs) : -1, viewleaf ? viewleaf->clusterindex : -1, viewleaf ? viewleaf->areaindex : -1, viewleaf ? viewleaf->numleafbrushes : 0, viewleaf ? viewleaf->numleafsurfaces : 0, viewleaf ? R_CountLeafTriangles(r_refdef.scene.worldmodel, viewleaf) : 0
+, r_refdef.stats[r_stat_world_surfaces], r_refdef.stats[r_stat_world_triangles], r_refdef.stats[r_stat_entities], r_refdef.stats[r_stat_entities_surfaces], r_refdef.stats[r_stat_entities_triangles]
+, r_refdef.stats[r_stat_world_leafs], r_refdef.stats[r_stat_world_portals], r_refdef.stats[r_stat_particles], cl.num_particles, r_refdef.stats[r_stat_drawndecals], r_refdef.stats[r_stat_totaldecals], r_refdef.stats[r_stat_quality]
+, r_refdef.stats[r_stat_lightmapupdates], r_refdef.stats[r_stat_lightmapupdatepixels], r_refdef.stats[r_stat_framedatacurrent], r_refdef.stats[r_stat_framedatasize]
+, r_refdef.stats[r_stat_lights], r_refdef.stats[r_stat_lights_clears], r_refdef.stats[r_stat_lights_scissored], r_refdef.stats[r_stat_lights_lighttriangles], r_refdef.stats[r_stat_lights_shadowtriangles], r_refdef.stats[r_stat_lights_dynamicshadowtriangles]
+, r_refdef.stats[r_stat_bouncegrid_lights], r_refdef.stats[r_stat_bouncegrid_particles], r_refdef.stats[r_stat_bouncegrid_traces], r_refdef.stats[r_stat_bouncegrid_hits], r_refdef.stats[r_stat_bouncegrid_splats], r_refdef.stats[r_stat_bouncegrid_bounces]
+, r_refdef.stats[r_stat_photoncache_cached], r_refdef.stats[r_stat_photoncache_traced], r_refdef.stats[r_stat_photoncache_animated]
+, r_refdef.stats[r_stat_draws], r_refdef.stats[r_stat_draws_vertices], r_refdef.stats[r_stat_draws_elements] / 3, r_refdef.stats[r_stat_bloom_copypixels], r_refdef.stats[r_stat_bloom_drawpixels]
+, r_refdef.stats[r_stat_indexbufferuploadcount], r_refdef.stats[r_stat_indexbufferuploadsize], r_refdef.stats[r_stat_vertexbufferuploadcount], r_refdef.stats[r_stat_vertexbufferuploadsize]
+, r_refdef.stats[r_stat_animcache_skeletal_bones], r_refdef.stats[r_stat_animcache_shape_vertices], r_refdef.stats[r_stat_animcache_shade_vertices]
+, r_refdef.stats[r_stat_batch_fast_batches], r_refdef.stats[r_stat_batch_fast_surfaces], r_refdef.stats[r_stat_batch_fast_vertices], r_refdef.stats[r_stat_batch_fast_triangles]
+, r_refdef.stats[r_stat_batch_copytriangles_batches], r_refdef.stats[r_stat_batch_copytriangles_surfaces], r_refdef.stats[r_stat_batch_copytriangles_vertices], r_refdef.stats[r_stat_batch_copytriangles_triangles]
+, r_refdef.stats[r_stat_batch_dynamic_batches], r_refdef.stats[r_stat_batch_dynamic_surfaces], r_refdef.stats[r_stat_batch_dynamic_vertices], r_refdef.stats[r_stat_batch_dynamic_triangles]
+, r_speeds_timestring);
+	}
+
+	speedstringcount = 0;
+	r_speeds_timestring[0] = 0;
+	r_timereport_active = false;
+
+	if (r_speeds.integer >= 2)
+	{
+		r_timereport_active = true;
+		r_timereport_start = r_timereport_current = Sys_DirtyTime();
+	}
+
+	if (string[0])
+	{
+		int i, y;
+		if (string[strlen(string)-1] == '\n')
+			string[strlen(string)-1] = 0;
+		lines = 1;
+		for (i = 0;string[i];i++)
+			if (string[i] == '\n')
+				lines++;
+		y = vid_conheight.integer - sb_lines - lines * 8;
+		i = j = 0;
+		r_draw2d_force = true;
+		DrawQ_Fill(0, y, vid_conwidth.integer, lines * 8, 0, 0, 0, 0.5, 0);
+		while (string[i])
+		{
+			j = i;
+			while (string[i] && string[i] != '\n')
+				i++;
+			if (i - j > 0)
+				DrawQ_String(0, y, string + j, i - j, 8, 8, 1, 1, 1, 1, 0, NULL, true, FONT_DEFAULT);
+			if (string[i] == '\n')
+				i++;
+			y += 8;
+		}
+		r_draw2d_force = false;
+	}
+
+	if (r_speeds_graph_length.integer != bound(4, r_speeds_graph_length.integer, 8192))
+		Cvar_SetValueQuick(&r_speeds_graph_length, bound(4, r_speeds_graph_length.integer, 8192));
+	if (fabs(r_speeds_graph_seconds.value - bound(0.1f, r_speeds_graph_seconds.value, 120.0f)) > 0.01f)
+		Cvar_SetValueQuick(&r_speeds_graph_seconds, bound(0.1f, r_speeds_graph_seconds.value, 120.0f));
+	if (r_speeds_graph.integer)
+	{
+		// if we currently have no graph data, reset the graph data entirely
+		int i;
+		if (!cls.r_speeds_graph_data)
+			for (i = 0;i < r_stat_count;i++)
+				cls.r_speeds_graph_datamin[i] = cls.r_speeds_graph_datamax[i] = 0;
+		if (cls.r_speeds_graph_length != r_speeds_graph_length.integer)
+		{
+			int stat, index, d, graph_length, *graph_data;
+			cls.r_speeds_graph_length = r_speeds_graph_length.integer;
+			cls.r_speeds_graph_current = 0;
+			if (cls.r_speeds_graph_data)
+				Mem_Free(cls.r_speeds_graph_data);
+			cls.r_speeds_graph_data = (int *)Mem_Alloc(cls.permanentmempool, cls.r_speeds_graph_length * sizeof(r_refdef.stats));
+			// initialize the graph to have the current values throughout history
+			graph_data = cls.r_speeds_graph_data;
+			graph_length = cls.r_speeds_graph_length;
+			index = 0;
+			for (stat = 0;stat < r_stat_count;stat++)
+			{
+				d = r_refdef.stats[stat];
+				if (stat == r_stat_timedelta)
+					d = 0;
+				for (i = 0;i < graph_length;i++)
+					graph_data[index++] = d;
+			}
+		}
+	}
+	else
+	{
+		if (cls.r_speeds_graph_length)
+		{
+			cls.r_speeds_graph_length = 0;
+			Mem_Free(cls.r_speeds_graph_data);
+			cls.r_speeds_graph_data = NULL;
+			cls.r_speeds_graph_current = 0;
+		}
+	}
+
+	if (cls.r_speeds_graph_length)
+	{
+		char legend[128];
+		r_vertexgeneric_t *v;
+		int i, numlines;
+		const int *data;
+		float x, y, width, height, scalex, scaley;
+		int range_default = max(r_speeds_graph_maxdefault.integer, 1);
+		int color, stat, stats, index, range_min, range_max;
+		int graph_current, graph_length, *graph_data;
+		int statindex[R_SPEEDS_GRAPH_COLORS];
+		int sum;
+
+		// add current stats to the graph_data
+		cls.r_speeds_graph_current++;
+		if (cls.r_speeds_graph_current >= cls.r_speeds_graph_length)
+			cls.r_speeds_graph_current = 0;
+		// poke each new stat into the current offset of its graph
+		graph_data = cls.r_speeds_graph_data;
+		graph_current = cls.r_speeds_graph_current;
+		graph_length = cls.r_speeds_graph_length;
+		for (stat = 0;stat < r_stat_count;stat++)
+			graph_data[stat * graph_length + graph_current] = r_refdef.stats[stat];
+
+		// update the graph ranges
+		for (stat = 0;stat < r_stat_count;stat++)
+		{
+			if (cls.r_speeds_graph_datamin[stat] > r_refdef.stats[stat])
+				cls.r_speeds_graph_datamin[stat] = r_refdef.stats[stat];
+			if (cls.r_speeds_graph_datamax[stat] < r_refdef.stats[stat])
+				cls.r_speeds_graph_datamax[stat] = r_refdef.stats[stat];
+		}
+
+		// force 2D drawing to occur even if r_render is 0
+		r_draw2d_force = true;
+
+		// position the graph
+		width = r_speeds_graph_width.value;
+		height = r_speeds_graph_height.value;
+		x = bound(0, r_speeds_graph_x.value, vid_conwidth.value - width);
+		y = bound(0, r_speeds_graph_y.value, vid_conheight.value - height);
+
+		// fill background with a pattern of gray and black at one second intervals
+		scalex = (float)width / (float)r_speeds_graph_seconds.value;
+		for (i = 0;i < r_speeds_graph_seconds.integer + 1;i++)
+		{
+			float x1 = x + width - (i + 1) * scalex;
+			float x2 = x + width - i * scalex;
+			if (x1 < x)
+				x1 = x;
+			if (i & 1)
+				DrawQ_Fill(x1, y, x2 - x1, height, 0.0f, 0.0f, 0.0f, 0.5f, 0);
+			else
+				DrawQ_Fill(x1, y, x2 - x1, height, 0.2f, 0.2f, 0.2f, 0.5f, 0);
+		}
+
+		// count how many stats match our pattern
+		stats = 0;
+		color = 0;
+		for (color = 0;color < R_SPEEDS_GRAPH_COLORS;color++)
+		{
+			// look at all stat names and find ones matching the filter
+			statindex[color] = -1;
+			if (!r_speeds_graph_filter[color].string)
+				continue;
+			for (stat = 0;stat < r_stat_count;stat++)
+				if (String_Does_Match(r_stat_name[stat], r_speeds_graph_filter[color].string))
+					break;
+			if (stat >= r_stat_count)
+				continue;
+			// record that this color is this stat for the line drawing loop
+			statindex[color] = stat;
+			// draw the legend text in the background of the graph
+			dpsnprintf(legend, sizeof(legend), "%10i :%s", graph_data[stat * graph_length + graph_current], r_stat_name[stat]);
+			DrawQ_String(x, y + stats * 8, legend, 0, 8, 8, r_speeds_graph_colors[color][0], r_speeds_graph_colors[color][1], r_speeds_graph_colors[color][2], r_speeds_graph_colors[color][3] * 1.00f, 0, NULL, true, FONT_DEFAULT);
+			// count how many stats we need to graph in vertex buffer
+			stats++;
+		}
+
+		if (stats)
+		{
+			// legend text is drawn after the graphs
+			// render the graph lines, we'll go back and render the legend text later
+			scalex = (float)width / (1000000.0 * r_speeds_graph_seconds.value);
+			// get space in a vertex buffer to draw this
+			numlines = stats * (graph_length - 1);
+			v = R_Mesh_PrepareVertices_Generic_Lock(numlines * 2);
+			stats = 0;
+			for (color = 0;color < R_SPEEDS_GRAPH_COLORS;color++)
+			{
+				// look at all stat names and find ones matching the filter
+				stat = statindex[color];
+				if (stat < 0)
+					continue;
+				// prefer to graph stats with 0 base, but if they are
+				// negative we have no choice
+				range_min = cls.r_speeds_graph_datamin[stat];
+				range_max = max(cls.r_speeds_graph_datamax[stat], range_min + range_default);
+				// some stats we specifically override the graph scale on
+				if (stat == r_stat_timedelta)
+					range_max = r_speeds_graph_maxtimedelta.integer;
+				scaley = height / (range_max - range_min);
+				// generate lines (2 vertices each)
+				// to deal with incomplete data we walk right to left
+				data = graph_data + stat * graph_length;
+				index = graph_current;
+				sum = 0;
+				for (i = 0;i < graph_length - 1;)
+				{
+					v->vertex3f[0] = x + width - sum * scalex;
+					if (v->vertex3f[0] < x)
+						v->vertex3f[0] = x;
+					v->vertex3f[1] = y + height - (data[index] - range_min) * scaley;
+					v->vertex3f[2] = 0;
+					v->color4f[0] = r_speeds_graph_colors[color][0];
+					v->color4f[1] = r_speeds_graph_colors[color][1];
+					v->color4f[2] = r_speeds_graph_colors[color][2];
+					v->color4f[3] = r_speeds_graph_colors[color][3];
+					v->texcoord2f[0] = 0;
+					v->texcoord2f[1] = 0;
+					v++;
+					sum += graph_data[r_stat_timedelta * graph_length + index];
+					index--;
+					if (index < 0)
+						index = graph_length - 1;
+					i++;
+					v->vertex3f[0] = x + width - sum * scalex;
+					if (v->vertex3f[0] < x)
+						v->vertex3f[0] = x;
+					v->vertex3f[1] = y + height - (data[index] - range_min) * scaley;
+					v->vertex3f[2] = 0;
+					v->color4f[0] = r_speeds_graph_colors[color][0];
+					v->color4f[1] = r_speeds_graph_colors[color][1];
+					v->color4f[2] = r_speeds_graph_colors[color][2];
+					v->color4f[3] = r_speeds_graph_colors[color][3];
+					v->texcoord2f[0] = 0;
+					v->texcoord2f[1] = 0;
+					v++;
+				}
+			}
+			R_Mesh_PrepareVertices_Generic_Unlock();
+			DrawQ_Lines(0.0f, numlines, 0, false);
+		}
+
+		// return to not drawing anything if r_render is 0
+		r_draw2d_force = false;
+	}
+
+	memset(&r_refdef.stats, 0, sizeof(r_refdef.stats));
+}
 
 /*
 =================
@@ -731,9 +1415,9 @@ SCR_SizeUp_f
 Keybinding command
 =================
 */
-static void SCR_SizeUp_f (cmd_state_t *cmd)
+static void SCR_SizeUp_f (void)
 {
-	Cvar_SetValueQuick (&scr_viewsize, scr_viewsize.value + 10);
+	Cvar_SetValueQuick (&scr_viewsize, scr_viewsize.value+10);
 }
 
 
@@ -744,9 +1428,9 @@ SCR_SizeDown_f
 Keybinding command
 =================
 */
-static void SCR_SizeDown_f (cmd_state_t *cmd)
+static void SCR_SizeDown_f (void)
 {
-	Cvar_SetValueQuick(&scr_viewsize, scr_viewsize.value - 10);
+	Cvar_SetValueQuick (&scr_viewsize, scr_viewsize.value-10);
 }
 
 #ifdef CONFIG_VIDEO_CAPTURE
@@ -758,6 +1442,14 @@ void CL_Screen_Shutdown(void)
 	SCR_CaptureVideo_EndVideo();
 #endif
 }
+
+#if 0
+// Baker 1025.7
+static void SCR_R_Pos_f (void)
+{
+	Cvar_SetValue (scr_showpos.name,  !scr_showpos.integer);
+}
+#endif
 
 void CL_Screen_Init(void)
 {
@@ -776,12 +1468,11 @@ void CL_Screen_Init(void)
 	Cvar_RegisterVariable (&scr_conscroll3_y);
 	Cvar_RegisterVariable (&scr_conbrightness);
 	Cvar_RegisterVariable (&scr_conforcewhiledisconnected);
-	Cvar_RegisterVariable (&scr_conheight);
 
 	// Baker r7003, r7004
 	Cvar_RegisterVariable (&csqc_full_width_height);
 	Cvar_RegisterVariable (&csqc_full_width_height_available);
-
+	
 #ifdef CONFIG_MENU
 	Cvar_RegisterVariable (&scr_menuforcewhiledisconnected);
 #endif
@@ -804,13 +1495,13 @@ void CL_Screen_Init(void)
 	Cvar_RegisterVariable (&scr_printspeed);
 	Cvar_RegisterVariable (&vid_conwidth);
 	Cvar_RegisterVariable (&vid_conheight);
-
+	
 	Cvar_RegisterVariable (&vid_pixelheight);
-	//Cvar_RegisterVariable (&vid_conwidthauto); // Baker r0005
 	Cvar_RegisterVariable (&scr_screenshot_jpeg);
 	Cvar_RegisterVariable (&scr_screenshot_jpeg_quality);
 	Cvar_RegisterVariable (&scr_screenshot_png);
 	Cvar_RegisterVariable (&scr_screenshot_gammaboost);
+	Cvar_RegisterVariable (&scr_screenshot_hwgamma);
 	Cvar_RegisterVariable (&scr_screenshot_name_in_mapdir);
 	Cvar_RegisterVariable (&scr_screenshot_alpha);
 	Cvar_RegisterVariable (&scr_screenshot_timestamp);
@@ -827,6 +1518,11 @@ void CL_Screen_Init(void)
 	Cvar_RegisterVariable (&cl_capturevideo_ogg);
 	Cvar_RegisterVariable (&cl_capturevideo_framestep);
 #endif
+	
+	Cvar_RegisterVariable (&tool_inspector);
+	Cvar_RegisterVariable (&tool_show_position);
+	Cvar_RegisterVariable (&tool_show_angles);
+
 	Cvar_RegisterVariable (&r_letterbox);
 	Cvar_RegisterVariable(&r_stereo_separation);
 	Cvar_RegisterVariable(&r_stereo_sidebyside);
@@ -839,7 +1535,8 @@ void CL_Screen_Init(void)
 	Cvar_RegisterVariable(&scr_stipple);
 	Cvar_RegisterVariable(&scr_refresh);
 	Cvar_RegisterVariable(&net_graph);
-	Cvar_RegisterVirtual(&net_graph, "shownetgraph");
+//	Cvar_RegisterVariable(&scr_showpos); // Baker 1025.5
+	
 	Cvar_RegisterVariable(&cl_demo_mousegrab);
 	Cvar_RegisterVariable(&timedemo_screenshotframelist);
 	Cvar_RegisterVariable(&vid_touchscreen_outlinealpha);
@@ -860,11 +1557,14 @@ void CL_Screen_Init(void)
 	if (Sys_CheckParm ("-noconsole"))
 		Cvar_SetQuick(&scr_conforcewhiledisconnected, "0");
 
-	Cmd_AddCommand(CF_CLIENT, "sizeup",SCR_SizeUp_f, "increase view size (increases viewsize cvar)");
-	Cmd_AddCommand(CF_CLIENT, "sizedown",SCR_SizeDown_f, "decrease view size (decreases viewsize cvar)");
-	Cmd_AddCommand(CF_CLIENT, "screenshot",SCR_ScreenShot_f, "takes a screenshot of the next rendered frame");
-	Cmd_AddCommand(CF_CLIENT, "envmap", R_Envmap_f, "render a cubemap (skybox) of the current scene");
-	Cmd_AddCommand(CF_CLIENT, "infobar", SCR_InfoBar_f, "display a text in the infobar (usage: infobar expiretime string)");
+	//Cmd_AddCommand ("r_pos", SCR_R_Pos_f, "toggle drawing current position on-screen"); // Baker 1025.6
+	Cmd_AddCommand ("sizeup", SCR_SizeUp_f, "increase view size (increases viewsize cvar)");
+	Cmd_AddCommand ("sizedown", SCR_SizeDown_f, "decrease view size (decreases viewsize cvar)");
+	Cmd_AddCommand ("screenshot", SCR_ScreenShot_f, "takes a screenshot of the next rendered frame");
+	Cmd_AddCommand ("envmap", R_Envmap_f, "render a cubemap (skybox) of the current scene");
+	Cmd_AddCommand ("infobar", SCR_InfoBar_f, "display a text in the infobar (usage: infobar expiretime string)");
+	WARP_X_ (SCR_Jackit_f)
+	Cmd_AddCommand ("jack_update", SCR_Jackit_f, "Update scripts/shaderlist.txt and write .shader copies to gamedir/_jack_shaders folder [Zircon]");
 
 #ifdef CONFIG_VIDEO_CAPTURE
 	SCR_CaptureVideo_Ogg_Init();
@@ -878,7 +1578,7 @@ void CL_Screen_Init(void)
 SCR_ScreenShot_f
 ==================
 */
-void SCR_ScreenShot_f (cmd_state_t *cmd)
+void SCR_ScreenShot_f (void)
 {
 	static int shotnumber;
 	static char old_prefix_name[MAX_QPATH];
@@ -890,9 +1590,9 @@ void SCR_ScreenShot_f (cmd_state_t *cmd)
 	qbool png = (scr_screenshot_png.integer != 0) && !jpeg;
 	char vabuf[1024];
 
-	if (Cmd_Argc(cmd) == 2) {
+	if (Cmd_Argc() == 2) {
 		const char *ext;
-		c_strlcpy(filename, Cmd_Argv(cmd, 1));
+		c_strlcpy(filename, Cmd_Argv(1));
 		ext = FS_FileExtension(filename);
 		if (String_Does_Match_Caseless(ext, "jpg"))
 		{
@@ -1029,9 +1729,9 @@ static void SCR_CaptureVideo_BeginVideo(void)
 	cls.capturevideo.framestep = cl_capturevideo_framestep.integer;
 	cls.capturevideo.soundrate = S_GetSoundRate();
 	cls.capturevideo.soundchannels = S_GetSoundChannels();
-	cls.capturevideo.startrealtime = host.realtime;
+	cls.capturevideo.startrealtime = realtime;
 	cls.capturevideo.frame = cls.capturevideo.lastfpsframe = 0;
-	cls.capturevideo.starttime = cls.capturevideo.lastfpstime = host.realtime;
+	cls.capturevideo.starttime = cls.capturevideo.lastfpstime = realtime;
 	cls.capturevideo.soundsampleframe = 0;
 	cls.capturevideo.realtime = cl_capturevideo_realtime.integer != 0;
 	cls.capturevideo.screenbuffer = (unsigned char *)Mem_Alloc(tempmempool, vid.width * vid.height * 4);
@@ -1057,10 +1757,17 @@ Cb = R * -.169 + G * -.332 + B *  .500 + 128.;
 Cr = R *  .500 + G * -.419 + B * -.0813 + 128.;
 */
 
-	// identity gamma table
-	BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, cls.capturevideo.vidramp, 256);
-	BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, cls.capturevideo.vidramp + 256, 256);
-	BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, cls.capturevideo.vidramp + 256*2, 256);
+	if(WANT_SCREENSHOT_HWGAMMA)
+	{
+		VID_BuildGammaTables(&cls.capturevideo.vidramp[0], 256);
+	}
+	else
+	{
+		// identity gamma table
+		BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, cls.capturevideo.vidramp, 256);
+		BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, cls.capturevideo.vidramp + 256, 256);
+		BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, cls.capturevideo.vidramp + 256*2, 256);
+	}
 	if(scr_screenshot_gammaboost.value != 1)
 	{
 		double igamma = 1 / scr_screenshot_gammaboost.value;
@@ -1203,7 +1910,7 @@ static void SCR_CaptureVideo_VideoFrame(int newframestepframenum)
 	if(cl_capturevideo_printfps.integer)
 	{
 		char buf[80];
-		double t = host.realtime;
+		double t = realtime;
 		if(t > cls.capturevideo.lastfpstime + 1)
 		{
 			double fps1 = (cls.capturevideo.frame - cls.capturevideo.lastfpsframe) / (t - cls.capturevideo.lastfpstime + 0.0000001);
@@ -1240,7 +1947,7 @@ static void SCR_CaptureVideo(void)
 		if (cls.capturevideo.realtime)
 		{
 			// preserve sound sync by duplicating frames when running slow
-			newframenum = (int)((host.realtime - cls.capturevideo.startrealtime) * cls.capturevideo.framerate);
+			newframenum = (int)((realtime - cls.capturevideo.startrealtime) * cls.capturevideo.framerate);
 		}
 		else
 			newframenum = cls.capturevideo.frame + 1;
@@ -1297,27 +2004,22 @@ envmapinfo[12] =
 	{{ 90, 180, 0}, "nz", false, false,  true}
 };
 
-static void R_Envmap_f (cmd_state_t *cmd)
+static void R_Envmap_f (void)
 {
 	int j, size;
 	char filename[MAX_QPATH], basename[MAX_QPATH];
 	unsigned char *buffer1;
 	unsigned char *buffer2;
-	r_rendertarget_t *rt;
 
-	if (Cmd_Argc(cmd) != 3)
+	if (Cmd_Argc() != 3)
 	{
 		Con_Print("envmap <basename> <size>: save out 6 cubic environment map images, usable with loadsky, note that size must one of 128, 256, 512, or 1024 and can't be bigger than your current resolution\n");
 		return;
 	}
 
-	if (cls.state != ca_connected) {
-		Con_PrintLinef ("envmap: No map loaded");
-		return;
-	}
+	c_strlcpy (basename, Cmd_Argv(1));
+	size = atoi(Cmd_Argv(2));
 
-	c_strlcpy (basename, Cmd_Argv(cmd, 1));
-	size = atoi(Cmd_Argv(cmd, 2));
 	if (size != 128 && size != 256 && size != 512 && size != 1024)
 	{
 		Con_Print("envmap: size must be one of 128, 256, 512, or 1024\n");
@@ -1341,7 +2043,6 @@ static void R_Envmap_f (cmd_state_t *cmd)
 	r_refdef.view.depth = 1;
 	r_refdef.view.useperspective = true;
 	r_refdef.view.isoverlay = false;
-	r_refdef.view.ismain = true;
 
 	r_refdef.view.frustum_x = 1; // tan(45 * M_PI / 180.0);
 	r_refdef.view.frustum_y = 1; // tan(45 * M_PI / 180.0);
@@ -1351,9 +2052,6 @@ static void R_Envmap_f (cmd_state_t *cmd)
 	buffer1 = (unsigned char *)Mem_Alloc(tempmempool, size * size * 4);
 	buffer2 = (unsigned char *)Mem_Alloc(tempmempool, size * size * 3);
 
-	// TODO: use TEXTYPE_COLORBUFFER16F and output to .exr files as well?
-	rt = R_RenderTarget_Get(size, size, TEXTYPE_DEPTHBUFFER24STENCIL8, true, TEXTYPE_COLORBUFFER, TEXTYPE_UNUSED, TEXTYPE_UNUSED, TEXTYPE_UNUSED);
-	CL_UpdateEntityShading();
 	for (j = 0;j < 12;j++)
 	{
 		dpsnprintf(filename, sizeof(filename), "env/%s%s.tga", basename, envmapinfo[j].name);
@@ -1361,7 +2059,7 @@ static void R_Envmap_f (cmd_state_t *cmd)
 		r_refdef.view.quality = 1;
 		r_refdef.view.clear = true;
 		R_Mesh_Start();
-		R_RenderView(rt->fbo, rt->depthtexture, rt->colortexture[0], 0, 0, size, size);
+		R_RenderView();
 		R_Mesh_Finish();
 		SCR_ScreenShot(filename, buffer1, buffer2, 0, vid.height - (r_refdef.view.y + r_refdef.view.height), size, size, envmapinfo[j].flipx, envmapinfo[j].flipy, envmapinfo[j].flipdiagonaly, false, false, false, false);
 	}
@@ -1456,15 +2154,22 @@ qbool SCR_ScreenShot(char *filename, unsigned char *buffer1, unsigned char *buff
 
 	GL_ReadPixelsBGRA(x, y, width, height, buffer1);
 
-	if(gammacorrect && (scr_screenshot_gammaboost.value != 1))
+	if(gammacorrect && (scr_screenshot_gammaboost.value != 1 || WANT_SCREENSHOT_HWGAMMA))
 	{
 		int i;
 		double igamma = 1.0 / scr_screenshot_gammaboost.value;
 		unsigned short vidramp[256 * 3];
-		// identity gamma table
-		BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, vidramp, 256);
-		BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, vidramp + 256, 256);
-		BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, vidramp + 256*2, 256);
+		if(WANT_SCREENSHOT_HWGAMMA)
+		{
+			VID_BuildGammaTables(&vidramp[0], 256);
+		}
+		else
+		{
+			// identity gamma table
+			BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, vidramp, 256);
+			BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, vidramp + 256, 256);
+			BuildGammaTable16(1.0f, 1.0f, 1.0f, 0.0f, 1.0f, vidramp + 256*2, 256);
+		}
 		if(scr_screenshot_gammaboost.value != 1)
 		{
 			for (i = 0;i < 256 * 3;i++)
@@ -1529,9 +2234,9 @@ static void SCR_DrawTouchscreenOverlay(void)
 			DrawQ_Fill(a->rect[0] +              1, a->rect[1] + a->rect[3] - 2, a->rect[2] - 2,          1    , 1, 1, 1, vid_touchscreen_outlinealpha.value * (0.5f + 0.5f * a->active), 0);
 			DrawQ_Fill(a->rect[0] +              2, a->rect[1] + a->rect[3] - 1, a->rect[2] - 4,          1    , 1, 1, 1, vid_touchscreen_outlinealpha.value * (0.5f + 0.5f * a->active), 0);
 		}
-		pic = a->pic ? Draw_CachePic_Flags(a->pic, CACHEPICFLAG_FAILONMISSING) : NULL;
-		if (Draw_IsPicLoaded(pic))
-			DrawQ_Pic(a->rect[0], a->rect[1], pic, a->rect[2], a->rect[3], 1, 1, 1, vid_touchscreen_overlayalpha.value * (0.5f + 0.5f * a->active), 0);
+		pic = a->pic ? Draw_CachePic(a->pic) : NULL;
+		if (pic && pic->tex != r_texture_notexture)
+			DrawQ_Pic(a->rect[0], a->rect[1], Draw_CachePic(a->pic), a->rect[2], a->rect[3], 1, 1, 1, vid_touchscreen_overlayalpha.value * (0.5f + 0.5f * a->active), 0);
 		if (a->text && a->text[0])
 		{
 			int textwidth = DrawQ_TextWidth(a->text, 0, a->textheight, a->textheight, false, FONT_CHAT);
@@ -1555,47 +2260,48 @@ void R_ClearScreen(qbool fogcolor)
 		VectorCopy(r_refdef.fogcolor, clearcolor);
 	}
 	// clear depth is 1.0
+	// LadyHavoc: we use a stencil centered around 128 instead of 0,
+	// to avoid clamping interfering with strange shadow volume
+	// drawing orders
 	// clear the screen
-	GL_Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | (vid.stencil ? GL_STENCIL_BUFFER_BIT : 0), clearcolor, 1.0f, 0);
+	GL_Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | (vid.stencil ? GL_STENCIL_BUFFER_BIT : 0), clearcolor, 1.0f, 128);
 }
 
 int r_stereo_side;
-extern cvar_t v_isometric;
-extern cvar_t v_isometric_verticalfov;
 
-typedef struct loadingscreenstack_s
+
+entity_t *find_e_render (entity_render_t *exy, int *enumy)
 {
-	struct loadingscreenstack_s *prev;
-	char msg[MAX_QPATH];
-	float absolute_loading_amount_min; // this corresponds to relative completion 0 of this item
-	float absolute_loading_amount_len; // this corresponds to relative completion 1 of this item
-	float relative_completion; // 0 .. 1
-}
-loadingscreenstack_t;
-static loadingscreenstack_t *loadingscreenstack = NULL;
-rtexture_t *loadingscreentexture = NULL; // last framebuffer before loading screen, kept for the background
-static float loadingscreentexture_vertex3f[12];
-static float loadingscreentexture_texcoord2f[8];
-static int loadingscreenpic_number = 0;
+	int i;
 
-static void SCR_DrawLoadingScreen(void);
+	for (i = 1;i < cl.num_entities;i++) {
+		if (cl.entities_active[i]) {
+			entity_t *e = cl.entities + i;
+			entity_render_t *exy2 = &e->render;
+			if (exy2 == exy) {
+				(*enumy) = i;
+				return e;
+			} // if
+		} // if
+	} // i
+	return NULL;
+}
+
+WARP_X_CALLERS_ (sure)
 static void SCR_DrawScreen (void)
 {
-cldraw2d0:
-	Draw_Frame(); // Looks like frees unused pics
-
-	// Baker: This does canvas stuff, we must have vid_conwidth / vid_conheight finalized BEFORE
-	DrawQ_Start();
+cldraw2d0:			
+	Draw_Frame();						// Looks like frees unused pics
 
 	R_Mesh_Start();
 
-	R_UpdateVariables(); // nearclip, gamma, etc.
+	R_UpdateVariables();				// nearclip, gamma, etc.
 
 	// Quake uses clockwise winding, so these are swapped
 	r_refdef.view.cullface_front = GL_BACK;
 	r_refdef.view.cullface_back = GL_FRONT;
 
-	if (!scr_loading && cls.signon == SIGNONS) {
+	if (cls.signon == SIGNONS) {
 		float size;
 
 		size = scr_viewsize.value * (1.0 / 100.0);
@@ -1651,7 +2357,7 @@ cldraw2d0:
 		// for a 4x3 display, if the ratio is not 4x3 this makes the fov
 		// higher/lower according to the ratio
 		r_refdef.view.useperspective = true;
-		r_refdef.view.frustum_y = tan(scr_fov.value * M_PI / 360.0) * (3.0 / 4.0) * cl.viewzoom;
+		r_refdef.view.frustum_y = tan(scr_fov.value * M_PI / 360.0) * (3.0/4.0) * cl.viewzoom;
 		r_refdef.view.frustum_x = r_refdef.view.frustum_y * (float)r_refdef.view.width / (float)r_refdef.view.height / vid_pixelheight.value;
 
 		r_refdef.view.frustum_x *= r_refdef.frustumscale_x;
@@ -1659,28 +2365,127 @@ cldraw2d0:
 		r_refdef.view.ortho_x = atan(r_refdef.view.frustum_x) * (360.0 / M_PI); // abused as angle by VM_CL_R_SetView
 		r_refdef.view.ortho_y = atan(r_refdef.view.frustum_y) * (360.0 / M_PI); // abused as angle by VM_CL_R_SetView
 
-		r_refdef.view.ismain = true;
 csqc:
-		// if CSQC is loaded, it is required to provide the CSQC_UpdateView function,
-		// and won't render a view if it does not call that.
-		if (cl.csqc_loaded)
-			CL_VM_UpdateView(r_stereo_side ? 0.0 : max(0.0, cl.time - cl.oldtime));
-		else
-		{
-			// Prepare the scene mesh for rendering - this is lightning beams and other effects rendered as normal surfaces
-			CL_MeshEntities_Scene_FinalizeRenderEntity();
-
-			CL_UpdateEntityShading();
-			R_RenderView(0, NULL, NULL, r_refdef.view.x, r_refdef.view.y, r_refdef.view.width, r_refdef.view.height);
+		if(!CL_VM_UpdateView(r_stereo_side ? 0.0 : max(0.0, cl.time - cl.oldtime))) {
+			cl.csqc_vidvars.drawworld = r_drawworld.integer != 0;
+			R_RenderView();
 		}
+
+			if (cls.signon == SIGNONS && !cls.demoplayback && tool_inspector.integer) {
+
+				SV_LockThreadMutex_Exo(); // We do csqc stuff above?  it is not server though ...
+
+				int k= 0;
+				int i;
+
+				WARP_X_ (PRVM_ED_Write)
+				
+				prvm_prog_t *prog = SVVM_prog;
+
+				entity_render_t *erender;
+
+				for (i = 0;i < r_refdef.scene.numentities;i++) {
+					if (!r_refdef.viewcache.entityvisible[i])
+						continue;
+					erender = r_refdef.scene.entities[i];
+					if (erender->model && erender->model->Draw != NULL) {
+						//void asky (entity_t *e);
+						int enummy = 0;
+						entity_t *e = find_e_render(erender, &enummy);
+						
+						if (e) {
+							prvm_edict_t *ed = PRVM_EDICT_NUM(enummy);
+							if (ed->priv.required->free) {
+								//continue;
+							} else {
+								//void unproject2 (vec_t *src3d, vec_t *dest2d);
+								
+								const char	*s_cls = PRVM_GetString(prog, PRVM_alledictstring(ed, classname));
+								const char	*s_mdl = PRVM_GetString(prog, PRVM_alledictstring(ed, model));
+								prvm_vec_t *v = PRVM_serveredictvector(ed, origin);
+								//vec3_t v2d = {0};
+								vec3_t v2d = {0};
+								//s_cls=s_cls;
+								int ismap;
+//cldraw2d1:
+									
+									ismap = s_mdl && s_mdl[0] == '*';
+
+									if (ismap) {
+										prvm_vec_t *v1 = PRVM_serveredictvector(ed, absmin);
+										prvm_vec_t *v2 = PRVM_serveredictvector(ed, absmax);
+										vec3_t v3 = { (v1[0] + v2[0])/2.0, 
+											          (v1[1] + v2[1])/2.0, 
+													  (v1[2] + v2[2])/2.0
+												};
+										Math_Project (v3, v2d);
+									} else {
+										Math_Project (v, v2d);
+									}
+
+								
+								//void project2 (vec_t *src3d, vec_t *dest2d)
+								if (tool_inspector.integer > 1)
+									Con_PrintLinef ("%4d %-20.20s @ %3.1f %3.1f %3.1f ", enummy, s_cls, v[0], v[1], v[2]);
+								
+								{
+									char vuf[64];
+									char vuf2[64];
+									char vuf3[64];
+									
+									dpsnprintf (vuf, sizeof(vuf), "edict %d", enummy);
+									dpsnprintf (vuf2, sizeof(vuf2), "%s", s_cls);
+									dpsnprintf (vuf3, sizeof(vuf3), "%s", s_mdl);
+
+
+									int larger = (int)Largest(strlen(vuf), Largest(strlen(vuf2), strlen(vuf3))) ;
+									int w = 8 * larger * vid_conwidth.value/oldw ;//strlen(vuf);
+									int h1= 8 * 1 * vid_conheight.value/oldh;
+									int h= h1 * 3;// * oldh/vid_conheight.value;
+									
+									int x= v2d[0] - w/2.0 ;
+									int y0= v2d[1] - h/2.0;
+									int y1= y0 + h1;
+									int y2= y1 + h1;
+									
+									
+									//int y1= v2d[1] - h/2.0 ;
+									DrawQ_Fill(x,y0, w, h, /*rgba:*/ 0, 0, 0, 1.0, DRAWFLAG_NORMAL);
+									//DrawQ_Fill(v2d[0] - w/2 , v2d[1] - w/2, w, h, /*rgba:*/ 1, 0, 0, 1.0, DRAWFLAG_NORMAL);
+									DrawQ_String(x,y0, vuf, 0, /*scale x y*/ h1, h1, /*rgba:*/ 1, 1, 1, 1, DRAWFLAG_NORMAL, /*outcolor*/ NULL, /*ig*/ true, FONT_CENTERPRINT);
+									DrawQ_String(x,y1, vuf2, 0, /*scale x y*/ h1, h1, /*rgba:*/ 1, 1, 1, 1, DRAWFLAG_NORMAL, /*outcolor*/ NULL, /*ig*/ true, FONT_CENTERPRINT);
+									DrawQ_String(x,y2, vuf3, 0, /*scale x y*/ h1, h1, /*rgba:*/ 1, 1, 1, 1, DRAWFLAG_NORMAL, /*outcolor*/ NULL, /*ig*/ true, FONT_CENTERPRINT);
+								}
+								
+							}
+
+						} // e
+					} // if
+					k ++;
+					//tool_inspector.integer=  0;
+				} // i
+				if (tool_inspector.integer > 1)
+					Cvar_SetValueQuick (&tool_inspector, 1);
+				k ++;
+				
+
+				SV_UnlockThreadMutex_Exo();
+			}
+
 	}
 
-	// Don't apply debugging stuff like r_showsurfaces to the UI
-	r_refdef.view.showdebug = false;
-
 theory:
+	// our best option is synthetic 3d in the 2d menu projecting 3d points to 2d
+	// And using our own lmps or something
+
+
+	DrawQ_Finish();										// r_refdef.draw2dstage = 0;
+
+	R_DrawGamma();										// gamma
+
 wrap3d:
-	// Baker r0005, r7003
+
+	R_Mesh_Finish();
 
 	// Ok this excludes Xonotic but excludes anything using csqc from using vid_conscale_auto
 	// Like Quake 1.5 or NZP.
@@ -1696,6 +2501,18 @@ wrap3d:
 			Cvar_SetValueQuick (&vid_conheight, scale_height_360);
 		}
 	}
+
+	Draw_Frame();						// Looks like frees unused pics
+
+	R_Mesh_Start();
+
+	R_UpdateVariables();				// nearclip, gamma, etc.
+
+	// Quake uses clockwise winding, so these are swapped
+	r_refdef.view.cullface_front = GL_BACK;
+	r_refdef.view.cullface_back = GL_FRONT;
+
+
 
 	if (!r_stereo_sidebyside.integer && !r_stereo_horizontal.integer && !r_stereo_vertical.integer)
 	{
@@ -1742,17 +2559,14 @@ wrap3d:
 
 d2go:
 	// draw 2D stuff
+	if(!scr_con_current && Have_Flag (key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4) == false )
+		if ((key_dest == key_game || key_dest == key_message) && !r_letterbox.value) {
+			if (cls.signon == SIGNONS) {
+				Con_DrawNotify ();	// only draw notify in game // SUAVE
+			}
+		}
 
-	if(!scr_con_current && Have_Flag (key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4) == false)
-		if (isin2 (key_dest, key_game, key_message) && !r_letterbox.value && !scr_loading)
-			Con_DrawNotify ();	// only draw notify in game
-
-	if (cl.islocalgame && (key_dest != key_game || key_consoleactive))
-		host.paused = true;
-	else
-		host.paused = false;
-
-	if (!scr_loading && cls.signon == SIGNONS) {
+	if (cls.signon == SIGNONS) {
 		SCR_DrawNet ();
 		SCR_DrawTurtle ();
 		SCR_DrawPause ();
@@ -1762,59 +2576,54 @@ d2go:
 		SCR_CheckDrawCenterString();
 	}
 	SCR_DrawNetGraph ();
-
+//	SCR_DrawPos (); // Baker 1025.2
 menu:
 #ifdef CONFIG_MENU
 	WARP_X_ (M_Draw; MP_Draw /*csqc*/)
-	if (!scr_loading)
-		MR_Draw();
+	MR_Draw();
 #endif
-	CL_DrawVideo();
-	R_Shadow_EditLights_DrawSelectedLightProperties();
-
-	if (scr_loading)
-	{
-		loadingscreenstack_t connect_status;
-		qbool show_connect_status = !loadingscreenstack && (cls.connect_trying || cls.state == ca_connected);
-		if (show_connect_status)
-		{
-			connect_status.absolute_loading_amount_min = 0;
-			if (cls.signon > 0)
-				dpsnprintf(connect_status.msg, sizeof(connect_status.msg), "Connect: Signon stage %i of %i", cls.signon, SIGNONS);
-			else if (cls.connect_remainingtries > 0)
-				dpsnprintf(connect_status.msg, sizeof(connect_status.msg), "Connect: Trying...  %i", cls.connect_remainingtries);
-			else
-				dpsnprintf(connect_status.msg, sizeof(connect_status.msg), "Connect: Waiting %i seconds for reply", 10 + cls.connect_remainingtries);
-			loadingscreenstack = &connect_status;
-		}
-
-		SCR_DrawLoadingScreen();
-
-		if (show_connect_status)
-			loadingscreenstack = NULL;
-	}
+	CL_DrawVideo();										// brightness and such
+	R_Shadow_EditLights_DrawSelectedLightProperties();	// r_editlights
 
 	SCR_DrawConsole();
+
+	SCR_DrawBrand();
+
 	SCR_DrawInfobar();
 
-	if (!scr_loading) {
-		SCR_DrawBrand();
-		SCR_DrawTouchscreenOverlay();
-	}
+	SCR_DrawTouchscreenOverlay();
 
 	if (r_timereport_active)
 		R_TimeReport("2d");
 
 	R_TimeReport_EndFrame();
 	R_TimeReport_BeginFrame();
-	
-	if (!scr_loading)
-		Sbar_ShowFPS();
+	Sbar_ShowFPS();
+
+	DrawQ_Finish();										// r_refdef.draw2dstage = 0;
+
+	R_DrawGamma();										// gamma
 
 	R_Mesh_Finish();
-	DrawQ_Finish();
-	R_RenderTarget_FreeUnused(false);
 }
+
+typedef struct loadingscreenstack_s
+{
+	struct loadingscreenstack_s *prev;
+	char msg[MAX_QPATH];
+	float absolute_loading_amount_min; // this corresponds to relative completion 0 of this item
+	float absolute_loading_amount_len; // this corresponds to relative completion 1 of this item
+	float relative_completion; // 0 .. 1
+}
+loadingscreenstack_t;
+static loadingscreenstack_t *loadingscreenstack = NULL;
+static qbool loadingscreendone = false;
+static qbool loadingscreencleared = false;
+static float loadingscreenheight = 0;
+rtexture_t *loadingscreentexture = NULL;
+static float loadingscreentexture_vertex3f[12];
+static float loadingscreentexture_texcoord2f[8];
+static int loadingscreenpic_number = 0;
 
 static void SCR_ClearLoadingScreenTexture(void)
 {
@@ -1832,8 +2641,14 @@ static void SCR_SetLoadingScreenTexture(void)
 
 	SCR_ClearLoadingScreenTexture();
 
-	w = vid.width; h = vid.height;
-	loadingscreentexture_w = loadingscreentexture_h = 1;
+	if (vid.support.arb_texture_non_power_of_two) {
+		w = vid.width; h = vid.height;
+		loadingscreentexture_w = loadingscreentexture_h = 1;
+	} else {
+		w = CeilPowerOf2(vid.width); h = CeilPowerOf2(vid.height);
+		loadingscreentexture_w = vid.width / (float) w;
+		loadingscreentexture_h = vid.height / (float) h;
+	}
 
 	loadingscreentexture = R_LoadTexture2D(r_main_texturepool, "loadingscreentexture", w, h, NULL, TEXTYPE_COLORBUFFER, TEXF_RENDERTARGET | TEXF_FORCENEAREST | TEXF_CLAMP, -1, NULL);
 	R_Mesh_CopyToTexture(loadingscreentexture, 0, 0, 0, 0, vid.width, vid.height);
@@ -1849,74 +2664,28 @@ static void SCR_SetLoadingScreenTexture(void)
 	loadingscreentexture_texcoord2f[6] = 0;loadingscreentexture_texcoord2f[7] = 0;
 }
 
-static void SCR_ChooseLoadingPic(qbool startup)
+// Baker: 3 callers
+WARP_X_CALLERS_ (CL_KeepaliveMessage countdownupdate SCR_PushLoadingScreen SCR_PopLoadingScreen)
+void SCR_UpdateLoadingScreenIfShown(void)
 {
-	if(startup && scr_loadingscreen_firstforstartup.integer)
-		loadingscreenpic_number = 0;
-	else if(scr_loadingscreen_firstforstartup.integer)
-		if(scr_loadingscreen_count.integer > 1)
-			loadingscreenpic_number = rand() % (scr_loadingscreen_count.integer - 1) + 1;
-		else
-			loadingscreenpic_number = 0;
-	else
-		loadingscreenpic_number = rand() % (scr_loadingscreen_count.integer > 1 ? scr_loadingscreen_count.integer : 1);
+	if (loadingscreendone)
+		SCR_UpdateLoadingScreen (/*clear?*/ loadingscreencleared, /*startup?*/ false);
 }
 
-/*
-===============
-SCR_BeginLoadingPlaque
-
-================
-*/
-void SCR_BeginLoadingPlaque(qbool startup)
-{
-	loadingscreenstack_t dummy_status;
-
-	// we need to push a dummy status so CL_UpdateScreen knows we have things to load...
-	if (!loadingscreenstack)
-	{
-		dummy_status.msg[0] = '\0';
-		dummy_status.absolute_loading_amount_min = 0;
-		loadingscreenstack = &dummy_status;
-	}
-
-	SCR_DeferLoadingPlaque(startup);
-	if (scr_loadingscreen_background.integer)
-		SCR_SetLoadingScreenTexture();
-	CL_UpdateScreen();
-
-	if (loadingscreenstack == &dummy_status)
-		loadingscreenstack = NULL;
-}
-
-void SCR_DeferLoadingPlaque(qbool startup)
-{
-	SCR_ChooseLoadingPic(startup);
-	scr_loading = true;
-}
-
-void SCR_EndLoadingPlaque(void)
-{
-	scr_loading = false;
-	SCR_ClearLoadingScreenTexture();
-}
-
-//=============================================================================
-
-void SCR_PushLoadingScreen (const char *msg, float len_in_parent)
+void SCR_PushLoadingScreen (qbool redraw, const char *msg, float len_in_parent)
 {
 	loadingscreenstack_t *s = (loadingscreenstack_t *) Z_Malloc(sizeof(loadingscreenstack_t));
 	s->prev = loadingscreenstack;
 	loadingscreenstack = s;
 
-	c_strlcpy(s->msg, msg);
+	c_strlcpy (s->msg, msg);
 	s->relative_completion = 0;
 
-	if(s->prev)
+	if (s->prev)
 	{
 		s->absolute_loading_amount_min = s->prev->absolute_loading_amount_min + s->prev->absolute_loading_amount_len * s->prev->relative_completion;
 		s->absolute_loading_amount_len = s->prev->absolute_loading_amount_len * len_in_parent;
-		if(s->absolute_loading_amount_len > s->prev->absolute_loading_amount_min + s->prev->absolute_loading_amount_len - s->absolute_loading_amount_min)
+		if (s->absolute_loading_amount_len > s->prev->absolute_loading_amount_min + s->prev->absolute_loading_amount_len - s->absolute_loading_amount_min)
 			s->absolute_loading_amount_len = s->prev->absolute_loading_amount_min + s->prev->absolute_loading_amount_len - s->absolute_loading_amount_min;
 	}
 	else
@@ -1925,35 +2694,37 @@ void SCR_PushLoadingScreen (const char *msg, float len_in_parent)
 		s->absolute_loading_amount_len = 1;
 	}
 
-	if (scr_loading)
-		CL_UpdateScreen();
+	if (redraw)
+		SCR_UpdateLoadingScreenIfShown();
 }
 
+WARP_X_CALLERS_ (CL_BeginDownloads SCR_ClearLoadingScreen )
 void SCR_PopLoadingScreen (qbool redraw)
 {
 	loadingscreenstack_t *s = loadingscreenstack;
 
-	if(!s)
+	if (!s)
 	{
-		Con_DPrintLinef("Popping a loading screen item from an empty stack!");
+		Con_DPrintLinef ("Popping a loading screen item from an empty stack!");
 		return;
 	}
 
 	loadingscreenstack = s->prev;
-	if(s->prev)
+	if (s->prev)
 		s->prev->relative_completion = (s->absolute_loading_amount_min + s->absolute_loading_amount_len - s->prev->absolute_loading_amount_min) / s->prev->absolute_loading_amount_len;
 	else {
 		// Baker: zg something is ruining relay of completion %, null.spr ?  a sound?  who knows.  Engine's fault somehow.
 	}
 	Z_Free(s);
 
-	if (scr_loading && redraw)
-		CL_UpdateScreen();
+	if (redraw)
+		SCR_UpdateLoadingScreenIfShown();
 }
 
+WARP_X_CALLERS_ (SCR_UpdateLoadingScreen Host_Main if setjmp error)
 void SCR_ClearLoadingScreen (qbool redraw)
 {
-	while(loadingscreenstack)
+	while (loadingscreenstack)
 		SCR_PopLoadingScreen(redraw && !loadingscreenstack->prev);
 }
 
@@ -1974,6 +2745,7 @@ static float SCR_DrawLoadingStack_r(loadingscreenstack_t *s, float y, float size
 			len = strlen(s->msg);
 			x = (vid_conwidth.integer - DrawQ_TextWidth(s->msg, len, size, size, true, FONT_INFOBAR)) / 2;
 			y -= size;
+			DrawQ_Fill(0, y, vid_conwidth.integer, size, 0, 0, 0, 1, 0);
 			DrawQ_String(x, y, s->msg, len, size, size, 1, 1, 1, 1, 0, NULL, true, FONT_INFOBAR);
 			total += size;
 		}
@@ -1984,6 +2756,7 @@ static float SCR_DrawLoadingStack_r(loadingscreenstack_t *s, float y, float size
 		len = strlen(s->msg);
 		x = (vid_conwidth.integer - DrawQ_TextWidth(s->msg, len, size, size, true, FONT_INFOBAR)) / 2;
 		y -= size;
+		DrawQ_Fill(0, y, vid_conwidth.integer, size, 0, 0, 0, 1, 0);
 		DrawQ_String(x, y, s->msg, len, size, size, 1, 1, 1, 1, 0, NULL, true, FONT_INFOBAR);
 		total += size;
 	}
@@ -1991,20 +2764,21 @@ static float SCR_DrawLoadingStack_r(loadingscreenstack_t *s, float y, float size
 	return total;
 }
 
+WARP_X_CALLERS_ (SCR_DrawLoadingScreen)
 static void SCR_DrawLoadingStack(void)
 {
 	float verts[12];
 	float colors[16];
 
-	SCR_DrawLoadingStack_r(loadingscreenstack, vid_conheight.integer, scr_loadingscreen_barheight.value);
-	if(loadingscreenstack)
+	loadingscreenheight = SCR_DrawLoadingStack_r(loadingscreenstack, vid_conheight.integer, scr_loadingscreen_barheight.value);
+	if (loadingscreenstack)
 	{
 		// height = 32; // sorry, using the actual one is ugly
 		GL_BlendFunc(GL_SRC_ALPHA, GL_ONE);
 		GL_DepthRange(0, 1);
 		GL_PolygonOffset(0, 0);
 		GL_DepthTest(false);
-		//R_Mesh_ResetTextureState();
+//		R_Mesh_ResetTextureState();
 		verts[2] = verts[5] = verts[8] = verts[11] = 0;
 		verts[0] = verts[9] = 0;
 		verts[1] = verts[4] = vid_conheight.integer - scr_loadingscreen_barheight.value;
@@ -2014,41 +2788,62 @@ static void SCR_DrawLoadingStack(void)
 #if _MSC_VER >= 1400
 #define sscanf sscanf_s
 #endif
+		//                                        ^^^^^^^^^^ blue component
+		//                              ^^^^^^ bottom row
+		//          ^^^^^^^^^^^^ alpha is always on
+#if 1
 		colors[0] = 0; colors[1] = 0; colors[2] = 0; colors[3] = 1;
 		colors[4] = 0; colors[5] = 0; colors[6] = 0; colors[7] = 1;
 		sscanf(scr_loadingscreen_barcolor.string, "%f %f %f", &colors[8], &colors[9], &colors[10]); colors[11] = 1;
 		sscanf(scr_loadingscreen_barcolor.string, "%f %f %f", &colors[12], &colors[13], &colors[14]);  colors[15] = 1;
-
+#else // Baker
+//		colors[0] = 0; colors[1] = 0; colors[2] = 0; colors[3] = 1;
+//		colors[4] = 0; colors[5] = 0; colors[6] = 0; colors[7] = 1;
+		sscanf(scr_loadingscreen_barcolor.string, "%f %f %f", &colors[0], &colors[1], &colors[2]); colors[3] = 1;
+		sscanf(scr_loadingscreen_barcolor.string, "%f %f %f", &colors[4], &colors[5], &colors[6]); colors[7] = 1;
+//		sscanf(scr_loadingscreen_barcolor.string, "%f %f %f", &colors[8], &colors[9], &colors[10]); colors[11] = 1;
+//		sscanf(scr_loadingscreen_barcolor.string, "%f %f %f", &colors[12], &colors[13], &colors[14]);  colors[15] = 1;
+		colors[8] = 0; colors[9] = 0; colors[10] = 0; colors[11] = 1;
+		colors[12] = 0; colors[13] = 0; colors[14] = 0; colors[15] = 1;
+#endif
 		R_Mesh_PrepareVertices_Generic_Arrays(4, verts, colors, NULL);
 		R_SetupShader_Generic_NoTexture(true, true);
 		R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+
+		// make sure everything is cleared, including the progress indicator
+		if (loadingscreenheight < 8)
+			loadingscreenheight = 8;
 	}
 }
 
-static void SCR_DrawLoadingScreen (void)
+static cachepic_t *loadingscreenpic;
+static float loadingscreenpic_vertex3f[12];
+static float loadingscreenpic_texcoord2f[8];
+
+static void SCR_DrawLoadingScreen_SharedSetup (qbool clear)
 {
-	cachepic_t *loadingscreenpic;
-	float loadingscreenpic_vertex3f[12];
-	float loadingscreenpic_texcoord2f[8];
+	r_viewport_t viewport;
 	float x, y, w, h, sw, sh, f;
 	char vabuf[1024];
-
-	GL_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	GL_DepthRange(0, 1);
-	GL_PolygonOffset(0, 0);
-	GL_DepthTest(false);
-	GL_Color(1,1,1,1);
-
-	if(loadingscreentexture)
-	{
-		R_Mesh_PrepareVertices_Generic_Arrays(4, loadingscreentexture_vertex3f, NULL, loadingscreentexture_texcoord2f);
-		R_SetupShader_Generic(loadingscreentexture, false, true, true);
-		R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
-	}
-
-	loadingscreenpic = Draw_CachePic_Flags(loadingscreenpic_number ? va(vabuf, sizeof(vabuf), "%s%d", scr_loadingscreen_picture.string, loadingscreenpic_number+1) : scr_loadingscreen_picture.string, loadingscreenpic_number ? CACHEPICFLAG_NOTPERSISTENT : 0);
-	w = Draw_GetPicWidth(loadingscreenpic);
-	h = Draw_GetPicHeight(loadingscreenpic);
+	// release mouse grab while loading
+	if (!vid.fullscreen)
+		VID_SetMouse(false, false, false);
+//	CHECKGLERROR
+	r_refdef.draw2dstage = true;
+	R_Viewport_InitOrtho(&viewport, &identitymatrix, 0, 0, vid.width, vid.height, 0, 0, vid_conwidth.integer, vid_conheight.integer, -10, 100, NULL);
+	R_Mesh_SetRenderTargets(0, NULL, NULL, NULL, NULL, NULL);
+	R_SetViewport(&viewport);
+	GL_ColorMask(1,1,1,1);
+	// when starting up a new video mode, make sure the screen is cleared to black
+	if (clear || loadingscreentexture)
+		GL_Clear(GL_COLOR_BUFFER_BIT, NULL, 1.0f, 0);
+	R_Textures_Frame();
+	R_Mesh_Start();
+	R_EntityMatrix(&identitymatrix);
+	// draw the loading plaque
+	loadingscreenpic = Draw_CachePic_Flags (loadingscreenpic_number ? va(vabuf, sizeof(vabuf), "%s%d", scr_loadingscreen_picture.string, loadingscreenpic_number+1) : scr_loadingscreen_picture.string, loadingscreenpic_number ? CACHEPICFLAG_NOTPERSISTENT : 0);
+	w = loadingscreenpic->width;
+	h = loadingscreenpic->height;
 
 	// apply scale
 	w *= scr_loadingscreen_scale.value;
@@ -2097,12 +2892,126 @@ static void SCR_DrawLoadingScreen (void)
 	loadingscreenpic_texcoord2f[2] = 1;loadingscreenpic_texcoord2f[3] = 0;
 	loadingscreenpic_texcoord2f[4] = 1;loadingscreenpic_texcoord2f[5] = 1;
 	loadingscreenpic_texcoord2f[6] = 0;loadingscreenpic_texcoord2f[7] = 1;
+}
 
+static void SCR_DrawLoadingScreen (qbool clear)
+{
+	// we only need to draw the image if it isn't already there
+	GL_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	GL_DepthRange(0, 1);
+	GL_PolygonOffset(0, 0);
+	GL_DepthTest(false);
+//	R_Mesh_ResetTextureState();
+	GL_Color(1,1,1,1);
+	if (loadingscreentexture)
+	{
+		R_Mesh_PrepareVertices_Generic_Arrays(4, loadingscreentexture_vertex3f, NULL, loadingscreentexture_texcoord2f);
+		R_SetupShader_Generic(loadingscreentexture, NULL, GL_MODULATE, 1, true, true, true);
+		R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+	}
 	R_Mesh_PrepareVertices_Generic_Arrays(4, loadingscreenpic_vertex3f, NULL, loadingscreenpic_texcoord2f);
-	R_SetupShader_Generic(Draw_GetPicTexture(loadingscreenpic), true, true, false);
+	R_SetupShader_Generic(Draw_GetPicTexture(loadingscreenpic), NULL, GL_MODULATE, 1, true, true, false);
 	R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
 
 	SCR_DrawLoadingStack();
+}
+
+static void SCR_DrawLoadingScreen_SharedFinish (qbool clear)
+{
+	R_Mesh_Finish();
+	// refresh
+	VID_Finish();
+}
+
+static double loadingscreen_lastupdate;
+
+WARP_X_CALLERS_ (SCR_BeginLoadingPlaque SCR_UpdateLoadingScreenIfShown gl_draw_start)
+void SCR_UpdateLoadingScreen (qbool clear, qbool startup)
+{
+	keydest_t	old_key_dest;
+	int			old_key_consoleactive;
+
+	// don't do anything if not initialized yet
+	if (vid_hidden || cls.state == ca_dedicated)
+		return;
+
+	// limit update rate
+	if (scr_loadingscreen_maxfps.value) {
+		double t = Sys_DirtyTime();
+		if ((t - loadingscreen_lastupdate) < 1.0f/scr_loadingscreen_maxfps.value)
+			return;
+		loadingscreen_lastupdate = t;
+	}
+
+#if 1
+	if (1) {
+		scale_360_calc ();
+
+		Cvar_SetValueQuick (&vid_conwidth,  scale_width_360);
+		Cvar_SetValueQuick (&vid_conheight, scale_height_360);
+	}
+#endif
+
+	if (!scr_loadingscreen_background.integer)
+		clear = true;
+	
+	if (loadingscreendone)
+		clear |= loadingscreencleared;
+
+	if (!loadingscreendone) {
+		if(startup && scr_loadingscreen_firstforstartup.integer)
+			loadingscreenpic_number = 0;
+		else if(scr_loadingscreen_firstforstartup.integer)
+			if(scr_loadingscreen_count.integer > 1)
+				loadingscreenpic_number = rand() % (scr_loadingscreen_count.integer - 1) + 1;
+			else
+				loadingscreenpic_number = 0;
+		else
+			loadingscreenpic_number = rand() % (scr_loadingscreen_count.integer > 1 ? scr_loadingscreen_count.integer : 1);
+	}
+
+	if (clear)
+		SCR_ClearLoadingScreenTexture();
+	else if (!loadingscreendone)
+	    SCR_SetLoadingScreenTexture();
+
+	if (!loadingscreendone) {
+		loadingscreendone = true;
+		loadingscreenheight = 0;
+	}
+	loadingscreencleared = clear;
+
+#ifdef USE_GLES2
+	SCR_DrawLoadingScreen_SharedSetup(clear);
+	SCR_DrawLoadingScreen(clear);
+#else
+	if (qglDrawBuffer)
+		qglDrawBuffer(GL_BACK);
+	SCR_DrawLoadingScreen_SharedSetup(clear);
+	if (vid.stereobuffer && qglDrawBuffer)
+	{
+		qglDrawBuffer(GL_BACK_LEFT);
+		SCR_DrawLoadingScreen(clear);
+		qglDrawBuffer(GL_BACK_RIGHT);
+		SCR_DrawLoadingScreen(clear);
+	}
+	else
+	{
+		if (qglDrawBuffer)
+			qglDrawBuffer(GL_BACK);
+		SCR_DrawLoadingScreen(clear);
+	}
+#endif
+	SCR_DrawLoadingScreen_SharedFinish(clear);
+
+	// this goes into the event loop, and should prevent unresponsive cursor on vista
+	old_key_dest = key_dest;
+	old_key_consoleactive = key_consoleactive;
+	key_dest = key_void;
+	key_consoleactive = false;
+	Key_EventQueue_Block(); Sys_SendKeyEvents();
+	key_dest = old_key_dest;
+	key_consoleactive = old_key_consoleactive;
 }
 
 qbool R_Stereo_ColorMasking(void)
@@ -2121,13 +3030,8 @@ static void SCR_UpdateVars(void)
 	float conwidth = bound(160, vid_conwidth.value, 32768);
 	float conheight = bound(90, vid_conheight.value, 24576);
 
-#if 0
-	if (vid_conwidthauto.integer)
-		conwidth = floor(conheight * vid.width / (vid.height * vid_pixelheight.value));
-#else
 	// Baker r0005, r7003
 	scale_360_calc ();
-#endif
 
 	if (vid_conwidth.value != conwidth)
 		Cvar_SetValueQuick(&vid_conwidth, conwidth);
@@ -2156,7 +3060,7 @@ static void SCR_UpdateVars(void)
 		else if (scr_viewsize.value >= 110)
 			sb_lines = 24;		// no inventory
 		else
-			sb_lines = 24 + 16 + 8;
+			sb_lines = 24+16+8;
 	}
 }
 
@@ -2179,17 +3083,22 @@ void CL_UpdateScreen(void)
 	double drawscreendelta;
 	r_viewport_t viewport;
 
-	// TODO: Move to a better place.
-	cl_punchangle_applied = 0;
+#if defined(_WIN32) && !defined(CORE_SDL)
+	{
+		void Vid_CL_Frame_Start (void);
+		// Cause it how? Minimize during restart?
+		Vid_CL_Frame_Start (); // qwglMakeCurrent ... does it help?  It does not solve all problems.
+	}
+#endif
 
-	if(drawscreenstart) {
+	if (drawscreenstart) {
 		drawscreendelta = Sys_DirtyTime() - drawscreenstart;
-#ifdef CONFIG_VIDEO_CAPTURE
+#ifdef CONFIG_VIDEO_CAPTURE		
 		if (cl_minfps.value > 0 && (cl_minfps_force.integer || !(cls.timedemo || (cls.capturevideo.active && !cls.capturevideo.realtime))) && drawscreendelta >= 0 && drawscreendelta < 60)
 #else
 		if (cl_minfps.value > 0 && (cl_minfps_force.integer || !cls.timedemo) && drawscreendelta >= 0 && drawscreendelta < 60)
 #endif // CONFIG_VIDEO_CAPTURE
-		{
+		 {
 			// quality adjustment according to render time
 			double actualframetime;
 			double targetframetime;
@@ -2261,6 +3170,8 @@ void CL_UpdateScreen(void)
 	if (!scr_initialized || !con_initialized || !scr_refresh.integer)
 		return;				// not initialized yet
 
+	loadingscreendone = false;
+
 	if(IS_NEXUIZ_DERIVED(gamemode)) {
 		// play a bit with the palette (experimental)
 		palette_rgb_pantscolormap[15][0] = (unsigned char) (128 + 127 * sin(cl.time / exp(1.0f) + 0.0f*M_PI/3.0f));
@@ -2273,31 +3184,12 @@ void CL_UpdateScreen(void)
 		memcpy(palette_rgb_shirtscoreboard[15], palette_rgb_shirtcolormap[15], sizeof(*palette_rgb_shirtcolormap));
 	}
 
-#ifdef CONFIG_VIDEO_CAPTURE
-	if (vid_hidden && !cls.capturevideo.active && !cl_capturevideo.integer)
-#else
-	if (vid_hidden)
-#endif
-	{
+	if (vid_hidden) {
 		VID_Finish();
 		return;
 	}
 
-	if (scr_loading)
-	{
-		if(!loadingscreenstack && !cls.connect_trying && (cls.state != ca_connected || cls.signon == SIGNONS))
-			SCR_EndLoadingPlaque();
-		else if (scr_loadingscreen_maxfps.value)
-		{
-			static float lastupdate;
-			float now = Sys_DirtyTime();
-			if (now - lastupdate < 1.0f / scr_loadingscreen_maxfps.value)
-				return;
-			lastupdate = now;
-		}
-	}
-
-	SCR_UpdateVars();
+	SCR_UpdateVars(); // DarkPlaces beta scaleauto
 
 	R_FrameData_NewFrame();
 	R_BufferData_NewFrame();
@@ -2314,14 +3206,26 @@ cldraw2d2:
 	SCR_SetUpToDrawConsole();
 
 #ifndef USE_GLES2
-	CHECKGLERROR
-	qglDrawBuffer(GL_BACK);CHECKGLERROR
+	if (qglDrawBuffer) {
+		CHECKGLERROR
+		qglDrawBuffer(GL_BACK);CHECKGLERROR
+		// set dithering mode
+		if (gl_dither.integer)
+		{
+			qglEnable(GL_DITHER);CHECKGLERROR
+		}
+		else
+		{
+			qglDisable(GL_DITHER);CHECKGLERROR
+		}
+	}
 #endif
 
-#if 0
-	// Baker r0005, r7003
+
 	shall_restore = false;
 	did_scaleauto_already = false;
+	//prvm_prog_t *clvm0 =CLVM_prog->loaded;
+	//prvm_prog_t *clvm = PRVM_FriendlyProgFromString("client");  // CLVM_prog
 	shall_exclude = CLVM_prog->loaded && !csqc_full_width_height.integer; // A mod requests this
 	shall_set_full_window_size = CLVM_prog->loaded && csqc_full_width_height.integer && shall_exclude==false;
 
@@ -2329,6 +3233,14 @@ cldraw2d2:
 	oldh = vid_conheight.value;
 
 cldraw2d3:
+	if (vid.unminimized) {
+		Cvar_SetValueQuick(&v_gamma, vid.savedgamma);
+		Cvar_SetValueQuick(&v_contrast, vid.savedcontrast);
+		VID_UpdateGamma(false, 256);
+		//Sys_PrintToTerminal ("Gamma restore");
+		vid.unminimized = false; 
+	}
+
 	if (shall_exclude == false) {
 		if (shall_set_full_window_size) {
 			// Xonotic/Nexuiz set vid_conwidth/vid.conheight every frame.
@@ -2347,7 +3259,6 @@ cldraw2d3:
 			did_scaleauto_already = true;
 		}
 	}
-#endif
 
 	R_Viewport_InitOrtho(&viewport, &identitymatrix, 0, 0, vid.width, vid.height, 0, 0, vid_conwidth.integer, vid_conheight.integer, -10, 100, NULL);
 	R_Mesh_SetRenderTargets(0, NULL, NULL, NULL, NULL, NULL);
@@ -2363,11 +3274,34 @@ cldraw2d3:
 	// calculate r_refdef.view.quality
 	r_refdef.view.quality = cl_updatescreen_quality;
 
-	if (scr_stipple.integer)
+#ifndef USE_GLES2
+	if (qglPolygonStipple)
 	{
-		Con_Print("FIXME: scr_stipple not implemented\n");
-		Cvar_SetValueQuick(&scr_stipple, 0);
+		if(scr_stipple.integer)
+		{
+			GLubyte stipple[128];
+			int i, s, width, parts;
+			static int frame = 0;
+			++frame;
+	
+			s = scr_stipple.integer;
+			parts = (s & 007);
+			width = (s & 070) >> 3;
+	
+			qglEnable(GL_POLYGON_STIPPLE);CHECKGLERROR // 0x0B42
+			for(i = 0; i < 128; ++i)
+			{
+				int line = i/4;
+				stipple[i] = (((line >> width) + frame) & ((1 << parts) - 1)) ? 0x00 : 0xFF;
+			}
+			qglPolygonStipple(stipple);CHECKGLERROR
+		}
+		else
+		{
+			qglDisable(GL_POLYGON_STIPPLE);CHECKGLERROR
+		}
 	}
+#endif
 
 #ifndef USE_GLES2
 	if (R_Stereo_Active())
@@ -2413,24 +3347,46 @@ cldraw2d4:
 	SCR_CaptureVideo();
 #endif
 
-	qglFlush(); // ensure that the commands are submitted to the GPU before we do other things
+#ifndef USE_GLES2
+	if (qglFlush)
+		qglFlush(); // FIXME: should we really be using qglFlush here?
+#endif // hack .. Sept 1 2023
 
-	if (!vid_activewindow || key_consoleactive)
-		VID_SetMouse(false, false);
-	else if (key_dest == key_menu || key_dest == key_menu_grabbed || scr_loading)
-		VID_SetMouse(vid_mouse.integer && !in_client_mouse && !vid_touchscreen.integer, !vid_touchscreen.integer);
-	else
-		VID_SetMouse(vid_mouse.integer && !cl.csqc_wantsmousemove && cl_prydoncursor.integer <= 0 && (!cls.demoplayback || cl_demo_mousegrab.integer) && !vid_touchscreen.integer, !vid_touchscreen.integer);
+	if (!vid_activewindow)
+		VID_SetMouse(false, false, false);
+	else if (key_consoleactive)
+		VID_SetMouse(vid.fullscreen, false, false);
+	else if (key_dest == key_menu_grabbed) {
+			//VID_SetMouse(true, vid_mouse.integer && !in_client_mouse && !vid_touchscreen.integer, !vid_touchscreen.integer);
+		VID_SetMouse(vid.fullscreen, false, false); // Baker test
+	}
+	else if (key_dest == key_menu)
+		// Baker: Make mouse cursor show in menu
+		//VID_SetMouse(vid.fullscreen, vid_mouse.integer && !in_client_mouse && !vid_touchscreen.integer, !vid_touchscreen.integer);
+		VID_SetMouse(vid.fullscreen, false, false);
+	else {
+		int shall_hide = !vid_touchscreen.integer /*0*/;
+		if (!shall_hide ) {
+			shall_hide =shall_hide ;
+		}
+		VID_SetMouse(vid.fullscreen, 
+			/*relative*/
+			vid_mouse.integer /*1*/ && 
+			!cl.csqc_wantsmousemove /*?*/  && 
+			cl_prydoncursor.integer <= 0 /*0*/ && 
+				(!cls.demoplayback || cl_demo_mousegrab.integer)  && 
+				!vid_touchscreen.integer, 
 
+				!vid_touchscreen.integer /*0*/
+		);
+	} // if
 	VID_Finish();
 
-	// Baker r9006: Kleskby ALT-TAB fix for certain international keyboards.
-#ifdef WIN32
-	if (vid_fullscreen.integer && GetAsyncKeyState(VK_MENU) && GetAsyncKeyState(VK_TAB)) //KleskBY Alt-Tab Fix
-	{
+	#ifdef WIN32
+	if (vid_fullscreen.integer && GetAsyncKeyState(VK_MENU) && GetAsyncKeyState(VK_TAB)) { //KleskBY Alt-Tab Fix
 		ShowWindow(FindWindowA("SDL_app", NULL), SW_MINIMIZE);
-	}
-#endif
+	} // if
+	#endif
 }
 
 void CL_Screen_NewMap(void)

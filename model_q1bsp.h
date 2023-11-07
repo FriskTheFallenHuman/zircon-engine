@@ -15,7 +15,7 @@ typedef struct model_brushq1_s
 	medge_t			*edges;
 
 	int				numtexinfo;
-	struct mtexinfo_s		*texinfo;
+	mtexinfo_t		*texinfo;
 
 	int				numsurfedges;
 	int				*surfedges;

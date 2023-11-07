@@ -2,7 +2,9 @@
 #ifndef MATRIXLIB_H
 #define MATRIXLIB_H
 
-#include "qtypes.h"
+#ifndef M_PI
+#define M_PI		3.14159265358979323846	// matches value in gcc v2 math.h
+#endif
 
 //#define MATRIX4x4_OPENGLORIENTATION
 
@@ -93,7 +95,7 @@ void Matrix4x4_FromArrayDoubleGL(matrix4x4_t *out, const double in[16]);
 // converts a matrix4x4 to a double[16] array in the Direct3D orientation
 void Matrix4x4_ToArrayDoubleD3D(const matrix4x4_t *in, double out[16]);
 // creates a matrix4x4 from a double[16] array in the Direct3D orientation
-void Matrix4x4_FromArrayDoubleD3D(matrix4x4_t *out, const double in[4][4]);
+void Matrix4x4_FromArrayDoubleD3D(matrix4x4_t *out, const double in[16]);
 
 // converts a matrix4x4 to a float[16] array in the OpenGL orientation
 void Matrix4x4_ToArrayFloatGL(const matrix4x4_t *in, float out[16]);
@@ -105,7 +107,7 @@ void Matrix4x4_ToArrayFloatD3D(const matrix4x4_t *in, float out[16]);
 void Matrix4x4_FromArrayFloatD3D(matrix4x4_t *out, const float in[16]);
 
 // converts a matrix4x4 to a float[12] array in the OpenGL orientation
-void Matrix4x4_ToArray12FloatGL(const matrix4x4_t *in, float out[4][3]);
+void Matrix4x4_ToArray12FloatGL(const matrix4x4_t *in, float out[12]);
 // creates a matrix4x4 from a float[12] array in the OpenGL orientation
 void Matrix4x4_FromArray12FloatGL(matrix4x4_t *out, const float in[12]);
 // converts a matrix4x4 to a float[12] array in the Direct3D orientation

@@ -12,6 +12,9 @@ extern float gl_modelview16f[16];
 extern float gl_modelviewprojection16f[16];
 extern qbool gl_modelmatrixchanged;
 
+extern cvar_t gl_vbo_dynamicvertex;
+extern cvar_t gl_vbo_dynamicindex;
+
 #define POLYGONELEMENTS_MAXPOINTS 258
 extern int polygonelement3i[(POLYGONELEMENTS_MAXPOINTS-2)*3];
 extern unsigned short polygonelement3s[(POLYGONELEMENTS_MAXPOINTS-2)*3];
@@ -22,11 +25,10 @@ extern unsigned short quadelement3s[QUADELEMENTS_MAXQUADS*6];
 void R_Viewport_TransformToScreen(const r_viewport_t *v, const vec4_t in, vec4_t out);
 qbool R_ScissorForBBox(const float *mins, const float *maxs, int *scissor);
 void R_Viewport_InitOrtho(r_viewport_t *v, const matrix4x4_t *cameramatrix, int x, int y, int width, int height, float x1, float y1, float x2, float y2, float zNear, float zFar, const float *nearplane);
-void R_Viewport_InitOrtho3D(r_viewport_t *v, const matrix4x4_t *cameramatrix, int x, int y, int width, int height, float frustumx, float frustumy, float nearclip, float farclip, const float *nearplane);
 void R_Viewport_InitPerspective(r_viewport_t *v, const matrix4x4_t *cameramatrix, int x, int y, int width, int height, float frustumx, float frustumy, float zNear, float zFar, const float *nearplane);
 void R_Viewport_InitPerspectiveInfinite(r_viewport_t *v, const matrix4x4_t *cameramatrix, int x, int y, int width, int height, float frustumx, float frustumy, float zNear, const float *nearplane);
 void R_Viewport_InitCubeSideView(r_viewport_t *v, const matrix4x4_t *cameramatrix, int side, int size, float nearclip, float farclip, const float *nearplane);
-void R_Viewport_InitRectSideView(r_viewport_t *v, const matrix4x4_t *cameramatrix, int side, int size, int border, float nearclip, float farclip, const float *nearplane, int offsetx, int offsety);
+void R_Viewport_InitRectSideView(r_viewport_t *v, const matrix4x4_t *cameramatrix, int side, int size, int border, float nearclip, float farclip, const float *nearplane);
 void R_SetViewport(const r_viewport_t *v);
 void R_GetViewport(r_viewport_t *v);
 void GL_Finish(void);
@@ -37,13 +39,16 @@ void GL_DepthMask(int state);
 void GL_DepthTest(int state);
 void GL_DepthFunc(int state);
 void GL_DepthRange(float nearfrac, float farfrac);
+void R_SetStencilSeparate(qbool enable, int writemask, int frontfail, int frontzfail, int frontzpass, int backfail, int backzfail, int backzpass, int frontcompare, int backcompare, int comparereference, int comparemask);
 void R_SetStencil(qbool enable, int writemask, int fail, int zfail, int zpass, int compare, int comparereference, int comparemask);
 void GL_PolygonOffset(float planeoffset, float depthoffset);
 void GL_CullFace(int state);
+void GL_AlphaTest(int state);
 void GL_AlphaToCoverage(qbool state);
 void GL_ColorMask(int r, int g, int b, int a);
 void GL_Color(float cr, float cg, float cb, float ca);
 void GL_ActiveTexture(unsigned int num);
+void GL_ClientActiveTexture(unsigned int num);
 void GL_Scissor(int x, int y, int width, int height);
 void GL_ScissorTest(int state);
 void GL_Clear(int mask, const float *colorvalue, float depthvalue, int stencilvalue);
@@ -55,7 +60,6 @@ void R_Mesh_SetRenderTargets(int fbo, rtexture_t *depthtexture, rtexture_t *colo
 unsigned int GL_Backend_CompileProgram(int vertexstrings_count, const char **vertexstrings_list, int geometrystrings_count, const char **geometrystrings_list, int fragmentstrings_count, const char **fragmentstrings_list);
 void GL_Backend_FreeProgram(unsigned int prog);
 
-extern cvar_t gl_debug;
 extern cvar_t gl_paranoid;
 extern cvar_t gl_printcheckerror;
 
@@ -77,8 +81,16 @@ void R_Mesh_DestroyMeshBuffer(r_meshbuffer_t *buffer);
 void GL_Mesh_ListVBOs(qbool printeach);
 
 void R_Mesh_PrepareVertices_Vertex3f(int numvertices, const float *vertex3f, const r_meshbuffer_t *buffer, int bufferoffset);
+
+r_vertexgeneric_t *R_Mesh_PrepareVertices_Generic_Lock(int numvertices);
+qbool R_Mesh_PrepareVertices_Generic_Unlock(void);
 void R_Mesh_PrepareVertices_Generic_Arrays(int numvertices, const float *vertex3f, const float *color4f, const float *texcoord2f);
+void R_Mesh_PrepareVertices_Generic(int numvertices, const r_vertexgeneric_t *vertex, const r_meshbuffer_t *vertexbuffer, int bufferoffset);
+
+r_vertexmesh_t *R_Mesh_PrepareVertices_Mesh_Lock(int numvertices);
+qbool R_Mesh_PrepareVertices_Mesh_Unlock(void); // if this returns false, you need to prepare the mesh again!
 void R_Mesh_PrepareVertices_Mesh_Arrays(int numvertices, const float *vertex3f, const float *svector3f, const float *tvector3f, const float *normal3f, const float *color4f, const float *texcoordtexture2f, const float *texcoordlightmap2f);
+void R_Mesh_PrepareVertices_Mesh(int numvertices, const r_vertexmesh_t *vertex, const r_meshbuffer_t *buffer, int bufferoffset);
 
 // sets up the requested vertex transform matrix
 void R_EntityMatrix(const matrix4x4_t *matrix);
@@ -94,6 +106,10 @@ int R_Mesh_TexBound(unsigned int unitnum, int id);
 void R_Mesh_CopyToTexture(rtexture_t *tex, int tx, int ty, int sx, int sy, int width, int height);
 // bind a given texture to a given image unit
 void R_Mesh_TexBind(unsigned int unitnum, rtexture_t *tex);
+// sets the texcoord matrix for a texenv unit, can be NULL or blank (will use identity)
+void R_Mesh_TexMatrix(unsigned int unitnum, const matrix4x4_t *matrix);
+// sets the combine state for a texenv unit
+void R_Mesh_TexCombine(unsigned int unitnum, int combinergb, int combinealpha, int rgbscale, int alphascale);
 // set up a blank texture state (unbinds all textures, texcoord pointers, and resets combine settings)
 void R_Mesh_ResetTextureState(void);
 // before a texture is freed, make sure there are no references to it

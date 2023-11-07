@@ -40,7 +40,7 @@ typedef int32_t Uchar;
 // a non-utf8 version to work: u8_strlen() will wrap to strlen()
 // u8_byteofs() and u8_charidx() will simply return whatever is passed as index parameter
 // u8_getchar() will will just return the next byte, u8_fromchar will write one byte, ...
-extern struct cvar_s utf8_enable;
+extern struct cvar_s    utf8_enable;
 void   u8_Init(void);
 
 size_t u8_strlen(const char*);
@@ -77,18 +77,5 @@ extern Uchar u8_quake2utf8map[256];
 
 Uchar u8_toupper(Uchar ch);
 Uchar u8_tolower(Uchar ch);
-
-#ifdef _WIN32
-
-// WTF-8 encoding to circumvent Windows encodings, be it UTF-16 or random codepages
-// https://simonsapin.github.io/wtf-8/
-#define WTF8U32 0     // whether to regard wchar as utf-32
-#define WTF8CHECKS 1  // check for extra sanity in conversion steps
-typedef wchar_t wchar;
-
-int towtf8(const wchar* wstr, int wlen, char* cstr, int maxclen);
-int fromwtf8(const char* cstr, int clen, wchar* wstr, int maxwlen);
-
-#endif // _WIN32
 
 #endif // UTF8LIB_H__

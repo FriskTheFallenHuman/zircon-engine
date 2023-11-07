@@ -1260,7 +1260,7 @@ char *String_Replace_Len_Count_Alloc (const char *s, const char *s_find, const c
 		newstring_o = (char *)realloc (newstring_o, bufsiz); // Shorten.  Or should we really bother?  Yes, let's bother.  What if source was a monster.
 
 	NOT_MISSING_ASSIGN(replace_count, count);
-	NOT_MISSING_ASSIGN(created_length, (int)(bufsiz - 1) );
+	NOT_MISSING_ASSIGN(created_length, (int)(bufsiz - 1));
 	NOT_MISSING_ASSIGN(created_bufsize, bufsiz);
 
 	}

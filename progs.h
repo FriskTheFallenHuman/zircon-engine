@@ -21,23 +21,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef PROGS_H
 #define PROGS_H
 #include "pr_comp.h"			// defs shared with qcc
-#include "qtypes.h"
-
 
 #define ENTITYGRIDAREAS 16
 #define MAX_ENTITYCLUSTERS 16
 
-#ifdef PRVM_64
-#define PRVM_FLOAT_IS_TRUE_FOR_INT(x) DOUBLE_IS_TRUE_FOR_INT(x)
-#define PRVM_FLOAT_LOSSLESS_FORMAT DOUBLE_LOSSLESS_FORMAT
-#define PRVM_VECTOR_LOSSLESS_FORMAT DOUBLE_VECTOR_LOSSLESS_FORMAT
-#else
-#define PRVM_FLOAT_IS_TRUE_FOR_INT(x) FLOAT_IS_TRUE_FOR_INT(x)
-#define PRVM_FLOAT_LOSSLESS_FORMAT FLOAT_LOSSLESS_FORMAT
-#define PRVM_VECTOR_LOSSLESS_FORMAT FLOAT_VECTOR_LOSSLESS_FORMAT
-#endif
-
-#ifdef USEODE
 #define	GEOMTYPE_NONE      -1
 #define	GEOMTYPE_SOLID      0
 #define	GEOMTYPE_BOX		1
@@ -77,10 +64,14 @@ typedef struct edict_odefunc_s
 	vec3_t v2;
 	struct edict_odefunc_s *next;
 }edict_odefunc_t;
-#endif
 
 typedef struct edict_engineprivate_s
 {
+	// true if this edict is unused
+	qbool free;
+	// sv.time when the object was freed (to prevent early reuse which could
+	// mess up client interpolation or obscure severe QuakeC bugs)
+	float freetime;
 	// mark for the leak detector
 	int mark;
 	// place in the code where it was allocated (for the leak detector)
@@ -123,7 +114,6 @@ typedef struct edict_engineprivate_s
 	frameblend_t frameblend[MAX_FRAMEBLENDS];
 	skeleton_t skeleton;
 
-#ifdef USEODE
 	// physics parameters
 	qbool ode_physics;
 	void *ode_body;
@@ -156,8 +146,7 @@ typedef struct edict_engineprivate_s
 	vec3_t ode_joint_velocity; // second joint axis
 	vec3_t ode_joint_movedir; // parameters
 	void *ode_massbuf;
-#endif
 }
 edict_engineprivate_t;
 
-#endif
+#endif // PROGS_H

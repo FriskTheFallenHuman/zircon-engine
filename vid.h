@@ -22,32 +22,57 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef VID_H
 #define VID_H
 
-#include <stddef.h>
-#include "qtypes.h"
-struct cmd_state_s;
-
-#define ENGINE_ICON ( (gamemode == GAME_NEXUIZ) ? nexuiz_xpm : darkplaces_xpm )
+// GLX: #define ENGINE_ICON ( (gamemode == GAME_NEXUIZ) ? nexuiz_xpm : darkplaces_xpm )
 
 extern int cl_available;
 
-#define MAX_TEXTUREUNITS 32
+#define MAX_TEXTUREUNITS 16
 
 typedef enum renderpath_e
 {
-	RENDERPATH_GL32,
-	RENDERPATH_GLES2
+//	RENDERPATH_UDEF,
+	RENDERPATH_GL20 = 1,
+	RENDERPATH_GLES2 = 2,
 }
 renderpath_t;
 
 typedef struct viddef_support_s
 {
-	int glshaderversion; // this is at least 150 (GL 3.2)
+	qbool gl20shaders;
+	qbool gl20shaders130; // indicates glBindFragDataLocation is available
+	int glshaderversion; // typical values: 100 110 120 130 140 ...
 	qbool amd_texture_texture4;
+	qbool arb_depth_texture;
+	qbool arb_draw_buffers;
+	qbool arb_framebuffer_object;
+	qbool arb_multitexture;
+	qbool arb_occlusion_query;
+	qbool arb_query_buffer_object;
+	qbool arb_shadow;
+	qbool arb_texture_compression;
+	qbool arb_texture_cube_map;
+	qbool arb_texture_env_combine;
 	qbool arb_texture_gather;
+	qbool arb_texture_non_power_of_two;
+	qbool arb_vertex_buffer_object;
+	qbool arb_uniform_buffer_object;
+	qbool ati_separate_stencil;
+	qbool ext_blend_minmax;
+	qbool ext_blend_subtract;
+	qbool ext_blend_func_separate;
+	qbool ext_draw_range_elements;
+	qbool ext_framebuffer_object;
+	qbool ext_packed_depth_stencil;
+	qbool ext_stencil_two_side;
+	qbool ext_texture_3d;
 	qbool ext_texture_compression_s3tc;
+	qbool ext_texture_edge_clamp;
 	qbool ext_texture_filter_anisotropic;
 	qbool ext_texture_srgb;
-	qbool arb_debug_output;
+	qbool arb_texture_float;
+	qbool arb_half_float_pixel;
+	qbool arb_half_float_vertex;
+	qbool arb_multisample;
 }
 viddef_support_t;
 
@@ -80,11 +105,19 @@ typedef struct viddef_s
 	qbool stencil;
 	qbool sRGB2D; // whether 2D rendering is sRGB corrected (based on sRGBcapable2D)
 	qbool sRGB3D; // whether 3D rendering is sRGB corrected (based on sRGBcapable3D)
-	qbool sRGBcapable2D; // whether 2D rendering can be sRGB corrected (renderpath)
-	qbool sRGBcapable3D; // whether 3D rendering can be sRGB corrected (renderpath)
+	qbool sRGBcapable2D; // whether 2D rendering can be sRGB corrected (renderpath, v_hwgamma)
+	qbool sRGBcapable3D; // whether 3D rendering can be sRGB corrected (renderpath, v_hwgamma)
 
 	renderpath_t renderpath;
+	qbool forcevbo; // some renderpaths can not operate without it
+	qbool useinterleavedarrays; // required by some renderpaths
 	qbool allowalphatocoverage; // indicates the GL_AlphaToCoverage function works on this renderpath and framebuffer
+
+	unsigned int texunits;
+	unsigned int teximageunits;
+	unsigned int texarrayunits;
+	unsigned int drawrangeelements_maxvertices;
+	unsigned int drawrangeelements_maxindices;
 
 	unsigned int maxtexturesize_2d;
 	unsigned int maxtexturesize_3d;
@@ -95,6 +128,15 @@ typedef struct viddef_s
 	viddef_support_t support;
 
 	int forcetextype; // always use GL_BGRA for D3D, always use GL_RGBA for GLES, etc
+
+	int desktop_width;
+	int desktop_height;
+	int unminimized;
+	int minimized;
+	int inactivefullscreen;
+	int factive;
+	float savedgamma;
+	float savedcontrast;
 } viddef_t;
 
 // global video state
@@ -115,10 +157,10 @@ vid_joystate_t;
 
 extern vid_joystate_t vid_joystate;
 
-extern struct cvar_s joy_index;
-extern struct cvar_s joy_enable;
-extern struct cvar_s joy_detected;
-extern struct cvar_s joy_active;
+extern cvar_t joy_index;
+extern cvar_t joy_enable;
+extern cvar_t joy_detected;
+extern cvar_t joy_active;
 
 float VID_JoyState_GetAxis(const vid_joystate_t *joystate, int axis, float sensitivity, float deadzone);
 void VID_ApplyJoyState(vid_joystate_t *joystate);
@@ -131,20 +173,18 @@ void VID_EnableJoystick(qbool enable);
 
 extern qbool vid_hidden;
 extern qbool vid_activewindow;
+extern cvar_t vid_hardwaregammasupported;
+extern qbool vid_usinghwgamma;
 extern qbool vid_supportrefreshrate;
 
-extern struct cvar_s vid_fullscreen;
-extern struct cvar_s vid_borderless;
-extern struct cvar_s vid_width;
-extern struct cvar_s vid_height;
+extern cvar_t vid_fullscreen;
+extern cvar_t vid_width;
+extern cvar_t vid_height;
 
-
-extern cvar_t vid_window_width;			// Baker r0001 - ALT-ENTER support
-extern cvar_t vid_window_height;		// Baker r0001 - ALT-ENTER support
-extern cvar_t vid_fullscreen_width;		// Baker r0001 - ALT-ENTER support
-extern cvar_t vid_fullscreen_height;	// Baker r0001 - ALT-ENTER support
-
-// Baker r0005: Autoscale 360p
+extern cvar_t vid_window_width;			// Baker 2000 ALT-ENTER part 1
+extern cvar_t vid_window_height;		// Baker 2000 ALT-ENTER part 1
+extern cvar_t vid_fullscreen_width;		// Baker 2000 ALT-ENTER part 1
+extern cvar_t vid_fullscreen_height;	// Baker 2000 ALT-ENTER part 1
 extern cvar_t vid_fullscreen_conscale;
 extern cvar_t vid_window_conscale;
 
@@ -156,48 +196,43 @@ extern float	scale_height_360;
 
 void scale_360_calc (void);
 
+extern cvar_t vid_bitsperpixel;
+extern cvar_t vid_samples;
+extern cvar_t vid_refreshrate;
+extern cvar_t vid_userefreshrate;
+extern cvar_t vid_touchscreen_density;
+extern cvar_t vid_touchscreen_xdpi;
+extern cvar_t vid_touchscreen_ydpi;
+extern cvar_t vid_vsync;
+extern cvar_t vid_mouse;
+extern cvar_t vid_grabkeyboard;
+extern cvar_t vid_touchscreen;
+extern cvar_t vid_touchscreen_showkeyboard;
+extern cvar_t vid_touchscreen_supportshowkeyboard;
+extern cvar_t vid_stick_mouse;
+extern cvar_t vid_resizable;
+extern cvar_t vid_desktopfullscreen;
+extern cvar_t vid_minwidth;
+extern cvar_t vid_minheight;
+extern cvar_t vid_sRGB;
+extern cvar_t vid_sRGB_fallback;
 
+extern cvar_t gl_finish;
 
-extern struct cvar_s vid_bitsperpixel;
-extern struct cvar_s vid_samples;
-extern struct cvar_s vid_refreshrate;
-extern struct cvar_s vid_userefreshrate;
-extern struct cvar_s vid_touchscreen_density;
-extern struct cvar_s vid_touchscreen_xdpi;
-extern struct cvar_s vid_touchscreen_ydpi;
-extern struct cvar_s vid_vsync;
-extern struct cvar_s vid_mouse;
-extern struct cvar_s vid_mouse_clickthrough;
-extern struct cvar_s vid_grabkeyboard;
-extern struct cvar_s vid_touchscreen;
-extern struct cvar_s vid_touchscreen_showkeyboard;
-extern struct cvar_s vid_touchscreen_supportshowkeyboard;
-extern struct cvar_s vid_stick_mouse;
-extern struct cvar_s vid_resizable;
-extern struct cvar_s vid_desktopfullscreen;
-#ifdef _WIN32
-extern struct cvar_s vid_ignore_taskbar;
-#endif
-extern struct cvar_s vid_minwidth;
-extern struct cvar_s vid_minheight;
-extern struct cvar_s vid_sRGB;
-extern struct cvar_s vid_sRGB_fallback;
-
-extern struct cvar_s gl_finish;
-
-extern struct cvar_s v_gamma;
-extern struct cvar_s v_contrast;
-extern struct cvar_s v_brightness;
-extern struct cvar_s v_color_enable;
-extern struct cvar_s v_color_black_r;
-extern struct cvar_s v_color_black_g;
-extern struct cvar_s v_color_black_b;
-extern struct cvar_s v_color_grey_r;
-extern struct cvar_s v_color_grey_g;
-extern struct cvar_s v_color_grey_b;
-extern struct cvar_s v_color_white_r;
-extern struct cvar_s v_color_white_g;
-extern struct cvar_s v_color_white_b;
+extern cvar_t v_gamma;
+extern cvar_t v_contrast;
+extern cvar_t v_brightness;
+extern cvar_t v_color_enable;
+extern cvar_t v_color_black_r;
+extern cvar_t v_color_black_g;
+extern cvar_t v_color_black_b;
+extern cvar_t v_color_grey_r;
+extern cvar_t v_color_grey_g;
+extern cvar_t v_color_grey_b;
+extern cvar_t v_color_white_r;
+extern cvar_t v_color_white_g;
+extern cvar_t v_color_white_b;
+extern cvar_t v_hwgamma;
 
 // brand of graphics chip
 extern const char *gl_vendor;
@@ -209,18 +244,21 @@ extern const char *gl_version;
 extern const char *gl_extensions;
 // WGL, GLX, or AGL
 extern const char *gl_platform;
+// another extensions list, containing platform-specific extensions that are
+// not in the main list
+extern const char *gl_platformextensions;
 // name of driver library (opengl32.dll, libGL.so.1, or whatever)
 extern char gl_driver[256];
 
 void *GL_GetProcAddress(const char *name);
-qbool GL_CheckExtension(const char *name, const char *disableparm, int silent);
-qbool GL_ExtensionSupported(const char *name);
+qbool GL_CheckExtension(const char *minglver_or_ext, const dllfunction_t *funcs, const char *disableparm, int silent);
 
 void VID_Shared_Init(void);
 
-void GL_Setup(void);
+void GL_Init (void);
 
 void VID_ClearExtensions(void);
+void VID_CheckExtensions(void);
 
 void VID_Init (void);
 // Called at startup
@@ -236,18 +274,29 @@ qbool VID_InitMode(viddef_mode_t *mode);
 // allocates and opens an appropriate OpenGL context (and its window)
 
 
-// updates cachegamma variables and bumps vid_gammatables_serial if anything changed
+// sets hardware gamma correction, returns false if the device does not
+// support gamma control
+// (ONLY called by VID_UpdateGamma and VID_RestoreSystemGamma)
+int VID_SetGamma(unsigned short *ramps, int rampsize);
+// gets hardware gamma correction, returns false if the device does not
+// support gamma control
+// (ONLY called by VID_UpdateGamma and VID_RestoreSystemGamma)
+int VID_GetGamma(unsigned short *ramps, int rampsize);
+// makes sure ramp arrays are big enough and calls VID_GetGamma/VID_SetGamma
 // (ONLY to be called from VID_Finish!)
-void VID_UpdateGamma(void);
+void VID_UpdateGamma(qbool force, int rampsize);
+// turns off hardware gamma ramps immediately
+// (called from various shutdown/deactivation functions)
+void VID_RestoreSystemGamma(void);
 
 qbool VID_HasScreenKeyboardSupport(void);
 void VID_ShowKeyboard(qbool show);
 qbool VID_ShowingKeyboard(void);
 
-void VID_SetMouse(qbool relative, qbool hidecursor);
+void VID_SetMouse (qbool fullscreengrab, qbool relative, qbool hidecursor);
 void VID_Finish (void);
 
-void VID_Restart_f(struct cmd_state_s *cmd);
+void VID_Restart_f(void);
 
 void VID_Start(void);
 void VID_Stop(void);
@@ -255,7 +304,6 @@ void VID_Stop(void);
 extern unsigned int vid_gammatables_serial; // so other subsystems can poll if gamma parameters have changed; this starts with 0 and gets increased by 1 each time the gamma parameters get changed and VID_BuildGammaTables should be called again
 extern qbool vid_gammatables_trivial; // this is set to true if all color control values are at default setting, and it therefore would make no sense to use the gamma table
 void VID_BuildGammaTables(unsigned short *ramps, int rampsize); // builds the current gamma tables into an array (needs 3*rampsize items)
-void VID_ApplyGammaToColor(const float *rgb, float *out); // applies current gamma settings to a color (0-1 range)
 
 typedef struct
 {
@@ -266,7 +314,7 @@ vid_mode_t;
 vid_mode_t *VID_GetDesktopMode(void);
 size_t VID_ListModes(vid_mode_t *modes, size_t maxcount);
 size_t VID_SortModes(vid_mode_t *modes, size_t count, qbool usebpp, qbool userefreshrate, qbool useaspect);
-void VID_Soft_SharedSetup(void);
+
 
 #endif
 

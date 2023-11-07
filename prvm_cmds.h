@@ -191,7 +191,7 @@ float	getserverlistindexforkey(string key)
 		addwantedserverlistkey(string key)
 */
 
-#include "quakedef.h"
+#include "darkplaces.h"
 #include "progdefs.h"
 #include "progsvm.h"
 #include "clprogdefs.h"
@@ -214,10 +214,12 @@ float	getserverlistindexforkey(string key)
 
 #define VM_STRINGTEMP_LENGTH MAX_INPUTLINE
 
+// init code
+void PR_Cmd_Init(void);
+
 // general functions
 void VM_CheckEmptyString (prvm_prog_t *prog, const char *s);
 void VM_VarString(prvm_prog_t *prog, int first, char *out, int outlength);
-qbool PRVM_ConsoleCommand (prvm_prog_t *prog, const char *text, int *func, qbool preserve_self, int curself, double ptime, qbool prog_loaded, const char *error_message);
 prvm_stringbuffer_t *BufStr_FindCreateReplace (prvm_prog_t *prog, int bufindex, int flags, const char *format);
 void BufStr_Set(prvm_prog_t *prog, prvm_stringbuffer_t *stringbuffer, int strindex, const char *str);
 void BufStr_Del(prvm_prog_t *prog, prvm_stringbuffer_t *stringbuffer);
@@ -238,8 +240,7 @@ void VM_vectoangles (prvm_prog_t *prog);
 void VM_random (prvm_prog_t *prog);
 void VM_localsound(prvm_prog_t *prog);
 void VM_break (prvm_prog_t *prog);
-void VM_localcmd_local(prvm_prog_t *prog);
-void VM_localcmd_server(prvm_prog_t *prog);
+void VM_localcmd_local (prvm_prog_t *prog);
 void VM_cvar (prvm_prog_t *prog);
 void VM_cvar_string(prvm_prog_t *prog);
 void VM_cvar_type (prvm_prog_t *prog);
@@ -324,6 +325,8 @@ void VM_strdecolorize(prvm_prog_t *prog);
 void VM_strtolower(prvm_prog_t *prog);
 void VM_strtoupper(prvm_prog_t *prog);
 
+void VM_clcommand (prvm_prog_t *prog);
+
 void VM_tokenize (prvm_prog_t *prog);
 void VM_tokenizebyseparator (prvm_prog_t *prog);
 void VM_argv (prvm_prog_t *prog);
@@ -365,6 +368,7 @@ void VM_getimagesize(prvm_prog_t *prog);
 void VM_findfont(prvm_prog_t *prog);
 void VM_loadfont(prvm_prog_t *prog);
 
+void VM_builtin0 (prvm_prog_t *prog);
 void VM_makevectors (prvm_prog_t *prog);
 void VM_vectorvectors (prvm_prog_t *prog);
 
@@ -484,7 +488,6 @@ void VM_getsurfacetriangle(prvm_prog_t *prog);
 void VM_physics_enable(prvm_prog_t *prog);
 void VM_physics_addforce(prvm_prog_t *prog);
 void VM_physics_addtorque(prvm_prog_t *prog);
-void VM_nudgeoutofsolid(prvm_prog_t *prog);
 
 void VM_coverage(prvm_prog_t *prog);
 

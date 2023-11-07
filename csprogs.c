@@ -1,24 +1,4 @@
-/*
-Copyright (C) 2006-2021 DarkPlaces contributors
-
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
-See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-*/
-
-#include "quakedef.h"
+#include "darkplaces.h"
 #include "progsvm.h"
 #include "clprogdefs.h"
 #include "csprogs.h"
@@ -40,10 +20,10 @@ void CL_VM_PreventInformationLeaks(void)
 	prvm_prog_t *prog = CLVM_prog;
 	if(!cl.csqc_loaded)
 		return;
-CSQC_BEGIN
-	VM_ClearTraceGlobals(prog);
-	PRVM_clientglobalfloat(trace_networkentity) = 0;
-CSQC_END
+	CSQC_BEGIN
+		VM_ClearTraceGlobals(prog);
+		PRVM_clientglobalfloat(trace_networkentity) = 0;
+	CSQC_END
 }
 
 //[515]: these are required funcs
@@ -247,7 +227,7 @@ static void CSQC_SetGlobals (double frametime)
 	prvm_prog_t *prog = CLVM_prog;
 	CSQC_BEGIN
 		PRVM_clientglobalfloat(time) = cl.time;
-		PRVM_clientglobalfloat(cltime) = host.realtime; // Spike named it that way.
+		PRVM_clientglobalfloat(cltime) = realtime; // Spike named it that way.
 		PRVM_clientglobalfloat(frametime) = frametime;
 		PRVM_clientglobalfloat(servercommandframe) = cls.servermovesequence;
 		PRVM_clientglobalfloat(clientcommandframe) = cl.movecmd[0].sequence;
@@ -314,7 +294,6 @@ qbool CSQC_AddRenderEdict(prvm_edict_t *ed, int edictnum)
 	float scale;
 	entity_render_t *entrender;
 	model_t *model;
-	prvm_vec3_t modellight_origin;
 
 	model = CL_GetModelFromEdict(ed);
 	if (!model)
@@ -367,9 +346,7 @@ qbool CSQC_AddRenderEdict(prvm_edict_t *ed, int edictnum)
 		VectorSet(entrender->glowmod, 1, 1, 1);
 
 	// LadyHavoc: use the CL_GetTagMatrix function on self to ensure consistent behavior (duplicate code would be bad)
-	// this also sets the custommodellight_origin for us
-	CL_GetTagMatrix(prog, &entrender->matrix, ed, 0, modellight_origin);
-	VectorCopy(modellight_origin, entrender->custommodellight_origin);
+	CL_GetTagMatrix(prog, &entrender->matrix, ed, 0);
 
 	// set up the animation data
 	VM_GenerateFrameGroupBlend(prog, ed->priv.server->framegroupblend, ed);
@@ -385,9 +362,9 @@ qbool CSQC_AddRenderEdict(prvm_edict_t *ed, int edictnum)
 	// model light
 	if (renderflags & RF_MODELLIGHT)
 	{
-		if (PRVM_clientedictvector(ed, modellight_ambient)) VectorCopy(PRVM_clientedictvector(ed, modellight_ambient), entrender->custommodellight_ambient); else VectorClear(entrender->custommodellight_ambient);
-		if (PRVM_clientedictvector(ed, modellight_diffuse)) VectorCopy(PRVM_clientedictvector(ed, modellight_diffuse), entrender->custommodellight_diffuse); else VectorClear(entrender->custommodellight_diffuse);
-		if (PRVM_clientedictvector(ed, modellight_dir))     VectorCopy(PRVM_clientedictvector(ed, modellight_dir), entrender->custommodellight_lightdir);    else VectorClear(entrender->custommodellight_lightdir);
+		if (PRVM_clientedictvector(ed, modellight_ambient)) VectorCopy(PRVM_clientedictvector(ed, modellight_ambient), entrender->modellight_ambient); else VectorClear(entrender->modellight_ambient);
+		if (PRVM_clientedictvector(ed, modellight_diffuse)) VectorCopy(PRVM_clientedictvector(ed, modellight_diffuse), entrender->modellight_diffuse); else VectorClear(entrender->modellight_diffuse);
+		if (PRVM_clientedictvector(ed, modellight_dir))     VectorCopy(PRVM_clientedictvector(ed, modellight_dir), entrender->modellight_lightdir);    else VectorClear(entrender->modellight_lightdir);
 		entrender->crflags |= RENDER_CUSTOMIZEDMODELLIGHT;
 	}
 
@@ -411,7 +388,7 @@ qbool CSQC_AddRenderEdict(prvm_edict_t *ed, int edictnum)
 
 	entrender->crflags &= ~(RENDER_SHADOW | RENDER_LIGHT | RENDER_NOSELFSHADOW);
 	// either fullbright or lit
-	if(!r_fullbright.integer && r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->lit) { // Baker r1002: Proper Quake behavior for Q1BSP maps with no light data -- all entities in map render fullbright.
+	if(!r_fullbright.integer) {
 		if (!(entrender->effects & EF_FULLBRIGHT) && !(renderflags & RF_FULLBRIGHT))
 			entrender->crflags |= RENDER_LIGHT;
 	}
@@ -461,20 +438,20 @@ qbool CL_VM_InputEvent (int eventtype, float x, float y)
 	if(!cl.csqc_loaded)
 		return false;
 
-CSQC_BEGIN
-	if (!PRVM_clientfunction(CSQC_InputEvent))
-		r = false;
-	else
-	{
-		PRVM_clientglobalfloat(time) = cl.time;
-		PRVM_clientglobaledict(self) = cl.csqc_server2csqcentitynumber[cl.playerentity];
-		PRVM_G_FLOAT(OFS_PARM0) = eventtype;
-		PRVM_G_FLOAT(OFS_PARM1) = x; // key or x
-		PRVM_G_FLOAT(OFS_PARM2) = y; // ascii or y
-		prog->ExecuteProgram(prog, PRVM_clientfunction(CSQC_InputEvent), "QC function CSQC_InputEvent is missing");
-		r = CSQC_RETURNVAL != 0;
-	}
-CSQC_END
+	CSQC_BEGIN
+		if (!PRVM_clientfunction(CSQC_InputEvent))
+			r = false;
+		else
+		{
+			PRVM_clientglobalfloat(time) = cl.time;
+			PRVM_clientglobaledict(self) = cl.csqc_server2csqcentitynumber[cl.playerentity];
+			PRVM_G_FLOAT(OFS_PARM0) = eventtype;
+			PRVM_G_FLOAT(OFS_PARM1) = x; // key or x
+			PRVM_G_FLOAT(OFS_PARM2) = y; // ascii or y
+			prog->ExecuteProgram(prog, PRVM_clientfunction(CSQC_InputEvent), "QC function CSQC_InputEvent is missing");
+			r = CSQC_RETURNVAL != 0;
+		}
+	CSQC_END
 	return r;
 }
 
@@ -492,6 +469,7 @@ qbool CL_VM_UpdateView (double frametime)
 		return false;
 	R_TimeReport("pre-UpdateView");
 	CSQC_BEGIN
+		r_refdef.view.ismain = true;
 		csqc_original_r_refdef_view = r_refdef.view;
 		csqc_main_r_refdef_view = r_refdef.view;
 		//VectorCopy(cl.viewangles, oldangles);
@@ -502,20 +480,9 @@ qbool CL_VM_UpdateView (double frametime)
 		// CSQC_UpdateView function does not call R_ClearScene as it should
 		r_refdef.scene.numentities = 0;
 		r_refdef.scene.numlights = 0;
-		// polygonbegin without draw2d arg has to guess
-		prog->polygonbegin_guess2d = false;
-		// free memory for resources that are no longer referenced
-		PRVM_GarbageCollection(prog);
-		// pass in width and height and menu/focus state as parameters (EXT_CSQC_1)
+		// pass in width and height as parameters (EXT_CSQC_1)
 		PRVM_G_FLOAT(OFS_PARM0) = vid.width;
 		PRVM_G_FLOAT(OFS_PARM1) = vid.height;
-		/*
-		 * This should be fine for now but FTEQW uses flags for keydest
-		 * and checks that an array called "eyeoffset" is 0
-		 * 
-		 * Just a note in case there's compatibility problems later
-		 */
-		PRVM_G_FLOAT(OFS_PARM2) = key_dest == key_game;
 		prog->ExecuteProgram(prog, PRVM_clientfunction(CSQC_UpdateView), "QC function CSQC_UpdateView is missing");
 		//VectorCopy(oldangles, cl.viewangles);
 		// Dresk : Reset Dmg Globals Here
@@ -528,10 +495,26 @@ qbool CL_VM_UpdateView (double frametime)
 	return true;
 }
 
-qbool CL_VM_ConsoleCommand (const char *text)
+qbool CL_VM_ConsoleCommand (const char *cmd)
 {
 	prvm_prog_t *prog = CLVM_prog;
-	return PRVM_ConsoleCommand(prog, text, &prog->funcoffsets.CSQC_ConsoleCommand, false, cl.csqc_server2csqcentitynumber[cl.playerentity], cl.time, cl.csqc_loaded, "QC function CSQC_ConsoleCommand is missing");
+	int restorevm_tempstringsbuf_cursize;
+	qbool r = false;
+	if(!cl.csqc_loaded)
+		return false;
+	CSQC_BEGIN
+	if (PRVM_clientfunction(CSQC_ConsoleCommand))
+	{
+		PRVM_clientglobalfloat(time) = cl.time;
+		PRVM_clientglobaledict(self) = cl.csqc_server2csqcentitynumber[cl.playerentity];
+		restorevm_tempstringsbuf_cursize = prog->tempstringsbuf.cursize;
+		PRVM_G_INT(OFS_PARM0) = PRVM_SetTempString(prog, cmd);
+		prog->ExecuteProgram(prog, PRVM_clientfunction(CSQC_ConsoleCommand), "QC function CSQC_ConsoleCommand is missing");
+		prog->tempstringsbuf.cursize = restorevm_tempstringsbuf_cursize;
+		r = CSQC_RETURNVAL != 0;
+	}
+	CSQC_END
+	return r;
 }
 
 qbool CL_VM_Parse_TempEntity (void)
@@ -572,10 +555,12 @@ void CL_VM_Parse_StuffCmd (const char *msg)
 		// temporarily so that it can be set by the cvar command,
 		// and then reprotect it afterwards
 		int crcflags = csqc_progcrc.flags;
-		csqc_progcrc.flags &= ~CF_READONLY;
-		csqc_progsize.flags &= ~CF_READONLY;
-		Cmd_ExecuteString(cmd_local, msg, src_local, true);
-		csqc_progcrc.flags = csqc_progsize.flags = crcflags;
+		int sizeflags = csqc_progcrc.flags;
+		csqc_progcrc.flags &= ~CVAR_READONLY;
+		csqc_progsize.flags &= ~CVAR_READONLY;
+		Cmd_ExecuteString (msg, src_command, true);
+		csqc_progcrc.flags = crcflags;
+		csqc_progsize.flags = sizeflags;
 		return;
 	}
 
@@ -606,7 +591,7 @@ void CL_VM_Parse_StuffCmd (const char *msg)
 				l = sizeof(buf) - 1;
 			strlcpy(buf, p, l + 1); // strlcpy needs a + 1 as it includes the newline!
 
-			Cmd_ExecuteString(cmd_local, buf, src_local, true);
+			Cmd_ExecuteString(buf, src_command, true);
 
 			p += l;
 			if(*p == '\n')
@@ -614,13 +599,13 @@ void CL_VM_Parse_StuffCmd (const char *msg)
 			else
 				break; // end of string or overflow
 		}
-		Cmd_ExecuteString(cmd_local, "curl --clear_autodownload", src_local, true); // don't inhibit CSQC loading
+		Cmd_ExecuteString("curl --clear_autodownload", src_command, true); // don't inhibit CSQC loading
 		return;
 	}
 
 	if(!cl.csqc_loaded)
 	{
-		Cbuf_AddText(cmd_local, msg);
+		Cbuf_AddText(msg);
 		return;
 	}
 	CSQC_BEGIN
@@ -634,7 +619,7 @@ void CL_VM_Parse_StuffCmd (const char *msg)
 		prog->tempstringsbuf.cursize = restorevm_tempstringsbuf_cursize;
 	}
 	else
-		Cbuf_AddText(cmd_local, msg);
+		Cbuf_AddText(msg);
 	CSQC_END
 }
 
@@ -654,26 +639,30 @@ void CSQC_AddPrintText (const char *msg)
 {
 	prvm_prog_t *prog = CLVM_prog;
 	size_t j;
+	if (!cl.csqc_loaded) {
+		Con_Print (msg);
+		return;
+	}
 	CSQC_BEGIN
-	if (cl.csqc_loaded && PRVM_clientfunction(CSQC_Parse_Print)) {
+	if (PRVM_clientfunction(CSQC_Parse_Print)) {
 		// FIXME: is this bugged?
-		j = strlen(msg)-1;
-		if(msg[j] != '\n' && msg[j] != '\r') {
-			if(strlen(cl.csqc_printtextbuf)+j >= MAX_INPUTLINE) {
-				CL_VM_Parse_Print(cl.csqc_printtextbuf);
+		j = strlen(msg) - 1;
+		if (msg[j] != '\n' && msg[j] != '\r') {
+			if (strlen(cl.csqc_printtextbuf) + j >= MAX_INPUTLINE) {
+				CL_VM_Parse_Print (cl.csqc_printtextbuf);
 				cl.csqc_printtextbuf[0] = 0;
 			}
 			else {
-				c_strlcat(cl.csqc_printtextbuf, msg);//, MAX_INPUTLINE);
+				c_strlcat (cl.csqc_printtextbuf, msg); //, MAX_INPUTLINE);
 			}
 			return;
 		}
-		c_strlcat(cl.csqc_printtextbuf, msg); //, MAX_INPUTLINE);
+		c_strlcat (cl.csqc_printtextbuf, msg); //, MAX_INPUTLINE);
 		CL_VM_Parse_Print(cl.csqc_printtextbuf);
 		cl.csqc_printtextbuf[0] = 0;
 	}
 	else
-		Con_Print(msg);
+		Con_Print (msg);
 	CSQC_END
 }
 
@@ -681,8 +670,13 @@ void CL_VM_Parse_CenterPrint (const char *msg)
 {
 	prvm_prog_t *prog = CLVM_prog;
 	int restorevm_tempstringsbuf_cursize;
+	if(!cl.csqc_loaded)
+	{
+		SCR_CenterPrint(msg);
+		return;
+	}
 	CSQC_BEGIN
-	if(cl.csqc_loaded && PRVM_clientfunction(CSQC_Parse_CenterPrint))
+	if(PRVM_clientfunction(CSQC_Parse_CenterPrint))
 	{
 		PRVM_clientglobalfloat(time) = cl.time;
 		PRVM_clientglobaledict(self) = cl.csqc_server2csqcentitynumber[cl.playerentity];
@@ -880,7 +874,7 @@ static void CLVM_end_increase_edicts(prvm_prog_t *prog)
 
 	// link every entity except world
 	for (i = 1, ent = prog->edicts;i < prog->num_edicts;i++, ent++)
-		if (!ent->free)
+		if (!ent->priv.server->free)
 			CL_LinkEdict(ent);
 }
 
@@ -903,10 +897,8 @@ static void CLVM_free_edict(prvm_prog_t *prog, prvm_edict_t *ed)
 	World_UnlinkEdict(ed);
 	memset(ed->fields.fp, 0, prog->entityfields * sizeof(prvm_vec_t));
 	VM_RemoveEdictSkeleton(prog, ed);
-#ifdef USEODE
 	World_Physics_RemoveFromEntity(&cl.world, ed);
 	World_Physics_RemoveJointFromEntity(&cl.world, ed);
-#endif
 }
 
 static void CLVM_count_edicts(prvm_prog_t *prog)
@@ -918,7 +910,7 @@ static void CLVM_count_edicts(prvm_prog_t *prog)
 	for (i=0 ; i<prog->num_edicts ; i++)
 	{
 		ent = PRVM_EDICT_NUM(i);
-		if (ent->free)
+		if (ent->priv.server->free)
 			continue;
 		active++;
 		if (PRVM_clientedictfloat(ent, solid))
@@ -1008,7 +1000,7 @@ void CL_VM_Init (void)
 			cls.caughtcsprogsdatasize == requiredsize && 
 			CRC_Block(cls.caughtcsprogsdata, (size_t)cls.caughtcsprogsdatasize) == requiredcrc)
 		{
-			Con_DPrintf("Using buffered \"%s\"\n", csprogsfn);  // Baker: and this is what?
+			Con_DPrintf ("Using buffered \"%s\"\n", csprogsfn); // Baker: and this is what?
 			csprogsdata = cls.caughtcsprogsdata;
 			csprogsdatasize = cls.caughtcsprogsdatasize;
 			cls.caughtcsprogsdata = NULL;
@@ -1016,15 +1008,15 @@ void CL_VM_Init (void)
 		}
 		else
 		{
-			Con_DPrintf("Not using buffered \"%s\" (buffered: %p, %d)\n", csprogsfn, (void *)cls.caughtcsprogsdata, (int) cls.caughtcsprogsdatasize);
-			csprogsdata = FS_LoadFile(csprogsfn, tempmempool, true, &csprogsdatasize);
+			Con_DPrintf("Not using buffered \"%s\" (buffered: %p, %d)\n", csprogsfn, cls.caughtcsprogsdata, (int) cls.caughtcsprogsdatasize);
+			csprogsdata = FS_LoadFile(csprogsfn, tempmempool, true, &csprogsdatasize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 		}
 	}
 
 	if (!csprogsdata)
 	{
 		csprogsfn = csqc_progname.string; // Baker: a cvar
-		csprogsdata = FS_LoadFile(csprogsfn, tempmempool, true, &csprogsdatasize);
+		csprogsdata = FS_LoadFile(csprogsfn, tempmempool, true, &csprogsdatasize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 	}
 
 	if (csprogsdata) {
@@ -1042,7 +1034,8 @@ void CL_VM_Init (void)
 			else
 			{
 				Mem_Free(csprogsdata);
-				CL_DisconnectEx(false, "Your %s is not the same version as the server (CRC is %d/%d but should be %d/%d)" NEWLINE, csqc_progname.string, csprogsdatacrc, (int)csprogsdatasize, requiredcrc, requiredsize);
+				Con_Printf("Your %s is not the same version as the server (CRC is %d/%d but should be %d/%d)" NEWLINE, csqc_progname.string, csprogsdatacrc, (int)csprogsdatasize, requiredcrc, requiredsize);
+				CL_Disconnect();
 				return;
 			}
 		}
@@ -1050,12 +1043,16 @@ void CL_VM_Init (void)
 	else
 	{
 		if (requiredcrc >= 0) {
-			CL_DisconnectEx(false, CON_ERROR "CL_VM_Init: %s requires CSQC, but \"%s\" wasn't found\n", cls.demoplayback ? "demo" : "server", csqc_progname.string);
+			if (cls.demoplayback)
+				Con_Printf("CL_VM_Init: demo requires CSQC, but \"%s\" wasn't found\n", csqc_progname.string);
+			else
+				Con_Printf("CL_VM_Init: server requires CSQC, but \"%s\" wasn't found\n", csqc_progname.string);
+			CL_Disconnect();
 		}
 		return;
 	}
 
-	PRVM_Prog_Init(prog, cmd_local);
+	PRVM_Prog_Init(prog);
 
 	// allocate the mempools
 	prog->progs_mempool = Mem_AllocPool(csqc_progname.string, 0, NULL);
@@ -1098,10 +1095,14 @@ void CL_VM_Init (void)
 
 	if (!prog->loaded)
 	{
+		Host_Error("CSQC %s ^2failed to load\n", csprogsfn);
+		if (!sv.active)
+			CL_Disconnect();
 		Mem_Free(csprogsdata);
-		Host_Error("CSQC %s failed to load\n", csprogsfn);
+		return;
 	}
 
+	Con_DPrintf("CSQC %s ^5loaded (crc=%i, size=%i)\n", csprogsfn, csprogsdatacrc, (int)csprogsdatasize);
 
 	if (cls.demorecording) {
 		if(cls.demo_lastcsprogssize != csprogsdatasize || cls.demo_lastcsprogscrc != csprogsdatacrc)
@@ -1149,7 +1150,7 @@ void CL_VM_Init (void)
 	prog->ExecuteProgram(prog, PRVM_clientfunction(CSQC_Init), "QC function CSQC_Init is missing");
 
 	// Once CSQC_Init was called, we consider csqc code fully initialized.
-	prog->inittime = host.realtime;
+	prog->inittime = realtime;
 
 	cl.csqc_loaded = true;
 
@@ -1163,21 +1164,21 @@ void CL_VM_Init (void)
 void CL_VM_ShutDown (void)
 {
 	prvm_prog_t *prog = CLVM_prog;
-	Cmd_ClearCSQCCommands(cmd_local);
+	Cmd_ClearCsqcFuncs();
 	//Cvar_SetValueQuick(&csqc_progcrc, -1);
 	//Cvar_SetValueQuick(&csqc_progsize, -1);
 	if(!cl.csqc_loaded)
 		return;
-CSQC_BEGIN
-	if (prog->loaded)
-	{
-		PRVM_clientglobalfloat(time) = cl.time;
-		PRVM_clientglobaledict(self) = 0;
-		if (PRVM_clientfunction(CSQC_Shutdown))
-			prog->ExecuteProgram(prog, PRVM_clientfunction(CSQC_Shutdown), "QC function CSQC_Shutdown is missing");
-	}
-	PRVM_Prog_Reset(prog);
-CSQC_END
+	CSQC_BEGIN
+		if (prog->loaded)
+		{
+			PRVM_clientglobalfloat(time) = cl.time;
+			PRVM_clientglobaledict(self) = 0;
+			if (PRVM_clientfunction(CSQC_Shutdown))
+				prog->ExecuteProgram(prog, PRVM_clientfunction(CSQC_Shutdown), "QC function CSQC_Shutdown is missing");
+		}
+		PRVM_Prog_Reset(prog);
+	CSQC_END
 	Con_DPrint("CSQC ^1unloaded\n");
 	cl.csqc_loaded = false;
 }
@@ -1192,13 +1193,15 @@ qbool CL_VM_GetEntitySoundOrigin(int entnum, vec3_t out)
 
 	CSQC_BEGIN;
 
+	// FIXME consider attachments here!
+
 	ed = PRVM_EDICT_NUM(entnum - MAX_EDICTS);
 
-	if (!ed->free)
+	if (!ed->priv.required->free)
 	{
 		mod = CL_GetModelFromEdict(ed);
 		VectorCopy(PRVM_clientedictvector(ed, origin), out);
-		if(CL_GetTagMatrix(prog, &matrix, ed, 0, NULL) == 0)
+		if(CL_GetTagMatrix(prog, &matrix, ed, 0) == 0)
 			Matrix4x4_OriginFromMatrix(&matrix, out);
 		if (mod && mod->soundfromcenter)
 			VectorMAMAM(1.0f, out, 0.5f, mod->normalmins, 0.5f, mod->normalmaxs, out);

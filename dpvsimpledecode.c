@@ -57,7 +57,7 @@ static hz_bitstream_read_t *hz_bitstream_read_open(char *filename)
 {
 	qfile_t *file;
 	hz_bitstream_read_t *stream;
-	if ((file = FS_OpenVirtualFile(filename, false)))
+	if ((file = FS_OpenVirtualFile(filename, false, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL)))
 	{
 		stream = (hz_bitstream_read_t *)Z_Malloc(sizeof(hz_bitstream_read_t));
 		memset(stream, 0, sizeof(*stream));

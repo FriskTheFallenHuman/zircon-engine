@@ -32,9 +32,6 @@ void Sbar_Init (void);
 /// called every frame by screen
 void Sbar_Draw (void);
 
-void Sbar_ShowFPS(void);
-void Sbar_ShowFPS_Update(void);
-
 int Sbar_GetSortedPlayerIndex (int index);
 void Sbar_SortFrags (void);
 

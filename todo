@@ -2,6 +2,7 @@
 -d bug darkplaces d3d9: drawsetcliparea not working right - seems to be Y-flipped, this also affects menus in Steelstorm (VorteX)
 -d bug darkplaces d3d9: overbright particles get weird colors (VorteX)
 0 bug darkplaces server browser: scrolling wraps weirdly (causing duplicates of first entry) when there are fewer servers than a full screen can show (LordHavoc) 
+0 bug darkplaces renderer: r_showbboxes breaks updates of the bloom texture (Supa)
 0 bug darkplaces android: make sure android:theme is set reasonably to avoid having performance issues on Adreno (it may need to be android:theme="@android:style/Theme.Translucent" or maybe some other value?) (banshee21)
 0 bug darkplaces client csqc: CSQC_InputEvent is supposed to handle mouse movement, compare to FTEQW code (avirox)
 0 bug darkplaces client csqc: engine prediction function is not implemented - could just return the engine's current cl.movement_origin (Spike)
@@ -61,6 +62,9 @@
 0 bug darkplaces server: X-Men mod has flying enemies that tend to go through the floor, sometimes preventing a level from being completed.  x1m1 has two alcoves that open to reveal Storm and Archangel but often Storm disappears through the ground of hear alcove and then the level can't be completed.  A similar problem with Storm apears in x1m3 in an alcove.  (ewwfq yahoo com)
 0 bug darkplaces server: savegames do not contain parms for multiple players, restoring a savegame leaves parms for other players as they were at the time of loading the savegame, clearly wrong (daemon)
 0 bug darkplaces server: savegames do not save precaches, which means that automatic precaching frequently results in invalid modelindex values when reloading the savegame, and this bug also exists in many quake mods that randomly choose multiple variants of a monster, each with separate precaches, resulting in a different precache order when reloading the savegame
+0 bug darkplaces wgl client: during video mode setup, sometimes another application's window becomes permanently top most, not darkplaces' fullscreen window, why? (tZork)
+0 bug darkplaces windows sound: freezing on exit sometimes when freeing sound buffer during sound shutdown (Black)
+0 bug darkplaces windows sound: surround sound fails in windows client, falls back to stereo (greenmarine)
 0 bug dpmaster: if server does not reply to queries in a reasonable period of time it should be removed from the list, this is necessary for the server to be removed when it shuts down and sends out two heartbeats to let the master know that it is shutting down, and isn't there to reply to queries (jitspoe, div0)
 0 bug dpmaster: if server does not reply within 5 seconds to a query it should be removed (jitspoe, div0)
 0 bug dpmod: LinkDoors seems to ignore .origin on door entities when comparing if they overlap
@@ -210,6 +214,7 @@
 0 feature darkplaces sound: the new sound engine should have a cvar for random variations of pitch on sounds like in doom (RenegadeC)
 0 feature darkplaces website: add download link for deluxemaps_id1.pk3
 0 feature darkplaces website: add q1source.zip to downloads page and suggest that mingw/Dev-C++ users may need the dx headers from it (cpuforbrain)
+0 feature darkplaces windows: include P3, P4, Xeon, AthlonXP, and Athlon64-32bit optimized windows dedicated server binaries for windows server admins to use, http://www.alientrap.org/forum/viewtopic.php?t=522 (PoWaZ)
 0 feature darkplaces: .vis files - like .lit but replacement vis data, note this also requires .leaf files (knghtbrd)
 0 feature darkplaces: add DP_GFX_EFFECTINFO extension to indicate that effectinfo.txt is supported, and thoroughly document its syntax (Morphed)
 0 feature darkplaces: add a progress bar to the loading screen, this would be updated by the model/sound loading process
@@ -265,6 +270,7 @@
 0 optimize darkplaces renderer: get rid of attenuation texture on lights because math is faster, add fastpath for no normalmap (Lava_Croft)
 1 bug darkplaces WGL client: figure out why for some people GDI input has stuttering problems with gl_finish 0 mode (Kinn, Urre, romi, Spike, Black)
 1 bug darkplaces WGL/GLX/SDL client bug: if sound is unavailable (causing a freeze waiting for it to become available), the config is reset (SavageX)
+1 bug darkplaces bsd filesystem: read() is failing (not returning the requested amount) on freebsd when reading files, whether actual files or in a pk3 - somehow it is still able to read the pk3 zip directory though (suminigashi, Elric)
 1 bug darkplaces collisions: curve collisions sometimes catch on the lip of the edge, pushing into the curved back wall around certain jumppads in Nexuiz for example consistently gets stuck just below the ledge (HReaper)
 1 bug darkplaces command: "rate", "playermodel", "playerskin", "pmodel" commands can spam server console with usage statements (Spike)
 1 bug darkplaces console: when logging using log_file and log_sync 0, setting log_file back to "" does not close the file until another message is posted?
@@ -273,6 +279,7 @@
 1 bug darkplaces linux client: when clicked in a file manager it does not find the data directories as the working directory is not set, do a proper search for valid data directories in multiple paths, such as working directory, executable path, etc (Randy)
 1 bug darkplaces loader: check for out of bounds lump data ranges in maps (FrikaC)
 1 bug darkplaces loader: check for truncated sound files (FrikaC)
+1 bug darkplaces makefile: add icon to windows sdl builds (RenegadeC)
 1 bug darkplaces nexuiz: can't open console when in nexuiz menu (stahl)
 1 bug darkplaces protocol: GAME_NEXUIZ: view sometimes stuck on its side while playing (update: this is not related to cl.viewangles, it's something else): http://www.digitalfunk.org/brewdles/Nexuiz/nexuiz000001.jpg (Brewdles)
 1 bug darkplaces prvm: add back the leak checking http://cvs.icculus.org/cvs/twilight/darkplaces/prvm_cmds.c?r1=1.67&r2=1.68 (Black)
@@ -325,6 +332,7 @@
 1 feature darkplaces server: add contents reporting to qc somehow when traceline does model tracing and hits the model, this could also fix q3bsp sky collisions?
 1 feature darkplaces server: add gettimestamp builtin (returns a string) for logging purposes
 1 feature darkplaces server: add md3 mesh name reporting to qc somehow when traceline does model tracing and hits the model
+1 feature darkplaces video: add r_displayrefresh cvar for windows video refresh settings (Willis, Judas Judas, Michael Miller, Vondur)
 1 feature dpmod: add a Treasure Hunt mode (inspired by preview of Will Rock) - a team wins when they hold all the artifacts
 1 feature dpmod: add func_crate (NotoriousRay)
 1 feature dpmod: dm 7 monster spawns should occasionally be a crowd of Diablo2 style powered up monsters (Rick)
@@ -336,7 +344,6 @@
 1 feature lhfire: add percentage and estimated time reporting to console output (daniel_hansson@telia.com)
 1 feature lhfire: post lhfire_gui build
 1 feature lhfire: prepare example scripts for release
-2 bug darkplaces renderer: tcmod rotate breaks svector/tvector, causing weird normalmapping effects on lighting (kristus)
 2 bug darkplaces collision: bmodel bounding boxes need to be calculated to account for clip brushes, which are not in the drawing hull (metlslime)
 2 bug darkplaces collision: modify Collision_ClipTrace_Line_Sphere to have a slight backoff on impact, like all other collision functions (tell TheBurningRed)
 2 bug darkplaces collision: use larger of model box or collision box for linking into areagrid so that bullet tracing can use the model bounding box instead of the collision one?  (Urre)
@@ -654,7 +661,6 @@ d bug darkplaces renderer: q3bsp alpha shaders are not being lit?  (Cheapy)
 d bug darkplaces renderer: q3bsp ignoring EF_ADDITIVE on opaque surfaces such as Nexuiz teleporters?  (Vermeulen)
 d bug darkplaces renderer: r_drawcollisionbrushes 2 is broken (LordHavoc)
 d bug darkplaces renderer: r_glsl 1 mode has black grapple beam in nexuiz (SavageX)
-d bug darkplaces renderer: r_showbboxes breaks updates of the bloom texture (Supa)
 d bug darkplaces renderer: r_wateralpha 0.9 is invisible on r_glsl 0;gl_combine 0 path (Lardarse]
 d bug darkplaces renderer: r_wateralpha 1 water that has lightmapping is black in r_shadow_realtime_world 1 mode, but only if the map was loaded in r_shadow_realtime_world 1 mode, if started in 0 and then going to 1 it does not have black water, this is probably lightmap updates not occurring in rtworld mode (mrinsane)
 d bug darkplaces renderer: r_wateralpha on maps that are not watervised shows sky, this is a known glquake bug but it is fixable in darkplaces at load time by marking opposite-content (water-empty, empty-water) leafs as visible in their pvs sets, this involves checking the portal flow...  (knghtbrd)
@@ -704,6 +710,7 @@ d bug darkplaces sound: sound is sometimes coming from the wrong side apparently
 d bug darkplaces sound: spatialization bug occurs in The Ascension of Vigil, making all player and monster sounds far to the right (RenegadeC)
 d bug darkplaces sound: svc_staticsound messages are being received before sounds are precached, causing no ambient sounds to work (esteel)
 d bug darkplaces video: generate 1024 color gamma ramps for glx on Quadro, right now hardware gamma is being disabled on these cards because they use 1024 color ramps, not 256 (div0)
+d bug darkplaces wgl client: hardware gamma is being retried every frame for unknown reasons, this is SEVERELY impacting framerates on win2k/xp (Jago)
 d bug darkplaces windows general: include libcurl dll from Nexuiz 2.0 in future releases (Baker)
 d bug dpmod: air control doesn't seem to be working (Kedhrin)
 d bug dpmod: fix sv_user.qc noclip movement when looking straight up/down (Electro)
@@ -1355,7 +1362,6 @@ d revelation: fix lingering glow on lightning deaths (romi)
 d revelation: reduce damage from weapons (romi)
 d sv_user.qc: figure out why looking up/down slows movement and fix it (Vermeulen)
 d zmodel: fix scale and origin commands (Vermeulen)
--d bug darkplaces bsd filesystem: read() is failing (not returning the requested amount) on freebsd when reading files, whether actual files or in a pk3 - somehow it is still able to read the pk3 zip directory though (suminigashi, Elric)
 f LordHavoc: examine .mb (Maya Binary) file from Electro and learn its format (Electro)
 f bug darkplaces capturevideo: cl_capturevideo 1 with sound off is not locking the framerate of a server (Vermeulen)
 f bug darkplaces client: decals are not sticking to submodels

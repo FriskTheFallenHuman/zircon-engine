@@ -21,12 +21,8 @@
 
 */
 
-// LadyHavoc: for some reason this is being #include'd rather than treated as its own file...
-
-#include "quakedef.h"
-#include "client.h"
-#include "cl_video.h"
-#include "cl_video_libavw.h"
+// LordHavoc: for some reason this is being #include'd rather than treated as its own file...
+// LordHavoc: adapted to not require stdint.h as this is not available on MSVC++, using unsigned char instead of uint8_t and fs_offset_t instead of int64_t.
 
 // scaler type
 #define LIBAVW_SCALER_BILINEAR  0
@@ -49,9 +45,9 @@
 #define LIBAVW_PRINT_PANIC   4
 // exported callback functions:
 typedef void    avwCallbackPrint(int, const char *);
-typedef int     avwCallbackIoRead(void *, uint8_t *, int);
-typedef uint64_t avwCallbackIoSeek(void *, uint64_t, int);
-typedef uint64_t avwCallbackIoSeekSize(void *);
+typedef int     avwCallbackIoRead(void *, unsigned char *, int);
+typedef fs_offset_t avwCallbackIoSeek(void *, fs_offset_t, int);
+typedef fs_offset_t avwCallbackIoSeekSize(void *);
 // exported functions:
 int         (*qLibAvW_Init)(avwCallbackPrint *printfunction); // init library, returns error code
 const char *(*qLibAvW_ErrorString)(int errorcode); // get string for error code
@@ -89,11 +85,12 @@ static dllfunction_t libavwfuncs[] =
 const char* dllnames_libavw[] =
 {
 #if defined(_WIN32)
-		"libavcodec.dll",
+		"libavw.dll",
 #elif defined(MACOSX)
-		"libavcodec.dylib",
+		"libavw.dylib",
 #else
-		"libavcodec.so",
+		"libavw.so.1",
+		"libavw.so",
 #endif
 		NULL
 };
@@ -117,9 +114,9 @@ typedef struct libavwstream_s
 }
 libavwstream_t;
 
-cvar_t cl_video_libavw_minwidth  = {CF_ARCHIVE, "cl_video_libavw_minwidth", "0", "if videos width is lesser than minimal, thay will be upscaled"};
-cvar_t cl_video_libavw_minheight = {CF_ARCHIVE, "cl_video_libavw_minheight", "0", "if videos height is lesser than minimal, thay will be upscaled"};
-cvar_t cl_video_libavw_scaler    = {CF_ARCHIVE, "cl_video_libavw_scaler", "1", "selects a scaler for libavcode played videos. Scalers are: 0 - bilinear, 1 - bicubic, 2 - x, 3 - point, 4 - area, 5 - bicublin, 6 - gauss, 7 - sinc, 8 - lanczos, 9 - spline."};
+cvar_t cl_video_libavw_minwidth  = {CVAR_SAVE, "cl_video_libavw_minwidth", "0", "if videos width is lesser than minimal, thay will be upscaled"};
+cvar_t cl_video_libavw_minheight = {CVAR_SAVE, "cl_video_libavw_minheight", "0", "if videos height is lesser than minimal, thay will be upscaled"};
+cvar_t cl_video_libavw_scaler    = {CVAR_SAVE, "cl_video_libavw_scaler", "1", "selects a scaler for libavcode played videos. Scalers are: 0 - bilinear, 1 - bicubic, 2 - x, 3 - point, 4 - area, 5 - bicublin, 6 - gauss, 7 - sinc, 8 - lanczos, 9 - spline."};
 
 // video extensions
 const char* libavw_extensions[] =
@@ -178,7 +175,7 @@ static int libavw_decodeframe(void *stream, void *imagedata, unsigned int Rmask,
 		// got error or file end
 		errorcode = qLibAvW_StreamGetError(s->stream);
 		if (errorcode)
-			Con_Printf(CON_ERROR "LibAvW: %s\n", qLibAvW_ErrorString(errorcode));
+			Con_Printf("LibAvW: %s\n", qLibAvW_ErrorString(errorcode));
 		return 1;
 	}
 
@@ -189,11 +186,11 @@ static int libavw_decodeframe(void *stream, void *imagedata, unsigned int Rmask,
 		pixel_format = LIBAVW_PIXEL_FORMAT_BGR;
 	else
 	{
-		Con_Printf(CON_ERROR "LibAvW: cannot determine pixel format for bpp %i\n", bytesperpixel);
+		Con_Printf("LibAvW: cannot determine pixel format for bpp %i\n", bytesperpixel);
 		return 1;
 	}
 	if (!qLibAvW_PlayGetFrameImage(s->stream, pixel_format, imagedata, s->info_imagewidth, s->info_imageheight, min(9, max(0, cl_video_libavw_scaler.integer))))
-		Con_Printf(CON_ERROR "LibAvW: %s\n", qLibAvW_ErrorString(qLibAvW_StreamGetError(s->stream)));
+		Con_Printf("LibAvW: %s\n", qLibAvW_ErrorString(qLibAvW_StreamGetError(s->stream)));
 	return 0;
 }
 
@@ -235,21 +232,21 @@ void libavw_close(void *stream)
 }
 
 // IO wrapper
-static int LibAvW_FS_Read(void *opaque, uint8_t *buf, int buf_size)
+static int LibAvW_FS_Read(void *opaque, unsigned char *buf, int buf_size)
 {
 	return FS_Read((qfile_t *)opaque, buf, buf_size);
 }
-static uint64_t LibAvW_FS_Seek(void *opaque, uint64_t pos, int whence)
+static fs_offset_t LibAvW_FS_Seek(void *opaque, fs_offset_t pos, int whence)
 {
-	return (uint64_t)FS_Seek((qfile_t *)opaque, pos, whence);
+	return (fs_offset_t)FS_Seek((qfile_t *)opaque, pos, whence);
 }
-static uint64_t LibAvW_FS_SeekSize(void *opaque)
+static fs_offset_t LibAvW_FS_SeekSize(void *opaque)
 {
-	return (uint64_t)FS_FileSize((qfile_t *)opaque);
+	return (fs_offset_t)FS_FileSize((qfile_t *)opaque);
 }
 
 // open as DP video stream
-void *LibAvW_OpenVideo(clvideo_t *video, char *filename, const char **errorstring)
+static void *LibAvW_OpenVideo(clvideo_t *video, char *filename, const char **errorstring)
 {
 	libavwstream_t *s;
 	char filebase[MAX_OSPATH], check[MAX_OSPATH];
@@ -272,7 +269,7 @@ void *LibAvW_OpenVideo(clvideo_t *video, char *filename, const char **errorstrin
 	s->sndchan = -1;
 
 	// open file
-	s->file = FS_OpenVirtualFile(filename, true);
+	s->file = FS_OpenVirtualFile(filename, true, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 	if (!s->file)
 	{
 		FS_StripExtension(filename, filebase, sizeof(filebase));
@@ -280,7 +277,7 @@ void *LibAvW_OpenVideo(clvideo_t *video, char *filename, const char **errorstrin
 		for (i = 0; libavw_extensions[i] != NULL; i++)
 		{
 			dpsnprintf(check, sizeof(check), "%s.%s", filebase, libavw_extensions[i]);
-			s->file = FS_OpenVirtualFile(check, true);
+			s->file = FS_OpenVirtualFile(check, true, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 			if (s->file)
 				break;
 		}
@@ -346,16 +343,16 @@ void *LibAvW_OpenVideo(clvideo_t *video, char *filename, const char **errorstrin
 static void libavw_message(int level, const char *message)
 {
 	if (level == LIBAVW_PRINT_WARNING)
-		Con_Printf(CON_WARN "LibAvcodec warning: %s\n", message);
+		Con_Printf("LibAvcodec warning: %s\n", message);
 	else if (level == LIBAVW_PRINT_ERROR)
-		Con_Printf(CON_ERROR "LibAvcodec error: %s\n", message);
+		Con_Printf("LibAvcodec error: %s\n", message);
 	else if (level == LIBAVW_PRINT_FATAL)
-		Con_Printf(CON_ERROR "LibAvcodec fatal error: %s\n", message);
+		Con_Printf("LibAvcodec fatal error: %s\n", message);
 	else
-		Con_Printf(CON_ERROR "LibAvcodec panic: %s\n", message);
+		Con_Printf("LibAvcodec panic: %s\n", message);
 }
 
-qbool LibAvW_OpenLibrary(void)
+static qbool LibAvW_OpenLibrary(void)
 {
 	int errorcode;
 
@@ -371,7 +368,7 @@ qbool LibAvW_OpenLibrary(void)
 	// initialize libav wrapper
 	if ((errorcode = qLibAvW_Init(&libavw_message)))
 	{
-		Con_Printf(CON_ERROR "LibAvW failed to initialize: %s\n", qLibAvW_ErrorString(errorcode));
+		Con_Printf("LibAvW failed to initialize: %s\n", qLibAvW_ErrorString(errorcode));
 		Sys_FreeLibrary(&libavw_dll);
 	}
 
@@ -382,7 +379,8 @@ qbool LibAvW_OpenLibrary(void)
 	return true;
 }
 
-void LibAvW_CloseLibrary(void)
+static void LibAvW_CloseLibrary(void)
 {
 	Sys_FreeLibrary(&libavw_dll);
 }
+

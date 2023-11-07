@@ -33,7 +33,7 @@ CVars introduced with the freetype extension
 ================================================================================
 */
 
-cvar_t r_font_disable_freetype = {CF_CLIENT | CF_ARCHIVE, "r_font_disable_freetype", "0", "disable freetype support for fonts entirely"};
+cvar_t r_font_disable_freetype = {CF_CLIENT | CF_ARCHIVE, "r_font_disable_freetype", "1", "disable freetype support for fonts entirely"};
 cvar_t r_font_use_alpha_textures = {CF_CLIENT | CF_ARCHIVE, "r_font_use_alpha_textures", "0", "use alpha-textures for font rendering, this should safe memory"};
 cvar_t r_font_size_snapping = {CF_CLIENT | CF_ARCHIVE, "r_font_size_snapping", "1", "stick to good looking font sizes whenever possible - bad when the mod doesn't support it!"};
 cvar_t r_font_kerning = {CF_CLIENT | CF_ARCHIVE, "r_font_kerning", "1", "Use kerning if available"};
@@ -262,7 +262,7 @@ static const unsigned char *fontfilecache_LoadFile(const char *path, qbool quiet
 			}
 	}
 
-	buf = FS_LoadFile(path, font_mempool, quiet, filesizepointer);
+	buf = FS_LoadFile(path, font_mempool, quiet, filesizepointer, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 	if(buf)
 	{
 		for(i = 0; i < MAX_FONTFILES; ++i)
@@ -685,7 +685,7 @@ static qbool Font_LoadFile(const char *name, int _face, ft2_settings_t *settings
 	font->data = data;
 	if (status)
 	{
-		Con_PrintLinef (CON_ERROR "ERROR: can't create face for %s" NEWLINE
+		Con_PrintLinef (CON_ERROR "ERROR: can't create face for %s" NEWLINE 
 			   "Error %d", // TODO: error strings
 			   name, status);
 		Font_UnloadFont(font);
@@ -929,7 +929,7 @@ static qbool Font_LoadSize(ft2_font_t *font, float size, qbool check_only)
 	memset(&temp, 0, sizeof(temp));
 	temp.size = size;
 	temp.glyphSize = size*2 + max(gpad_l + gpad_r, gpad_t + gpad_b);
-	if (!r_font_nonpoweroftwo.integer)
+	if (!(r_font_nonpoweroftwo.integer && vid.support.arb_texture_non_power_of_two))
 		temp.glyphSize = CeilPowerOf2(temp.glyphSize);
 	temp.sfx = (1.0/64.0)/(double)size;
 	temp.sfy = (1.0/64.0)/(double)size;
@@ -1330,8 +1330,12 @@ static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch,
 		(unsigned) mapidx);
 
 	// create a cachepic_t from the data now, or reuse an existing one
+	map->pic = Draw_CachePic_Flags(map_identifier, CACHEPICFLAG_QUIET);
 	if (developer_font.integer) {
-		Con_PrintLinef ("Generating font map %s (size: %.1f MB)", map_identifier, mapstart->glyphSize * (256 * 4 / 1048576.0) * mapstart->glyphSize);
+		if (map->pic->tex == r_texture_notexture)
+			Con_PrintLinef ("Generating font map %s (size: %.1f MB)", map_identifier, mapstart->glyphSize * (256 * 4 / 1048576.0) * mapstart->glyphSize);
+		else
+			Con_PrintLinef ("Using cached font map %s (size: %.1f MB)", map_identifier, mapstart->glyphSize * (256 * 4 / 1048576.0) * mapstart->glyphSize);
 	} // if
 
 	Font_Postprocess(font, NULL, 0, bytesPerPixel, mapstart->size*2, mapstart->size*2, &gpad_l, &gpad_r, &gpad_t, &gpad_b);
@@ -1344,25 +1348,27 @@ static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch,
 	map->sfy = mapstart->sfy;
 
 	pitch = map->glyphSize * FONT_CHARS_PER_LINE * bytesPerPixel;
-	data = (unsigned char *)Mem_Alloc(font_mempool, (FONT_CHAR_LINES * map->glyphSize) * pitch);
-	if (!data)
-	{
-		Con_PrintLinef (CON_ERROR "ERROR: Failed to allocate memory for font %s size %g", font->name, map->size);
-		Mem_Free(map);
-		return false;
-	}
-	// initialize as white texture with zero alpha
-	tp = 0;
-	while (tp < (FONT_CHAR_LINES * map->glyphSize) * pitch)
-	{
-		if (bytesPerPixel == 4)
+	if (map->pic->tex == r_texture_notexture) {
+		data = (unsigned char *)Mem_Alloc(font_mempool, (FONT_CHAR_LINES * map->glyphSize) * pitch);
+		if (!data)
 		{
-			data[tp++] = 0xFF;
-			data[tp++] = 0xFF;
-			data[tp++] = 0xFF;
+			Con_PrintLinef (CON_ERROR "ERROR: Failed to allocate memory for font %s size %g", font->name, map->size);
+			Mem_Free(map);
+			return false;
 		}
-		data[tp++] = 0x00;
-	}
+		// initialize as white texture with zero alpha
+		tp = 0;
+		while (tp < (FONT_CHAR_LINES * map->glyphSize) * pitch)
+		{
+			if (bytesPerPixel == 4)
+			{
+				data[tp++] = 0xFF;
+				data[tp++] = 0xFF;
+				data[tp++] = 0xFF;
+			}
+			data[tp++] = 0x00;
+		}
+	} // if / notexture
 
 	memset(map->width_of, 0, sizeof(map->width_of));
 
@@ -1617,11 +1623,16 @@ static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch,
 		map->glyphs[mapch].image = false;
 	}
 
+	if (map->pic->tex == r_texture_notexture)
 	{
 		int w = map->glyphSize * FONT_CHARS_PER_LINE;
 		int h = map->glyphSize * FONT_CHAR_LINES;
-		// update the pic returned by Draw_CachePic_Flags earlier to contain our texture
-		map->pic = Draw_NewPic(map_identifier, w, h, data, r_font_use_alpha_textures.integer ? TEXTYPE_ALPHA : TEXTYPE_RGBA, TEXF_ALPHA | TEXF_CLAMP | (r_font_compress.integer > 0 ? TEXF_COMPRESS : 0));
+		rtexture_t *tex;
+		// abuse the Draw_CachePic system to keep track of this texture
+		tex = R_LoadTexture2D(drawtexturepool, map_identifier, w, h, data, r_font_use_alpha_textures.integer ? TEXTYPE_ALPHA : TEXTYPE_RGBA, TEXF_ALPHA | (r_font_compress.integer > 0 ? TEXF_COMPRESS : 0), -1, NULL);
+		// if tex is NULL for any reason, the pic->tex will remain set to r_texture_notexture
+		if (tex)
+			map->pic->tex = tex;
 
 		if (r_font_diskcache.integer >= 1)
 		{
@@ -1637,8 +1648,8 @@ static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch,
 			}
 			Image_WriteTGABGRA(va(vabuf, sizeof(vabuf), "%s.tga", map_identifier), w, h, data);
 #ifndef USE_GLES2
-			if (r_font_compress.integer && Draw_IsPicLoaded(map->pic))
-				R_SaveTextureDDSFile(Draw_GetPicTexture(map->pic), va(vabuf, sizeof(vabuf), "dds/%s.dds", map_identifier), r_texture_dds_save.integer < 2, true);
+			if (r_font_compress.integer && qglGetCompressedTexImageARB && tex)
+				R_SaveTextureDDSFile (tex, va(vabuf, sizeof(vabuf), "dds/%s.dds", map_identifier), r_texture_dds_save.integer < 2, true);
 #endif
 		}
 	}
@@ -1646,7 +1657,7 @@ static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch,
 	if(data)
 		Mem_Free(data);
 
-	if (!Draw_IsPicLoaded(map->pic))
+	if (map->pic->tex == r_texture_notexture)
 	{
 		// if the first try isn't successful, keep it with a broken texture
 		// otherwise we retry to load it every single frame where ft2 rendering is used

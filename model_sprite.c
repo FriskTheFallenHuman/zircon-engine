@@ -75,8 +75,8 @@ static void Mod_SpriteSetupTexture(texture_t *texture, skinframe_t *skinframe, q
 	else if (skinframe->hasalpha)
 		texture->basematerialflags |= MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED | MATERIALFLAG_NOSHADOW;
 	texture->currentmaterialflags = texture->basematerialflags;
-	texture->materialshaderpass = texture->shaderpasses[0] = Mod_CreateShaderPass(loadmodel->mempool, skinframe);
-	texture->currentskinframe = skinframe;
+	texture->numskinframes = 1;
+	texture->currentskinframe = texture->skinframes[0] = skinframe;
 	texture->surfaceflags = 0;
 	texture->supercontents = SUPERCONTENTS_SOLID;
 	if (!(texture->basematerialflags & MATERIALFLAG_BLENDED))
@@ -108,7 +108,7 @@ static void Mod_Sprite_SharedSetup(const unsigned char *datapointer, int version
 
 	// LadyHavoc: hack to allow sprites to be non-fullbright
 	fullbright = true;
-	for (i = 0;i < MAX_QPATH && loadmodel->model_name[i];i++)
+	for (i = 0; i < MAX_QPATH && loadmodel->model_name[i]; i++)
 		if (loadmodel->model_name[i] == '!')
 			fullbright = false;
 
@@ -220,7 +220,7 @@ static void Mod_Sprite_SharedSetup(const unsigned char *datapointer, int version
 						dpsnprintf (name, sizeof(name), "%s_%i", loadmodel->model_name, i);
 						dpsnprintf (fogname, sizeof(fogname), "%s_%ifog", loadmodel->model_name, i);
 					}
-					if (!(skinframe = R_SkinFrame_LoadExternal(name, texflags | TEXF_COMPRESS, false, false)))
+					if (!(skinframe = R_SkinFrame_LoadExternal(name, texflags | TEXF_COMPRESS, false)))
 					{
 						unsigned char *pixels = (unsigned char *) Mem_Alloc(loadmodel->mempool, width*height*4);
 						if (version == SPRITE32_VERSION)
@@ -235,7 +235,7 @@ static void Mod_Sprite_SharedSetup(const unsigned char *datapointer, int version
 						}
 						else //if (version == SPRITEHL_VERSION || version == SPRITE_VERSION)
 							Image_Copy8bitBGRA(datapointer, pixels, width*height, palette ? palette : palette_bgra_transparent);
-						skinframe = R_SkinFrame_LoadInternalBGRA(name, texflags, pixels, width, height, 0, 0, 0, false, /*q1skyload*/ false);
+						skinframe = R_SkinFrame_LoadInternalBGRA(name, texflags, pixels, width, height, false);
 						// texflags |= TEXF_COMPRESS;
 						Mem_Free(pixels);
 					}
@@ -274,9 +274,13 @@ void Mod_IDSP_Load(model_t *mod, void *buffer, void *bufferend)
 
 	loadmodel->type = mod_sprite;
 
+	loadmodel->DrawSky = NULL;
 	loadmodel->Draw = R_Model_Sprite_Draw;
 	loadmodel->DrawDepth = NULL;
+	loadmodel->CompileShadowVolume = NULL;
+	loadmodel->DrawShadowVolume = NULL;
 	loadmodel->DrawLight = NULL;
+	loadmodel->DrawAddWaterPlanes = NULL;
 
 	version = LittleLong(((dsprite_t *)buffer)->version);
 	if (version == SPRITE_VERSION || version == SPRITE32_VERSION)
@@ -387,9 +391,13 @@ void Mod_IDS2_Load(model_t *mod, void *buffer, void *bufferend)
 
 	loadmodel->type = mod_sprite;
 
+	loadmodel->DrawSky = NULL;
 	loadmodel->Draw = R_Model_Sprite_Draw;
 	loadmodel->DrawDepth = NULL;
+	loadmodel->CompileShadowVolume = NULL;
+	loadmodel->DrawShadowVolume = NULL;
 	loadmodel->DrawLight = NULL;
+	loadmodel->DrawAddWaterPlanes = NULL;
 
 	pinqsprite = (dsprite2_t *)buffer;
 
@@ -456,7 +464,7 @@ void Mod_IDS2_Load(model_t *mod, void *buffer, void *bufferend)
 		{
 			const dsprite2frame_t *pinframe;
 			pinframe = &pinqsprite->frames[i];
-			if (!(skinframe = R_SkinFrame_LoadExternal(pinframe->name, texflags, false, false)))
+			if (!(skinframe = R_SkinFrame_LoadExternal(pinframe->name, texflags, false)))
 			{
 				Con_PrintLinef (CON_ERROR "Mod_IDS2_Load: failed to load %s", pinframe->name);
 				skinframe = R_SkinFrame_LoadMissing();

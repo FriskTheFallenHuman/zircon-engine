@@ -1,6 +1,6 @@
 /*
 Copyright (C) 1996-1997 Id Software, Inc.
-Copyright (C) 2003 Ashley Rose Hale (LadyHavoc)
+Copyright (C) 2003 Forest Hale
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -22,12 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef NET_H
 #define NET_H
 
-#include <stdarg.h>
-#include "qtypes.h"
-#include "crypto.h"
 #include "lhnet.h"
-#include "common.h"
-struct cmd_state_s;
 
 #define NET_HEADERSIZE		(2 * sizeof(unsigned int))
 
@@ -244,10 +239,10 @@ typedef struct netconn_s
 } netconn_t;
 
 extern netconn_t *netconn_list;
-extern struct mempool_s *netconn_mempool;
+extern mempool_t *netconn_mempool;
 
-extern struct cvar_s hostname;
-extern struct cvar_s developer_networking;
+extern cvar_t hostname;
+extern cvar_t developer_networking;
 
 #ifdef CONFIG_MENU
 #define SERVERLIST_VIEWLISTSIZE		SERVERLIST_TOTALSIZE
@@ -287,7 +282,7 @@ typedef struct serverlist_info_s
 	/// qc-defined short status string
 	char qcstatus[128];
 	/// frags/ping/name list (if they fit in the packet)
-	char players[2800];
+	char players[1400];
 	/// max client number
 	int maxplayers;
 	/// number of currently connected players (including bots)
@@ -424,16 +419,16 @@ extern sizebuf_t sv_message;
 extern char cl_readstring[MAX_INPUTLINE];
 extern char sv_readstring[MAX_INPUTLINE];
 
-extern struct cvar_s sv_public;
+extern cvar_t sv_public;
 
-extern struct cvar_s net_fakelag;
+extern cvar_t cl_netlocalping;
 
-extern struct cvar_s cl_netport;
-extern struct cvar_s sv_netport;
-extern struct cvar_s net_address;
-extern struct cvar_s net_address_ipv6;
-extern struct cvar_s net_usesizelimit;
-extern struct cvar_s net_burstreserve;
+extern cvar_t cl_netport;
+extern cvar_t sv_netport;
+extern cvar_t net_address;
+extern cvar_t net_address_ipv6;
+extern cvar_t net_usesizelimit;
+extern cvar_t net_burstreserve;
 
 qbool NetConn_CanSend(netconn_t *conn);
 int NetConn_SendUnreliableMessage(netconn_t *conn, sizebuf_t *data, protocolversion_t protocol, int rate, int burstsize, qbool quakesignon_suppressreliables);
@@ -459,14 +454,14 @@ void NetConn_ClientFrame(void);
 void NetConn_ServerFrame(void);
 void NetConn_SleepMicroseconds(int microseconds);
 void NetConn_Heartbeat(int priority);
-void Net_Stats_f(struct cmd_state_s *cmd);
+void Net_Stats_f(void);
 
 #ifdef CONFIG_MENU
 void NetConn_QueryMasters(qbool querydp, qbool queryqw);
 void NetConn_QueryQueueFrame(void);
-void Net_Slist_f(struct cmd_state_s *cmd);
-void Net_SlistQW_f(struct cmd_state_s *cmd);
-void Net_Refresh_f(struct cmd_state_s *cmd);
+void Net_Slist_f(void);
+void Net_SlistQW_f(void);
+void Net_Refresh_f(void);
 
 /// ServerList interface (public)
 /// manually refresh the view set, do this after having changed the mask or any other flag
@@ -474,8 +469,10 @@ void ServerList_RebuildViewList(void);
 void ServerList_ResetMasks(void);
 void ServerList_QueryList(qbool resetcache, qbool querydp, qbool queryqw, qbool consoleoutput);
 
+
+
 /// called whenever net_slist_favorites changes
-void NetConn_UpdateFavorites_c(struct cvar_s *var);
+void NetConn_UpdateFavorites(void);
 #endif
 
 #define MAX_CHALLENGES 128

@@ -3,9 +3,9 @@
 
 extern const char *buildstring;
 const char *buildstring =
-#ifndef NO_BUILD_TIMESTAMPS
-__TIME__ " " __DATE__ " "
-#endif
+	#ifndef NO_BUILD_TIMESTAMPS
+		__TIME__ " " __DATE__ " "
+	#endif
 
 #ifdef SVNREVISION
 STRINGIFY(SVNREVISION)

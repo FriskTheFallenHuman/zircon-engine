@@ -189,7 +189,7 @@ void R_NewExplosion(const vec3_t org)
 				// clip start origin
 				if (e->clipping)
 				{
-					trace = CL_TraceLine(e->origin, e->vert[j], MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
+					trace = CL_TraceLine(e->origin, e->vert[j], MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID, 0, collision_extendmovelength.value, true, false, NULL, false, false);
 					VectorCopy(trace.endpos, e->vert[i]);
 				}
 			}
@@ -213,7 +213,7 @@ static void R_DrawExplosion_TransparentCallback(const entity_render_t *ent, cons
 	R_EntityMatrix(&identitymatrix);
 
 //	R_Mesh_ResetTextureState();
-	R_SetupShader_Generic(explosiontexture, false, false, false);
+	R_SetupShader_Generic(explosiontexture, NULL, GL_MODULATE, 1, false, false, false);
 	for (surfacelistindex = 0;surfacelistindex < numsurfaces;surfacelistindex++)
 	{
 		const explosion_t *e = explosion + surfacelist[surfacelistindex];
@@ -245,7 +245,7 @@ static void R_MoveExplosion(explosion_t *e)
 			VectorMA(e->vert[i], frametime, e->vertvel[i], end);
 			if (e->clipping)
 			{
-				trace = CL_TraceLine(e->vert[i], end, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
+				trace = CL_TraceLine(e->vert[i], end, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID, 0, collision_extendmovelength.value, true, false, NULL, false, false);
 				if (trace.fraction < 1)
 				{
 					// clip velocity against the wall

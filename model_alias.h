@@ -21,8 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef MODEL_ALIAS_H
 #define MODEL_ALIAS_H
 
-#include <stddef.h>
-#include "qtypes.h"
 /*
 ==============================================================================
 
@@ -48,7 +46,7 @@ typedef struct daliashdr_s
 	int			numverts;
 	int			numtris;
 	int			numframes;
-	int			synctype;
+	synctype_t	synctype;
 	int			flags;
 	float		size;
 }
@@ -237,19 +235,18 @@ aliasbone_t;
 // for decoding md3 model latlong vertex normals
 extern float mod_md3_sin[320];
 
-extern struct cvar_s r_skeletal_debugbone;
-extern struct cvar_s r_skeletal_debugbonecomponent;
-extern struct cvar_s r_skeletal_debugbonevalue;
-extern struct cvar_s r_skeletal_debugtranslatex;
-extern struct cvar_s r_skeletal_debugtranslatey;
-extern struct cvar_s r_skeletal_debugtranslatez;
+extern cvar_t r_skeletal_debugbone;
+extern cvar_t r_skeletal_debugbonecomponent;
+extern cvar_t r_skeletal_debugbonevalue;
+extern cvar_t r_skeletal_debugtranslatex;
+extern cvar_t r_skeletal_debugtranslatey;
+extern cvar_t r_skeletal_debugtranslatez;
 
 struct model_s;
 struct frameblend_s;
-struct skeleton_s;
 
 void *Mod_Skeletal_AnimateVertices_AllocBuffers(size_t nbytes);
-void Mod_Skeletal_BuildTransforms(const struct model_s * RESTRICT model, const struct frameblend_s * RESTRICT frameblend, const struct skeleton_s *skeleton, float * RESTRICT bonepose, float * RESTRICT boneposerelative);
+void Mod_Skeletal_BuildTransforms(const struct model_s * RESTRICT model, const struct frameblend_s * RESTRICT frameblend, const skeleton_t *skeleton, float * RESTRICT bonepose, float * RESTRICT boneposerelative);
 
 #endif
 

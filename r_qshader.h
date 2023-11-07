@@ -14,17 +14,17 @@
 #define Q3TEXTUREFLAG_CAMERA 2048
 #define Q3TEXTUREFLAG_TRANSPARENTSORT 4096
 
-#define Q3PATHLENGTH 64
-#define TEXTURE_MAXFRAMES 64
-#define Q3WAVEPARMS 4
-#define Q3DEFORM_MAXPARMS 3
-#define Q3SHADER_MAXLAYERS 8
-#define Q3RGBGEN_MAXPARMS 3
-#define Q3ALPHAGEN_MAXPARMS 1
-#define Q3TCGEN_MAXPARMS 6
-#define Q3TCMOD_MAXPARMS 6
-#define Q3MAXTCMODS 8
-#define Q3MAXDEFORMS 4
+#define Q3PATHLENGTH_64 64
+#define TEXTURE_MAXFRAMES_64 64
+#define Q3WAVEPARMS_4 4
+#define Q3DEFORM_MAXPARMS_3 3
+#define Q3SHADER_MAXLAYERS_2 2 // FIXME support more than that (currently only two are used, so why keep more in RAM?)
+#define Q3RGBGEN_MAXPARMS_3 3
+#define Q3ALPHAGEN_MAXPARMS_1 1
+#define Q3TCGEN_MAXPARMS_6 6
+#define Q3TCMOD_MAXPARMS_6 6
+#define Q3MAXTCMODS_8 8
+#define Q3MAXDEFORMS_4 4
 
 typedef enum q3wavefunc_e
 {
@@ -60,6 +60,7 @@ typedef enum q3deform_e
 	Q3DEFORM_WAVE,
 	Q3DEFORM_NORMAL,
 	Q3DEFORM_MOVE,
+	Q3DEFORM_ROUNDWAVE,
 	Q3DEFORM_COUNT
 }
 q3deform_t;
@@ -100,6 +101,7 @@ typedef enum q3tcgen_e
 	Q3TCGEN_NONE,
 	Q3TCGEN_TEXTURE, // very common
 	Q3TCGEN_ENVIRONMENT, // common
+	Q3TCGEN_ENVIRONMENT2, // common
 	Q3TCGEN_LIGHTMAP,
 	Q3TCGEN_VECTOR,
 	Q3TCGEN_COUNT
@@ -124,34 +126,34 @@ q3tcmod_t;
 typedef struct q3shaderinfo_layer_rgbgen_s
 {
 	q3rgbgen_t rgbgen;
-	float parms[Q3RGBGEN_MAXPARMS];
+	float parms[Q3RGBGEN_MAXPARMS_3];
 	q3wavefunc_t wavefunc;
-	float waveparms[Q3WAVEPARMS];
+	float waveparms[Q3WAVEPARMS_4];
 }
 q3shaderinfo_layer_rgbgen_t;
 
 typedef struct q3shaderinfo_layer_alphagen_s
 {
 	q3alphagen_t alphagen;
-	float parms[Q3ALPHAGEN_MAXPARMS];
+	float parms[Q3ALPHAGEN_MAXPARMS_1];
 	q3wavefunc_t wavefunc;
-	float waveparms[Q3WAVEPARMS];
+	float waveparms[Q3WAVEPARMS_4];
 }
 q3shaderinfo_layer_alphagen_t;
 
 typedef struct q3shaderinfo_layer_tcgen_s
 {
 	q3tcgen_t tcgen;
-	float parms[Q3TCGEN_MAXPARMS];
+	float parms[Q3TCGEN_MAXPARMS_6];
 }
 q3shaderinfo_layer_tcgen_t;
 
 typedef struct q3shaderinfo_layer_tcmod_s
 {
 	q3tcmod_t tcmod;
-	float parms[Q3TCMOD_MAXPARMS];
+	float parms[Q3TCMOD_MAXPARMS_6];
 	q3wavefunc_t wavefunc;
-	float waveparms[Q3WAVEPARMS];
+	float waveparms[Q3WAVEPARMS_4];
 }
 q3shaderinfo_layer_tcmod_t;
 
@@ -161,22 +163,23 @@ typedef struct q3shaderinfo_layer_s
 	int clampmap;
 	float framerate;
 	int numframes;
-	int dptexflags;
+	int texflags;
 	char** texturename;
 	int blendfunc[2];
 	q3shaderinfo_layer_rgbgen_t rgbgen;
 	q3shaderinfo_layer_alphagen_t alphagen;
 	q3shaderinfo_layer_tcgen_t tcgen;
-	q3shaderinfo_layer_tcmod_t tcmods[Q3MAXTCMODS];
+	q3shaderinfo_layer_tcmod_t tcmods[Q3MAXTCMODS_8];
 }
 q3shaderinfo_layer_t;
 
 typedef struct q3shaderinfo_deform_s
 {
 	q3deform_t deform;
-	float parms[Q3DEFORM_MAXPARMS];
+	float parms[Q3DEFORM_MAXPARMS_3];
+	float parms2[Q3DEFORM_MAXPARMS_3]; // Au 15 roundwave
 	q3wavefunc_t wavefunc;
-	float waveparms[Q3WAVEPARMS];
+	float waveparms[Q3WAVEPARMS_4];
 }
 q3shaderinfo_deform_t;
 
@@ -195,9 +198,9 @@ typedef enum dptransparentsort_category_e
 	TRANSPARENTSORT_HUD,
 }dptransparentsortcategory_t;
 
-typedef struct shader_s
+typedef struct q3shaderinfo_s
 {
-	char name[Q3PATHLENGTH];
+	char name[Q3PATHLENGTH_64];
 #define Q3SHADERINFO_COMPARE_START surfaceparms
 	int surfaceparms;
 	int surfaceflags;
@@ -206,9 +209,10 @@ typedef struct shader_s
 	qbool lighting;
 	qbool vertexalpha;
 	qbool textureblendalpha;
-	q3shaderinfo_layer_t layers[Q3SHADER_MAXLAYERS];
-	char skyboxname[Q3PATHLENGTH];
-	q3shaderinfo_deform_t deforms[Q3MAXDEFORMS];
+	int primarylayer, backgroundlayer;
+	q3shaderinfo_layer_t layers[Q3SHADER_MAXLAYERS_2];
+	char skyboxname[Q3PATHLENGTH_64];
+	q3shaderinfo_deform_t deforms[Q3MAXDEFORMS_4];
 
 	// dp-specific additions:
 
@@ -224,7 +228,7 @@ typedef struct shader_s
 	qbool dpshaderkill;
 
 	// fake reflection
-	char dpreflectcube[Q3PATHLENGTH];
+	char dpreflectcube[Q3PATHLENGTH_64];
 
 	// reflection
 	float reflectmin; // when refraction is used, minimum amount of reflection (when looking straight down)
@@ -255,20 +259,7 @@ typedef struct shader_s
 	float rtlightambient;
 #define Q3SHADERINFO_COMPARE_END rtlightambient
 }
-shader_t;
+q3shaderinfo_t;
 
-typedef struct texture_shaderpass_s
-{
-	qbool alphatest; // FIXME: handle alphafunc properly
-	float framerate;
-	int numframes;
-	struct skinframe_s *skinframes[TEXTURE_MAXFRAMES];
-	int blendfunc[2];
-	q3shaderinfo_layer_rgbgen_t rgbgen;
-	q3shaderinfo_layer_alphagen_t alphagen;
-	q3shaderinfo_layer_tcgen_t tcgen;
-	q3shaderinfo_layer_tcmod_t tcmods[Q3MAXTCMODS];
-}
-texture_shaderpass_t;
 
 #endif

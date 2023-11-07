@@ -1,3 +1,4 @@
+
 #ifndef CURVES_H
 #define CURVES_H
 

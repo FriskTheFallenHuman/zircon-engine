@@ -1,15 +1,14 @@
+// Baker: sky
 
-#include "quakedef.h"
+#include "darkplaces.h"
 #include "image.h"
 
 // FIXME: fix skybox after vid_restart
 cvar_t r_sky = {CF_CLIENT | CF_ARCHIVE, "r_sky", "1", "enables sky rendering (black otherwise)"};
 cvar_t r_skyscroll1 = {CF_CLIENT | CF_ARCHIVE, "r_skyscroll1", "1", "speed at which upper clouds layer scrolls in quake sky"};
 cvar_t r_skyscroll2 = {CF_CLIENT | CF_ARCHIVE, "r_skyscroll2", "2", "speed at which lower clouds layer scrolls in quake sky"};
-cvar_t r_sky_scissor = {CF_CLIENT, "r_sky_scissor", "1", "limit rendering of sky to approximately the area of the sky surfaces"};
 int skyrenderlater;
 int skyrendermasked;
-int skyscissor[4];
 
 static int skyrendersphere;
 static int skyrenderbox;
@@ -61,8 +60,6 @@ void R_SkyStartFrame(void)
 	skyrendermasked = false;
 	// for depth-masked sky, we need to know whether any sky was rendered
 	skyrenderlater = false;
-	// we can scissor the sky to just the relevant area
-	Vector4Clear(skyscissor);
 	if (r_sky.integer)
 	{
 		if (skyboxskinframe[0] || skyboxskinframe[1] || skyboxskinframe[2] || skyboxskinframe[3] || skyboxskinframe[4] || skyboxskinframe[5])
@@ -86,7 +83,7 @@ static void R_UnloadSkyBox(void)
 	{
 		if (skyboxskinframe[i])
 		{
-			R_SkinFrame_PurgeSkinFrame(skyboxskinframe[i]);
+			// TODO: make a R_SkinFrame_Purge for single skins...
 			c++;
 		}
 		skyboxskinframe[i] = NULL;
@@ -127,7 +124,7 @@ static int R_LoadSkyBox(void)
 			}
 			temp = (unsigned char *)Mem_Alloc(tempmempool, image_width*image_height*4);
 			Image_CopyMux (temp, image_buffer, image_width, image_height, suffix[j][i].flipx, suffix[j][i].flipy, suffix[j][i].flipdiagonal, 4, 4, indices);
-			skyboxskinframe[i] = R_SkinFrame_LoadInternalBGRA(va(vabuf, sizeof(vabuf), "skyboxside%d", i), TEXF_CLAMP | (gl_texturecompression_sky.integer ? TEXF_COMPRESS : 0), temp, image_width, image_height, 0, 0, 0, vid.sRGB3D, /*q1skyload*/ false);
+			skyboxskinframe[i] = R_SkinFrame_LoadInternalBGRA(va(vabuf, sizeof(vabuf), "skyboxside%d", i), TEXF_CLAMP | (gl_texturecompression_sky.integer ? TEXF_COMPRESS : 0), temp, image_width, image_height, vid.sRGB3D);
 			Mem_Free(image_buffer);
 			Mem_Free(temp);
 			success++;
@@ -163,9 +160,9 @@ int R_SetSkyBox(const char *sky)
 }
 
 // LadyHavoc: added LoadSky console command
-static void LoadSky_f(cmd_state_t *cmd)
+static void LoadSky_f (void)
 {
-	switch (Cmd_Argc(cmd))
+	switch (Cmd_Argc())
 	{
 	case 1:
 		if (skyname[0])
@@ -174,7 +171,7 @@ static void LoadSky_f(cmd_state_t *cmd)
 			Con_Print("no skybox has been set\n");
 		break;
 	case 2:
-		if (R_SetSkyBox(Cmd_Argv(cmd, 1)))
+		if (R_SetSkyBox(Cmd_Argv(1)))
 		{
 			if (skyname[0])
 				Con_Printf("skybox set to %s\n", skyname);
@@ -182,7 +179,7 @@ static void LoadSky_f(cmd_state_t *cmd)
 				Con_Print("skybox disabled\n");
 		}
 		else
-			Con_Printf(CON_ERROR "failed to load skybox %s\n", Cmd_Argv(cmd, 1));
+			Con_Printf("failed to load skybox %s\n", Cmd_Argv(1));
 		break;
 	default:
 		Con_Print("usage: loadsky skyname\n");
@@ -308,7 +305,7 @@ static void R_SkyBox(void)
 	RSurf_ActiveCustomEntity(&skymatrix, &skyinversematrix, 0, 0, 1, 1, 1, 1, 6*4, skyboxvertex3f, skyboxtexcoord2f, NULL, NULL, NULL, NULL, 6*2, skyboxelement3i, skyboxelement3s, false, false);
 	for (i = 0;i < 6;i++)
 		if(skyboxskinframe[i])
-			R_DrawCustomSurface(skyboxskinframe[i], &identitymatrix, MATERIALFLAG_SKY | MATERIALFLAG_FULLBRIGHT | MATERIALFLAG_NOCULLFACE | MATERIALFLAG_NODEPTHTEST, i*4, 4, i*2, 2, false, false, false);
+			R_DrawCustomSurface(skyboxskinframe[i], &identitymatrix, MATERIALFLAG_SKY | MATERIALFLAG_FULLBRIGHT | MATERIALFLAG_NOCULLFACE | MATERIALFLAG_NODEPTHTEST, i*4, 4, i*2, 2, false, false);
 }
 
 #define skygridx 32
@@ -396,8 +393,8 @@ static void R_SkySphere(void)
 	Matrix4x4_CreateTranslate(&scroll2matrix, speedscale, speedscale, 0);
 
 	RSurf_ActiveCustomEntity(&skymatrix, &skyinversematrix, 0, 0, 1, 1, 1, 1, skysphere_numverts, skysphere_vertex3f, skysphere_texcoord2f, NULL, NULL, NULL, NULL, skysphere_numtriangles, skysphere_element3i, skysphere_element3s, false, false);
-	R_DrawCustomSurface(r_refdef.scene.worldmodel->brush.solidskyskinframe, &scroll1matrix, MATERIALFLAG_SKY | MATERIALFLAG_FULLBRIGHT | MATERIALFLAG_NOCULLFACE | MATERIALFLAG_NODEPTHTEST                                            , 0, skysphere_numverts, 0, skysphere_numtriangles, false, false, false);
-	R_DrawCustomSurface(r_refdef.scene.worldmodel->brush.alphaskyskinframe, &scroll2matrix, MATERIALFLAG_SKY | MATERIALFLAG_FULLBRIGHT | MATERIALFLAG_NOCULLFACE | MATERIALFLAG_NODEPTHTEST | MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED, 0, skysphere_numverts, 0, skysphere_numtriangles, false, false, false);
+	R_DrawCustomSurface(r_refdef.scene.worldmodel->brush.solidskyskinframe, &scroll1matrix, MATERIALFLAG_SKY | MATERIALFLAG_FULLBRIGHT | MATERIALFLAG_NOCULLFACE | MATERIALFLAG_NODEPTHTEST                                            , 0, skysphere_numverts, 0, skysphere_numtriangles, false, false);
+	R_DrawCustomSurface(r_refdef.scene.worldmodel->brush.alphaskyskinframe, &scroll2matrix, MATERIALFLAG_SKY | MATERIALFLAG_FULLBRIGHT | MATERIALFLAG_NOCULLFACE | MATERIALFLAG_NODEPTHTEST | MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED, 0, skysphere_numverts, 0, skysphere_numtriangles, false, false);
 }
 
 void R_Sky(void)
@@ -405,14 +402,6 @@ void R_Sky(void)
 	Matrix4x4_CreateFromQuakeEntity(&skymatrix, r_refdef.view.origin[0], r_refdef.view.origin[1], r_refdef.view.origin[2], 0, 0, 0, r_refdef.farclip * (0.5f / 16.0f));
 	Matrix4x4_Invert_Simple(&skyinversematrix, &skymatrix);
 
-	if (r_sky_scissor.integer)
-	{
-		// if the scissor is empty just return
-		if (skyscissor[2] == 0 || skyscissor[3] == 0)
-			return;
-		GL_Scissor(skyscissor[0], skyscissor[1], skyscissor[2], skyscissor[3]);
-		GL_ScissorTest(true);
-	}
 	if (skyrendersphere)
 	{
 		// this does not modify depth buffer
@@ -432,7 +421,6 @@ void R_Sky(void)
 		//GL_Clear(GL_DEPTH_BUFFER_BIT);
 	}
 	*/
-	GL_Scissor(0, 0, r_fb.screentexturewidth, r_fb.screentextureheight);
 }
 
 //===============================================================
@@ -440,7 +428,7 @@ void R_Sky(void)
 void R_ResetSkyBox(void)
 {
 	R_UnloadSkyBox();
-	memset(skyname,0,MAX_QPATH);
+	skyname[0] = 0;
 	R_LoadSkyBox();
 }
 
@@ -463,11 +451,11 @@ static void r_sky_newmap(void)
 
 void R_Sky_Init(void)
 {
-	Cmd_AddCommand(CF_CLIENT, "loadsky", &LoadSky_f, "load a skybox by basename (for example loadsky mtnsun_ loads mtnsun_ft.tga and so on)");
+	Cmd_AddCommand ("loadsky", &LoadSky_f, "load a skybox by basename (for example loadsky mtnsun_ loads mtnsun_ft.tga and so on)");
+	Cmd_AddCommand ("sky", &LoadSky_f, "load a skybox by basename (for example loadsky mtnsun_ loads mtnsun_ft.tga and so on) [Zircon]"); //  Baker: 900
 	Cvar_RegisterVariable (&r_sky);
 	Cvar_RegisterVariable (&r_skyscroll1);
 	Cvar_RegisterVariable (&r_skyscroll2);
-	Cvar_RegisterVariable (&r_sky_scissor);
 	memset(&skyboxskinframe, 0, sizeof(skyboxskinframe));
 	skyname[0] = 0;
 	R_RegisterModule("R_Sky", r_sky_start, r_sky_shutdown, r_sky_newmap, NULL, NULL);

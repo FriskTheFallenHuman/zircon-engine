@@ -1,15 +1,15 @@
 
 #ifdef _WIN32
+#ifdef SUPPORTDIRECTX
+#define POINTER_64 __ptr64 // VS2008+ include order involving DirectX SDK can cause this not to get defined
+#endif
+
 #include <windows.h>
 #else
 #include <dirent.h>
 #endif
 
 #include "darkplaces.h"
-
-#ifdef _WIN32
-#include "utf8lib.h"
-#endif
 
 // LadyHavoc: some portable directory listing code I wrote for lmp2pcx, now used in darkplaces to load id1/*.pak and such...
 
@@ -139,7 +139,7 @@ void stringlistsort(stringlist_t *list, qbool uniq)
 		for (i = 1, j = 0; i < list->numstrings; ++i)
 		{
 			char *save;
-			if(!strcasecmp(list->strings[i], list->strings[j]))
+			if(String_Does_Match_Caseless(list->strings[i], list->strings[j]))
 				continue;
 			++j;
 			save = list->strings[j];
@@ -168,31 +168,27 @@ static void adddirentry(stringlist_t *list, const char *path, const char *name)
 #ifdef _WIN32
 void listdirectory(stringlist_t *list, const char *basepath, const char *path)
 {
-	#define BUFSIZE 4096
-	char pattern[BUFSIZE] = {0};
-	wchar patternw[BUFSIZE] = {0};
-	char filename[BUFSIZE] = {0};
-	wchar *filenamew;
-	int lenw = 0;
-	WIN32_FIND_DATAW n_file;
+	int i;
+	char pattern[4096], *c;
+	WIN32_FIND_DATA n_file;
 	HANDLE hFile;
 	strlcpy (pattern, basepath, sizeof(pattern));
 	strlcat (pattern, path, sizeof (pattern));
 	strlcat (pattern, "*", sizeof (pattern));
-	fromwtf8(pattern, (int)strlen(pattern), patternw, BUFSIZE);
 	// ask for the directory listing handle
-	hFile = FindFirstFileW(patternw, &n_file);
+	hFile = FindFirstFile(pattern, &n_file);
 	if(hFile == INVALID_HANDLE_VALUE)
 		return;
 	do {
-		filenamew = n_file.cFileName;
-		lenw = 0;
-		while(filenamew[lenw] != 0) ++lenw;
-		towtf8(filenamew, lenw, filename, BUFSIZE);
-		adddirentry(list, path, filename);
-	} while (FindNextFileW(hFile, &n_file) != 0);
+		adddirentry(list, path, n_file.cFileName);
+	} while (FindNextFile(hFile, &n_file) != 0);
 	FindClose(hFile);
-	#undef BUFSIZE
+
+	// convert names to lowercase because windows does not care, but pattern matching code often does
+	for (i = 0;i < list->numstrings;i++)
+		for (c = list->strings[i];*c;c++)
+			if (*c >= 'A' && *c <= 'Z')
+				*c += 'a' - 'A';
 }
 #else
 void listdirectory(stringlist_t *list, const char *basepath, const char *path)
@@ -200,32 +196,9 @@ void listdirectory(stringlist_t *list, const char *basepath, const char *path)
 	char fullpath[MAX_OSPATH];
 	DIR *dir;
 	struct dirent *ent;
+
 	dpsnprintf(fullpath, sizeof(fullpath), "%s%s", basepath, path);
-#ifdef __ANDROID__
-	// SDL currently does not support listing assets, so we have to emulate
-	// it. We're using relative paths for assets, so that will do.
-	if (basepath[0] != '/')
-	{
-		char listpath[MAX_OSPATH];
-		qfile_t *listfile;
-		dpsnprintf(listpath, sizeof(listpath), "%sls.txt", fullpath);
-		char *buf = (char *) FS_SysLoadFile(listpath, tempmempool, true, NULL);
-		if (!buf)
-			return;
-		char *p = buf;
-		for (;;)
-		{
-			char *q = strchr(p, '\n');
-			if (q == NULL)
-				break;
-			*q = 0;
-			adddirentry(list, path, p);
-			p = q + 1;
-		}
-		Mem_Free(buf);
-		return;
-	}
-#endif
+
 	dir = opendir(fullpath);
 	if (!dir)
 		return;

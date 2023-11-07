@@ -22,7 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SOUND_H
 
 #include "matrixlib.h"
-struct cmd_state_s;
 
 
 // ====================================================================
@@ -47,12 +46,12 @@ struct cmd_state_s;
 
 typedef struct sfx_s sfx_t;
 
-extern struct cvar_s mastervolume;
-extern struct cvar_s bgmvolume;
-extern struct cvar_s volume;
-extern struct cvar_s snd_initialized;
-extern struct cvar_s snd_staticvolume;
-extern struct cvar_s snd_mutewhenidle;
+extern cvar_t mastervolume;
+extern cvar_t bgmvolume;
+extern cvar_t volume;
+extern cvar_t snd_initialized;
+extern cvar_t snd_staticvolume;
+extern cvar_t snd_mutewhenidle;
 
 
 // ====================================================================
@@ -64,7 +63,7 @@ void S_Terminate (void);
 
 void S_Startup (void);
 void S_Shutdown (void);
-void S_UnloadAllSounds_f(struct cmd_state_s *cmd);
+void S_UnloadAllSounds_f (void);
 
 void S_Update(const matrix4x4_t *listenermatrix);
 void S_ExtraUpdate (void);
@@ -104,7 +103,7 @@ qbool S_LocalSound (const char *s);
 void S_StaticSound (sfx_t *sfx, vec3_t origin, float fvol, float attenuation);
 void S_StopSound (int entnum, int entchannel);
 void S_StopAllSounds (void);
-void S_StopAllSounds_f(struct cmd_state_s *cmd);
+void S_StopAllSounds_f(void);
 void S_PauseGameSounds (qbool toggle);
 
 void S_StopChannel (unsigned int channel_ind, qbool lockmutex, qbool freesfx);
@@ -121,4 +120,4 @@ int S_GetSoundRate (void);
 int S_GetSoundChannels (void);
 int S_GetSoundWidth (void);
 
-#endif
+#endif // !SOUND_H

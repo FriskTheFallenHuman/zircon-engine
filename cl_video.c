@@ -1,5 +1,6 @@
 
 #include "quakedef.h"
+#include "cl_dyntexture.h"
 #include "cl_video.h"
 
 // cvars
@@ -71,20 +72,22 @@ static qbool OpenStream( clvideo_t * video )
 static void VideoUpdateCallback(rtexture_t *rt, void *data)
 {
 	clvideo_t *video = (clvideo_t *) data;
-	Draw_NewPic(video->name, video->width, video->height, (unsigned char *)video->imagedata, TEXTYPE_BGRA, TEXF_CLAMP);
+	R_UpdateTexture( video->cpif.tex, (unsigned char *)video->imagedata, 0, 0, 0, video->cpif.width, video->cpif.height, 1 );
 }
 
 static void LinkVideoTexture( clvideo_t *video )
 {
-	video->cachepic = Draw_NewPic(video->name, video->width, video->height, NULL, TEXTYPE_BGRA, TEXF_CLAMP);
-	// make R_GetTexture() call our VideoUpdateCallback
-	R_MakeTextureDynamic(Draw_GetPicTexture(video->cachepic), VideoUpdateCallback, video);
+	video->cpif.tex = R_LoadTexture2D( cl_videotexturepool, video->cpif.name, video->cpif.width, video->cpif.height, NULL, TEXTYPE_BGRA, TEXF_PERSISTENT | TEXF_CLAMP, -1, NULL );
+	R_MakeTextureDynamic( video->cpif.tex, VideoUpdateCallback, video );
+	CL_LinkDynTexture( video->cpif.name, video->cpif.tex );
 }
 
 static void UnlinkVideoTexture( clvideo_t *video )
 {
-	// free the texture (this does not destroy the cachepic_t, which is eternal)
-	Draw_FreePic(video->name);
+	CL_UnlinkDynTexture( video->cpif.name );
+	// free the texture
+	R_FreeTexture( video->cpif.tex );
+	video->cpif.tex = NULL;
 	// free the image data
 	Mem_Free( video->imagedata );
 }
@@ -116,11 +119,11 @@ static qbool WakeVideo( clvideo_t * video )
 			return false;
 		}
 
-	video->imagedata = Mem_Alloc( cls.permanentmempool, video->width * video->height * cl_videobytesperpixel );
+	video->imagedata = Mem_Alloc( cls.permanentmempool, video->cpif.width * video->cpif.height * cl_videobytesperpixel );
 	LinkVideoTexture( video );
 
 	// update starttime
-	video->starttime += host.realtime - video->lasttime;
+	video->starttime += realtime - video->lasttime;
 
 	return true;
 }
@@ -132,24 +135,9 @@ static void LoadSubtitles( clvideo_t *video, const char *subtitlesfile )
 	float subtime, sublen;
 	int numsubs = 0;
 
-	if (gamemode == GAME_BLOODOMNICIDE)
+	
 	{
-		char overridename[MAX_QPATH];
-		cvar_t *langcvar;
-
-		langcvar = Cvar_FindVar(&cvars_all, "language", CF_CLIENT | CF_SERVER);
-		subtitle_text = NULL;
-		if (langcvar)
-		{
-			dpsnprintf(overridename, sizeof(overridename), "locale/%s/%s", langcvar->string, subtitlesfile);
-			subtitle_text = (char *)FS_LoadFile(overridename, cls.permanentmempool, false, NULL);
-		}
-		if (!subtitle_text)
-			subtitle_text = (char *)FS_LoadFile(subtitlesfile, cls.permanentmempool, false, NULL);
-	}
-	else
-	{
-		subtitle_text = (char *)FS_LoadFile(subtitlesfile, cls.permanentmempool, false, NULL);
+		subtitle_text = (char *)FS_LoadFile(subtitlesfile, cls.permanentmempool, false, NULL, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 	}
 	if (!subtitle_text)
 	{
@@ -214,12 +202,11 @@ static void LoadSubtitles( clvideo_t *video, const char *subtitlesfile )
 
 static clvideo_t* OpenVideo( clvideo_t *video, const char *filename, const char *name, int owner, const char *subtitlesfile )
 {
-	strlcpy(video->filename, filename, sizeof(video->filename));
-	dpsnprintf(video->name, sizeof(video->name), CLVIDEOPREFIX "%s", name);
+	strlcpy( video->filename, filename, sizeof(video->filename) );
 	video->ownertag = owner;
 	if( strncmp( name, CLVIDEOPREFIX, sizeof( CLVIDEOPREFIX ) - 1 ) )
 		return NULL;
-	video->cachepic = Draw_CachePic_Flags(name, CACHEPICFLAG_NOTPERSISTENT | CACHEPICFLAG_QUIET);
+	strlcpy( video->cpif.name, name, sizeof(video->cpif.name) );
 
 	if( !OpenStream( video ) )
 		return NULL;
@@ -227,12 +214,12 @@ static clvideo_t* OpenVideo( clvideo_t *video, const char *filename, const char 
 	video->state = CLVIDEO_FIRSTFRAME;
 	video->framenum = -1;
 	video->framerate = video->getframerate( video->stream );
-	video->lasttime = host.realtime;
+	video->lasttime = realtime;
 	video->subtitles = 0;
 
-	video->width = video->getwidth( video->stream );
-	video->height = video->getheight( video->stream );
-	video->imagedata = Mem_Alloc( cls.permanentmempool, video->width * video->height * cl_videobytesperpixel );
+	video->cpif.width = video->getwidth( video->stream );
+	video->cpif.height = video->getheight( video->stream );
+	video->imagedata = Mem_Alloc( cls.permanentmempool, video->cpif.width * video->cpif.height * cl_videobytesperpixel );
 	LinkVideoTexture( video );
 
 	// VorteX: load simple subtitle_text file
@@ -276,7 +263,7 @@ static clvideo_t* CL_GetVideoBySlot( int slot )
 			video->framenum = -1;
 	}
 
-	video->lasttime = host.realtime;
+	video->lasttime = realtime;
 
 	return video;
 }
@@ -287,7 +274,7 @@ clvideo_t *CL_GetVideoByName( const char *name )
 
 	for( i = 0 ; i < cl_num_videos ; i++ )
 		if( cl_videos[ i ].state != CLVIDEO_UNUSED
-			&&	String_Does_Match( cl_videos[ i ].name , name ) )
+			&&	String_Does_Match( cl_videos[ i ].cpif.name , name ) )
 			break;
 	if( i != cl_num_videos )
 		return CL_GetVideoBySlot( i );
@@ -300,7 +287,7 @@ void CL_SetVideoState(clvideo_t *video, clvideostate_t state)
 	if (!video)
 		return;
 
-	video->lasttime = host.realtime;
+	video->lasttime = realtime;
 	video->state = state;
 	if (state == CLVIDEO_FIRSTFRAME)
 		CL_RestartVideo(video);
@@ -312,7 +299,7 @@ void CL_RestartVideo(clvideo_t *video)
 		return;
 
 	// reset time
-	video->starttime = video->lasttime = host.realtime;
+	video->starttime = video->lasttime = realtime;
 	video->framenum = -1;
 
 	// reopen stream
@@ -364,28 +351,28 @@ void CL_Video_Frame(void)
 	{
 		if (video->state != CLVIDEO_UNUSED && !video->suspended)
 		{
-			if (host.realtime - video->lasttime > CLTHRESHOLD)
+			if (realtime - video->lasttime > CLTHRESHOLD)
 			{
 				SuspendVideo(video);
 				continue;
 			}
 			if (video->state == CLVIDEO_PAUSE)
 			{
-				video->starttime = host.realtime - video->framenum * video->framerate;
+				video->starttime = realtime - video->framenum * video->framerate;
 				continue;
 			}
 			// read video frame from stream if time has come
 			if (video->state == CLVIDEO_FIRSTFRAME )
 				destframe = 0;
 			else
-				destframe = (int)((host.realtime - video->starttime) * video->framerate);
+				destframe = (int)((realtime - video->starttime) * video->framerate);
 			if (destframe < 0)
 				destframe = 0;
 			if (video->framenum < destframe)
 			{
 				do {
 					video->framenum++;
-					if (video->decodeframe(video->stream, video->imagedata, cl_videormask, cl_videogmask, cl_videobmask, cl_videobytesperpixel, cl_videobytesperpixel * video->width))
+					if (video->decodeframe(video->stream, video->imagedata, cl_videormask, cl_videogmask, cl_videobmask, cl_videobytesperpixel, cl_videobytesperpixel * video->cpif.width))
 					{ 
 						// finished?
 						CL_RestartVideo(video);
@@ -394,7 +381,7 @@ void CL_Video_Frame(void)
 						return;
 					}
 				} while(video->framenum < destframe);
-				R_MarkDirtyTexture(Draw_GetPicTexture(video->cachepic));
+				R_MarkDirtyTexture(video->cpif.tex);
 			}
 		}
 	}
@@ -524,38 +511,59 @@ void CL_DrawVideo(void)
 
 	// calc brightness for fadein and fadeout effects
 	b = cl_video_brightness.value;
-	if (cl_video_fadein.value && (host.realtime - video->starttime) < cl_video_fadein.value)
-		b = pow((host.realtime - video->starttime)/cl_video_fadein.value, 2);
-	else if (cl_video_fadeout.value && ((video->starttime + video->framenum * video->framerate) - host.realtime) < cl_video_fadeout.value)
-		b = pow(((video->starttime + video->framenum * video->framerate) - host.realtime)/cl_video_fadeout.value, 2);
+	if (cl_video_fadein.value && (realtime - video->starttime) < cl_video_fadein.value)
+		b = pow((realtime - video->starttime)/cl_video_fadein.value, 2);
+	else if (cl_video_fadeout.value && ((video->starttime + video->framenum * video->framerate) - realtime) < cl_video_fadeout.value)
+		b = pow(((video->starttime + video->framenum * video->framerate) - realtime)/cl_video_fadeout.value, 2);
 
 	// draw black bg in case stipple is active or video is scaled
 	if (cl_video_stipple.integer || px != 0 || py != 0 || sx != vid_conwidth.integer || sy != vid_conheight.integer)
 		DrawQ_Fill(0, 0, vid_conwidth.integer, vid_conheight.integer, 0, 0, 0, 1, 0);
 
+#ifndef USE_GLES2
 	// enable video-only polygon stipple (of global stipple is not active)
-	if (!scr_stipple.integer && cl_video_stipple.integer)
+	if (qglPolygonStipple && !scr_stipple.integer && cl_video_stipple.integer)
 	{
-		Con_Print("FIXME: cl_video_stipple not implemented\n");
-		Cvar_SetValueQuick(&cl_video_stipple, 0);
+		GLubyte stipple[128];
+		int s, width, parts;
+	
+		s = cl_video_stipple.integer;
+		parts = (s & 007);
+		width = (s & 070) >> 3;
+		qglEnable(GL_POLYGON_STIPPLE);CHECKGLERROR // 0x0B42
+		for(i = 0; i < 128; ++i)
+		{
+			int line = i/4;
+			stipple[i] = ((line >> width) & ((1 << parts) - 1)) ? 0x00 : 0xFF;
+		}
+		qglPolygonStipple(stipple);CHECKGLERROR
 	}
+#endif
 
 	// draw video
 	if (v_glslgamma_video.value >= 1)
-		DrawQ_SuperPic(px, py, video->cachepic, sx, sy, st[0], st[1], b, b, b, 1, st[2], st[3], b, b, b, 1, st[4], st[5], b, b, b, 1, st[6], st[7], b, b, b, 1, 0);
+		DrawQ_SuperPic(px, py, &video->cpif, sx, sy, st[0], st[1], b, b, b, 1, st[2], st[3], b, b, b, 1, st[4], st[5], b, b, b, 1, st[6], st[7], b, b, b, 1, 0);
 	else
 	{
-		DrawQ_SuperPic(px, py, video->cachepic, sx, sy, st[0], st[1], b, b, b, 1, st[2], st[3], b, b, b, 1, st[4], st[5], b, b, b, 1, st[6], st[7], b, b, b, 1, DRAWFLAG_NOGAMMA);
+		DrawQ_SuperPic(px, py, &video->cpif, sx, sy, st[0], st[1], b, b, b, 1, st[2], st[3], b, b, b, 1, st[4], st[5], b, b, b, 1, st[6], st[7], b, b, b, 1, DRAWFLAG_NOGAMMA);
 		if (v_glslgamma_video.value > 0.0)
-			DrawQ_SuperPic(px, py, video->cachepic, sx, sy, st[0], st[1], b, b, b, v_glslgamma_video.value, st[2], st[3], b, b, b, v_glslgamma_video.value, st[4], st[5], b, b, b, v_glslgamma_video.value, st[6], st[7], b, b, b, v_glslgamma_video.value, 0);
+			DrawQ_SuperPic(px, py, &video->cpif, sx, sy, st[0], st[1], b, b, b, v_glslgamma_video.value, st[2], st[3], b, b, b, v_glslgamma_video.value, st[4], st[5], b, b, b, v_glslgamma_video.value, st[6], st[7], b, b, b, v_glslgamma_video.value, 0);
 	}
+
+#ifndef USE_GLES2
+	// disable video-only stipple
+	if (qglPolygonStipple && !scr_stipple.integer && cl_video_stipple.integer)
+	{
+		qglDisable(GL_POLYGON_STIPPLE);CHECKGLERROR
+	}
+#endif
 
 	// VorteX: draw subtitle_text
 	if (!video->subtitles || !cl_video_subtitles.integer)
 		return;
 
 	// find current subtitle
-	videotime = host.realtime - video->starttime;
+	videotime = realtime - video->starttime;
 	for (i = 0; i < video->subtitles; i++)
 	{
 		if (videotime >= video->subtitle_start[i] && videotime <= video->subtitle_end[i])
@@ -577,12 +585,13 @@ void CL_DrawVideo(void)
 
 void CL_VideoStart(char *filename, const char *subtitlesfile)
 {
-	CL_StartVideo();
+	char vabuf[1024];
+	Host_StartVideo();
 
 	if( cl_videos->state != CLVIDEO_UNUSED )
 		CL_CloseVideo( cl_videos );
 	// already contains video/
-	if( !OpenVideo( cl_videos, filename, filename, 0, subtitlesfile ) )
+	if( !OpenVideo( cl_videos, filename, va(vabuf, sizeof(vabuf),  CLDYNTEXTUREPREFIX "%s", filename ), 0, subtitlesfile ) )
 		return;
 	// expand the active range to include the new entry
 	cl_num_videos = max(cl_num_videos, 1);
@@ -610,37 +619,37 @@ void CL_VideoStop(void)
 	CL_CloseVideo( cl_videos );
 }
 
-static void CL_PlayVideo_f(cmd_state_t *cmd)
+static void CL_PlayVideo_f(void)
 {
 	char name[MAX_QPATH], subtitlesfile[MAX_QPATH];
 	const char *extension;
 
-	CL_StartVideo();
+	Host_StartVideo();
 
 	if (Sys_CheckParm("-benchmark"))
 		return;
 
-	if (Cmd_Argc(cmd) < 2)
+	if (Cmd_Argc() < 2)
 	{
 		Con_Print("usage: playvideo <videoname> [custom_subtitles_file]\nplays video named video/<videoname>.dpv\nif custom subtitles file is not presented\nit tries video/<videoname>.sub");
 		return;
 	}
 
-	extension = FS_FileExtension(Cmd_Argv(cmd, 1));
+	extension = FS_FileExtension(Cmd_Argv(1));
 	if (extension[0])
-		dpsnprintf(name, sizeof(name), "video/%s", Cmd_Argv(cmd, 1));
+		dpsnprintf(name, sizeof(name), "video/%s", Cmd_Argv(1));
 	else
-		dpsnprintf(name, sizeof(name), "video/%s.dpv", Cmd_Argv(cmd, 1));
-	if ( Cmd_Argc(cmd) > 2)
-		CL_VideoStart(name, Cmd_Argv(cmd, 2));
+		dpsnprintf(name, sizeof(name), "video/%s.dpv", Cmd_Argv(1));
+	if ( Cmd_Argc() > 2)
+		CL_VideoStart(name, Cmd_Argv(2));
 	else
 	{
-		dpsnprintf(subtitlesfile, sizeof(subtitlesfile), "video/%s.dpsubs", Cmd_Argv(cmd, 1));
+		dpsnprintf(subtitlesfile, sizeof(subtitlesfile), "video/%s.dpsubs", Cmd_Argv(1));
 		CL_VideoStart(name, subtitlesfile);
 	}
 }
 
-static void CL_StopVideo_f(cmd_state_t *cmd)
+static void CL_StopVideo_f(void)
 {
 	CL_VideoStop();
 }
@@ -689,8 +698,8 @@ void CL_Video_Init( void )
 	bgra.i = 0;bgra.b[1] = 0xFF;cl_videogmask = bgra.i;
 	bgra.i = 0;bgra.b[2] = 0xFF;cl_videormask = bgra.i;
 
-	Cmd_AddCommand(CF_CLIENT, "playvideo", CL_PlayVideo_f, "play a .dpv video file" );
-	Cmd_AddCommand(CF_CLIENT, "stopvideo", CL_StopVideo_f, "stop playing a .dpv video file" );
+	Cmd_AddCommand( "playvideo", CL_PlayVideo_f, "play a .dpv video file" );
+	Cmd_AddCommand( "stopvideo", CL_StopVideo_f, "stop playing a .dpv video file" );
 
 	Cvar_RegisterVariable(&cl_video_subtitles);
 	Cvar_RegisterVariable(&cl_video_subtitles_lines);

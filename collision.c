@@ -1,7 +1,6 @@
 
 #include "quakedef.h"
 #include "polygon.h"
-#include "collision.h"
 
 #define COLLISION_EDGEDIR_DOT_EPSILON (0.999f)
 #define COLLISION_EDGECROSS_MINLENGTH2 (1.0f / 4194304.0f)
@@ -18,7 +17,6 @@ cvar_t collision_debug_tracelineasbox = {CF_CLIENT | CF_SERVER, "collision_debug
 cvar_t collision_cache = {CF_CLIENT | CF_SERVER, "collision_cache", "1", "store results of collision traces for next frame to reuse if possible (optimization)"};
 cvar_t collision_triangle_bevelsides = {CF_CLIENT | CF_SERVER, "collision_triangle_bevelsides", "0", "generate sloped edge planes on triangles - if 0, see axialedgeplanes"};
 cvar_t collision_triangle_axialsides = {CF_CLIENT | CF_SERVER, "collision_triangle_axialsides", "1", "generate axially-aligned edge planes on triangles - otherwise use perpendicular edge planes"};
-cvar_t collision_bih_fullrecursion = {CF_CLIENT | CF_SERVER, "collision_bih_fullrecursion", "0", "debugging option to disable the bih recursion optimizations by iterating the entire tree"};
 
 mempool_t *collision_mempool;
 
@@ -32,7 +30,6 @@ void Collision_Init (void)
 	Cvar_RegisterVariable(&collision_cache);
 	Cvar_RegisterVariable(&collision_triangle_bevelsides);
 	Cvar_RegisterVariable(&collision_triangle_axialsides);
-	Cvar_RegisterVariable(&collision_bih_fullrecursion);
 	collision_mempool = Mem_AllocPool("collision cache", 0, NULL);
 	Collision_Cache_Init(collision_mempool);
 }
@@ -555,6 +552,25 @@ void Collision_CalcPlanesForTriangleBrushFloat(colbrushf_t *brush)
 	}
 }
 
+colbrushf_t *Collision_AllocBrushFromPermanentPolygonFloat(mempool_t *mempool, int numpoints, float *points, int supercontents, int q3surfaceflags, const texture_t *texture)
+{
+	colbrushf_t *brush;
+	brush = (colbrushf_t *)Mem_Alloc(mempool, sizeof(colbrushf_t) + sizeof(colplanef_t) * (numpoints + 2) + sizeof(colpointf_t) * numpoints);
+	brush->isaabb = false;
+	brush->hasaabbplanes = false;
+	brush->supercontents = supercontents;
+	brush->numpoints = numpoints;
+	brush->numedgedirs = numpoints;
+	brush->numplanes = numpoints + 2;
+	brush->planes = (colplanef_t *)(brush + 1);
+	brush->points = (colpointf_t *)points;
+	brush->edgedirs = (colpointf_t *)(brush->planes + brush->numplanes);
+	brush->q3surfaceflags = q3surfaceflags;
+	brush->texture = texture;
+	Sys_Error("Collision_AllocBrushFromPermanentPolygonFloat: FIXME: this code needs to be updated to generate a mesh...");
+	return brush;
+}
+
 // NOTE: start and end of each brush pair must have same numplanes/numpoints
 void Collision_TraceBrushBrushFloat(trace_t *trace, const colbrushf_t *trace_start, const colbrushf_t *trace_end, const colbrushf_t *other_start, const colbrushf_t *other_end)
 {
@@ -573,7 +589,6 @@ void Collision_TraceBrushBrushFloat(trace_t *trace, const colbrushf_t *trace_sta
 	const texture_t *hittexture = NULL;
 	vec_t startdepth = 1;
 	vec3_t startdepthnormal;
-	const texture_t *starttexture = NULL;
 
 	VectorClear(startdepthnormal);
 	Vector4Clear(newimpactplane);
@@ -629,7 +644,7 @@ void Collision_TraceBrushBrushFloat(trace_t *trace, const colbrushf_t *trace_sta
 			VectorNormalize(endplane);
 		}
 		startplane[3] = furthestplanedist_float(startplane, other_start->points, othernumpoints);
-		endplane[3] = furthestplanedist_float(endplane, other_end->points, othernumpoints);
+		endplane[3] = furthestplanedist_float(startplane, other_end->points, othernumpoints);
 		startdist = nearestplanedist_float(startplane, trace_start->points, tracenumpoints) - startplane[3];
 		enddist = nearestplanedist_float(endplane, trace_end->points, tracenumpoints) - endplane[3];
 		//Con_Printf("%c%i: startdist = %f, enddist = %f, startdist / (startdist - enddist) = %f\n", nplane2 != nplane ? 'b' : 'a', nplane2, startdist, enddist, startdist / (startdist - enddist));
@@ -639,7 +654,6 @@ void Collision_TraceBrushBrushFloat(trace_t *trace, const colbrushf_t *trace_sta
 		{
 			startdepth = startdist;
 			VectorCopy(startplane, startdepthnormal);
-			starttexture = other_start->planes[nplane2].texture;
 		}
 
 		if (startdist > enddist)
@@ -725,7 +739,7 @@ void Collision_TraceBrushBrushFloat(trace_t *trace, const colbrushf_t *trace_sta
 	{
 		// started outside, and overlaps, therefore there is a collision here
 		// store out the impact information
-		if ((trace->hitsupercontentsmask & other_start->supercontents) && !(trace->skipsupercontentsmask & other_start->supercontents) && !(trace->skipmaterialflagsmask & (hittexture ? hittexture->currentmaterialflags : 0)))
+		if ((trace->hitsupercontentsmask & other_start->supercontents) && !(trace->skipsupercontentsmask & other_start->supercontents))
 		{
 			trace->hitsupercontents = other_start->supercontents;
 			trace->hitq3surfaceflags = hitq3surfaceflags;
@@ -739,7 +753,7 @@ void Collision_TraceBrushBrushFloat(trace_t *trace, const colbrushf_t *trace_sta
 	{
 		// started inside, update startsolid and friends
 		trace->startsupercontents |= other_start->supercontents;
-		if ((trace->hitsupercontentsmask & other_start->supercontents) && !(trace->skipsupercontentsmask & other_start->supercontents) && !(trace->skipmaterialflagsmask & (starttexture ? starttexture->currentmaterialflags : 0)))
+		if ((trace->hitsupercontentsmask & other_start->supercontents) && !(trace->skipsupercontentsmask & other_start->supercontents))
 		{
 			trace->startsolid = true;
 			if (leavefrac < 1)
@@ -750,7 +764,6 @@ void Collision_TraceBrushBrushFloat(trace_t *trace, const colbrushf_t *trace_sta
 			{
 				trace->startdepth = startdepth;
 				VectorCopy(startdepthnormal, trace->startdepthnormal);
-				trace->starttexture = starttexture;
 			}
 		}
 	}
@@ -768,7 +781,6 @@ void Collision_TraceLineBrushFloat(trace_t *trace, const vec3_t linestart, const
 	const texture_t *hittexture = NULL;
 	vec_t startdepth = 1;
 	vec3_t startdepthnormal;
-	const texture_t *starttexture = NULL;
 
 	if (collision_debug_tracelineasbox.integer)
 	{
@@ -807,7 +819,6 @@ void Collision_TraceLineBrushFloat(trace_t *trace, const vec3_t linestart, const
 		{
 			startdepth = startdist;
 			VectorCopy(startplane, startdepthnormal);
-			starttexture = other_start->planes[nplane].texture;
 		}
 
 		if (startdist > enddist)
@@ -876,7 +887,7 @@ void Collision_TraceLineBrushFloat(trace_t *trace, const vec3_t linestart, const
 	{
 		// started outside, and overlaps, therefore there is a collision here
 		// store out the impact information
-		if ((trace->hitsupercontentsmask & other_start->supercontents) && !(trace->skipsupercontentsmask & other_start->supercontents) && !(trace->skipmaterialflagsmask & (hittexture ? hittexture->currentmaterialflags : 0)))
+		if ((trace->hitsupercontentsmask & other_start->supercontents) && !(trace->skipsupercontentsmask & other_start->supercontents))
 		{
 			trace->hitsupercontents = other_start->supercontents;
 			trace->hitq3surfaceflags = hitq3surfaceflags;
@@ -890,7 +901,7 @@ void Collision_TraceLineBrushFloat(trace_t *trace, const vec3_t linestart, const
 	{
 		// started inside, update startsolid and friends
 		trace->startsupercontents |= other_start->supercontents;
-		if ((trace->hitsupercontentsmask & other_start->supercontents) && !(trace->skipsupercontentsmask & other_start->supercontents) && !(trace->skipmaterialflagsmask & (starttexture ? starttexture->currentmaterialflags : 0)))
+		if ((trace->hitsupercontentsmask & other_start->supercontents) && !(trace->skipsupercontentsmask & other_start->supercontents))
 		{
 			trace->startsolid = true;
 			if (leavefrac < 1)
@@ -901,7 +912,6 @@ void Collision_TraceLineBrushFloat(trace_t *trace, const vec3_t linestart, const
 			{
 				trace->startdepth = startdepth;
 				VectorCopy(startdepthnormal, trace->startdepthnormal);
-				trace->starttexture = starttexture;
 			}
 		}
 	}
@@ -920,65 +930,16 @@ qbool Collision_PointInsideBrushFloat(const vec3_t point, const colbrushf_t *bru
 	return true;
 }
 
-void Collision_TracePointBrushFloat(trace_t *trace, const vec3_t linestart, const colbrushf_t *other_start)
+void Collision_TracePointBrushFloat(trace_t *trace, const vec3_t point, const colbrushf_t *thatbrush)
 {
-	int nplane;
-	int numplanes = other_start->numplanes;
-	vec_t startdist;
-	vec4_t startplane;
-	vec4_t newimpactplane;
-	vec_t startdepth = 1;
-	vec3_t startdepthnormal;
-	const texture_t *starttexture = NULL;
+	if (!Collision_PointInsideBrushFloat(point, thatbrush))
+		return;
 
-	VectorClear(startdepthnormal);
-	Vector4Clear(newimpactplane);
-
-	// Separating Axis Theorem:
-	// if a supporting vector (plane normal) can be found that separates two
-	// objects, they are not colliding.
-	//
-	// Minkowski Sum:
-	// reduce the size of one object to a point while enlarging the other to
-	// represent the space that point can not occupy.
-	//
-	// try every plane we can construct between the two brushes and measure
-	// the distance between them.
-	for (nplane = 0; nplane < numplanes; nplane++)
-	{
-		VectorCopy(other_start->planes[nplane].normal, startplane);
-		startplane[3] = other_start->planes[nplane].dist;
-		startdist = DotProduct(linestart, startplane) - startplane[3];
-
-		if (startdist > 0)
-			return;
-
-		// aside from collisions, this is also used for error correction
-		if (startdepth < startdist || startdepth == 1)
-		{
-			startdepth = startdist;
-			VectorCopy(startplane, startdepthnormal);
-			starttexture = other_start->planes[nplane].texture;
-		}
-	}
-
-	// at this point we know the trace overlaps the brush because it was not
-	// rejected at any point in the loop above
-
-	// started inside, update startsolid and friends
-	trace->startsupercontents |= other_start->supercontents;
-	if ((trace->hitsupercontentsmask & other_start->supercontents) && !(trace->skipsupercontentsmask & other_start->supercontents) && !(trace->skipmaterialflagsmask & (starttexture ? starttexture->currentmaterialflags : 0)))
+	trace->startsupercontents |= thatbrush->supercontents;
+	if ((trace->hitsupercontentsmask & thatbrush->supercontents) && !(trace->skipsupercontentsmask & thatbrush->supercontents))
 	{
 		trace->startsolid = true;
 		trace->allsolid = true;
-		VectorCopy(newimpactplane, trace->plane.normal);
-		trace->plane.dist = newimpactplane[3];
-		if (trace->startdepth > startdepth)
-		{
-			trace->startdepth = startdepth;
-			VectorCopy(startdepthnormal, trace->startdepthnormal);
-			trace->starttexture = starttexture;
-		}
 	}
 }
 
@@ -1347,7 +1308,7 @@ void Collision_TraceLineTriangleFloat(trace_t *trace, const vec3_t linestart, co
 	// 8 ops (rare)
 
 	// skip if this trace should not be blocked by these contents
-	if (!(supercontents & trace->hitsupercontentsmask) || (supercontents & trace->skipsupercontentsmask) || (texture->currentmaterialflags & trace->skipmaterialflagsmask))
+	if (!(supercontents & trace->hitsupercontentsmask) || (supercontents & trace->skipsupercontentsmask))
 		return;
 
 	// store the new trace fraction
@@ -1450,7 +1411,6 @@ typedef struct collision_cachedtrace_parameters_s
 	vec3_t start;
 	int hitsupercontentsmask;
 	int skipsupercontentsmask;
-	int skipmaterialflagsmask;
 	matrix4x4_t matrix;
 }
 collision_cachedtrace_parameters_t;
@@ -1580,7 +1540,7 @@ static unsigned int Collision_Cache_HashIndexForArray(unsigned int *array, unsig
 	return hashindex;
 }
 
-static collision_cachedtrace_t *Collision_Cache_Lookup(model_t *model, const matrix4x4_t *matrix, const matrix4x4_t *inversematrix, const vec3_t start, const vec3_t end, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask)
+static collision_cachedtrace_t *Collision_Cache_Lookup(model_t *model, const matrix4x4_t *matrix, const matrix4x4_t *inversematrix, const vec3_t start, const vec3_t end, int hitsupercontentsmask, int skipsupercontentsmask)
 {
 	int hashindex = 0;
 	unsigned int fullhashindex;
@@ -1604,7 +1564,6 @@ static collision_cachedtrace_t *Collision_Cache_Lookup(model_t *model, const mat
 		VectorCopy(end,   params.end);
 		params.hitsupercontentsmask = hitsupercontentsmask;
 		params.skipsupercontentsmask = skipsupercontentsmask;
-		params.skipmaterialflagsmask = skipmaterialflagsmask;
 		params.matrix = *matrix;
 		fullhashindex = Collision_Cache_HashIndexForArray((unsigned int *)&params, sizeof(params) / sizeof(unsigned int));
 		hashindex = (int)(fullhashindex % (unsigned int)collision_cachedtrace_hashsize);
@@ -1623,7 +1582,6 @@ static collision_cachedtrace_t *Collision_Cache_Lookup(model_t *model, const mat
 			 || cached->p.start[2] != params.start[2]
 			 || cached->p.hitsupercontentsmask != params.hitsupercontentsmask
 			 || cached->p.skipsupercontentsmask != params.skipsupercontentsmask
-			 || cached->p.skipmaterialflagsmask != params.skipmaterialflagsmask
 			 || cached->p.matrix.m[0][0] != params.matrix.m[0][0]
 			 || cached->p.matrix.m[0][1] != params.matrix.m[0][1]
 			 || cached->p.matrix.m[0][2] != params.matrix.m[0][2]
@@ -1688,30 +1646,30 @@ static collision_cachedtrace_t *Collision_Cache_Lookup(model_t *model, const mat
 	return cached;
 }
 
-void Collision_Cache_ClipLineToGenericEntitySurfaces(trace_t *trace, model_t *model, matrix4x4_t *matrix, matrix4x4_t *inversematrix, const vec3_t start, const vec3_t end, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask)
+void Collision_Cache_ClipLineToGenericEntitySurfaces(trace_t *trace, model_t *model, matrix4x4_t *matrix, matrix4x4_t *inversematrix, const vec3_t start, const vec3_t end, int hitsupercontentsmask, int skipsupercontentsmask)
 {
-	collision_cachedtrace_t *cached = Collision_Cache_Lookup(model, matrix, inversematrix, start, end, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+	collision_cachedtrace_t *cached = Collision_Cache_Lookup(model, matrix, inversematrix, start, end, hitsupercontentsmask, skipsupercontentsmask);
 	if (cached->valid)
 	{
 		*trace = cached->result;
 		return;
 	}
 
-	Collision_ClipLineToGenericEntity(trace, model, NULL, NULL, vec3_origin, vec3_origin, 0, matrix, inversematrix, start, end, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value, true);
+	Collision_ClipLineToGenericEntity(trace, model, NULL, NULL, vec3_origin, vec3_origin, 0, matrix, inversematrix, start, end, hitsupercontentsmask, skipsupercontentsmask, collision_extendmovelength.value, true);
 
 	cached->result = *trace;
 }
 
-void Collision_Cache_ClipLineToWorldSurfaces(trace_t *trace, model_t *model, const vec3_t start, const vec3_t end, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask)
+void Collision_Cache_ClipLineToWorldSurfaces(trace_t *trace, model_t *model, const vec3_t start, const vec3_t end, int hitsupercontentsmask, int skipsupercontentsmask)
 {
-	collision_cachedtrace_t *cached = Collision_Cache_Lookup(model, &identitymatrix, &identitymatrix, start, end, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+	collision_cachedtrace_t *cached = Collision_Cache_Lookup(model, &identitymatrix, &identitymatrix, start, end, hitsupercontentsmask, skipsupercontentsmask);
 	if (cached->valid)
 	{
 		*trace = cached->result;
 		return;
 	}
 
-	Collision_ClipLineToWorld(trace, model, start, end, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value, true);
+	Collision_ClipLineToWorld(trace, model, start, end, hitsupercontentsmask, skipsupercontentsmask, collision_extendmovelength.value, true);
 
 	cached->result = *trace;
 }
@@ -1788,7 +1746,7 @@ static void Collision_ClipExtendFinish(extendtraceinfo_t *extendtraceinfo)
 	VectorMA(extendtraceinfo->realstart, trace->fraction, extendtraceinfo->realdelta, trace->endpos);
 }
 
-void Collision_ClipToGenericEntity(trace_t *trace, model_t *model, const frameblend_t *frameblend, const skeleton_t *skeleton, const vec3_t bodymins, const vec3_t bodymaxs, int bodysupercontents, matrix4x4_t *matrix, matrix4x4_t *inversematrix, const vec3_t tstart, const vec3_t mins, const vec3_t maxs, const vec3_t tend, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask, float extend)
+void Collision_ClipToGenericEntity(trace_t *trace, model_t *model, const frameblend_t *frameblend, const skeleton_t *skeleton, const vec3_t bodymins, const vec3_t bodymaxs, int bodysupercontents, matrix4x4_t *matrix, matrix4x4_t *inversematrix, const vec3_t tstart, const vec3_t mins, const vec3_t maxs, const vec3_t tend, int hitsupercontentsmask, int skipsupercontentsmask, float extend)
 {
 	vec3_t starttransformed, endtransformed;
 	extendtraceinfo_t extendtraceinfo;
@@ -1816,13 +1774,13 @@ void Collision_ClipToGenericEntity(trace_t *trace, model_t *model, const framebl
 			Collision_TransformBrush(inversematrix, &thisbrush_end.brush);
 			//Collision_TranslateBrush(starttransformed, &thisbrush_start.brush);
 			//Collision_TranslateBrush(endtransformed, &thisbrush_end.brush);
-			model->TraceBrush(model, frameblend, skeleton, trace, &thisbrush_start.brush, &thisbrush_end.brush, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+			model->TraceBrush(model, frameblend, skeleton, trace, &thisbrush_start.brush, &thisbrush_end.brush, hitsupercontentsmask, skipsupercontentsmask);
 		}
 		else // this is only approximate if rotated, quite useless
-			model->TraceBox(model, frameblend, skeleton, trace, starttransformed, mins, maxs, endtransformed, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+			model->TraceBox(model, frameblend, skeleton, trace, starttransformed, mins, maxs, endtransformed, hitsupercontentsmask, skipsupercontentsmask);
 	}
 	else // and this requires that the transformation matrix doesn't have angles components, like SV_TraceBox ensures; FIXME may get called if a model is SOLID_BSP but has no TraceBox function
-		Collision_ClipTrace_Box(trace, bodymins, bodymaxs, starttransformed, mins, maxs, endtransformed, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, bodysupercontents, 0, NULL);
+		Collision_ClipTrace_Box(trace, bodymins, bodymaxs, starttransformed, mins, maxs, endtransformed, hitsupercontentsmask, skipsupercontentsmask, bodysupercontents, 0, NULL);
 
 	Collision_ClipExtendFinish(&extendtraceinfo);
 
@@ -1831,17 +1789,17 @@ void Collision_ClipToGenericEntity(trace_t *trace, model_t *model, const framebl
 	Matrix4x4_TransformPositivePlane(matrix, trace->plane.normal[0], trace->plane.normal[1], trace->plane.normal[2], trace->plane.dist, trace->plane.normal_and_dist);
 }
 
-void Collision_ClipToWorld(trace_t *trace, model_t *model, const vec3_t tstart, const vec3_t mins, const vec3_t maxs, const vec3_t tend, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask, float extend)
+void Collision_ClipToWorld(trace_t *trace, model_t *model, const vec3_t tstart, const vec3_t mins, const vec3_t maxs, const vec3_t tend, int hitsupercontentsmask, int skipsupercontentsmask, float extend)
 {
 	extendtraceinfo_t extendtraceinfo;
 	Collision_ClipExtendPrepare(&extendtraceinfo, trace, tstart, tend, extend);
 	// ->TraceBox: TraceBrush not needed here, as worldmodel is never rotated
 	if (model && model->TraceBox)
-		model->TraceBox(model, NULL, NULL, trace, extendtraceinfo.extendstart, mins, maxs, extendtraceinfo.extendend, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+		model->TraceBox(model, NULL, NULL, trace, extendtraceinfo.extendstart, mins, maxs, extendtraceinfo.extendend, hitsupercontentsmask, skipsupercontentsmask);
 	Collision_ClipExtendFinish(&extendtraceinfo);
 }
 
-void Collision_ClipLineToGenericEntity(trace_t *trace, model_t *model, const frameblend_t *frameblend, const skeleton_t *skeleton, const vec3_t bodymins, const vec3_t bodymaxs, int bodysupercontents, matrix4x4_t *matrix, matrix4x4_t *inversematrix, const vec3_t tstart, const vec3_t tend, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask, float extend, qbool hitsurfaces)
+void Collision_ClipLineToGenericEntity(trace_t *trace, model_t *model, const frameblend_t *frameblend, const skeleton_t *skeleton, const vec3_t bodymins, const vec3_t bodymaxs, int bodysupercontents, matrix4x4_t *matrix, matrix4x4_t *inversematrix, const vec3_t tstart, const vec3_t tend, int hitsupercontentsmask, int skipsupercontentsmask, float extend, qbool hitsurfaces)
 {
 	vec3_t starttransformed, endtransformed;
 	extendtraceinfo_t extendtraceinfo;
@@ -1854,11 +1812,11 @@ void Collision_ClipLineToGenericEntity(trace_t *trace, model_t *model, const fra
 #endif
 
 	if (model && model->TraceLineAgainstSurfaces && hitsurfaces)
-		model->TraceLineAgainstSurfaces(model, frameblend, skeleton, trace, starttransformed, endtransformed, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+		model->TraceLineAgainstSurfaces(model, frameblend, skeleton, trace, starttransformed, endtransformed, hitsupercontentsmask, skipsupercontentsmask);
 	else if (model && model->TraceLine)
-		model->TraceLine(model, frameblend, skeleton, trace, starttransformed, endtransformed, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+		model->TraceLine(model, frameblend, skeleton, trace, starttransformed, endtransformed, hitsupercontentsmask, skipsupercontentsmask);
 	else
-		Collision_ClipTrace_Box(trace, bodymins, bodymaxs, starttransformed, vec3_origin, vec3_origin, endtransformed, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, bodysupercontents, 0, NULL);
+		Collision_ClipTrace_Box(trace, bodymins, bodymaxs, starttransformed, vec3_origin, vec3_origin, endtransformed, hitsupercontentsmask, skipsupercontentsmask, bodysupercontents, 0, NULL);
 
 	Collision_ClipExtendFinish(&extendtraceinfo);
 
@@ -1867,20 +1825,20 @@ void Collision_ClipLineToGenericEntity(trace_t *trace, model_t *model, const fra
 	Matrix4x4_TransformPositivePlane(matrix, trace->plane.normal[0], trace->plane.normal[1], trace->plane.normal[2], trace->plane.dist, trace->plane.normal_and_dist);
 }
 
-void Collision_ClipLineToWorld(trace_t *trace, model_t *model, const vec3_t tstart, const vec3_t tend, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask, float extend, qbool hitsurfaces)
+void Collision_ClipLineToWorld(trace_t *trace, model_t *model, const vec3_t tstart, const vec3_t tend, int hitsupercontentsmask, int skipsupercontentsmask, float extend, qbool hitsurfaces)
 {
 	extendtraceinfo_t extendtraceinfo;
 	Collision_ClipExtendPrepare(&extendtraceinfo, trace, tstart, tend, extend);
 
 	if (model && model->TraceLineAgainstSurfaces && hitsurfaces)
-		model->TraceLineAgainstSurfaces(model, NULL, NULL, trace, extendtraceinfo.extendstart, extendtraceinfo.extendend, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+		model->TraceLineAgainstSurfaces(model, NULL, NULL, trace, extendtraceinfo.extendstart, extendtraceinfo.extendend, hitsupercontentsmask, skipsupercontentsmask);
 	else if (model && model->TraceLine)
-		model->TraceLine(model, NULL, NULL, trace, extendtraceinfo.extendstart, extendtraceinfo.extendend, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+		model->TraceLine(model, NULL, NULL, trace, extendtraceinfo.extendstart, extendtraceinfo.extendend, hitsupercontentsmask, skipsupercontentsmask);
 
 	Collision_ClipExtendFinish(&extendtraceinfo);
 }
 
-void Collision_ClipPointToGenericEntity(trace_t *trace, model_t *model, const frameblend_t *frameblend, const skeleton_t *skeleton, const vec3_t bodymins, const vec3_t bodymaxs, int bodysupercontents, matrix4x4_t *matrix, matrix4x4_t *inversematrix, const vec3_t start, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask)
+void Collision_ClipPointToGenericEntity(trace_t *trace, model_t *model, const frameblend_t *frameblend, const skeleton_t *skeleton, const vec3_t bodymins, const vec3_t bodymaxs, int bodysupercontents, matrix4x4_t *matrix, matrix4x4_t *inversematrix, const vec3_t start, int hitsupercontentsmask, int skipsupercontentsmask)
 {
 	float starttransformed[3];
 	memset(trace, 0, sizeof(*trace));
@@ -1892,9 +1850,9 @@ void Collision_ClipPointToGenericEntity(trace_t *trace, model_t *model, const fr
 #endif
 
 	if (model && model->TracePoint)
-		model->TracePoint(model, NULL, NULL, trace, starttransformed, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+		model->TracePoint(model, NULL, NULL, trace, starttransformed, hitsupercontentsmask, skipsupercontentsmask);
 	else
-		Collision_ClipTrace_Point(trace, bodymins, bodymaxs, starttransformed, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, bodysupercontents, 0, NULL);
+		Collision_ClipTrace_Point(trace, bodymins, bodymaxs, starttransformed, hitsupercontentsmask, skipsupercontentsmask, bodysupercontents, 0, NULL);
 
 	VectorCopy(start, trace->endpos);
 	// transform plane
@@ -1902,12 +1860,12 @@ void Collision_ClipPointToGenericEntity(trace_t *trace, model_t *model, const fr
 	Matrix4x4_TransformPositivePlane(matrix, trace->plane.normal[0], trace->plane.normal[1], trace->plane.normal[2], trace->plane.dist, trace->plane.normal_and_dist);
 }
 
-void Collision_ClipPointToWorld(trace_t *trace, model_t *model, const vec3_t start, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask)
+void Collision_ClipPointToWorld(trace_t *trace, model_t *model, const vec3_t start, int hitsupercontentsmask, int skipsupercontentsmask)
 {
 	memset(trace, 0, sizeof(*trace));
 	trace->fraction = 1;
 	if (model && model->TracePoint)
-		model->TracePoint(model, NULL, NULL, trace, start, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+		model->TracePoint(model, NULL, NULL, trace, start, hitsupercontentsmask, skipsupercontentsmask);
 	VectorCopy(start, trace->endpos);
 }
 

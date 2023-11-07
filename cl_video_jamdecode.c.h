@@ -1,5 +1,3 @@
-#if 0 // Baker
-
 // JAM format decoder, used by Blood Omnicide
 
 #ifdef LIBAVCODEC
@@ -378,5 +376,3 @@ readframe:
 	}
 	return 0;
 }
-
-#endif // 0

@@ -21,11 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef DPVSIMPLEDECODE_H
 #define DPVSIMPLEDECODE_H
 
-#include "qtypes.h"
-#include "qdefs.h"
-#include "cvar.h"
 #include "cl_video.h"
-#include "draw.h"
 
 #define DPVSIMPLEDECODEERROR_NONE 0
 #define DPVSIMPLEDECODEERROR_EOF 1

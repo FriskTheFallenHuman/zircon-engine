@@ -43,7 +43,7 @@ typedef struct q3dheader_s
 
 typedef struct q3dtexture_s
 {
-	char name[Q3PATHLENGTH];
+	char name[Q3PATHLENGTH_64];
 	int surfaceflags;
 	int contents;
 }
@@ -131,7 +131,7 @@ q3dmeshvertex_t;
 
 typedef struct q3deffect_s
 {
-	char shadername[Q3PATHLENGTH];
+	char shadername[Q3PATHLENGTH_64];
 	int brushindex;
 	int unknown; // I read this is always 5 except in q3dm8 which has one effect with -1
 }
@@ -339,7 +339,7 @@ typedef struct model_brushq3_s
 	rtexture_t **data_lightmaps;
 	rtexture_t **data_deluxemaps;
 
-	// voxel light data with directional shading - data for cpu sampling of it...
+	// voxel light data with directional shading
 	int num_lightgrid;
 	q3dlightgrid_t *data_lightgrid;
 	// size of each cell (may vary by map, typically 64 64 128)
@@ -352,10 +352,6 @@ typedef struct model_brushq3_s
 	int num_lightgrid_isize[3];
 	// transform modelspace coordinates to lightgrid index
 	matrix4x4_t num_lightgrid_indexfromworld;
-	// parameters for fragment shader to sample the texture version of it:
-	int lightgridtexturesize[3]; // 3 layers tall (ambient, lightcolor, lightdir)
-	matrix4x4_t lightgridworldtotexturematrix;
-	rtexture_t *lightgridtexture;
 
 	// true if this q3bsp file has been detected as using deluxemapping
 	// (lightmap texture pairs, every odd one is never directly refernced,

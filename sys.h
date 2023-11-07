@@ -22,135 +22,133 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef SYS_H
 #define SYS_H
 
-#include "qtypes.h"
-#include "qdefs.h"
+extern cvar_t sys_usenoclockbutbenchmark;
 
 /* Preprocessor macros to identify platform
     DP_OS_NAME 	- "friendly" name of the OS, for humans to read
     DP_OS_STR	- "identifier" of the OS, more suited for code to use
     DP_ARCH_STR	- "identifier" of the processor architecture
  */
+
 #if defined(__ANDROID__) /* must come first because it also defines linux */
-# define DP_OS_NAME		"Android"
-# define DP_OS_STR		"android"
-# define USE_GLES2		1
-# define USE_RWOPS		1
-# define LINK_TO_ZLIB	1
-# define LINK_TO_LIBVORBIS 1
-#ifdef USEXMP
-# define LINK_TO_LIBXMP 1 // nyov: if someone can test with the android NDK compiled libxmp?
-#endif
-# define DP_MOBILETOUCH	1
-# define DP_FREETYPE_STATIC 1
+	# define DP_OS_NAME		"Android"
+	# define DP_OS_STR		"android"
+	# define USE_GLES2		1
+
+	# define USE_RWOPS		1	// Baker: this is not cutting it, either it is me or DP code
+
+	//# define LINK_TO_ZLIB	1	// Baker: I didn't need this
+								// Does Android supply it?
+
+	# define DP_MOBILETOUCH	1			
+		// Baker: CL_IPLog_Add, CL_IPLog_Load
+		//	Cvar_SetValueQuick(&r_nearclip, 4);
+		// 	Cvar_SetValueQuick(&r_farclip_base, 4096);
+		//	Cvar_SetValueQuick(&r_farclip_world, 0);
+		//	Cvar_SetValueQuick(&r_useinfinitefarclip, 0);
+		// 	VID_Init: Cvar_SetValueQuick(&vid_touchscreen, 1);
+
+	# define DP_FREETYPE_STATIC 1
+	# define LINK_TO_LIBVORBIS 1
+	# define LINK_TO_LIBJPEG
+	
+#elif TARGET_OS_IPHONE /* must come first because it also defines MACOSX */
+	# define DP_OS_NAME		"iPhoneOS"
+	# define DP_OS_STR		"iphoneos"
+	# define USE_GLES2		1
+	# define LINK_TO_ZLIB	1
+	# define LINK_TO_LIBVORBIS 1
+	# define DP_MOBILETOUCH	1
+	# define DP_FREETYPE_STATIC 1
 #elif defined(__linux__)
-# define DP_OS_NAME		"Linux"
-# define DP_OS_STR		"linux"
+	# define DP_OS_NAME		"Linux"
+	# define DP_OS_STR		"linux"
 #elif defined(_WIN64)
-# define DP_OS_NAME		"Windows64"
-# define DP_OS_STR		"win64"
+	# define DP_OS_NAME		"Windows64"
+	# define DP_OS_STR		"win64"
 #elif defined(_WIN32)
-# define DP_OS_NAME		"Windows"
-# define DP_OS_STR		"win32"
+	# define DP_OS_NAME		"Windows"
+	# define DP_OS_STR		"win32"
 #elif defined(__FreeBSD__)
-# define DP_OS_NAME		"FreeBSD"
-# define DP_OS_STR		"freebsd"
+	# define DP_OS_NAME		"FreeBSD"
+	# define DP_OS_STR		"freebsd"
 #elif defined(__NetBSD__)
-# define DP_OS_NAME		"NetBSD"
-# define DP_OS_STR		"netbsd"
+	# define DP_OS_NAME		"NetBSD"
+	# define DP_OS_STR		"netbsd"
 #elif defined(__OpenBSD__)
-# define DP_OS_NAME		"OpenBSD"
-# define DP_OS_STR		"openbsd"
-#elif defined(__DragonFly__)
-# define DP_OS_NAME		"DragonFlyBSD"
-# define DP_OS_STR		"dragonflybsd"
-#elif defined(__APPLE__)
-# if TARGET_OS_IPHONE
-#  define DP_OS_NAME "iOS"
-#  define DP_OS_STR "ios"
-#  define USE_GLES2              1
-#  define LINK_TO_ZLIB   1
-#  define LINK_TO_LIBVORBIS 1
-#  define DP_MOBILETOUCH 1
-#  define DP_FREETYPE_STATIC 1
-# elif TARGET_OS_MAC
-#  define DP_OS_NAME "macOS"
-#  define DP_OS_STR "macos"
-# endif 
+	# define DP_OS_NAME		"OpenBSD"
+	# define DP_OS_STR		"openbsd"
+#elif defined(MACOSX)
+	# define DP_OS_NAME		"Mac OS X"
+	# define DP_OS_STR		"osx"
+	
+	// # define CORE_SDL
+	# define CONFIG_MENU	// Baker: this really means not server only
+
+    #ifdef CORE_XCODE
+        # define LINK_TO_LIBVORBIS 1
+        # define LINK_TO_LIBJPEG
+        # define DP_FREETYPE_STATIC 1
+    #endif
+	
+	// # define USEODE			
+	// # define CONFIG_VIDEO_CAPTURE	
+	// _FILE_OFFSET_BITS=64					// 32 bit helper for fseek etc for gcc _FILE_OFFSET_BITS
+	// __KERNEL_STRICT_NAMES				// Linux thing
+
+
 #elif defined(__MORPHOS__)
-# define DP_OS_NAME		"MorphOS"
-# define DP_OS_STR		"morphos"
-#elif defined (sun) || defined (__sun)
-# if defined (__SVR4) || defined (__svr4__)
-#  define DP_OS_NAME	"Solaris"
-#  define DP_OS_STR		"solaris"
-# else
-#  define DP_OS_NAME	"SunOS"
-#  define DP_OS_STR		"sunos"
-# endif
+	# define DP_OS_NAME		"MorphOS"
+	# define DP_OS_STR		"morphos"
 #else
-# define DP_OS_NAME		"Unknown"
-# define DP_OS_STR		"unknown"
+	# define DP_OS_NAME		"Unknown"
+	# define DP_OS_STR		"unknown"
 #endif
 
-#if defined(__GNUC__) || (__clang__)
-# if defined(__i386__)
-#  define DP_ARCH_STR		"686"
-#  define SSE_POSSIBLE
-#  ifdef __SSE__
-#   define SSE_PRESENT
-#  endif
-#  ifdef __SSE2__
-#   define SSE2_PRESENT
-#  endif
-# elif defined(__x86_64__)
-#  define DP_ARCH_STR		"x86_64"
-#  define SSE_PRESENT
-#  define SSE2_PRESENT
-# elif defined(__powerpc__)
-#  define DP_ARCH_STR		"ppc"
-# endif
+#if defined(__GNUC__)
+	# if defined(__i386__)
+		#  define DP_ARCH_STR		"686"
+		#  define SSE_POSSIBLE
+		#  ifdef __SSE__
+			#define SSE_PRESENT
+		#  endif
+		#  ifdef __SSE2__
+		#   define SSE2_PRESENT
+		#  endif
+	# elif defined(__x86_64__)
+		#  define DP_ARCH_STR		"x86_64"
+		#  define SSE_PRESENT
+		#  define SSE2_PRESENT
+	# elif defined(__powerpc__)
+		#  define DP_ARCH_STR		"ppc"
+	# endif
 #elif defined(_WIN64)
-# define DP_ARCH_STR		"x86_64"
-# define SSE_PRESENT
-# define SSE2_PRESENT
+	# define DP_ARCH_STR		"x86_64"
+	# define SSE_PRESENT
+	# define SSE2_PRESENT
 #elif defined(_WIN32)
-# define DP_ARCH_STR		"x86"
-# define SSE_POSSIBLE
+	# define DP_ARCH_STR		"x86"
+	# define SSE_POSSIBLE
 #endif
 
 #ifdef SSE_PRESENT
-# define SSE_POSSIBLE
+	# define SSE_POSSIBLE
 #endif
 
 #ifdef NO_SSE
-# undef SSE_PRESENT
-# undef SSE_POSSIBLE
-# undef SSE2_PRESENT
+	# undef SSE_PRESENT
+	# undef SSE_POSSIBLE
+	# undef SSE2_PRESENT
 #endif
 
 #ifdef SSE_POSSIBLE
-// runtime detection of SSE/SSE2 capabilities for x86
-qbool Sys_HaveSSE(void);
-qbool Sys_HaveSSE2(void);
+	// runtime detection of SSE/SSE2 capabilities for x86
+	qbool Sys_HaveSSE(void);
+	qbool Sys_HaveSSE2(void);
 #else
-#define Sys_HaveSSE() false
-#define Sys_HaveSSE2() false
-#endif
-
-typedef struct sys_s
-{
-	int argc;
-	const char **argv;
-	int selffd;
-	int outfd;
-	int nicelevel;
-	qbool nicepossible;
-	qbool isnice;
-} sys_t;
-
-extern sys_t sys;
-
-extern struct cvar_s sys_usenoclockbutbenchmark;
+	#define Sys_HaveSSE() false
+	#define Sys_HaveSSE2() false
+#endif // SSE_POSSIBLE
 
 //
 // DLL management
@@ -173,26 +171,17 @@ typedef struct dllfunction_s
 }
 dllfunction_t;
 
-qbool Sys_LoadSelf(dllhandle_t *handle);
-
 /*! Loads a dependency library. 
  * \param dllnames a NULL terminated array of possible names for the DLL you want to load.
  * \param handle
  * \param fcts
  */
 qbool Sys_LoadDependency (const char** dllnames, dllhandle_t* handle, const dllfunction_t *fcts);
-
-/*! Loads a library.
- * \param name a string of the library filename
- * \param handle
- * \return true if library was loaded successfully
- */
-qbool Sys_LoadLibrary(const char *name, dllhandle_t *handle);
-
 void Sys_FreeLibrary (dllhandle_t* handle);
 void* Sys_GetProcAddress (dllhandle_t handle, const char* name);
 
-int Sys_CheckParm (const char *parm);
+// called early in Host_Init
+void Sys_InitConsole (void);
 
 /// called after command system is initialized but before first Con_Print
 void Sys_Init_Commands (void);
@@ -210,6 +199,12 @@ void Sys_Error (const char *error, ...) DP_FUNC_PRINTF(1) DP_FUNC_NORETURN;
 
 /// (may) output text to terminal which launched program
 void Sys_PrintToTerminal(const char *text);
+
+#ifdef _DEBUG
+void Sys_PrintToTerminal2(const char *text); // To Visual Studio Debug text only (when printing to console interferes with debugging)
+#endif
+
+
 void Sys_PrintfToTerminal(const char *fmt, ...);
 
 /// INFO: This is only called by Host_Shutdown so we dont need testing for recursion
@@ -246,6 +241,7 @@ void Sys_Sleep(int microseconds);
 void Sys_SendKeyEvents (void);
 
 char *Sys_GetClipboardData (void);
+int Sys_SetClipboardData(const char *text_to_clipboard);
 
 extern qbool sys_supportsdlgetticks;
 unsigned int Sys_SDL_GetTicks (void); // wrapper to call SDL_GetTicks
@@ -256,5 +252,5 @@ void Sys_InitProcessNice (void);
 void Sys_MakeProcessNice (void);
 void Sys_MakeProcessMean (void);
 
-#endif
+#endif // !SYS_H
 

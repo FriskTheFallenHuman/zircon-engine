@@ -24,13 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "snd_main.h"
 #include "snd_ogg.h"
 #include "snd_wav.h"
-#ifdef USEXMP
-#include "snd_xmp.h"
-#endif
-#include "sound.h"
 
-void SCR_PushLoadingScreen (const char *, float);
-void SCR_PopLoadingScreen (qbool);
 
 /*
 ====================
@@ -108,31 +102,24 @@ qbool S_LoadSound (sfx_t *sfx, qbool complain)
 	if (developer_loading.integer)
 		Con_Printf("loading sound %s\n", sfx->name);
 
-	SCR_PushLoadingScreen(sfx->name, 1);
+	SCR_PushLoadingScreen(true, sfx->name, 1);
 
 	// LadyHavoc: if the sound filename does not begin with sound/, try adding it
 	if (strncasecmp(sfx->name, "sound/", 6))
 	{
 		dpsnprintf (namebuffer, sizeof(namebuffer), "sound/%s", sfx->name);
 		len = strlen(namebuffer);
-		if (len >= 4 && !strcasecmp (namebuffer + len - 4, ".wav"))
+		if (len >= 4 && String_Does_Match_Caseless (namebuffer + len - 4, ".wav"))
 		{
 			if (S_LoadWavFile (namebuffer, sfx))
 				goto loaded;
 			memcpy (namebuffer + len - 3, "ogg", 4);
 		}
-		if (len >= 4 && !strcasecmp (namebuffer + len - 4, ".ogg"))
+		if (len >= 4 && String_Does_Match_Caseless (namebuffer + len - 4, ".ogg"))
 		{
 			if (OGG_LoadVorbisFile (namebuffer, sfx))
 				goto loaded;
 		}
-#ifdef USEXMP
-		else if (len >= 1)
-		{
-			if (XMP_LoadModFile (namebuffer, sfx))
-				goto loaded;
-		}
-#endif
 	}
 
 	// LadyHavoc: then try without the added sound/ as wav and ogg
@@ -141,29 +128,22 @@ qbool S_LoadSound (sfx_t *sfx, qbool complain)
 	// request foo.wav: tries foo.wav, then foo.ogg
 	// request foo.ogg: tries foo.ogg only
 	// request foo.mod: tries foo.mod only
-	if (len >= 4 && !strcasecmp (namebuffer + len - 4, ".wav"))
+	if (len >= 4 && String_Does_Match_Caseless (namebuffer + len - 4, ".wav"))
 	{
 		if (S_LoadWavFile (namebuffer, sfx))
 			goto loaded;
 		memcpy (namebuffer + len - 3, "ogg", 4);
 	}
-	if (len >= 4 && !strcasecmp (namebuffer + len - 4, ".ogg"))
+	if (len >= 4 && String_Does_Match_Caseless (namebuffer + len - 4, ".ogg"))
 	{
 		if (OGG_LoadVorbisFile (namebuffer, sfx))
 			goto loaded;
 	}
-#ifdef USEXMP
-	else if (len >= 1)
-	{
-		if (XMP_LoadModFile (namebuffer, sfx))
-			goto loaded;
-	}
-#endif
 
 	// Can't load the sound!
 	sfx->flags |= SFXFLAG_FILEMISSING;
 	if (complain)
-		Con_Printf(CON_ERROR "Failed to load sound \"%s\"\n", sfx->name);
+		Con_DPrintLinef ("Failed to load sound " QUOTED_S, sfx->name);
 
 	SCR_PopLoadingScreen(false);
 	return false;

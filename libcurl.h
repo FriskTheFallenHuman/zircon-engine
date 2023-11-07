@@ -1,7 +1,3 @@
-#include <stddef.h>
-#include "qtypes.h"
-#include "qdefs.h"
-
 enum
 {
 	CURLCBSTATUS_OK = 0,
@@ -13,8 +9,7 @@ enum
 typedef void (*curl_callback_t) (int status, size_t length_received, unsigned char *buffer, void *cbdata);
 // code is one of the CURLCBSTATUS constants, or the HTTP error code (when > 0).
 
-void Curl_Frame(void);
-void Curl_Select(double *microseconds);
+void Curl_Run(void);
 qbool Curl_Running(void);
 qbool Curl_Begin_ToFile(const char *URL, double maxspeed, const char *name, int loadtype, qbool forthismap);
 
@@ -25,7 +20,6 @@ void Curl_Cancel_ToMemory(curl_callback_t callback, void* cbdata);
 void Curl_Init(void);
 void Curl_Init_Commands(void);
 void Curl_Shutdown(void);
-qbool Curl_Available(void);
 void Curl_CancelAll(void);
 void Curl_Clear_forthismap(void);
 qbool Curl_Have_forthismap(void);

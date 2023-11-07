@@ -28,7 +28,11 @@
 #ifndef _MDFOUR_H
 #define _MDFOUR_H
 
-#include <stdint.h>
+#if defined(_MSC_VER) && _MSC_VER< 1900 // Baker: cutoff?
+	#include "vc_stdint.h"
+#else
+	#include <stdint.h>
+#endif // _MSC_VER
 
 struct mdfour_s {
 	uint32_t A, B, C, D;

@@ -21,11 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef ZONE_H
 #define ZONE_H
 
-#include <stddef.h>
-#include "qtypes.h"
-#include "qdefs.h"
-#include "com_list.h"
-
 extern qbool mem_bigendian;
 
 // div0: heap overflow detection paranoia
@@ -40,7 +35,8 @@ typedef struct memheader_s
 	// address returned by Chunk_Alloc (may be significantly before this header to satisify alignment)
 	void *baseaddress;
 	// next and previous memheaders in chain belonging to pool
-	struct llist_s list;
+	struct memheader_s *next;
+	struct memheader_s *prev;
 	// pool this memheader belongs to
 	struct mempool_s *pool;
 	// size of the memory after the header (excluding header and sentinel2)
@@ -59,7 +55,7 @@ typedef struct mempool_s
 	// should always be MEMPOOL_SENTINEL
 	unsigned int sentinel1;
 	// chain of individual memory allocations
-	struct llist_s chain;
+	struct memheader_s *chain;
 	// POOLFLAG_*
 	int flags;
 	// total memory allocated in this pool (inside memheaders)
@@ -86,13 +82,9 @@ mempool_t;
 #define Mem_Memalign(pool,alignment,size) _Mem_Alloc(pool, NULL, size, alignment, __FILE__, __LINE__)
 #define Mem_Realloc(pool,data,size) _Mem_Alloc(pool, data, size, 16, __FILE__, __LINE__)
 #define Mem_Free(mem) _Mem_Free(mem, __FILE__, __LINE__)
-#define Mem_strdup(pool, s) _Mem_strdup(pool, s, __FILE__, __LINE__)
+char* Mem_strdup (mempool_t *pool, const char* s);
 #define Mem_CheckSentinels(data) _Mem_CheckSentinels(data, __FILE__, __LINE__)
-#if MEMPARANOIA
-#define Mem_CheckSentinelsGlobal()  _Mem_CheckSentinelsGlobal(__FILE__, __LINE__)
-#else
-#define Mem_CheckSentinelsGlobal() if(developer_memorydebug.integer) { _Mem_CheckSentinelsGlobal(__FILE__, __LINE__); }
-#endif
+#define Mem_CheckSentinelsGlobal() _Mem_CheckSentinelsGlobal(__FILE__, __LINE__)
 #define Mem_AllocPool(name, flags, parent) _Mem_AllocPool(name, flags, parent, __FILE__, __LINE__)
 #define Mem_FreePool(pool) _Mem_FreePool(pool, __FILE__, __LINE__)
 #define Mem_EmptyPool(pool) _Mem_EmptyPool(pool, __FILE__, __LINE__)
@@ -106,8 +98,6 @@ void _Mem_CheckSentinels(void *data, const char *filename, int fileline);
 void _Mem_CheckSentinelsGlobal(const char *filename, int fileline);
 // if pool is NULL this searches ALL pools for the allocation
 qbool Mem_IsAllocated(mempool_t *pool, void *data);
-
-char* _Mem_strdup (mempool_t *pool, const char* s, const char *filename, int fileline);
 
 typedef struct memexpandablearray_array_s
 {
@@ -143,9 +133,7 @@ void Memory_Shutdown (void);
 void Memory_Init_Commands (void);
 
 extern mempool_t *zonemempool;
-#define Z_Malloc(size) Mem_Alloc(zonemempool, size)
-#define Z_Realloc(data, size) Mem_Realloc(zonemempool, data, size)
-#define Z_strdup(s) Mem_strdup(zonemempool, s)
+#define Z_Malloc(size) Mem_Alloc(zonemempool,size)
 #define Z_Free(data) Mem_Free(data)
 
 extern struct cvar_s developer_memory;

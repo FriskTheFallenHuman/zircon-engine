@@ -1,5 +1,3 @@
-extern cvar_t prvm_garbagecollection_enable;
-int i;
 // NEED to reset startst after calling this! startst may or may not be clobbered!
 #define ADVANCE_PROFILE_BEFORE_JUMP() \
 	prog->xfunction->profile += (st - startst); \
@@ -112,183 +110,7 @@ int i;
 	&&handle_OP_OR,
 
 	&&handle_OP_BITAND,
-	&&handle_OP_BITOR,
-
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	&&handle_OP_STORE_I,
-
-	NULL,
-	NULL,
-
-	&&handle_OP_ADD_I,
-	&&handle_OP_ADD_FI,
-	&&handle_OP_ADD_IF,
-
-	&&handle_OP_SUB_I,
-	&&handle_OP_SUB_FI,
-	&&handle_OP_SUB_IF,
-	&&handle_OP_CONV_IF,
-	&&handle_OP_CONV_FI,
-
-	NULL,
-	NULL,
-
-	&&handle_OP_LOAD_I,
-	&&handle_OP_STOREP_I,
-
-	NULL,
-	NULL,
-
-	&&handle_OP_BITAND_I,
-	&&handle_OP_BITOR_I,
-
-	&&handle_OP_MUL_I,
-	&&handle_OP_DIV_I,
-	&&handle_OP_EQ_I,
-	&&handle_OP_NE_I,
-
-	NULL,
-	NULL,
-
-	&&handle_OP_NOT_I,
-
-	&&handle_OP_DIV_VF,
-
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	&&handle_OP_STORE_P,
-
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	&&handle_OP_LE_I,
-	&&handle_OP_GE_I,
-	&&handle_OP_LT_I,
-	&&handle_OP_GT_I,
-	
-	&&handle_OP_LE_IF,
-	&&handle_OP_GE_IF,
-	&&handle_OP_LT_IF,
-	&&handle_OP_GT_IF,
-
-	&&handle_OP_LE_FI,
-	&&handle_OP_GE_FI,
-	&&handle_OP_LT_FI,
-	&&handle_OP_GT_FI,
-
-	&&handle_OP_EQ_IF,
-	&&handle_OP_EQ_FI,
-
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	&&handle_OP_MUL_IF,
-	&&handle_OP_MUL_FI,
-	&&handle_OP_MUL_VI,
-
-	NULL,
-
-	&&handle_OP_DIV_IF,
-	&&handle_OP_DIV_FI,
-	&&handle_OP_BITAND_IF,
-	&&handle_OP_BITOR_IF,
-	&&handle_OP_BITAND_FI,
-	&&handle_OP_BITOR_FI,
-	&&handle_OP_AND_I,
-	&&handle_OP_OR_I,
-	&&handle_OP_AND_IF,
-	&&handle_OP_OR_IF,
-	&&handle_OP_AND_FI,
-	&&handle_OP_OR_FI,
-	&&handle_OP_NE_IF,
-	&&handle_OP_NE_FI,
-
-	&&handle_OP_GSTOREP_I,
-	&&handle_OP_GSTOREP_F,
-	&&handle_OP_GSTOREP_ENT,
-	&&handle_OP_GSTOREP_FLD,
-	&&handle_OP_GSTOREP_S,
-	&&handle_OP_GSTOREP_FNC,		
-	&&handle_OP_GSTOREP_V,
-	&&handle_OP_GADDRESS,
-	&&handle_OP_GLOAD_I,
-	&&handle_OP_GLOAD_F,
-	&&handle_OP_GLOAD_FLD,
-	&&handle_OP_GLOAD_ENT,
-	&&handle_OP_GLOAD_S,
-	&&handle_OP_GLOAD_FNC,
-	&&handle_OP_BOUNDCHECK,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	&&handle_OP_GLOAD_V
+	&&handle_OP_BITOR
 	    };
 #define DISPATCH_OPCODE() \
     goto *dispatchtable[(++st)->op]
@@ -377,8 +199,11 @@ int i;
 				}
 				else
 				{
-					PRE_ERROR();
-					VM_Warning(prog, "Attempted division of %f by zero\n", OPA->_float);
+					if (developer.integer)
+					{
+						PRE_ERROR();
+						VM_Warning(prog, "Attempted division by zero in %s\n", prog->name );
+					}
 					OPC->_float = 0.0f;
 				}
 				DISPATCH_OPCODE();
@@ -401,13 +226,13 @@ int i;
 				OPC->_float = OPA->_float < OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_AND):
-				OPC->_float = PRVM_FLOAT_IS_TRUE_FOR_INT(OPA->_int) && PRVM_FLOAT_IS_TRUE_FOR_INT(OPB->_int); // TODO change this back to float, and add AND_I to be used by fteqcc for anything not a float
+				OPC->_float = FLOAT_IS_TRUE_FOR_INT(OPA->_int) && FLOAT_IS_TRUE_FOR_INT(OPB->_int); // TODO change this back to float, and add AND_I to be used by fteqcc for anything not a float
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_OR):
-				OPC->_float = PRVM_FLOAT_IS_TRUE_FOR_INT(OPA->_int) || PRVM_FLOAT_IS_TRUE_FOR_INT(OPB->_int); // TODO change this back to float, and add OR_I to be used by fteqcc for anything not a float
+				OPC->_float = FLOAT_IS_TRUE_FOR_INT(OPA->_int) || FLOAT_IS_TRUE_FOR_INT(OPB->_int); // TODO change this back to float, and add OR_I to be used by fteqcc for anything not a float
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_NOT_F):
-				OPC->_float = !PRVM_FLOAT_IS_TRUE_FOR_INT(OPA->_int);
+				OPC->_float = !FLOAT_IS_TRUE_FOR_INT(OPA->_int);
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_NOT_V):
 				OPC->_float = !OPA->vector[0] && !OPA->vector[1] && !OPA->vector[2];
@@ -456,16 +281,8 @@ int i;
 			HANDLE_OPCODE(OP_STORE_F):
 			HANDLE_OPCODE(OP_STORE_ENT):
 			HANDLE_OPCODE(OP_STORE_FLD):		// integers
-			HANDLE_OPCODE(OP_STORE_FNC):		// pointers
-				OPB->_int = OPA->_int;
-				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_STORE_S):
-				// refresh the garbage collection on the string - this guards
-				// against a certain sort of repeated migration to earlier
-				// points in the scan that could otherwise result in the string
-				// being freed for being unused
-				if(prvm_garbagecollection_enable.integer)
-					PRVM_GetString(prog, OPA->_int);
+			HANDLE_OPCODE(OP_STORE_FNC):		// pointers
 				OPB->_int = OPA->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_STORE_V):
@@ -477,6 +294,7 @@ int i;
 			HANDLE_OPCODE(OP_STOREP_F):
 			HANDLE_OPCODE(OP_STOREP_ENT):
 			HANDLE_OPCODE(OP_STOREP_FLD):		// integers
+			HANDLE_OPCODE(OP_STOREP_S):
 			HANDLE_OPCODE(OP_STOREP_FNC):		// pointers
 				if ((prvm_uint_t)OPB->_int - cached_entityfields >= cached_entityfieldsarea_entityfields)
 				{
@@ -489,33 +307,9 @@ int i;
 					if ((prvm_uint_t)OPB->_int < cached_entityfields && !cached_allowworldwrites)
 					{
 						PRE_ERROR();
-						VM_Warning(prog, "Attempted assignment to NULL entity field .%s (%i) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
+						VM_Warning(prog, "assignment to world.%s (field %i) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
 					}
 				}
-				ptr = (prvm_eval_t *)(cached_edictsfields + OPB->_int);
-				ptr->_int = OPA->_int;
-				DISPATCH_OPCODE();
-			HANDLE_OPCODE(OP_STOREP_S):
-				if ((prvm_uint_t)OPB->_int - cached_entityfields >= cached_entityfieldsarea_entityfields)
-				{
-					if ((prvm_uint_t)OPB->_int >= cached_entityfieldsarea)
-					{
-						PRE_ERROR();
-						prog->error_cmd("%s attempted to write to an out of bounds edict (%i)", prog->name, (int)OPB->_int);
-						goto cleanup;
-					}
-					if ((prvm_uint_t)OPB->_int < cached_entityfields && !cached_allowworldwrites)
-					{
-						PRE_ERROR();
-						VM_Warning(prog, "Attempted assignment to NULL entity field .%s (%i) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
-					}
-				}
-				// refresh the garbage collection on the string - this guards
-				// against a certain sort of repeated migration to earlier
-				// points in the scan that could otherwise result in the string
-				// being freed for being unused
-				if(prvm_garbagecollection_enable.integer)
-					PRVM_GetString(prog, OPA->_int);
 				ptr = (prvm_eval_t *)(cached_edictsfields + OPB->_int);
 				ptr->_int = OPA->_int;
 				DISPATCH_OPCODE();
@@ -531,7 +325,7 @@ int i;
 					if ((prvm_uint_t)OPB->_int < cached_entityfields && !cached_allowworldwrites)
 					{
 						PRE_ERROR();
-						VM_Warning(prog, "Attempted assignment to NULL entity field .%s (%i) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
+						VM_Warning(prog, "assignment to world.%s (field %i) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
 					}
 				}
 				ptr = (prvm_eval_t *)(cached_edictsfields + OPB->_int);
@@ -544,7 +338,7 @@ int i;
 				if ((prvm_uint_t)OPA->edict >= cached_max_edicts)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to address an out of bounds edict number", prog->name);
+					prog->error_cmd("%s Progs attempted to address an out of bounds edict number", prog->name);
 					goto cleanup;
 				}
 				if ((prvm_uint_t)OPB->_int >= cached_entityfields)
@@ -557,7 +351,7 @@ int i;
 				if (OPA->edict == 0 && !cached_allowworldwrites)
 				{
 					PRE_ERROR();
-					prog->error_cmd("Forbidden assignment to NULL entity in %s", prog->name);
+					prog->error_cmd("forbidden assignment to null/world entity in %s", prog->name);
 					goto cleanup;
 				}
 #endif
@@ -567,11 +361,12 @@ int i;
 			HANDLE_OPCODE(OP_LOAD_F):
 			HANDLE_OPCODE(OP_LOAD_FLD):
 			HANDLE_OPCODE(OP_LOAD_ENT):
+			HANDLE_OPCODE(OP_LOAD_S):
 			HANDLE_OPCODE(OP_LOAD_FNC):
 				if ((prvm_uint_t)OPA->edict >= cached_max_edicts)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to read an out of bounds edict number", prog->name);
+					prog->error_cmd("%s Progs attempted to read an out of bounds edict number", prog->name);
 					goto cleanup;
 				}
 				if ((prvm_uint_t)OPB->_int >= cached_entityfields)
@@ -582,35 +377,13 @@ int i;
 				}
 				ed = PRVM_PROG_TO_EDICT(OPA->edict);
 				OPC->_int = ((prvm_eval_t *)(ed->fields.ip + OPB->_int))->_int;
-				DISPATCH_OPCODE();
-			HANDLE_OPCODE(OP_LOAD_S):
-				if ((prvm_uint_t)OPA->edict >= cached_max_edicts)
-				{
-					PRE_ERROR();
-					prog->error_cmd("%s attempted to read an out of bounds edict number", prog->name);
-					goto cleanup;
-				}
-				if ((prvm_uint_t)OPB->_int >= cached_entityfields)
-				{
-					PRE_ERROR();
-					prog->error_cmd("%s attempted to read an invalid field in an edict (%i)", prog->name, (int)OPB->_int);
-					goto cleanup;
-				}
-				ed = PRVM_PROG_TO_EDICT(OPA->edict);
-				OPC->_int = ((prvm_eval_t *)(ed->fields.ip + OPB->_int))->_int;
-				// refresh the garbage collection on the string - this guards
-				// against a certain sort of repeated migration to earlier
-				// points in the scan that could otherwise result in the string
-				// being freed for being unused
-				if(prvm_garbagecollection_enable.integer)
-					PRVM_GetString(prog, OPC->_int);
 				DISPATCH_OPCODE();
 
 			HANDLE_OPCODE(OP_LOAD_V):
 				if ((prvm_uint_t)OPA->edict >= cached_max_edicts)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to read an out of bounds edict number", prog->name);
+					prog->error_cmd("%s Progs attempted to read an out of bounds edict number", prog->name);
 					goto cleanup;
 				}
 				if ((prvm_uint_t)OPB->_int > cached_entityfields_3)
@@ -629,8 +402,6 @@ int i;
 		//==================
 
 			HANDLE_OPCODE(OP_IFNOT):
-				//spike FIXME -- dp redefined IFNOT[_I] as IFNOT_F, which breaks if(0x80000000)
-				//spike FIXME -- you should add separate IFNOT_I/IFNOT_F opcodes and remap IFNOT_I to ITNOT_F in v6 progs for compat.
 				if(!FLOAT_IS_TRUE_FOR_INT(OPA->_int))
 				// TODO add an "int-if", and change this one to OPA->_float
 				// although mostly unneeded, thanks to the only float being false being 0x0 and 0x80000000 (negative zero)
@@ -650,7 +421,6 @@ int i;
 				DISPATCH_OPCODE();
 
 			HANDLE_OPCODE(OP_IF):
-				//spike FIXME -- dp redefined IF[_I] as IF_F
 				if(FLOAT_IS_TRUE_FOR_INT(OPA->_int))
 				// TODO add an "int-if", and change this one, as well as the FLOAT_IS_TRUE_FOR_INT usages, to OPA->_float
 				// although mostly unneeded, thanks to the only float being false being 0x0 and 0x80000000 (negative zero)
@@ -708,7 +478,7 @@ int i;
 				if(!OPA->function || OPA->function < 0 || OPA->function >= prog->numfunctions)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted CALL outside the program", prog->name);
+					prog->error_cmd("%s CALL outside the program", prog->name);
 					goto cleanup;
 				}
 
@@ -731,7 +501,7 @@ int i;
 						starttm = tm;
 #endif
 						// builtins may cause ED_Alloc() to be called, update cached variables
-						cached_edictsfields = prog->edictsfields.fp;
+						cached_edictsfields = prog->edictsfields;
 						cached_entityfields = prog->entityfields;
 						cached_entityfields_3 = prog->entityfields - 3;
 						cached_entityfieldsarea = prog->entityfieldsarea;
@@ -748,7 +518,7 @@ int i;
 							goto chooseexecprogram;
 					}
 					else
-						prog->error_cmd("No such builtin #%i in %s. This program is corrupt or incompatible with DarkPlaces (or this version of it)", builtinnumber, prog->name);
+						prog->error_cmd("No such builtin #%i in %s; most likely cause: outdated engine build. Try updating!", builtinnumber, prog->name);
 				}
 				else
 					st = cached_statements + PRVM_EnterFunction(prog, enterfunc);
@@ -791,11 +561,13 @@ int i;
 				}
 				DISPATCH_OPCODE();
 
+// LadyHavoc: to be enabled when Progs version 7 (or whatever it will be numbered) is finalized
+/*
 			HANDLE_OPCODE(OP_ADD_I):
 				OPC->_int = OPA->_int + OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_ADD_IF):
-				OPC->_float = OPA->_int + (prvm_int_t) OPB->_float;
+				OPC->_int = OPA->_int + (prvm_int_t) OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_ADD_FI):
 				OPC->_float = OPA->_float + (prvm_vec_t) OPB->_int;
@@ -804,7 +576,7 @@ int i;
 				OPC->_int = OPA->_int - OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_SUB_IF):
-				OPC->_float = OPA->_int - (prvm_int_t) OPB->_float;
+				OPC->_int = OPA->_int - (prvm_int_t) OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_SUB_FI):
 				OPC->_float = OPA->_float - (prvm_vec_t) OPB->_int;
@@ -813,7 +585,7 @@ int i;
 				OPC->_int = OPA->_int * OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_MUL_IF):
-				OPC->_float = OPA->_int * (prvm_int_t) OPB->_float;
+				OPC->_int = OPA->_int * (prvm_int_t) OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_MUL_FI):
 				OPC->_float = OPA->_float * (prvm_vec_t) OPB->_int;
@@ -835,7 +607,7 @@ int i;
 				OPC->_int = OPA->_int / OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_DIV_IF):
-				OPC->_float = OPA->_int / (prvm_int_t) OPB->_float;
+				OPC->_int = OPA->_int / (prvm_int_t) OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_DIV_FI):
 				OPC->_float = OPA->_float / (prvm_vec_t) OPB->_int;
@@ -859,88 +631,87 @@ int i;
 				OPC->_int = OPA->_int | (prvm_int_t)OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_BITAND_FI):
-				OPC->_int = (prvm_int_t)OPA->_float & OPB->_int;
+				OPC->_float = (prvm_int_t)OPA->_float & OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_BITOR_FI):
-				OPC->_int = (prvm_int_t)OPA->_float | OPB->_int;
+				OPC->_float = (prvm_int_t)OPA->_float | OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_GE_I):
-				OPC->_int = OPA->_int >= OPB->_int;
+				OPC->_float = OPA->_int >= OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_LE_I):
-				OPC->_int = OPA->_int <= OPB->_int;
+				OPC->_float = OPA->_int <= OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_GT_I):
-				OPC->_int = OPA->_int > OPB->_int;
+				OPC->_float = OPA->_int > OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_LT_I):
-				OPC->_int = OPA->_int < OPB->_int;
+				OPC->_float = OPA->_int < OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_AND_I):
-				OPC->_int = OPA->_int && OPB->_int;
+				OPC->_float = OPA->_int && OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_OR_I):
-				OPC->_int = OPA->_int || OPB->_int;
+				OPC->_float = OPA->_int || OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_GE_IF):
-				OPC->_int = (prvm_vec_t)OPA->_int >= OPB->_float;
+				OPC->_float = (prvm_vec_t)OPA->_int >= OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_LE_IF):
-				OPC->_int = (prvm_vec_t)OPA->_int <= OPB->_float;
+				OPC->_float = (prvm_vec_t)OPA->_int <= OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_GT_IF):
-				OPC->_int = (prvm_vec_t)OPA->_int > OPB->_float;
+				OPC->_float = (prvm_vec_t)OPA->_int > OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_LT_IF):
-				OPC->_int = (prvm_vec_t)OPA->_int < OPB->_float;
+				OPC->_float = (prvm_vec_t)OPA->_int < OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_AND_IF):
-				OPC->_int = (prvm_vec_t)OPA->_int && OPB->_float;
+				OPC->_float = (prvm_vec_t)OPA->_int && OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_OR_IF):
-				OPC->_int = (prvm_vec_t)OPA->_int || OPB->_float;
+				OPC->_float = (prvm_vec_t)OPA->_int || OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_GE_FI):
-				OPC->_int = OPA->_float >= (prvm_vec_t)OPB->_int;
+				OPC->_float = OPA->_float >= (prvm_vec_t)OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_LE_FI):
-				OPC->_int = OPA->_float <= (prvm_vec_t)OPB->_int;
+				OPC->_float = OPA->_float <= (prvm_vec_t)OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_GT_FI):
-				OPC->_int = OPA->_float > (prvm_vec_t)OPB->_int;
+				OPC->_float = OPA->_float > (prvm_vec_t)OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_LT_FI):
-				OPC->_int = OPA->_float < (prvm_vec_t)OPB->_int;
+				OPC->_float = OPA->_float < (prvm_vec_t)OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_AND_FI):
-				OPC->_int = OPA->_float && (prvm_vec_t)OPB->_int;
+				OPC->_float = OPA->_float && (prvm_vec_t)OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_OR_FI):
-				OPC->_int = OPA->_float || (prvm_vec_t)OPB->_int;
+				OPC->_float = OPA->_float || (prvm_vec_t)OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_NOT_I):
-				OPC->_int = !OPA->_int;
+				OPC->_float = !OPA->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_EQ_I):
-				OPC->_int = OPA->_int == OPB->_int;
+				OPC->_float = OPA->_int == OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_EQ_IF):
-				OPC->_int = (prvm_vec_t)OPA->_int == OPB->_float;
+				OPC->_float = (prvm_vec_t)OPA->_int == OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_EQ_FI):
-				OPC->_int = OPA->_float == (prvm_vec_t)OPB->_int;
+				OPC->_float = OPA->_float == (prvm_vec_t)OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_NE_I):
-				OPC->_int = OPA->_int != OPB->_int;
+				OPC->_float = OPA->_int != OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_NE_IF):
-				OPC->_int = (prvm_vec_t)OPA->_int != OPB->_float;
+				OPC->_float = (prvm_vec_t)OPA->_int != OPB->_float;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_NE_FI):
-				OPC->_int = OPA->_float != (prvm_vec_t)OPB->_int;
+				OPC->_float = OPA->_float != (prvm_vec_t)OPB->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_STORE_I):
-			HANDLE_OPCODE(OP_STORE_P):
 				OPB->_int = OPA->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_STOREP_I):
@@ -948,11 +719,11 @@ int i;
 				if (OPB->_int < 0 || OPB->_int + 4 > pr_edictareasize)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to write to an out of bounds edict", prog->name);
+					prog->error_cmd("%s Progs attempted to write to an out of bounds edict", prog->name);
 					goto cleanup;
 				}
 #endif
-				ptr = (prvm_eval_t *)(prog->edictsfields.ip + OPB->_int);
+				ptr = (prvm_eval_t *)(prog->edictsfields + OPB->_int);
 				ptr->_int = OPA->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_LOAD_I):
@@ -960,18 +731,18 @@ int i;
 				if (OPA->edict < 0 || OPA->edict >= prog->max_edicts)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to read an out of bounds edict number", prog->name);
+					prog->error_cmd("%s Progs attempted to read an out of bounds edict number", prog->name);
 					goto cleanup;
 				}
-				if (OPB->_int < 0 || OPB->_int >= progs->entityfields.ip)
+				if (OPB->_int < 0 || OPB->_int >= progs->entityfields)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to read an invalid field in an edict", prog->name);
+					prog->error_cmd("%s Progs attempted to read an invalid field in an edict", prog->name);
 					goto cleanup;
 				}
 #endif
 				ed = PRVM_PROG_TO_EDICT(OPA->edict);
-				OPC->_int = ((prvm_eval_t *)((int *)ed->fields.ip + OPB->_int))->_int;
+				OPC->_int = ((prvm_eval_t *)((int *)ed->v + OPB->_int))->_int;
 				DISPATCH_OPCODE();
 
 			HANDLE_OPCODE(OP_GSTOREP_I):
@@ -980,35 +751,41 @@ int i;
 			HANDLE_OPCODE(OP_GSTOREP_FLD):		// integers
 			HANDLE_OPCODE(OP_GSTOREP_S):
 			HANDLE_OPCODE(OP_GSTOREP_FNC):		// pointers
-				if (OPB->_int < 0 || OPB->_int >= prog->numglobals)
+#if PRBOUNDSCHECK
+				if (OPB->_int < 0 || OPB->_int >= pr_globaldefs)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to write to an invalid indexed global", prog->name);
+					prog->error_cmd("%s Progs attempted to write to an invalid indexed global", prog->name);
 					goto cleanup;
 				}
-				prog->globals.ip[OPB->_int] = OPA->_int;
+#endif
+				pr_iglobals[OPB->_int] = OPA->_int;
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_GSTOREP_V):
-				if (OPB->_int < 0 || OPB->_int + 2 >= prog->numglobals)
+#if PRBOUNDSCHECK
+				if (OPB->_int < 0 || OPB->_int + 2 >= pr_globaldefs)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to write to an invalid indexed global", prog->name);
+					prog->error_cmd("%s Progs attempted to write to an invalid indexed global", prog->name);
 					goto cleanup;
 				}
-				prog->globals.ip[OPB->_int  ] = OPA->ivector[0];
-				prog->globals.ip[OPB->_int+1] = OPA->ivector[1];
-				prog->globals.ip[OPB->_int+2] = OPA->ivector[2];
+#endif
+				pr_iglobals[OPB->_int  ] = OPA->ivector[0];
+				pr_iglobals[OPB->_int+1] = OPA->ivector[1];
+				pr_iglobals[OPB->_int+2] = OPA->ivector[2];
 				DISPATCH_OPCODE();
 
 			HANDLE_OPCODE(OP_GADDRESS):
 				i = OPA->_int + (prvm_int_t) OPB->_float;
-				if (i < 0 || i >= prog->numglobaldefs)
+#if PRBOUNDSCHECK
+				if (i < 0 || i >= pr_globaldefs)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to address an out of bounds global", prog->name);
+					prog->error_cmd("%s Progs attempted to address an out of bounds global", prog->name);
 					goto cleanup;
 				}
-				OPC->_int = prog->globals.ip[i];
+#endif
+				OPC->_int = pr_iglobals[i];
 				DISPATCH_OPCODE();
 
 			HANDLE_OPCODE(OP_GLOAD_I):
@@ -1017,40 +794,46 @@ int i;
 			HANDLE_OPCODE(OP_GLOAD_ENT):
 			HANDLE_OPCODE(OP_GLOAD_S):
 			HANDLE_OPCODE(OP_GLOAD_FNC):
-				if (OPA->_int < 0 || OPA->_int >= prog->numglobals)
+#if PRBOUNDSCHECK
+				if (OPA->_int < 0 || OPA->_int >= pr_globaldefs)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to read an invalid indexed global", prog->name);
+					prog->error_cmd("%s Progs attempted to read an invalid indexed global", prog->name);
 					goto cleanup;
 				}
-				OPC->_int = prog->globals.ip[OPA->_int];
+#endif
+				OPC->_int = pr_iglobals[OPA->_int];
 				DISPATCH_OPCODE();
 
 			HANDLE_OPCODE(OP_GLOAD_V):
-				if (OPA->_int < 0 || OPA->_int + 2 >= prog->numglobals)
+#if PRBOUNDSCHECK
+				if (OPA->_int < 0 || OPA->_int + 2 >= pr_globaldefs)
 				{
 					PRE_ERROR();
-					prog->error_cmd("%s attempted to read an invalid indexed global", prog->name);
+					prog->error_cmd("%s Progs attempted to read an invalid indexed global", prog->name);
 					goto cleanup;
 				}
-				OPC->ivector[0] = prog->globals.ip[OPA->_int  ];
-				OPC->ivector[1] = prog->globals.ip[OPA->_int+1];
-				OPC->ivector[2] = prog->globals.ip[OPA->_int+2];
+#endif
+				OPC->ivector[0] = pr_iglobals[OPA->_int  ];
+				OPC->ivector[1] = pr_iglobals[OPA->_int+1];
+				OPC->ivector[2] = pr_iglobals[OPA->_int+2];
 				DISPATCH_OPCODE();
 
 			HANDLE_OPCODE(OP_BOUNDCHECK):
-				if ((unsigned int)OPA->_int < (unsigned int)st->operand[2] || (unsigned int)OPA->_int >= (unsigned int)st->operand[1])
+				if (OPA->_int < 0 || OPA->_int >= st->b)
 				{
 					PRE_ERROR();
-					prog->error_cmd("Progs boundcheck failed in %s, value is < %" PRVM_PRIi " or >= %" PRVM_PRIi, prog->name, OPC->_int, OPB->_int);
+					prog->error_cmd("%s Progs boundcheck failed at line number %d, value is < 0 or >= %d", prog->name, st->b, st->c);
 					goto cleanup;
 				}
 				DISPATCH_OPCODE();
+
+*/
 
 #if !USE_COMPUTED_GOTOS
 			default:
 				PRE_ERROR();
-				prog->error_cmd("Bad opcode %i in %s. This program is corrupt or incompatible with DarkPlaces (or this version of it)", st->op, prog->name);
+				prog->error_cmd("Bad opcode %i in %s", st->op, prog->name);
 				goto cleanup;
 			}
 #if PRVMSLOWINTERPRETER

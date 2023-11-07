@@ -1,4 +1,4 @@
-#ifndef CORE_SDL
+#if 0
 
 /*
 Copyright (C) 1996-1997 Id Software, Inc.
@@ -31,7 +31,7 @@ void VID_Shutdown(void)
 {
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 static void signal_handler(int sig)
 {
 	Con_Printf("Received signal %d, exiting...\n", sig);
@@ -53,7 +53,7 @@ static void InitSig(void)
 }
 #endif
 
-void VID_SetMouse(qbool relative, qbool hidecursor)
+void VID_SetMouse (qbool fullscreengrab, qbool relative, qbool hidecursor)
 {
 }
 
@@ -61,9 +61,19 @@ void VID_Finish (void)
 {
 }
 
+int VID_SetGamma(unsigned short *ramps, int rampsize)
+{
+	return FALSE;
+}
+
+int VID_GetGamma(unsigned short *ramps, int rampsize)
+{
+	return FALSE;
+}
+
 void VID_Init(void)
 {
-#ifndef WIN32
+#ifndef _WIN32
 	InitSig(); // trap evil signals
 #endif
 }
@@ -100,9 +110,4 @@ size_t VID_ListModes(vid_mode_t *modes, size_t maxcount)
 	return 0;
 }
 
-qbool GL_ExtensionSupported(const char *name)
-{
-	return false;
-}
-
-#endif
+#endif // 0 ! _MSC_VER

@@ -1,6 +1,5 @@
 /*
 Copyright (C) 1996-1997 Id Software, Inc.
-Copyright (C) 2000-2021 DarkPlaces contributors
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -25,11 +24,31 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef DRAW_H
 #define DRAW_H
 
-#include <stddef.h>
-#include "qtypes.h"
-#include "r_textures.h"
-
-typedef struct cachepic_s cachepic_t;
+// FIXME: move this stuff to cl_screen
+typedef struct cachepic_s
+{
+	// size of pic
+	int width, height;
+	// this flag indicates that it should be loaded and unloaded on demand
+	int autoload;
+	// texture flags to upload with
+	int texflags;
+	// texture may be freed after a while
+	int lastusedframe;
+	// renderer texture to use
+	rtexture_t *tex;
+	// used for hash lookups
+	struct cachepic_s *chain;
+	// flags - CACHEPICFLAG_NEWPIC for example
+	unsigned int flags;
+	// has alpha?
+	qbool hasalpha;
+	// name of pic
+	char name[MAX_QPATH];
+	// allow to override/free the texture
+	qbool allow_free_tex;
+}
+cachepic_t;
 
 typedef enum cachepicflags_e
 {
@@ -39,18 +58,17 @@ typedef enum cachepicflags_e
 	CACHEPICFLAG_NOCLAMP = 8,
 	CACHEPICFLAG_NEWPIC = 16, // disables matching texflags check, because a pic created with Draw_NewPic should not be subject to that
 	CACHEPICFLAG_MIPMAP = 32,
-	CACHEPICFLAG_NEAREST = 64, // force nearest filtering instead of linear
-	CACHEPICFLAG_LINEAR = 128, // force linear filtering even if nearest_2d is enabled
-	CACHEPICFLAG_FAILONMISSING = 256 // return NULL if the pic has no texture
+	CACHEPICFLAG_NEAREST = 64 // force nearest filtering instead of linear
 }
 cachepicflags_t;
 
+void Draw_Init (void);
 void Draw_Frame (void);
 cachepic_t *Draw_CachePic_Flags (const char *path, unsigned int cachepicflags);
 cachepic_t *Draw_CachePic (const char *path); // standard function with no options, used throughout engine
 // create or update a pic's image
-cachepic_t *Draw_NewPic(const char *picname, int width, int height, unsigned char *pixels, textype_t textype, int texflags);
-// free the texture memory used by a pic (the cachepic_t itself is eternal)
+cachepic_t *Draw_NewPic(const char *picname, int width, int height, int alpha, unsigned char *pixels);
+// free the texture memory used by a pic
 void Draw_FreePic(const char *picname);
 
 // a triangle mesh..
@@ -95,7 +113,7 @@ typedef struct ft2_settings_s
 #define MAX_FONT_FALLBACKS 3
 typedef struct dp_font_s
 {
-	cachepic_t *pic;
+	rtexture_t *tex;
 	float width_of[256]; // width_of[0] == max width of any char; 1.0f is base width (1/16 of texture width); therefore, all widths have to be <= 1 (does not include scale)
 	float maxwidth; // precalculated max width of the font (includes scale)
 	char texpath[MAX_QPATH];
@@ -139,15 +157,7 @@ extern dp_fonts_t dp_fonts;
 #define STRING_COLOR_RGB_TAG_CHAR	'x'
 #define STRING_COLOR_RGB_TAG		"^x"
 
-// prepare for 2D rendering (sets r_refdef.draw2dstage = 1 and calls R_ResetViewRendering2D)
-void DrawQ_Start(void);
-// resets r_refdef.draw2dstage to 0
-void DrawQ_Finish(void);
-// batch draw the pending geometry in the CL_Mesh_UI() model and reset the model,
-// to be called by things like DrawQ_SetClipArea which make disruptive state changes.
-void DrawQ_FlushUI(void);
-// use this when changing r_refdef.view.* from e.g. csqc
-void DrawQ_RecalcView(void);
+// all of these functions will set r_defdef.draw2dstage if not in 2D rendering mode (and of course prepare for 2D rendering in that case)
 
 // draw an image (or a filled rectangle if pic == NULL)
 void DrawQ_Pic(float x, float y, cachepic_t *pic, float width, float height, float red, float green, float blue, float alpha, int flags);
@@ -155,6 +165,7 @@ void DrawQ_Pic(float x, float y, cachepic_t *pic, float width, float height, flo
 void DrawQ_RotPic(float x, float y, cachepic_t *pic, float width, float height, float org_x, float org_y, float angle, float red, float green, float blue, float alpha, int flags);
 // draw a filled rectangle (slightly faster than DrawQ_Pic with pic = NULL)
 void DrawQ_Fill(float x, float y, float width, float height, float red, float green, float blue, float alpha, int flags);
+#define DrawQ_Fill_Additive DrawQ_Fill // Additive draw for key_sellength
 // draw a text string,
 // with optional color tag support,
 // returns final unclipped x coordinate
@@ -170,18 +181,26 @@ float DrawQ_TextWidth_UntilWidth_TrackColors(const char *text, size_t *maxlen, f
 float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *maxlen, float w, float h, float sw, float sh, int *outcolor, qbool ignorecolorcodes, const dp_font_t *fnt, float maxwidth);
 // draw a very fancy pic (per corner texcoord/color control), the order is tl, tr, bl, br
 void DrawQ_SuperPic(float x, float y, cachepic_t *pic, float width, float height, float s1, float t1, float r1, float g1, float b1, float a1, float s2, float t2, float r2, float g2, float b2, float a2, float s3, float t3, float r3, float g3, float b3, float a3, float s4, float t4, float r4, float g4, float b4, float a4, int flags);
+// draw a triangle mesh
+void DrawQ_Mesh(drawqueuemesh_t *mesh, int flags, qbool hasalpha);
 // set the clipping area
 void DrawQ_SetClipArea(float x, float y, float width, float height);
 // reset the clipping area
 void DrawQ_ResetClipArea(void);
 // draw a line
 void DrawQ_Line(float width, float x1, float y1, float x2, float y2, float r, float g, float b, float alpha, int flags);
+// draw a lot of lines (call R_Mesh_PrepareVertices_Generic first)
+void DrawQ_Lines(float width, int numlines, int flags, qbool hasalpha);
+// draw a line loop
+void DrawQ_LineLoop(drawqueuemesh_t *mesh, int flags);
+// resets r_refdef.draw2dstage
+void DrawQ_Finish(void);
+void DrawQ_ProcessDrawFlag(int flags, qbool alpha); // sets GL_DepthMask and GL_BlendFunc
+void DrawQ_RecalcView(void); // use this when changing r_refdef.view.* from e.g. csqc
 
-const char *Draw_GetPicName(cachepic_t *pic);
-int Draw_GetPicWidth(cachepic_t *pic);
-int Draw_GetPicHeight(cachepic_t *pic);
-qbool Draw_IsPicLoaded(cachepic_t *pic);
 rtexture_t *Draw_GetPicTexture(cachepic_t *pic);
+
+void R_DrawGamma(void);
 
 extern rtexturepool_t *drawtexturepool; // used by ft2.c
 

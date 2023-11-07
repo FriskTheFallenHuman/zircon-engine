@@ -1,23 +1,3 @@
-/*
-Copyright (C) 2006-2021 DarkPlaces contributors
-
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
-See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-*/
-
 #ifndef CSPROGS_H
 #define CSPROGS_H
 
@@ -96,7 +76,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t csqc_progname;	//[515]: csqc crc check and right csprogs name according to progs.dat
 extern cvar_t csqc_progcrc;
 extern cvar_t csqc_progsize;
-extern cvar_t csqc_polygons_defaultmaterial_nocullface;
 
 void CL_VM_PreventInformationLeaks(void);
 
@@ -111,7 +90,7 @@ void CL_VM_ShutDown(void);
 void CL_VM_UpdateIntermissionState(int intermission);
 void CL_VM_UpdateShowingScoresState(int showingscores);
 qbool CL_VM_InputEvent(int eventtype, float x, float y);
-qbool CL_VM_ConsoleCommand(const char *text);
+qbool CL_VM_ConsoleCommand(const char *cmd);
 void CL_VM_UpdateDmgGlobals(int dmg_take, int dmg_save, vec3_t dmg_origin);
 void CL_VM_UpdateIntermissionState(int intermission);
 qbool CL_VM_Event_Sound(int sound_num, float volume, int channel, float attenuation, int ent, vec3_t pos, int flags, float speed);
@@ -119,8 +98,10 @@ qbool CL_VM_Parse_TempEntity(void);
 void CL_VM_Parse_StuffCmd(const char *msg);
 void CL_VM_Parse_CenterPrint(const char *msg);
 int CL_GetPitchSign(prvm_prog_t *prog, prvm_edict_t *ent);
-int CL_GetTagMatrix(prvm_prog_t *prog, matrix4x4_t *out, prvm_edict_t *ent, int tagindex, prvm_vec_t *shadingorigin);
+int CL_GetTagMatrix(prvm_prog_t *prog, matrix4x4_t *out, prvm_edict_t *ent, int tagindex);
 void CL_GetEntityMatrix(prvm_prog_t *prog, prvm_edict_t *ent, matrix4x4_t *out, qbool viewmatrix);
+/* VMs exposing the polygon calls must call this on Init/Reset */
+void VM_Polygons_Reset(prvm_prog_t *prog);
 void QW_CL_StartUpload(unsigned char *data, int size);
 
 void CSQC_UpdateNetworkTimes(double newtime, double oldtime);

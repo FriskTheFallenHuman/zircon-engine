@@ -19,7 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // mathlib.c -- math primitives
 
-#include "quakedef.h"
+#include "darkplaces.h"
 
 #include <math.h>
 
@@ -762,12 +762,18 @@ void AngleMatrix (const vec3_t angles, const vec3_t translate, vec_t matrix[][4]
 // LadyHavoc: renamed this to Length, and made the normal one a #define
 float VectorNormalizeLength (vec3_t v)
 {
-	float length;
+	float length, ilength;
 
-	length = sqrt(DotProduct(v,v));
+	length = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+	length = sqrt (length);
 
 	if (length)
-		VectorScale(v, 1 / length, v);
+	{
+		ilength = 1/length;
+		v[0] *= ilength;
+		v[1] *= ilength;
+		v[2] *= ilength;
+	}
 
 	return length;
 }
@@ -829,7 +835,6 @@ float RadiusFromBoundsAndOrigin (const vec3_t mins, const vec3_t maxs, const vec
 	return sqrt(max(m1[0], m2[0]) + max(m1[1], m2[1]) + max(m1[2], m2[2]));
 }
 
-static void Math_RandomSeed_UnitTests(void);
 void Mathlib_Init(void)
 {
 	int a;
@@ -838,8 +843,6 @@ void Mathlib_Init(void)
 	ixtable[0] = 0;
 	for (a = 1;a < 4096;a++)
 		ixtable[a] = 1.0f / a;
-
-	Math_RandomSeed_UnitTests();
 }
 
 #include "matrixlib.h"
@@ -898,6 +901,7 @@ int LoopingFrameNumberFromDouble(double t, int loopframes)
 
 static unsigned int mul_Lecuyer[4] = { 0x12e15e35, 0xb500f16e, 0x2e714eb2, 0xb37916a5 };
 
+#if 1 // SUMA
 static void mul128(const unsigned int a[], const unsigned int b[], unsigned int dest[4])
 {
 #if 0 //defined(__GNUC__) && defined(__x86_64__)
@@ -1023,20 +1027,53 @@ void Math_RandomSeed_UnitTests(void)
 		0x00000001, 0xffffffff, 0xfffffffe, 0x00000000);
 }
 
+#else // SUMA
+
+// OLD
+static void mul128(unsigned int a[], unsigned int b[], unsigned int dest[4])
+{
+	unsigned long long t[4];
+	t[0] = a[0] * b[0];
+	t[1] = a[1] * b[1];
+	t[2] = a[2] * b[2];
+	t[3] = a[3] * b[3];
+
+	// OLD
+	// this is complicated because C doesn't have a way to make use of the
+	// cpu status carry flag, so we do it all in reverse order from what
+	// would otherwise make sense, and have to make multiple passes...
+	t[3] += t[2] >> 32; t[2] &= 0xffffffff;
+	t[2] += t[1] >> 32; t[1] &= 0xffffffff;
+	t[1] += t[0] >> 32; t[0] &= 0xffffffff;
+
+	t[3] += t[2] >> 32; t[2] &= 0xffffffff;
+	t[2] += t[1] >> 32; t[1] &= 0xffffffff;
+
+	t[3] += t[2] >> 32; t[2] &= 0xffffffff;
+
+	dest[0] = t[0] & 0xffffffff;
+	dest[1] = t[1] & 0xffffffff;
+	dest[2] = t[2] & 0xffffffff;
+	dest[3] = t[3] & 0xffffffff;
+}
+#endif // SUMA
+
+
+void Math_RandomSeed_FromInt(randomseed_t *r, unsigned int n)
+{
+	// if the entire s[] is zero the algorithm would break completely, so make sure it isn't zero by putting a 1 here
+	r->s[0] = 1;
+	r->s[1] = 0;
+	r->s[2] = 0;
+	r->s[3] = n;
+}
+
 void Math_RandomSeed_Reset(randomseed_t *r)
 {
 	r->s[0] = 1;
 	r->s[1] = 0;
 	r->s[2] = 0;
 	r->s[3] = 0;
-}
-
-void Math_RandomSeed_FromInts(randomseed_t *r, unsigned int s0, unsigned int s1, unsigned int s2, unsigned int s3)
-{
-	r->s[0] = s0;
-	r->s[1] = s1;
-	r->s[2] = s2;
-	r->s[3] = s3 | 1; // the Lehmer RNG requires that the seed be odd
 }
 
 unsigned long long Math_rand64(randomseed_t *r)

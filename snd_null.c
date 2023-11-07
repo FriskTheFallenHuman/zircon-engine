@@ -112,7 +112,7 @@ qbool S_IsSoundPrecached (const sfx_t *sfx)
 	return false;
 }
 
-void S_UnloadAllSounds_f (cmd_state_t *cmd)
+void S_UnloadAllSounds_f (void)
 {
 }
 

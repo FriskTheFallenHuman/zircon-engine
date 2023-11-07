@@ -615,7 +615,7 @@ qbool OGG_LoadVorbisFile(const char *filename, sfx_t *sfx)
 		return true;
 
 	// Load the file completely
-	data = FS_LoadFile(filename, snd_mempool, false, &filesize);
+	data = FS_LoadFile(filename, snd_mempool, false, &filesize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 	if (data == NULL)
 		return false;
 

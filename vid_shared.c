@@ -1,63 +1,64 @@
+// Baker: vid_fullscreen_width, vid_window_width
 
 #include "quakedef.h"
 #include "cdaudio.h"
 #include "image.h"
 
 #ifdef _WIN32
-//#include <XInput.h>
-#define XINPUT_GAMEPAD_DPAD_UP          0x0001
-#define XINPUT_GAMEPAD_DPAD_DOWN        0x0002
-#define XINPUT_GAMEPAD_DPAD_LEFT        0x0004
-#define XINPUT_GAMEPAD_DPAD_RIGHT       0x0008
-#define XINPUT_GAMEPAD_START            0x0010
-#define XINPUT_GAMEPAD_BACK             0x0020
-#define XINPUT_GAMEPAD_LEFT_THUMB       0x0040
-#define XINPUT_GAMEPAD_RIGHT_THUMB      0x0080
-#define XINPUT_GAMEPAD_LEFT_SHOULDER    0x0100
-#define XINPUT_GAMEPAD_RIGHT_SHOULDER   0x0200
-#define XINPUT_GAMEPAD_A                0x1000
-#define XINPUT_GAMEPAD_B                0x2000
-#define XINPUT_GAMEPAD_X                0x4000
-#define XINPUT_GAMEPAD_Y                0x8000
-#define XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE  7849
-#define XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE 8689
-#define XINPUT_GAMEPAD_TRIGGER_THRESHOLD    30
-#define XUSER_INDEX_ANY                 0x000000FF
+	//#include <XInput.h>
+	#define XINPUT_GAMEPAD_DPAD_UP          0x0001
+	#define XINPUT_GAMEPAD_DPAD_DOWN        0x0002
+	#define XINPUT_GAMEPAD_DPAD_LEFT        0x0004
+	#define XINPUT_GAMEPAD_DPAD_RIGHT       0x0008
+	#define XINPUT_GAMEPAD_START            0x0010
+	#define XINPUT_GAMEPAD_BACK             0x0020
+	#define XINPUT_GAMEPAD_LEFT_THUMB       0x0040
+	#define XINPUT_GAMEPAD_RIGHT_THUMB      0x0080
+	#define XINPUT_GAMEPAD_LEFT_SHOULDER    0x0100
+	#define XINPUT_GAMEPAD_RIGHT_SHOULDER   0x0200
+	#define XINPUT_GAMEPAD_A                0x1000
+	#define XINPUT_GAMEPAD_B                0x2000
+	#define XINPUT_GAMEPAD_X                0x4000
+	#define XINPUT_GAMEPAD_Y                0x8000
+	#define XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE  7849
+	#define XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE 8689
+	#define XINPUT_GAMEPAD_TRIGGER_THRESHOLD    30
+	#define XUSER_INDEX_ANY                 0x000000FF
 
-typedef struct xinput_gamepad_s
-{
-	WORD wButtons;
-	BYTE bLeftTrigger;
-	BYTE bRightTrigger;
-	SHORT sThumbLX;
-	SHORT sThumbLY;
-	SHORT sThumbRX;
-	SHORT sThumbRY;
-}
-xinput_gamepad_t;
+	typedef struct xinput_gamepad_s
+	{
+		WORD wButtons;
+		BYTE bLeftTrigger;
+		BYTE bRightTrigger;
+		SHORT sThumbLX;
+		SHORT sThumbLY;
+		SHORT sThumbRX;
+		SHORT sThumbRY;
+	}
+	xinput_gamepad_t;
 
-typedef struct xinput_state_s
-{
-	DWORD dwPacketNumber;
-	xinput_gamepad_t Gamepad;
-}
-xinput_state_t;
+	typedef struct xinput_state_s
+	{
+		DWORD dwPacketNumber;
+		xinput_gamepad_t Gamepad;
+	}
+	xinput_state_t;
 
-typedef struct xinput_keystroke_s
-{
-    WORD    VirtualKey;
-    WCHAR   Unicode;
-    WORD    Flags;
-    BYTE    UserIndex;
-    BYTE    HidCode;
-}
-xinput_keystroke_t;
+	typedef struct xinput_keystroke_s
+	{
+		WORD    VirtualKey;
+		WCHAR   Unicode;
+		WORD    Flags;
+		BYTE    UserIndex;
+		BYTE    HidCode;
+	}
+	xinput_keystroke_t;
 
-DWORD (WINAPI *qXInputGetState)(DWORD index, xinput_state_t *state);
-DWORD (WINAPI *qXInputGetKeystroke)(DWORD index, DWORD reserved, xinput_keystroke_t *keystroke);
+	DWORD (WINAPI *qXInputGetState)(DWORD index, xinput_state_t *state);
+	DWORD (WINAPI *qXInputGetKeystroke)(DWORD index, DWORD reserved, xinput_keystroke_t *keystroke);
 
-qbool vid_xinputinitialized = false;
-int vid_xinputindex = -1;
+	qbool vid_xinputinitialized = false;
+	int vid_xinputindex = -1;
 #endif // _WIN32 xinput
 
 // global video state
@@ -124,6 +125,10 @@ cvar_t joy_x360_sensitivitypitch = {CF_CLIENT, "joy_x360_sensitivitypitch", "-1"
 cvar_t joy_x360_sensitivityyaw = {CF_CLIENT, "joy_x360_sensitivityyaw", "-1", "movement multiplier"};
 cvar_t joy_x360_sensitivityroll = {CF_CLIENT, "joy_x360_sensitivityroll", "1", "movement multiplier"};
 
+
+// we don't know until we try it!
+cvar_t vid_hardwaregammasupported = {CF_CLIENT | CF_READONLY,"vid_hardwaregammasupported","1", "indicates whether hardware gamma is supported (updated by attempts to set hardware gamma ramps)"};
+
 // VorteX: more info cvars, mostly set in VID_CheckExtensions
 cvar_t gl_info_vendor = {CF_CLIENT | CF_READONLY, "gl_info_vendor", "", "indicates brand of graphics chip"};
 cvar_t gl_info_renderer = {CF_CLIENT | CF_READONLY, "gl_info_renderer", "", "indicates graphics chip model and other information"};
@@ -132,10 +137,16 @@ cvar_t gl_info_extensions = {CF_CLIENT | CF_READONLY, "gl_info_extensions", "", 
 cvar_t gl_info_platform = {CF_CLIENT | CF_READONLY, "gl_info_platform", "", "indicates GL platform: WGL, GLX, or AGL."};
 cvar_t gl_info_driver = {CF_CLIENT | CF_READONLY, "gl_info_driver", "", "name of driver library (opengl32.dll, libGL.so.1, or whatever)."};
 
+// whether hardware gamma ramps are currently in effect
+qbool vid_usinghwgamma = false;
+
+int vid_gammarampsize = 0;
+unsigned short *vid_gammaramps = NULL;
+unsigned short *vid_systemgammaramps = NULL;
+
 cvar_t vid_fullscreen = {CF_CLIENT | CF_ARCHIVE, "vid_fullscreen", "1", "use fullscreen (1) or windowed (0)"};
-cvar_t vid_borderless = {CF_CLIENT | CF_ARCHIVE, "vid_borderless", "0", "make the window borderless by removing all window decorations. has no effect in fullscreen mode"};
-cvar_t vid_width = {CF_CLIENT | CF_ARCHIVE, "vid_width", "640", "resolution"};
-cvar_t vid_height = {CF_CLIENT | CF_ARCHIVE, "vid_height", "480", "resolution"};
+cvar_t vid_width = {CF_CLIENT | CF_ARCHIVE, "vid_width", "1024", "resolution"}; // Baker 1020 old default was 640 -- I feel this is necessary as default.cfg should not contain a video mode, right?
+cvar_t vid_height = {CF_CLIENT | CF_ARCHIVE, "vid_height", "768", "resolution"}; // Baker 1020 old default was 480
 
 // Baker r0001 - ALT-ENTER support
 cvar_t vid_fullscreen_width = {CF_CLIENT | CF_ARCHIVE, "_vid_fullscreen_width", "1024", "most recent user set fullscreen width for ALT-ENTER [Zircon]"};
@@ -148,7 +159,7 @@ cvar_t vid_fullscreen_conscale = {CF_CLIENT | CF_ARCHIVE, "_vid_fullscreen_consc
 cvar_t vid_window_conscale = {CF_CLIENT | CF_ARCHIVE, "_vid_window_conscale", "1", "user set windowed 2d magnification factor [Zircon]"};
 
 
-cvar_t vid_bitsperpixel = {CF_CLIENT | CF_READONLY, "vid_bitsperpixel", "32", "how many bits per pixel to render at (this is not currently configurable)"};
+cvar_t vid_bitsperpixel = {CF_CLIENT | CF_ARCHIVE, "vid_bitsperpixel", "32", "how many bits per pixel to render at (32 or 16, 32 is recommended)"};
 cvar_t vid_samples = {CF_CLIENT | CF_ARCHIVE, "vid_samples", "1", "how many anti-aliasing samples per pixel to request from the graphics driver (4 is recommended, 1 is faster)"};
 cvar_t vid_refreshrate = {CF_CLIENT | CF_ARCHIVE, "vid_refreshrate", "60", "refresh rate to use, in hz (higher values flicker less, if supported by your monitor)"};
 cvar_t vid_userefreshrate = {CF_CLIENT | CF_ARCHIVE, "vid_userefreshrate", "0", "set this to 1 to make vid_refreshrate used, or to 0 to let the engine choose a sane default"};
@@ -162,11 +173,12 @@ cvar_t vid_touchscreen_ydpi = {CF_CLIENT, "vid_touchscreen_ydpi", "300", "Vertic
 
 cvar_t vid_vsync = {CF_CLIENT | CF_ARCHIVE, "vid_vsync", "0", "sync to vertical blank, prevents 'tearing' (seeing part of one frame and part of another on the screen at the same time), automatically disabled when doing timedemo benchmarks"};
 cvar_t vid_mouse = {CF_CLIENT | CF_ARCHIVE, "vid_mouse", "1", "whether to use the mouse in windowed mode (fullscreen always does)"};
-cvar_t vid_mouse_clickthrough = {CF_CLIENT | CF_ARCHIVE, "vid_mouse_clickthrough", "0", "mouse behavior in windowed mode: 0 = click to focus, 1 = allow interaction even if the window is not focused (click-through behaviour, can be useful when using third-party game overlays)"};
 cvar_t vid_grabkeyboard = {CF_CLIENT | CF_ARCHIVE, "vid_grabkeyboard", "0", "whether to grab the keyboard when mouse is active (prevents use of volume control keys, music player keys, etc on some keyboards)"};
 cvar_t vid_minwidth = {CF_CLIENT, "vid_minwidth", "0", "minimum vid_width that is acceptable (to be set in default.cfg in mods)"};
 cvar_t vid_minheight = {CF_CLIENT, "vid_minheight", "0", "minimum vid_height that is acceptable (to be set in default.cfg in mods)"};
-cvar_t gl_finish = {CF_CLIENT | CF_CLIENT, "gl_finish", "0", "make the cpu wait for the graphics processor at the end of each rendered frame (can help with strange input or video lag problems on some machines)"};
+cvar_t vid_gl13 = {CF_CLIENT, "vid_gl13", "1", "enables faster rendering using OpenGL 1.3 features (such as GL_ARB_texture_env_combine extension)"};
+cvar_t vid_gl20 = {CF_CLIENT, "vid_gl20", "1", "enables faster rendering using OpenGL 2.0 features (such as GL_ARB_fragment_shader extension)"};
+cvar_t gl_finish = {CF_CLIENT, "gl_finish", "0", "make the cpu wait for the graphics processor at the end of each rendered frame (can help with strange input or video lag problems on some machines)"};
 cvar_t vid_sRGB = {CF_CLIENT | CF_ARCHIVE, "vid_sRGB", "0", "if hardware is capable, modify rendering to be gamma corrected for the sRGB color standard (computer monitors, TVs), recommended"};
 cvar_t vid_sRGB_fallback = {CF_CLIENT | CF_ARCHIVE, "vid_sRGB_fallback", "0", "do an approximate sRGB fallback if not properly supported by hardware (2: also use the fallback if framebuffer is 8bit, 3: always use the fallback even if sRGB is supported)"};
 
@@ -174,11 +186,8 @@ cvar_t vid_touchscreen = {CF_CLIENT, "vid_touchscreen", "0", "Use touchscreen-st
 cvar_t vid_touchscreen_showkeyboard = {CF_CLIENT, "vid_touchscreen_showkeyboard", "0", "shows the platform's screen keyboard for text entry, can be set by csqc or menu qc if it wants to receive text input, does nothing if the platform has no screen keyboard"};
 cvar_t vid_touchscreen_supportshowkeyboard = {CF_CLIENT | CF_READONLY, "vid_touchscreen_supportshowkeyboard", "0", "indicates if the platform supports a virtual keyboard"};
 cvar_t vid_stick_mouse = {CF_CLIENT | CF_ARCHIVE, "vid_stick_mouse", "0", "have the mouse stuck in the center of the screen" };
-cvar_t vid_resizable = {CF_CLIENT | CF_ARCHIVE, "vid_resizable", "0", "0: window not resizable, 1: resizable, 2: window can be resized but the framebuffer isn't adjusted" };
-cvar_t vid_desktopfullscreen = {CF_CLIENT | CF_ARCHIVE, "vid_desktopfullscreen", "1", "force desktop resolution for fullscreen; also use some OS dependent tricks for better fullscreen integration"};
-#ifdef _WIN32
-cvar_t vid_ignore_taskbar = {CF_CLIENT | CF_ARCHIVE, "vid_ignore_taskbar", "1", "in windowed mode, prevent the Windows taskbar and window borders from affecting the size and placement of the window. it will be aligned centered and uses the unaltered vid_width/vid_height values [Zircon default]"}; // Baker r9501: new default, the old default makes the windowed mode window literally not center of the screen ... felt weird.
-#endif
+cvar_t vid_resizable = {CF_CLIENT | CF_ARCHIVE, "vid_resizable", "0", "0: window not resizable, 1: resizable, 2: window can be resized but the framebuffer isn't adjusted" }; // Baker: This DP feature doesn't do anything, no supporting code.
+cvar_t vid_desktopfullscreen = {CF_CLIENT | CF_ARCHIVE, "vid_desktopfullscreen", "0", "force desktop resolution for fullscreen; also use some OS dependent tricks for better fullscreen integration"};
 
 cvar_t v_gamma = {CF_CLIENT | CF_ARCHIVE, "v_gamma", "1", "inverse gamma correction value, a brightness effect that does not affect white or black, and tends to make the image grey and dull"};
 cvar_t v_contrast = {CF_CLIENT | CF_ARCHIVE, "v_contrast", "1", "brightness of white (values above 1 give a brighter image with increased color saturation, unlike v_gamma)"};
@@ -194,7 +203,9 @@ cvar_t v_color_grey_b = {CF_CLIENT | CF_ARCHIVE, "v_color_grey_b", "0.5", "desir
 cvar_t v_color_white_r = {CF_CLIENT | CF_ARCHIVE, "v_color_white_r", "1", "desired color of white"};
 cvar_t v_color_white_g = {CF_CLIENT | CF_ARCHIVE, "v_color_white_g", "1", "desired color of white"};
 cvar_t v_color_white_b = {CF_CLIENT | CF_ARCHIVE, "v_color_white_b", "1", "desired color of white"};
-cvar_t v_glslgamma_2d = {CF_CLIENT | CF_ARCHIVE, "v_glslgamma_2d", "1", "applies GLSL gamma to 2d pictures (HUD, fonts)"};
+cvar_t v_hwgamma = {CF_CLIENT | CF_ARCHIVE, "v_hwgamma", "0", "enables use of hardware gamma correction ramps if available (note: does not work very well on Windows2000 and above), values are 0 = off, 1 = attempt to use hardware gamma, 2 = use hardware gamma whether it works or not"};
+cvar_t v_glslgamma = {CF_CLIENT | CF_ARCHIVE, "v_glslgamma", "1", "enables use of GLSL to apply gamma correction ramps if available (note: overrides v_hwgamma)"};
+cvar_t v_glslgamma_2d = {CF_CLIENT | CF_ARCHIVE, "v_glslgamma_2d", "0", "applies GLSL gamma to 2d pictures (HUD, fonts)"};
 cvar_t v_psycho = {CF_CLIENT, "v_psycho", "0", "easter egg - R.I.P. zinx http://obits.al.com/obituaries/birmingham/obituary.aspx?n=christopher-robert-lais&pid=186080667"};
 
 // brand of graphics chip
@@ -207,453 +218,345 @@ const char *gl_version;
 const char *gl_extensions;
 // WGL, GLX, or AGL
 const char *gl_platform;
+// another extensions list, containing platform-specific extensions that are
+// not in the main list
+const char *gl_platformextensions;
 // name of driver library (opengl32.dll, libGL.so.1, or whatever)
 char gl_driver[256];
 
 #ifndef USE_GLES2
-GLboolean (GLAPIENTRY *qglIsBuffer) (GLuint buffer);
-GLboolean (GLAPIENTRY *qglIsEnabled)(GLenum cap);
-GLboolean (GLAPIENTRY *qglIsFramebuffer)(GLuint framebuffer);
-GLboolean (GLAPIENTRY *qglIsQuery)(GLuint qid);
-GLboolean (GLAPIENTRY *qglIsRenderbuffer)(GLuint renderbuffer);
-GLboolean (GLAPIENTRY *qglUnmapBuffer) (GLenum target);
-GLenum (GLAPIENTRY *qglCheckFramebufferStatus)(GLenum target);
-GLenum (GLAPIENTRY *qglGetError)(void);
-GLint (GLAPIENTRY *qglGetAttribLocation)(GLuint programObj, const GLchar *name);
-GLint (GLAPIENTRY *qglGetUniformLocation)(GLuint programObj, const GLchar *name);
-GLuint (GLAPIENTRY *qglCreateProgram)(void);
-GLuint (GLAPIENTRY *qglCreateShader)(GLenum shaderType);
-GLuint (GLAPIENTRY *qglGetDebugMessageLogARB)(GLuint count, GLsizei bufSize, GLenum* sources, GLenum* types, GLuint* ids, GLenum* severities, GLsizei* lengths, GLchar* messageLog);
-GLuint (GLAPIENTRY *qglGetUniformBlockIndex)(GLuint program, const char* uniformBlockName);
-GLvoid (GLAPIENTRY *qglBindFramebuffer)(GLenum target, GLuint framebuffer);
-GLvoid (GLAPIENTRY *qglBindRenderbuffer)(GLenum target, GLuint renderbuffer);
-GLvoid (GLAPIENTRY *qglBlitFramebuffer)(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
-GLvoid (GLAPIENTRY *qglDeleteFramebuffers)(GLsizei n, const GLuint *framebuffers);
-GLvoid (GLAPIENTRY *qglDeleteRenderbuffers)(GLsizei n, const GLuint *renderbuffers);
-GLvoid (GLAPIENTRY *qglFramebufferRenderbuffer)(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
-GLvoid (GLAPIENTRY *qglFramebufferTexture1D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-GLvoid (GLAPIENTRY *qglFramebufferTexture2D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-GLvoid (GLAPIENTRY *qglFramebufferTexture3D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer);
-GLvoid (GLAPIENTRY *qglFramebufferTextureLayer)(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer);
-GLvoid (GLAPIENTRY *qglGenFramebuffers)(GLsizei n, GLuint *framebuffers);
-GLvoid (GLAPIENTRY *qglGenRenderbuffers)(GLsizei n, GLuint *renderbuffers);
-GLvoid (GLAPIENTRY *qglGenerateMipmap)(GLenum target);
-GLvoid (GLAPIENTRY *qglGetFramebufferAttachmentParameteriv)(GLenum target, GLenum attachment, GLenum pname, GLint *params);
-GLvoid (GLAPIENTRY *qglGetRenderbufferParameteriv)(GLenum target, GLenum pname, GLint *params);
-GLvoid (GLAPIENTRY *qglRenderbufferStorage)(GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
-GLvoid (GLAPIENTRY *qglRenderbufferStorageMultisample)(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height);
-GLvoid* (GLAPIENTRY *qglMapBuffer) (GLenum target, GLenum access);
-const GLubyte* (GLAPIENTRY *qglGetString)(GLenum name);
-const GLubyte* (GLAPIENTRY *qglGetStringi)(GLenum name, GLuint index);
-void (GLAPIENTRY *qglActiveTexture)(GLenum texture);
-void (GLAPIENTRY *qglAttachShader)(GLuint containerObj, GLuint obj);
-void (GLAPIENTRY *qglBeginQuery)(GLenum target, GLuint qid);
-void (GLAPIENTRY *qglBindAttribLocation)(GLuint programObj, GLuint index, const GLchar *name);
-void (GLAPIENTRY *qglBindBuffer) (GLenum target, GLuint buffer);
-void (GLAPIENTRY *qglBindBufferBase)(GLenum target, GLuint index, GLuint buffer);
-void (GLAPIENTRY *qglBindBufferRange)(GLenum target, GLuint index, GLuint buffer, GLintptr offset, GLsizeiptr size);
-void (GLAPIENTRY *qglBindFragDataLocation)(GLuint programObj, GLuint index, const GLchar *name);
-void (GLAPIENTRY *qglBindTexture)(GLenum target, GLuint texture);
-void (GLAPIENTRY *qglBindVertexArray)(GLuint array);
-void (GLAPIENTRY *qglBlendEquation)(GLenum); // also supplied by GL_blend_subtract
-void (GLAPIENTRY *qglBlendFunc)(GLenum sfactor, GLenum dfactor);
-void (GLAPIENTRY *qglBlendFuncSeparate)(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha);
-void (GLAPIENTRY *qglBufferData) (GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage);
-void (GLAPIENTRY *qglBufferSubData) (GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid *data);
-void (GLAPIENTRY *qglClear)(GLbitfield mask);
+// GL_ARB_multitexture
+void (GLAPIENTRY *qglMultiTexCoord1f) (GLenum, GLfloat);
+void (GLAPIENTRY *qglMultiTexCoord2f) (GLenum, GLfloat, GLfloat);
+void (GLAPIENTRY *qglMultiTexCoord3f) (GLenum, GLfloat, GLfloat, GLfloat);
+void (GLAPIENTRY *qglMultiTexCoord4f) (GLenum, GLfloat, GLfloat, GLfloat, GLfloat);
+void (GLAPIENTRY *qglActiveTexture) (GLenum);
+void (GLAPIENTRY *qglClientActiveTexture) (GLenum);
+
+// general GL functions
+
 void (GLAPIENTRY *qglClearColor)(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
-void (GLAPIENTRY *qglClearDepth)(GLclampd depth);
-void (GLAPIENTRY *qglClearStencil)(GLint s);
-void (GLAPIENTRY *qglColorMask)(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
-void (GLAPIENTRY *qglCompileShader)(GLuint shaderObj);
-void (GLAPIENTRY *qglCompressedTexImage2D)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void *data);
-void (GLAPIENTRY *qglCompressedTexImage3D)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data);
-void (GLAPIENTRY *qglCompressedTexSubImage2D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data);
-void (GLAPIENTRY *qglCompressedTexSubImage3D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data);
-void (GLAPIENTRY *qglCopyTexImage2D)(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
-void (GLAPIENTRY *qglCopyTexSubImage2D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
-void (GLAPIENTRY *qglCopyTexSubImage3D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+
+void (GLAPIENTRY *qglClear)(GLbitfield mask);
+
+void (GLAPIENTRY *qglAlphaFunc)(GLenum func, GLclampf ref);
+void (GLAPIENTRY *qglBlendFunc)(GLenum sfactor, GLenum dfactor);
 void (GLAPIENTRY *qglCullFace)(GLenum mode);
-void (GLAPIENTRY *qglDebugMessageCallbackARB)(GLDEBUGPROCARB callback, const GLvoid* userParam);
-void (GLAPIENTRY *qglDebugMessageControlARB)(GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint* ids, GLboolean enabled);
-void (GLAPIENTRY *qglDebugMessageInsertARB)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* buf);
-void (GLAPIENTRY *qglDeleteBuffers) (GLsizei n, const GLuint *buffers);
-void (GLAPIENTRY *qglDeleteProgram)(GLuint obj);
-void (GLAPIENTRY *qglDeleteQueries)(GLsizei n, const GLuint *ids);
-void (GLAPIENTRY *qglDeleteShader)(GLuint obj);
-void (GLAPIENTRY *qglDeleteTextures)(GLsizei n, const GLuint *textures);
-void (GLAPIENTRY *qglDeleteVertexArrays)(GLsizei n, const GLuint *arrays);
+
+void (GLAPIENTRY *qglDrawBuffer)(GLenum mode);
+void (GLAPIENTRY *qglReadBuffer)(GLenum mode);
+void (GLAPIENTRY *qglEnable)(GLenum cap);
+void (GLAPIENTRY *qglDisable)(GLenum cap);
+GLboolean (GLAPIENTRY *qglIsEnabled)(GLenum cap);
+
+void (GLAPIENTRY *qglEnableClientState)(GLenum cap);
+void (GLAPIENTRY *qglDisableClientState)(GLenum cap);
+
+void (GLAPIENTRY *qglGetBooleanv)(GLenum pname, GLboolean *params);
+void (GLAPIENTRY *qglGetDoublev)(GLenum pname, GLdouble *params);
+void (GLAPIENTRY *qglGetFloatv)(GLenum pname, GLfloat *params);
+void (GLAPIENTRY *qglGetIntegerv)(GLenum pname, GLint *params);
+
+GLenum (GLAPIENTRY *qglGetError)(void);
+const GLubyte* (GLAPIENTRY *qglGetString)(GLenum name);
+void (GLAPIENTRY *qglFinish)(void);
+void (GLAPIENTRY *qglFlush)(void);
+
+void (GLAPIENTRY *qglClearDepth)(GLclampd depth);
 void (GLAPIENTRY *qglDepthFunc)(GLenum func);
 void (GLAPIENTRY *qglDepthMask)(GLboolean flag);
 void (GLAPIENTRY *qglDepthRange)(GLclampd near_val, GLclampd far_val);
 void (GLAPIENTRY *qglDepthRangef)(GLclampf near_val, GLclampf far_val);
-void (GLAPIENTRY *qglDetachShader)(GLuint containerObj, GLuint attachedObj);
-void (GLAPIENTRY *qglDisable)(GLenum cap);
-void (GLAPIENTRY *qglDisableVertexAttribArray)(GLuint index);
-void (GLAPIENTRY *qglDrawArrays)(GLenum mode, GLint first, GLsizei count);
-void (GLAPIENTRY *qglDrawBuffer)(GLenum mode);
-void (GLAPIENTRY *qglDrawBuffers)(GLsizei n, const GLenum *bufs);
+void (GLAPIENTRY *qglColorMask)(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
+
+void (GLAPIENTRY *qglDrawRangeElements)(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices);
 void (GLAPIENTRY *qglDrawElements)(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
-void (GLAPIENTRY *qglEnable)(GLenum cap);
-void (GLAPIENTRY *qglEnableVertexAttribArray)(GLuint index);
-void (GLAPIENTRY *qglEndQuery)(GLenum target);
-void (GLAPIENTRY *qglFinish)(void);
-void (GLAPIENTRY *qglFlush)(void);
-void (GLAPIENTRY *qglGenBuffers) (GLsizei n, GLuint *buffers);
-void (GLAPIENTRY *qglGenQueries)(GLsizei n, GLuint *ids);
-void (GLAPIENTRY *qglGenTextures)(GLsizei n, GLuint *textures);
-void (GLAPIENTRY *qglGenVertexArrays)(GLsizei n, GLuint *arrays);
-void (GLAPIENTRY *qglGetActiveAttrib)(GLuint programObj, GLuint index, GLsizei maxLength, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
-void (GLAPIENTRY *qglGetActiveUniform)(GLuint programObj, GLuint index, GLsizei maxLength, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
-void (GLAPIENTRY *qglGetActiveUniformBlockName)(GLuint program, GLuint uniformBlockIndex, GLsizei bufSize, GLsizei* length, char* uniformBlockName);
-void (GLAPIENTRY *qglGetActiveUniformBlockiv)(GLuint program, GLuint uniformBlockIndex, GLenum pname, GLint* params);
-void (GLAPIENTRY *qglGetActiveUniformName)(GLuint program, GLuint uniformIndex, GLsizei bufSize, GLsizei* length, char* uniformName);
-void (GLAPIENTRY *qglGetActiveUniformsiv)(GLuint program, GLsizei uniformCount, const GLuint* uniformIndices, GLenum pname, GLint* params);
-void (GLAPIENTRY *qglGetAttachedShaders)(GLuint containerObj, GLsizei maxCount, GLsizei *count, GLuint *obj);
-void (GLAPIENTRY *qglGetBooleanv)(GLenum pname, GLboolean *params);
-void (GLAPIENTRY *qglGetCompressedTexImage)(GLenum target, GLint lod, void *img);
-void (GLAPIENTRY *qglGetDoublev)(GLenum pname, GLdouble *params);
-void (GLAPIENTRY *qglGetFloatv)(GLenum pname, GLfloat *params);
-void (GLAPIENTRY *qglGetIntegeri_v)(GLenum target, GLuint index, GLint* data);
-void (GLAPIENTRY *qglGetIntegerv)(GLenum pname, GLint *params);
-void (GLAPIENTRY *qglGetPointerv)(GLenum pname, GLvoid** params);
-void (GLAPIENTRY *qglGetProgramInfoLog)(GLuint obj, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
-void (GLAPIENTRY *qglGetProgramiv)(GLuint obj, GLenum pname, GLint *params);
-void (GLAPIENTRY *qglGetQueryObjectiv)(GLuint qid, GLenum pname, GLint *params);
-void (GLAPIENTRY *qglGetQueryObjectuiv)(GLuint qid, GLenum pname, GLuint *params);
-void (GLAPIENTRY *qglGetQueryiv)(GLenum target, GLenum pname, GLint *params);
-void (GLAPIENTRY *qglGetShaderInfoLog)(GLuint obj, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
-void (GLAPIENTRY *qglGetShaderSource)(GLuint obj, GLsizei maxLength, GLsizei *length, GLchar *source);
-void (GLAPIENTRY *qglGetShaderiv)(GLuint obj, GLenum pname, GLint *params);
-void (GLAPIENTRY *qglGetTexImage)(GLenum target, GLint level, GLenum format, GLenum type, GLvoid *pixels);
-void (GLAPIENTRY *qglGetTexLevelParameterfv)(GLenum target, GLint level, GLenum pname, GLfloat *params);
-void (GLAPIENTRY *qglGetTexLevelParameteriv)(GLenum target, GLint level, GLenum pname, GLint *params);
-void (GLAPIENTRY *qglGetTexParameterfv)(GLenum target, GLenum pname, GLfloat *params);
-void (GLAPIENTRY *qglGetTexParameteriv)(GLenum target, GLenum pname, GLint *params);
-void (GLAPIENTRY *qglGetUniformIndices)(GLuint program, GLsizei uniformCount, const char** uniformNames, GLuint* uniformIndices);
-void (GLAPIENTRY *qglGetUniformfv)(GLuint programObj, GLint location, GLfloat *params);
-void (GLAPIENTRY *qglGetUniformiv)(GLuint programObj, GLint location, GLint *params);
-void (GLAPIENTRY *qglGetVertexAttribPointerv)(GLuint index, GLenum pname, GLvoid **pointer);
-void (GLAPIENTRY *qglGetVertexAttribdv)(GLuint index, GLenum pname, GLdouble *params);
-void (GLAPIENTRY *qglGetVertexAttribfv)(GLuint index, GLenum pname, GLfloat *params);
-void (GLAPIENTRY *qglGetVertexAttribiv)(GLuint index, GLenum pname, GLint *params);
-void (GLAPIENTRY *qglHint)(GLenum target, GLenum mode);
-void (GLAPIENTRY *qglLinkProgram)(GLuint programObj);
-void (GLAPIENTRY *qglPixelStorei)(GLenum pname, GLint param);
-void (GLAPIENTRY *qglPointSize)(GLfloat size);
-void (GLAPIENTRY *qglPolygonMode)(GLenum face, GLenum mode);
-void (GLAPIENTRY *qglPolygonOffset)(GLfloat factor, GLfloat units);
-void (GLAPIENTRY *qglReadBuffer)(GLenum mode);
+void (GLAPIENTRY *qglDrawArrays)(GLenum mode, GLint first, GLsizei count);
+void (GLAPIENTRY *qglVertexPointer)(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr);
+void (GLAPIENTRY *qglNormalPointer)(GLenum type, GLsizei stride, const GLvoid *ptr);
+void (GLAPIENTRY *qglColorPointer)(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr);
+void (GLAPIENTRY *qglTexCoordPointer)(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr);
+void (GLAPIENTRY *qglArrayElement)(GLint i);
+
+void (GLAPIENTRY *qglColor4ub)(GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha);
+void (GLAPIENTRY *qglColor4f)(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+void (GLAPIENTRY *qglTexCoord1f)(GLfloat s);
+void (GLAPIENTRY *qglTexCoord2f)(GLfloat s, GLfloat t);
+void (GLAPIENTRY *qglTexCoord3f)(GLfloat s, GLfloat t, GLfloat r);
+void (GLAPIENTRY *qglTexCoord4f)(GLfloat s, GLfloat t, GLfloat r, GLfloat q);
+void (GLAPIENTRY *qglVertex2f)(GLfloat x, GLfloat y);
+void (GLAPIENTRY *qglVertex3f)(GLfloat x, GLfloat y, GLfloat z);
+void (GLAPIENTRY *qglVertex4f)(GLfloat x, GLfloat y, GLfloat z, GLfloat w);
+void (GLAPIENTRY *qglBegin)(GLenum mode);
+void (GLAPIENTRY *qglEnd)(void);
+
+void (GLAPIENTRY *qglMatrixMode)(GLenum mode);
+//void (GLAPIENTRY *qglOrtho)(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+//void (GLAPIENTRY *qglFrustum)(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+void (GLAPIENTRY *qglViewport)(GLint x, GLint y, GLsizei width, GLsizei height);
+//void (GLAPIENTRY *qglPushMatrix)(void);
+//void (GLAPIENTRY *qglPopMatrix)(void);
+void (GLAPIENTRY *qglLoadIdentity)(void);
+//void (GLAPIENTRY *qglLoadMatrixd)(const GLdouble *m);
+void (GLAPIENTRY *qglLoadMatrixf)(const GLfloat *m);
+//void (GLAPIENTRY *qglMultMatrixd)(const GLdouble *m);
+//void (GLAPIENTRY *qglMultMatrixf)(const GLfloat *m);
+//void (GLAPIENTRY *qglRotated)(GLdouble angle, GLdouble x, GLdouble y, GLdouble z);
+//void (GLAPIENTRY *qglRotatef)(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
+//void (GLAPIENTRY *qglScaled)(GLdouble x, GLdouble y, GLdouble z);
+//void (GLAPIENTRY *qglScalef)(GLfloat x, GLfloat y, GLfloat z);
+//void (GLAPIENTRY *qglTranslated)(GLdouble x, GLdouble y, GLdouble z);
+//void (GLAPIENTRY *qglTranslatef)(GLfloat x, GLfloat y, GLfloat z);
+
 void (GLAPIENTRY *qglReadPixels)(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
-void (GLAPIENTRY *qglSampleCoverage)(GLclampf value, GLboolean invert);
-void (GLAPIENTRY *qglScissor)(GLint x, GLint y, GLsizei width, GLsizei height);
-void (GLAPIENTRY *qglShaderSource)(GLuint shaderObj, GLsizei count, const GLchar **string, const GLint *length);
+
 void (GLAPIENTRY *qglStencilFunc)(GLenum func, GLint ref, GLuint mask);
 void (GLAPIENTRY *qglStencilMask)(GLuint mask);
 void (GLAPIENTRY *qglStencilOp)(GLenum fail, GLenum zfail, GLenum zpass);
-void (GLAPIENTRY *qglTexImage2D)(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
-void (GLAPIENTRY *qglTexImage3D)(GLenum target, GLint level, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
+void (GLAPIENTRY *qglClearStencil)(GLint s);
+
+void (GLAPIENTRY *qglTexEnvf)(GLenum target, GLenum pname, GLfloat param);
+void (GLAPIENTRY *qglTexEnvfv)(GLenum target, GLenum pname, const GLfloat *params);
+void (GLAPIENTRY *qglTexEnvi)(GLenum target, GLenum pname, GLint param);
 void (GLAPIENTRY *qglTexParameterf)(GLenum target, GLenum pname, GLfloat param);
 void (GLAPIENTRY *qglTexParameterfv)(GLenum target, GLenum pname, GLfloat *params);
 void (GLAPIENTRY *qglTexParameteri)(GLenum target, GLenum pname, GLint param);
+void (GLAPIENTRY *qglGetTexParameterfv)(GLenum target, GLenum pname, GLfloat *params);
+void (GLAPIENTRY *qglGetTexParameteriv)(GLenum target, GLenum pname, GLint *params);
+void (GLAPIENTRY *qglGetTexLevelParameterfv)(GLenum target, GLint level, GLenum pname, GLfloat *params);
+void (GLAPIENTRY *qglGetTexLevelParameteriv)(GLenum target, GLint level, GLenum pname, GLint *params);
+void (GLAPIENTRY *qglGetTexImage)(GLenum target, GLint level, GLenum format, GLenum type, GLvoid *pixels);
+void (GLAPIENTRY *qglHint)(GLenum target, GLenum mode);
+
+void (GLAPIENTRY *qglGenTextures)(GLsizei n, GLuint *textures);
+void (GLAPIENTRY *qglDeleteTextures)(GLsizei n, const GLuint *textures);
+void (GLAPIENTRY *qglBindTexture)(GLenum target, GLuint texture);
+//void (GLAPIENTRY *qglPrioritizeTextures)(GLsizei n, const GLuint *textures, const GLclampf *priorities);
+//GLboolean (GLAPIENTRY *qglAreTexturesResident)(GLsizei n, const GLuint *textures, GLboolean *residences);
+//GLboolean (GLAPIENTRY *qglIsTexture)(GLuint texture);
+//void (GLAPIENTRY *qglPixelStoref)(GLenum pname, GLfloat param);
+void (GLAPIENTRY *qglPixelStorei)(GLenum pname, GLint param);
+
+//void (GLAPIENTRY *qglTexImage1D)(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
+void (GLAPIENTRY *qglTexImage2D)(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
+//void (GLAPIENTRY *qglTexSubImage1D)(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels);
 void (GLAPIENTRY *qglTexSubImage2D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+//void (GLAPIENTRY *qglCopyTexImage1D)(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLint border);
+void (GLAPIENTRY *qglCopyTexImage2D)(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
+//void (GLAPIENTRY *qglCopyTexSubImage1D)(GLenum target, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width);
+void (GLAPIENTRY *qglCopyTexSubImage2D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+
+
+void (GLAPIENTRY *qglDrawRangeElementsEXT)(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices);
+
+//void (GLAPIENTRY *qglColorTableEXT)(int, int, int, int, int, const void *);
+
+void (GLAPIENTRY *qglTexImage3D)(GLenum target, GLint level, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
 void (GLAPIENTRY *qglTexSubImage3D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const GLvoid *pixels);
+void (GLAPIENTRY *qglCopyTexSubImage3D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+
+void (GLAPIENTRY *qglScissor)(GLint x, GLint y, GLsizei width, GLsizei height);
+
+void (GLAPIENTRY *qglPolygonOffset)(GLfloat factor, GLfloat units);
+void (GLAPIENTRY *qglPolygonMode)(GLenum face, GLenum mode);
+void (GLAPIENTRY *qglPolygonStipple)(const GLubyte *mask);
+
+//void (GLAPIENTRY *qglClipPlane)(GLenum plane, const GLdouble *equation);
+//void (GLAPIENTRY *qglGetClipPlane)(GLenum plane, GLdouble *equation);
+
+//[515]: added on 29.07.2005
+void (GLAPIENTRY *qglLineWidth)(GLfloat width);
+void (GLAPIENTRY *qglPointSize)(GLfloat size);
+
+void (GLAPIENTRY *qglBlendEquationEXT)(GLenum);
+
+void (GLAPIENTRY *qglStencilOpSeparate)(GLenum, GLenum, GLenum, GLenum);
+void (GLAPIENTRY *qglStencilFuncSeparate)(GLenum, GLenum, GLint, GLuint);
+void (GLAPIENTRY *qglActiveStencilFaceEXT)(GLenum);
+
+void (GLAPIENTRY *qglDeleteShader)(GLuint obj);
+void (GLAPIENTRY *qglDeleteProgram)(GLuint obj);
+//GLuint (GLAPIENTRY *qglGetHandle)(GLenum pname);
+void (GLAPIENTRY *qglDetachShader)(GLuint containerObj, GLuint attachedObj);
+GLuint (GLAPIENTRY *qglCreateShader)(GLenum shaderType);
+void (GLAPIENTRY *qglShaderSource)(GLuint shaderObj, GLsizei count, const GLchar **string, const GLint *length);
+void (GLAPIENTRY *qglCompileShader)(GLuint shaderObj);
+GLuint (GLAPIENTRY *qglCreateProgram)(void);
+void (GLAPIENTRY *qglAttachShader)(GLuint containerObj, GLuint obj);
+void (GLAPIENTRY *qglLinkProgram)(GLuint programObj);
+void (GLAPIENTRY *qglUseProgram)(GLuint programObj);
+void (GLAPIENTRY *qglValidateProgram)(GLuint programObj);
 void (GLAPIENTRY *qglUniform1f)(GLint location, GLfloat v0);
-void (GLAPIENTRY *qglUniform1fv)(GLint location, GLsizei count, const GLfloat *value);
-void (GLAPIENTRY *qglUniform1i)(GLint location, GLint v0);
-void (GLAPIENTRY *qglUniform1iv)(GLint location, GLsizei count, const GLint *value);
 void (GLAPIENTRY *qglUniform2f)(GLint location, GLfloat v0, GLfloat v1);
-void (GLAPIENTRY *qglUniform2fv)(GLint location, GLsizei count, const GLfloat *value);
-void (GLAPIENTRY *qglUniform2i)(GLint location, GLint v0, GLint v1);
-void (GLAPIENTRY *qglUniform2iv)(GLint location, GLsizei count, const GLint *value);
 void (GLAPIENTRY *qglUniform3f)(GLint location, GLfloat v0, GLfloat v1, GLfloat v2);
-void (GLAPIENTRY *qglUniform3fv)(GLint location, GLsizei count, const GLfloat *value);
-void (GLAPIENTRY *qglUniform3i)(GLint location, GLint v0, GLint v1, GLint v2);
-void (GLAPIENTRY *qglUniform3iv)(GLint location, GLsizei count, const GLint *value);
 void (GLAPIENTRY *qglUniform4f)(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
-void (GLAPIENTRY *qglUniform4fv)(GLint location, GLsizei count, const GLfloat *value);
+void (GLAPIENTRY *qglUniform1i)(GLint location, GLint v0);
+void (GLAPIENTRY *qglUniform2i)(GLint location, GLint v0, GLint v1);
+void (GLAPIENTRY *qglUniform3i)(GLint location, GLint v0, GLint v1, GLint v2);
 void (GLAPIENTRY *qglUniform4i)(GLint location, GLint v0, GLint v1, GLint v2, GLint v3);
+void (GLAPIENTRY *qglUniform1fv)(GLint location, GLsizei count, const GLfloat *value);
+void (GLAPIENTRY *qglUniform2fv)(GLint location, GLsizei count, const GLfloat *value);
+void (GLAPIENTRY *qglUniform3fv)(GLint location, GLsizei count, const GLfloat *value);
+void (GLAPIENTRY *qglUniform4fv)(GLint location, GLsizei count, const GLfloat *value);
+void (GLAPIENTRY *qglUniform1iv)(GLint location, GLsizei count, const GLint *value);
+void (GLAPIENTRY *qglUniform2iv)(GLint location, GLsizei count, const GLint *value);
+void (GLAPIENTRY *qglUniform3iv)(GLint location, GLsizei count, const GLint *value);
 void (GLAPIENTRY *qglUniform4iv)(GLint location, GLsizei count, const GLint *value);
-void (GLAPIENTRY *qglUniformBlockBinding)(GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding);
 void (GLAPIENTRY *qglUniformMatrix2fv)(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 void (GLAPIENTRY *qglUniformMatrix3fv)(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 void (GLAPIENTRY *qglUniformMatrix4fv)(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
-void (GLAPIENTRY *qglUseProgram)(GLuint programObj);
-void (GLAPIENTRY *qglValidateProgram)(GLuint programObj);
-void (GLAPIENTRY *qglVertexAttrib1d)(GLuint index, GLdouble v0);
-void (GLAPIENTRY *qglVertexAttrib1dv)(GLuint index, const GLdouble *v);
+void (GLAPIENTRY *qglGetShaderiv)(GLuint obj, GLenum pname, GLint *params);
+void (GLAPIENTRY *qglGetProgramiv)(GLuint obj, GLenum pname, GLint *params);
+void (GLAPIENTRY *qglGetShaderInfoLog)(GLuint obj, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+void (GLAPIENTRY *qglGetProgramInfoLog)(GLuint obj, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+void (GLAPIENTRY *qglGetAttachedShaders)(GLuint containerObj, GLsizei maxCount, GLsizei *count, GLuint *obj);
+GLint (GLAPIENTRY *qglGetUniformLocation)(GLuint programObj, const GLchar *name);
+void (GLAPIENTRY *qglGetActiveUniform)(GLuint programObj, GLuint index, GLsizei maxLength, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
+void (GLAPIENTRY *qglGetUniformfv)(GLuint programObj, GLint location, GLfloat *params);
+void (GLAPIENTRY *qglGetUniformiv)(GLuint programObj, GLint location, GLint *params);
+void (GLAPIENTRY *qglGetShaderSource)(GLuint obj, GLsizei maxLength, GLsizei *length, GLchar *source);
+
 void (GLAPIENTRY *qglVertexAttrib1f)(GLuint index, GLfloat v0);
-void (GLAPIENTRY *qglVertexAttrib1fv)(GLuint index, const GLfloat *v);
 void (GLAPIENTRY *qglVertexAttrib1s)(GLuint index, GLshort v0);
-void (GLAPIENTRY *qglVertexAttrib1sv)(GLuint index, const GLshort *v);
-void (GLAPIENTRY *qglVertexAttrib2d)(GLuint index, GLdouble v0, GLdouble v1);
-void (GLAPIENTRY *qglVertexAttrib2dv)(GLuint index, const GLdouble *v);
+void (GLAPIENTRY *qglVertexAttrib1d)(GLuint index, GLdouble v0);
 void (GLAPIENTRY *qglVertexAttrib2f)(GLuint index, GLfloat v0, GLfloat v1);
-void (GLAPIENTRY *qglVertexAttrib2fv)(GLuint index, const GLfloat *v);
 void (GLAPIENTRY *qglVertexAttrib2s)(GLuint index, GLshort v0, GLshort v1);
-void (GLAPIENTRY *qglVertexAttrib2sv)(GLuint index, const GLshort *v);
-void (GLAPIENTRY *qglVertexAttrib3d)(GLuint index, GLdouble v0, GLdouble v1, GLdouble v2);
-void (GLAPIENTRY *qglVertexAttrib3dv)(GLuint index, const GLdouble *v);
+void (GLAPIENTRY *qglVertexAttrib2d)(GLuint index, GLdouble v0, GLdouble v1);
 void (GLAPIENTRY *qglVertexAttrib3f)(GLuint index, GLfloat v0, GLfloat v1, GLfloat v2);
-void (GLAPIENTRY *qglVertexAttrib3fv)(GLuint index, const GLfloat *v);
 void (GLAPIENTRY *qglVertexAttrib3s)(GLuint index, GLshort v0, GLshort v1, GLshort v2);
-void (GLAPIENTRY *qglVertexAttrib3sv)(GLuint index, const GLshort *v);
-void (GLAPIENTRY *qglVertexAttrib4Nbv)(GLuint index, const GLbyte *v);
-void (GLAPIENTRY *qglVertexAttrib4Niv)(GLuint index, const GLint *v);
-void (GLAPIENTRY *qglVertexAttrib4Nsv)(GLuint index, const GLshort *v);
-void (GLAPIENTRY *qglVertexAttrib4Nub)(GLuint index, GLubyte x, GLubyte y, GLubyte z, GLubyte w);
-void (GLAPIENTRY *qglVertexAttrib4Nubv)(GLuint index, const GLubyte *v);
-void (GLAPIENTRY *qglVertexAttrib4Nuiv)(GLuint index, const GLuint *v);
-void (GLAPIENTRY *qglVertexAttrib4Nusv)(GLuint index, const GLushort *v);
-void (GLAPIENTRY *qglVertexAttrib4bv)(GLuint index, const GLbyte *v);
-void (GLAPIENTRY *qglVertexAttrib4d)(GLuint index, GLdouble v0, GLdouble v1, GLdouble v2, GLdouble v3);
-void (GLAPIENTRY *qglVertexAttrib4dv)(GLuint index, const GLdouble *v);
+void (GLAPIENTRY *qglVertexAttrib3d)(GLuint index, GLdouble v0, GLdouble v1, GLdouble v2);
 void (GLAPIENTRY *qglVertexAttrib4f)(GLuint index, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
-void (GLAPIENTRY *qglVertexAttrib4fv)(GLuint index, const GLfloat *v);
-void (GLAPIENTRY *qglVertexAttrib4iv)(GLuint index, const GLint *v);
 void (GLAPIENTRY *qglVertexAttrib4s)(GLuint index, GLshort v0, GLshort v1, GLshort v2, GLshort v3);
+void (GLAPIENTRY *qglVertexAttrib4d)(GLuint index, GLdouble v0, GLdouble v1, GLdouble v2, GLdouble v3);
+void (GLAPIENTRY *qglVertexAttrib4Nub)(GLuint index, GLubyte x, GLubyte y, GLubyte z, GLubyte w);
+void (GLAPIENTRY *qglVertexAttrib1fv)(GLuint index, const GLfloat *v);
+void (GLAPIENTRY *qglVertexAttrib1sv)(GLuint index, const GLshort *v);
+void (GLAPIENTRY *qglVertexAttrib1dv)(GLuint index, const GLdouble *v);
+void (GLAPIENTRY *qglVertexAttrib2fv)(GLuint index, const GLfloat *v);
+void (GLAPIENTRY *qglVertexAttrib2sv)(GLuint index, const GLshort *v);
+void (GLAPIENTRY *qglVertexAttrib2dv)(GLuint index, const GLdouble *v);
+void (GLAPIENTRY *qglVertexAttrib3fv)(GLuint index, const GLfloat *v);
+void (GLAPIENTRY *qglVertexAttrib3sv)(GLuint index, const GLshort *v);
+void (GLAPIENTRY *qglVertexAttrib3dv)(GLuint index, const GLdouble *v);
+void (GLAPIENTRY *qglVertexAttrib4fv)(GLuint index, const GLfloat *v);
 void (GLAPIENTRY *qglVertexAttrib4sv)(GLuint index, const GLshort *v);
+void (GLAPIENTRY *qglVertexAttrib4dv)(GLuint index, const GLdouble *v);
+void (GLAPIENTRY *qglVertexAttrib4iv)(GLuint index, const GLint *v);
+void (GLAPIENTRY *qglVertexAttrib4bv)(GLuint index, const GLbyte *v);
 void (GLAPIENTRY *qglVertexAttrib4ubv)(GLuint index, const GLubyte *v);
-void (GLAPIENTRY *qglVertexAttrib4uiv)(GLuint index, const GLuint *v);
 void (GLAPIENTRY *qglVertexAttrib4usv)(GLuint index, const GLushort *v);
+void (GLAPIENTRY *qglVertexAttrib4uiv)(GLuint index, const GLuint *v);
+void (GLAPIENTRY *qglVertexAttrib4Nbv)(GLuint index, const GLbyte *v);
+void (GLAPIENTRY *qglVertexAttrib4Nsv)(GLuint index, const GLshort *v);
+void (GLAPIENTRY *qglVertexAttrib4Niv)(GLuint index, const GLint *v);
+void (GLAPIENTRY *qglVertexAttrib4Nubv)(GLuint index, const GLubyte *v);
+void (GLAPIENTRY *qglVertexAttrib4Nusv)(GLuint index, const GLushort *v);
+void (GLAPIENTRY *qglVertexAttrib4Nuiv)(GLuint index, const GLuint *v);
 void (GLAPIENTRY *qglVertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *pointer);
-void (GLAPIENTRY *qglViewport)(GLint x, GLint y, GLsizei width, GLsizei height);
+void (GLAPIENTRY *qglEnableVertexAttribArray)(GLuint index);
+void (GLAPIENTRY *qglDisableVertexAttribArray)(GLuint index);
+void (GLAPIENTRY *qglBindAttribLocation)(GLuint programObj, GLuint index, const GLchar *name);
+void (GLAPIENTRY *qglBindFragDataLocation)(GLuint programObj, GLuint index, const GLchar *name);
+void (GLAPIENTRY *qglGetActiveAttrib)(GLuint programObj, GLuint index, GLsizei maxLength, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
+GLint (GLAPIENTRY *qglGetAttribLocation)(GLuint programObj, const GLchar *name);
+void (GLAPIENTRY *qglGetVertexAttribdv)(GLuint index, GLenum pname, GLdouble *params);
+void (GLAPIENTRY *qglGetVertexAttribfv)(GLuint index, GLenum pname, GLfloat *params);
+void (GLAPIENTRY *qglGetVertexAttribiv)(GLuint index, GLenum pname, GLint *params);
+void (GLAPIENTRY *qglGetVertexAttribPointerv)(GLuint index, GLenum pname, GLvoid **pointer);
+
+//GL_ARB_vertex_buffer_object
+void (GLAPIENTRY *qglBindBufferARB) (GLenum target, GLuint buffer);
+void (GLAPIENTRY *qglDeleteBuffersARB) (GLsizei n, const GLuint *buffers);
+void (GLAPIENTRY *qglGenBuffersARB) (GLsizei n, GLuint *buffers);
+GLboolean (GLAPIENTRY *qglIsBufferARB) (GLuint buffer);
+GLvoid* (GLAPIENTRY *qglMapBufferARB) (GLenum target, GLenum access);
+GLboolean (GLAPIENTRY *qglUnmapBufferARB) (GLenum target);
+void (GLAPIENTRY *qglBufferDataARB) (GLenum target, GLsizeiptrARB size, const GLvoid *data, GLenum usage);
+void (GLAPIENTRY *qglBufferSubDataARB) (GLenum target, GLintptrARB offset, GLsizeiptrARB size, const GLvoid *data);
+
+//GL_ARB_framebuffer_object
+GLboolean (GLAPIENTRY *qglIsRenderbuffer)(GLuint renderbuffer);
+GLvoid (GLAPIENTRY *qglBindRenderbuffer)(GLenum target, GLuint renderbuffer);
+GLvoid (GLAPIENTRY *qglDeleteRenderbuffers)(GLsizei n, const GLuint *renderbuffers);
+GLvoid (GLAPIENTRY *qglGenRenderbuffers)(GLsizei n, GLuint *renderbuffers);
+GLvoid (GLAPIENTRY *qglRenderbufferStorage)(GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
+GLvoid (GLAPIENTRY *qglRenderbufferStorageMultisample)(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height);
+GLvoid (GLAPIENTRY *qglGetRenderbufferParameteriv)(GLenum target, GLenum pname, GLint *params);
+GLboolean (GLAPIENTRY *qglIsFramebuffer)(GLuint framebuffer);
+GLvoid (GLAPIENTRY *qglBindFramebuffer)(GLenum target, GLuint framebuffer);
+GLvoid (GLAPIENTRY *qglDeleteFramebuffers)(GLsizei n, const GLuint *framebuffers);
+GLvoid (GLAPIENTRY *qglGenFramebuffers)(GLsizei n, GLuint *framebuffers);
+GLenum (GLAPIENTRY *qglCheckFramebufferStatus)(GLenum target);
+GLvoid (GLAPIENTRY *qglFramebufferTexture1D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+GLvoid (GLAPIENTRY *qglFramebufferTexture2D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+GLvoid (GLAPIENTRY *qglFramebufferTexture3D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer);
+GLvoid (GLAPIENTRY *qglFramebufferTextureLayer)(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer);
+GLvoid (GLAPIENTRY *qglFramebufferRenderbuffer)(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
+GLvoid (GLAPIENTRY *qglGetFramebufferAttachmentParameteriv)(GLenum target, GLenum attachment, GLenum pname, GLint *params);
+GLvoid (GLAPIENTRY *qglBlitFramebuffer)(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
+GLvoid (GLAPIENTRY *qglGenerateMipmap)(GLenum target);
+
+void (GLAPIENTRY *qglDrawBuffersARB)(GLsizei n, const GLenum *bufs);
+
+void (GLAPIENTRY *qglCompressedTexImage3DARB)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data);
+void (GLAPIENTRY *qglCompressedTexImage2DARB)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border,  GLsizei imageSize, const void *data);
+//void (GLAPIENTRY *qglCompressedTexImage1DARB)(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void *data);
+void (GLAPIENTRY *qglCompressedTexSubImage3DARB)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data);
+void (GLAPIENTRY *qglCompressedTexSubImage2DARB)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data);
+//void (GLAPIENTRY *qglCompressedTexSubImage1DARB)(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void *data);
+void (GLAPIENTRY *qglGetCompressedTexImageARB)(GLenum target, GLint lod, void *img);
+
+void (GLAPIENTRY *qglGenQueriesARB)(GLsizei n, GLuint *ids);
+void (GLAPIENTRY *qglDeleteQueriesARB)(GLsizei n, const GLuint *ids);
+GLboolean (GLAPIENTRY *qglIsQueryARB)(GLuint qid);
+void (GLAPIENTRY *qglBeginQueryARB)(GLenum target, GLuint qid);
+void (GLAPIENTRY *qglEndQueryARB)(GLenum target);
+void (GLAPIENTRY *qglGetQueryivARB)(GLenum target, GLenum pname, GLint *params);
+void (GLAPIENTRY *qglGetQueryObjectivARB)(GLuint qid, GLenum pname, GLint *params);
+void (GLAPIENTRY *qglGetQueryObjectuivARB)(GLuint qid, GLenum pname, GLuint *params);
+
+void (GLAPIENTRY *qglSampleCoverageARB)(GLclampf value, GLboolean invert);
+
+void (GLAPIENTRY *qglGetUniformIndices)(GLuint program, GLsizei uniformCount, const GLchar** uniformNames, GLuint* uniformIndices);
+void (GLAPIENTRY *qglGetActiveUniformsiv)(GLuint program, GLsizei uniformCount, const GLuint* uniformIndices, GLenum pname, GLint* params);
+void (GLAPIENTRY *qglGetActiveUniformName)(GLuint program, GLuint uniformIndex, GLsizei bufSize, GLsizei* length, GLchar* uniformName);
+GLuint (GLAPIENTRY *qglGetUniformBlockIndex)(GLuint program, const GLchar* uniformBlockName);
+void (GLAPIENTRY *qglGetActiveUniformBlockiv)(GLuint program, GLuint uniformBlockIndex, GLenum pname,  GLint* params);
+void (GLAPIENTRY *qglGetActiveUniformBlockName)(GLuint program, GLuint uniformBlockIndex, GLsizei bufSize, GLsizei* length, GLchar* uniformBlockName);
+void (GLAPIENTRY *qglBindBufferRange)(GLenum target, GLuint index, GLuint buffer, GLintptrARB offset, GLsizeiptrARB size);
+void (GLAPIENTRY *qglBindBufferBase)(GLenum target, GLuint index, GLuint buffer);
+void (GLAPIENTRY *qglGetIntegeri_v)(GLenum target, GLuint index, GLint* data);
+void (GLAPIENTRY *qglUniformBlockBinding)(GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding);
+
+void (GLAPIENTRY *qglBlendFuncSeparate)(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha);
 #endif
 
 #if _MSC_VER >= 1400
 #define sscanf sscanf_s
 #endif
 
-typedef struct glfunction_s
-{
-	const char *extension;
-	const char *name;
-	void **funcvariable;
-}
-glfunction_t;
-
-#ifndef USE_GLES2
-// functions we look for - both core and extensions - it's okay if some of these are NULL for unsupported extensions.
-static glfunction_t openglfuncs[] =
-{
-	{"core", "glActiveTexture", (void **) &qglActiveTexture},
-	{"core", "glAttachShader", (void **) &qglAttachShader},
-	{"core", "glBeginQuery", (void **) &qglBeginQuery},
-	{"core", "glBindAttribLocation", (void **) &qglBindAttribLocation},
-	{"core", "glBindBuffer", (void **) &qglBindBuffer},
-	{"core", "glBindBufferBase", (void **) &qglBindBufferBase},
-	{"core", "glBindBufferRange", (void **) &qglBindBufferRange},
-	{"core", "glBindFramebuffer", (void **) &qglBindFramebuffer},
-	{"core", "glBindRenderbuffer", (void **) &qglBindRenderbuffer},
-	{"core", "glBindTexture", (void **) &qglBindTexture},
-	{"core", "glBindVertexArray", (void **) &qglBindVertexArray},
-	{"core", "glBlendEquation", (void **) &qglBlendEquation},
-	{"core", "glBlendFunc", (void **) &qglBlendFunc},
-	{"core", "glBlendFuncSeparate", (void **) &qglBlendFuncSeparate},
-	{"core", "glBlitFramebuffer", (void **) &qglBlitFramebuffer},
-	{"core", "glBufferData", (void **) &qglBufferData},
-	{"core", "glBufferSubData", (void **) &qglBufferSubData},
-	{"core", "glCheckFramebufferStatus", (void **) &qglCheckFramebufferStatus},
-	{"core", "glClear", (void **) &qglClear},
-	{"core", "glClearColor", (void **) &qglClearColor},
-	{"core", "glClearDepth", (void **) &qglClearDepth},
-	{"core", "glClearStencil", (void **) &qglClearStencil},
-	{"core", "glColorMask", (void **) &qglColorMask},
-	{"core", "glCompileShader", (void **) &qglCompileShader},
-	{"core", "glCompressedTexImage2D", (void **) &qglCompressedTexImage2D},
-	{"core", "glCompressedTexImage3D", (void **) &qglCompressedTexImage3D},
-	{"core", "glCompressedTexSubImage2D", (void **) &qglCompressedTexSubImage2D},
-	{"core", "glCompressedTexSubImage3D", (void **) &qglCompressedTexSubImage3D},
-	{"core", "glCopyTexImage2D", (void **) &qglCopyTexImage2D},
-	{"core", "glCopyTexSubImage2D", (void **) &qglCopyTexSubImage2D},
-	{"core", "glCopyTexSubImage3D", (void **) &qglCopyTexSubImage3D},
-	{"core", "glCreateProgram", (void **) &qglCreateProgram},
-	{"core", "glCreateShader", (void **) &qglCreateShader},
-	{"core", "glCullFace", (void **) &qglCullFace},
-	{"core", "glDeleteBuffers", (void **) &qglDeleteBuffers},
-	{"core", "glDeleteFramebuffers", (void **) &qglDeleteFramebuffers},
-	{"core", "glDeleteProgram", (void **) &qglDeleteProgram},
-	{"core", "glDeleteQueries", (void **) &qglDeleteQueries},
-	{"core", "glDeleteRenderbuffers", (void **) &qglDeleteRenderbuffers},
-	{"core", "glDeleteShader", (void **) &qglDeleteShader},
-	{"core", "glDeleteTextures", (void **) &qglDeleteTextures},
-	{"core", "glDeleteVertexArrays", (void **)&qglDeleteVertexArrays},
-	{"core", "glDepthFunc", (void **) &qglDepthFunc},
-	{"core", "glDepthMask", (void **) &qglDepthMask},
-	{"core", "glDepthRange", (void **) &qglDepthRange},
-	{"core", "glDepthRangef", (void **) &qglDepthRangef},
-	{"core", "glDetachShader", (void **) &qglDetachShader},
-	{"core", "glDisable", (void **) &qglDisable},
-	{"core", "glDisableVertexAttribArray", (void **) &qglDisableVertexAttribArray},
-	{"core", "glDrawArrays", (void **) &qglDrawArrays},
-	{"core", "glDrawBuffer", (void **) &qglDrawBuffer},
-	{"core", "glDrawBuffers", (void **) &qglDrawBuffers},
-	{"core", "glDrawElements", (void **) &qglDrawElements},
-	{"core", "glEnable", (void **) &qglEnable},
-	{"core", "glEnableVertexAttribArray", (void **) &qglEnableVertexAttribArray},
-	{"core", "glEndQuery", (void **) &qglEndQuery},
-	{"core", "glFinish", (void **) &qglFinish},
-	{"core", "glFlush", (void **) &qglFlush},
-	{"core", "glFramebufferRenderbuffer", (void **) &qglFramebufferRenderbuffer},
-	{"core", "glFramebufferTexture1D", (void **) &qglFramebufferTexture1D},
-	{"core", "glFramebufferTexture2D", (void **) &qglFramebufferTexture2D},
-	{"core", "glFramebufferTexture3D", (void **) &qglFramebufferTexture3D},
-	{"core", "glFramebufferTextureLayer", (void **) &qglFramebufferTextureLayer},
-	{"core", "glGenBuffers", (void **) &qglGenBuffers},
-	{"core", "glGenFramebuffers", (void **) &qglGenFramebuffers},
-	{"core", "glGenQueries", (void **) &qglGenQueries},
-	{"core", "glGenRenderbuffers", (void **) &qglGenRenderbuffers},
-	{"core", "glGenTextures", (void **) &qglGenTextures},
-	{"core", "glGenVertexArrays", (void **)&qglGenVertexArrays},
-	{"core", "glGenerateMipmap", (void **) &qglGenerateMipmap},
-	{"core", "glGetActiveAttrib", (void **) &qglGetActiveAttrib},
-	{"core", "glGetActiveUniform", (void **) &qglGetActiveUniform},
-	{"core", "glGetActiveUniformBlockName", (void **) &qglGetActiveUniformBlockName},
-	{"core", "glGetActiveUniformBlockiv", (void **) &qglGetActiveUniformBlockiv},
-	{"core", "glGetActiveUniformName", (void **) &qglGetActiveUniformName},
-	{"core", "glGetActiveUniformsiv", (void **) &qglGetActiveUniformsiv},
-	{"core", "glGetAttachedShaders", (void **) &qglGetAttachedShaders},
-	{"core", "glGetAttribLocation", (void **) &qglGetAttribLocation},
-	{"core", "glGetBooleanv", (void **) &qglGetBooleanv},
-	{"core", "glGetCompressedTexImage", (void **) &qglGetCompressedTexImage},
-	{"core", "glGetDoublev", (void **) &qglGetDoublev},
-	{"core", "glGetError", (void **) &qglGetError},
-	{"core", "glGetFloatv", (void **) &qglGetFloatv},
-	{"core", "glGetFramebufferAttachmentParameteriv", (void **) &qglGetFramebufferAttachmentParameteriv},
-	{"core", "glGetIntegeri_v", (void **) &qglGetIntegeri_v},
-	{"core", "glGetIntegerv", (void **) &qglGetIntegerv},
-	{"core", "glGetProgramInfoLog", (void **) &qglGetProgramInfoLog},
-	{"core", "glGetProgramiv", (void **) &qglGetProgramiv},
-	{"core", "glGetQueryObjectiv", (void **) &qglGetQueryObjectiv},
-	{"core", "glGetQueryObjectuiv", (void **) &qglGetQueryObjectuiv},
-	{"core", "glGetQueryiv", (void **) &qglGetQueryiv},
-	{"core", "glGetRenderbufferParameteriv", (void **) &qglGetRenderbufferParameteriv},
-	{"core", "glGetShaderInfoLog", (void **) &qglGetShaderInfoLog},
-	{"core", "glGetShaderSource", (void **) &qglGetShaderSource},
-	{"core", "glGetShaderiv", (void **) &qglGetShaderiv},
-	{"core", "glGetString", (void **) &qglGetString},
-	{"core", "glGetStringi", (void **) &qglGetStringi},
-	{"core", "glGetTexImage", (void **) &qglGetTexImage},
-	{"core", "glGetTexLevelParameterfv", (void **) &qglGetTexLevelParameterfv},
-	{"core", "glGetTexLevelParameteriv", (void **) &qglGetTexLevelParameteriv},
-	{"core", "glGetTexParameterfv", (void **) &qglGetTexParameterfv},
-	{"core", "glGetTexParameteriv", (void **) &qglGetTexParameteriv},
-	{"core", "glGetUniformBlockIndex", (void **) &qglGetUniformBlockIndex},
-	{"core", "glGetUniformIndices", (void **) &qglGetUniformIndices},
-	{"core", "glGetUniformLocation", (void **) &qglGetUniformLocation},
-	{"core", "glGetUniformfv", (void **) &qglGetUniformfv},
-	{"core", "glGetUniformiv", (void **) &qglGetUniformiv},
-	{"core", "glGetVertexAttribPointerv", (void **) &qglGetVertexAttribPointerv},
-	{"core", "glGetVertexAttribdv", (void **) &qglGetVertexAttribdv},
-	{"core", "glGetVertexAttribfv", (void **) &qglGetVertexAttribfv},
-	{"core", "glGetVertexAttribiv", (void **) &qglGetVertexAttribiv},
-	{"core", "glHint", (void **) &qglHint},
-	{"core", "glIsBuffer", (void **) &qglIsBuffer},
-	{"core", "glIsEnabled", (void **) &qglIsEnabled},
-	{"core", "glIsFramebuffer", (void **) &qglIsFramebuffer},
-	{"core", "glIsQuery", (void **) &qglIsQuery},
-	{"core", "glIsRenderbuffer", (void **) &qglIsRenderbuffer},
-	{"core", "glLinkProgram", (void **) &qglLinkProgram},
-	{"core", "glMapBuffer", (void **) &qglMapBuffer},
-	{"core", "glPixelStorei", (void **) &qglPixelStorei},
-	{"core", "glPointSize", (void **) &qglPointSize},
-	{"core", "glPolygonMode", (void **) &qglPolygonMode},
-	{"core", "glPolygonOffset", (void **) &qglPolygonOffset},
-	{"core", "glReadBuffer", (void **) &qglReadBuffer},
-	{"core", "glReadPixels", (void **) &qglReadPixels},
-	{"core", "glRenderbufferStorage", (void **) &qglRenderbufferStorage},
-	{"core", "glRenderbufferStorageMultisample", (void **) &qglRenderbufferStorageMultisample},
-	{"core", "glSampleCoverage", (void **) &qglSampleCoverage},
-	{"core", "glScissor", (void **) &qglScissor},
-	{"core", "glShaderSource", (void **) &qglShaderSource},
-	{"core", "glStencilFunc", (void **) &qglStencilFunc},
-	{"core", "glStencilMask", (void **) &qglStencilMask},
-	{"core", "glStencilOp", (void **) &qglStencilOp},
-	{"core", "glTexImage2D", (void **) &qglTexImage2D},
-	{"core", "glTexImage3D", (void **) &qglTexImage3D},
-	{"core", "glTexParameterf", (void **) &qglTexParameterf},
-	{"core", "glTexParameterfv", (void **) &qglTexParameterfv},
-	{"core", "glTexParameteri", (void **) &qglTexParameteri},
-	{"core", "glTexSubImage2D", (void **) &qglTexSubImage2D},
-	{"core", "glTexSubImage3D", (void **) &qglTexSubImage3D},
-	{"core", "glUniform1f", (void **) &qglUniform1f},
-	{"core", "glUniform1fv", (void **) &qglUniform1fv},
-	{"core", "glUniform1i", (void **) &qglUniform1i},
-	{"core", "glUniform1iv", (void **) &qglUniform1iv},
-	{"core", "glUniform2f", (void **) &qglUniform2f},
-	{"core", "glUniform2fv", (void **) &qglUniform2fv},
-	{"core", "glUniform2i", (void **) &qglUniform2i},
-	{"core", "glUniform2iv", (void **) &qglUniform2iv},
-	{"core", "glUniform3f", (void **) &qglUniform3f},
-	{"core", "glUniform3fv", (void **) &qglUniform3fv},
-	{"core", "glUniform3i", (void **) &qglUniform3i},
-	{"core", "glUniform3iv", (void **) &qglUniform3iv},
-	{"core", "glUniform4f", (void **) &qglUniform4f},
-	{"core", "glUniform4fv", (void **) &qglUniform4fv},
-	{"core", "glUniform4i", (void **) &qglUniform4i},
-	{"core", "glUniform4iv", (void **) &qglUniform4iv},
-	{"core", "glUniformBlockBinding", (void **) &qglUniformBlockBinding},
-	{"core", "glUniformMatrix2fv", (void **) &qglUniformMatrix2fv},
-	{"core", "glUniformMatrix3fv", (void **) &qglUniformMatrix3fv},
-	{"core", "glUniformMatrix4fv", (void **) &qglUniformMatrix4fv},
-	{"core", "glUnmapBuffer", (void **) &qglUnmapBuffer},
-	{"core", "glUseProgram", (void **) &qglUseProgram},
-	{"core", "glValidateProgram", (void **) &qglValidateProgram},
-	{"core", "glVertexAttrib1d", (void **) &qglVertexAttrib1d},
-	{"core", "glVertexAttrib1dv", (void **) &qglVertexAttrib1dv},
-	{"core", "glVertexAttrib1f", (void **) &qglVertexAttrib1f},
-	{"core", "glVertexAttrib1fv", (void **) &qglVertexAttrib1fv},
-	{"core", "glVertexAttrib1s", (void **) &qglVertexAttrib1s},
-	{"core", "glVertexAttrib1sv", (void **) &qglVertexAttrib1sv},
-	{"core", "glVertexAttrib2d", (void **) &qglVertexAttrib2d},
-	{"core", "glVertexAttrib2dv", (void **) &qglVertexAttrib2dv},
-	{"core", "glVertexAttrib2f", (void **) &qglVertexAttrib2f},
-	{"core", "glVertexAttrib2fv", (void **) &qglVertexAttrib2fv},
-	{"core", "glVertexAttrib2s", (void **) &qglVertexAttrib2s},
-	{"core", "glVertexAttrib2sv", (void **) &qglVertexAttrib2sv},
-	{"core", "glVertexAttrib3d", (void **) &qglVertexAttrib3d},
-	{"core", "glVertexAttrib3dv", (void **) &qglVertexAttrib3dv},
-	{"core", "glVertexAttrib3f", (void **) &qglVertexAttrib3f},
-	{"core", "glVertexAttrib3fv", (void **) &qglVertexAttrib3fv},
-	{"core", "glVertexAttrib3s", (void **) &qglVertexAttrib3s},
-	{"core", "glVertexAttrib3sv", (void **) &qglVertexAttrib3sv},
-	{"core", "glVertexAttrib4Nbv", (void **) &qglVertexAttrib4Nbv},
-	{"core", "glVertexAttrib4Niv", (void **) &qglVertexAttrib4Niv},
-	{"core", "glVertexAttrib4Nsv", (void **) &qglVertexAttrib4Nsv},
-	{"core", "glVertexAttrib4Nub", (void **) &qglVertexAttrib4Nub},
-	{"core", "glVertexAttrib4Nubv", (void **) &qglVertexAttrib4Nubv},
-	{"core", "glVertexAttrib4Nuiv", (void **) &qglVertexAttrib4Nuiv},
-	{"core", "glVertexAttrib4Nusv", (void **) &qglVertexAttrib4Nusv},
-	{"core", "glVertexAttrib4bv", (void **) &qglVertexAttrib4bv},
-	{"core", "glVertexAttrib4d", (void **) &qglVertexAttrib4d},
-	{"core", "glVertexAttrib4dv", (void **) &qglVertexAttrib4dv},
-	{"core", "glVertexAttrib4f", (void **) &qglVertexAttrib4f},
-	{"core", "glVertexAttrib4fv", (void **) &qglVertexAttrib4fv},
-	{"core", "glVertexAttrib4iv", (void **) &qglVertexAttrib4iv},
-	{"core", "glVertexAttrib4s", (void **) &qglVertexAttrib4s},
-	{"core", "glVertexAttrib4sv", (void **) &qglVertexAttrib4sv},
-	{"core", "glVertexAttrib4ubv", (void **) &qglVertexAttrib4ubv},
-	{"core", "glVertexAttrib4uiv", (void **) &qglVertexAttrib4uiv},
-	{"core", "glVertexAttrib4usv", (void **) &qglVertexAttrib4usv},
-	{"core", "glVertexAttribPointer", (void **) &qglVertexAttribPointer},
-	{"core", "glViewport", (void **) &qglViewport},
-	{"glBindFragDataLocation", "glBindFragDataLocation", (void **) &qglBindFragDataLocation}, // optional (no preference)
-	{"GL_ARB_debug_output", "glDebugMessageControlARB", (void **)&qglDebugMessageControlARB},
-	{"GL_ARB_debug_output", "glDebugMessageInsertARB", (void **)&qglDebugMessageInsertARB},
-	{"GL_ARB_debug_output", "glDebugMessageCallbackARB", (void **)&qglDebugMessageCallbackARB},
-	{"GL_ARB_debug_output", "glGetDebugMessageLogARB", (void **)&qglGetDebugMessageLogARB},
-	{"GL_ARB_debug_output", "glGetPointerv", (void **)&qglGetPointerv},
-	{NULL, NULL, NULL}
-};
-#endif
-
-qbool GL_CheckExtension(const char *name, const char *disableparm, int silent)
+qbool GL_CheckExtension(const char *minglver_or_ext, const dllfunction_t *funcs, const char *disableparm, int silent)
 {
 	int failed = false;
-	const glfunction_t *func;
+	const dllfunction_t *func;
+	struct { int major, minor; } min_version, curr_version;
 	char extstr[MAX_INPUTLINE];
+	int ext;
 
-	Con_DPrintf("checking for %s...  ", name);
+	if(sscanf(minglver_or_ext, "%d.%d", &min_version.major, &min_version.minor) == 2)
+		ext = 0; // opengl version
+	else if(minglver_or_ext[0] != toupper(minglver_or_ext[0]))
+		ext = -1; // pseudo name
+	else
+		ext = 1; // extension name
+
+	if (ext)
+		Con_DPrintf("checking for %s...  ", minglver_or_ext);
+	else
+		Con_DPrintf("checking for OpenGL %s core features...  ", minglver_or_ext);
+
+	for (func = funcs;func && func->name;func++)
+		*func->funcvariable = NULL;
 
 	if (disableparm && (Sys_CheckParm(disableparm) || Sys_CheckParm("-safe")))
 	{
@@ -661,33 +564,434 @@ qbool GL_CheckExtension(const char *name, const char *disableparm, int silent)
 		return false;
 	}
 
-	if (!GL_ExtensionSupported(name))
+	if (ext == 1) // opengl extension
 	{
-		Con_DPrint("not detected\n");
-		return false;
+		if (!strstr(gl_extensions ? gl_extensions : "", minglver_or_ext) && !strstr(gl_platformextensions ? gl_platformextensions : "", minglver_or_ext))
+		{
+			Con_DPrint("not detected\n");
+			return false;
+		}
 	}
 
-#ifndef USE_GLES2
-	for (func = openglfuncs; func && func->name != NULL; func++)
-	{
-		if (!*func->funcvariable && !strcmp(name, func->extension))
+	if (ext == 0) { // opengl version
+		if (sscanf(gl_version, "%d.%d", &curr_version.major, &curr_version.minor) < 2)
+			curr_version.major = curr_version.minor = 1;
+
+		if (curr_version.major < min_version.major || (curr_version.major == min_version.major && curr_version.minor < min_version.minor))
 		{
-			if (!silent)
-				Con_DPrintf("%s is missing function \"%s\" - broken driver!\n", name, func->name);
+			Con_DPrintLinef ("not detected (OpenGL %d.%d loaded)", curr_version.major, curr_version.minor);
+			return false;
+		}
+	}
+
+	for (func = funcs;func && func->name != NULL;func++)
+	{
+		// Con_DPrintf("\n    %s...  ", func->name);
+
+		// functions are cleared before all the extensions are evaluated
+		if (!(*func->funcvariable = (void *) GL_GetProcAddress(func->name)))
+		{
+			if (ext && !silent)
+				Con_DPrintLinef ("%s is missing function \"%s\" - broken driver!", minglver_or_ext, func->name);
+			if (!ext)
+				Con_PrintLinef ("OpenGL %s core features are missing function \"%s\" - broken driver!", minglver_or_ext, func->name);
 			failed = true;
 		}
 	}
-#endif //USE_GLES2
 	// delay the return so it prints all missing functions
 	if (failed)
 		return false;
 	// VorteX: add to found extension list
-	dpsnprintf(extstr, sizeof(extstr), "%s %s ", gl_info_extensions.string, name);
+	dpsnprintf(extstr, sizeof(extstr), "%s %s ", gl_info_extensions.string, minglver_or_ext);
 	Cvar_SetQuick(&gl_info_extensions, extstr);
 
-	Con_DPrint("enabled\n");
+	Con_DPrintLinef ("enabled");
 	return true;
 }
+
+#ifndef USE_GLES2
+static dllfunction_t opengl110funcs[] =
+{
+	{"glClearColor", (void **) &qglClearColor},
+	{"glClear", (void **) &qglClear},
+	{"glAlphaFunc", (void **) &qglAlphaFunc},
+	{"glBlendFunc", (void **) &qglBlendFunc},
+	{"glCullFace", (void **) &qglCullFace},
+	{"glDrawBuffer", (void **) &qglDrawBuffer},
+	{"glReadBuffer", (void **) &qglReadBuffer},
+	{"glEnable", (void **) &qglEnable},
+	{"glDisable", (void **) &qglDisable},
+	{"glIsEnabled", (void **) &qglIsEnabled},
+	{"glEnableClientState", (void **) &qglEnableClientState},
+	{"glDisableClientState", (void **) &qglDisableClientState},
+	{"glGetBooleanv", (void **) &qglGetBooleanv},
+	{"glGetDoublev", (void **) &qglGetDoublev},
+	{"glGetFloatv", (void **) &qglGetFloatv},
+	{"glGetIntegerv", (void **) &qglGetIntegerv},
+	{"glGetError", (void **) &qglGetError},
+	{"glGetString", (void **) &qglGetString},
+	{"glFinish", (void **) &qglFinish},
+	{"glFlush", (void **) &qglFlush},
+	{"glClearDepth", (void **) &qglClearDepth},
+	{"glDepthFunc", (void **) &qglDepthFunc},
+	{"glDepthMask", (void **) &qglDepthMask},
+	{"glDepthRange", (void **) &qglDepthRange},
+	{"glDrawElements", (void **) &qglDrawElements},
+	{"glDrawArrays", (void **) &qglDrawArrays},
+	{"glColorMask", (void **) &qglColorMask},
+	{"glVertexPointer", (void **) &qglVertexPointer},
+	{"glNormalPointer", (void **) &qglNormalPointer},
+	{"glColorPointer", (void **) &qglColorPointer},
+	{"glTexCoordPointer", (void **) &qglTexCoordPointer},
+	{"glArrayElement", (void **) &qglArrayElement},
+	{"glColor4ub", (void **) &qglColor4ub},
+	{"glColor4f", (void **) &qglColor4f},
+	{"glTexCoord1f", (void **) &qglTexCoord1f},
+	{"glTexCoord2f", (void **) &qglTexCoord2f},
+	{"glTexCoord3f", (void **) &qglTexCoord3f},
+	{"glTexCoord4f", (void **) &qglTexCoord4f},
+	{"glVertex2f", (void **) &qglVertex2f},
+	{"glVertex3f", (void **) &qglVertex3f},
+	{"glVertex4f", (void **) &qglVertex4f},
+	{"glBegin", (void **) &qglBegin},
+	{"glEnd", (void **) &qglEnd},
+//[515]: added on 29.07.2005
+	{"glLineWidth", (void**) &qglLineWidth},
+	{"glPointSize", (void**) &qglPointSize},
+//
+	{"glMatrixMode", (void **) &qglMatrixMode},
+//	{"glOrtho", (void **) &qglOrtho},
+//	{"glFrustum", (void **) &qglFrustum},
+	{"glViewport", (void **) &qglViewport},
+//	{"glPushMatrix", (void **) &qglPushMatrix},
+//	{"glPopMatrix", (void **) &qglPopMatrix},
+	{"glLoadIdentity", (void **) &qglLoadIdentity},
+//	{"glLoadMatrixd", (void **) &qglLoadMatrixd},
+	{"glLoadMatrixf", (void **) &qglLoadMatrixf},
+//	{"glMultMatrixd", (void **) &qglMultMatrixd},
+//	{"glMultMatrixf", (void **) &qglMultMatrixf},
+//	{"glRotated", (void **) &qglRotated},
+//	{"glRotatef", (void **) &qglRotatef},
+//	{"glScaled", (void **) &qglScaled},
+//	{"glScalef", (void **) &qglScalef},
+//	{"glTranslated", (void **) &qglTranslated},
+//	{"glTranslatef", (void **) &qglTranslatef},
+	{"glReadPixels", (void **) &qglReadPixels},
+	{"glStencilFunc", (void **) &qglStencilFunc},
+	{"glStencilMask", (void **) &qglStencilMask},
+	{"glStencilOp", (void **) &qglStencilOp},
+	{"glClearStencil", (void **) &qglClearStencil},
+	{"glTexEnvf", (void **) &qglTexEnvf},
+	{"glTexEnvfv", (void **) &qglTexEnvfv},
+	{"glTexEnvi", (void **) &qglTexEnvi},
+	{"glTexParameterf", (void **) &qglTexParameterf},
+	{"glTexParameterfv", (void **) &qglTexParameterfv},
+	{"glTexParameteri", (void **) &qglTexParameteri},
+	{"glGetTexImage", (void **) &qglGetTexImage},
+	{"glGetTexParameterfv", (void **) &qglGetTexParameterfv},
+	{"glGetTexParameteriv", (void **) &qglGetTexParameteriv},
+	{"glGetTexLevelParameterfv", (void **) &qglGetTexLevelParameterfv},
+	{"glGetTexLevelParameteriv", (void **) &qglGetTexLevelParameteriv},
+	{"glHint", (void **) &qglHint},
+//	{"glPixelStoref", (void **) &qglPixelStoref},
+	{"glPixelStorei", (void **) &qglPixelStorei},
+	{"glGenTextures", (void **) &qglGenTextures},
+	{"glDeleteTextures", (void **) &qglDeleteTextures},
+	{"glBindTexture", (void **) &qglBindTexture},
+//	{"glPrioritizeTextures", (void **) &qglPrioritizeTextures},
+//	{"glAreTexturesResident", (void **) &qglAreTexturesResident},
+//	{"glIsTexture", (void **) &qglIsTexture},
+//	{"glTexImage1D", (void **) &qglTexImage1D},
+	{"glTexImage2D", (void **) &qglTexImage2D},
+//	{"glTexSubImage1D", (void **) &qglTexSubImage1D},
+	{"glTexSubImage2D", (void **) &qglTexSubImage2D},
+//	{"glCopyTexImage1D", (void **) &qglCopyTexImage1D},
+	{"glCopyTexImage2D", (void **) &qglCopyTexImage2D},
+//	{"glCopyTexSubImage1D", (void **) &qglCopyTexSubImage1D},
+	{"glCopyTexSubImage2D", (void **) &qglCopyTexSubImage2D},
+	{"glScissor", (void **) &qglScissor},
+	{"glPolygonOffset", (void **) &qglPolygonOffset},
+	{"glPolygonMode", (void **) &qglPolygonMode},
+	{"glPolygonStipple", (void **) &qglPolygonStipple},
+//	{"glClipPlane", (void **) &qglClipPlane},
+//	{"glGetClipPlane", (void **) &qglGetClipPlane},
+	{NULL, NULL}
+};
+
+static dllfunction_t drawrangeelementsfuncs[] =
+{
+	{"glDrawRangeElements", (void **) &qglDrawRangeElements},
+	{NULL, NULL}
+};
+
+static dllfunction_t drawrangeelementsextfuncs[] =
+{
+	{"glDrawRangeElementsEXT", (void **) &qglDrawRangeElementsEXT},
+	{NULL, NULL}
+};
+
+static dllfunction_t multitexturefuncs[] =
+{
+	{"glMultiTexCoord1fARB", (void **) &qglMultiTexCoord1f},
+	{"glMultiTexCoord2fARB", (void **) &qglMultiTexCoord2f},
+	{"glMultiTexCoord3fARB", (void **) &qglMultiTexCoord3f},
+	{"glMultiTexCoord4fARB", (void **) &qglMultiTexCoord4f},
+	{"glActiveTextureARB", (void **) &qglActiveTexture},
+	{"glClientActiveTextureARB", (void **) &qglClientActiveTexture},
+	{NULL, NULL}
+};
+
+static dllfunction_t texture3dextfuncs[] =
+{
+	{"glTexImage3DEXT", (void **) &qglTexImage3D},
+	{"glTexSubImage3DEXT", (void **) &qglTexSubImage3D},
+	{"glCopyTexSubImage3DEXT", (void **) &qglCopyTexSubImage3D},
+	{NULL, NULL}
+};
+
+static dllfunction_t atiseparatestencilfuncs[] =
+{
+	{"glStencilOpSeparateATI", (void **) &qglStencilOpSeparate},
+	{"glStencilFuncSeparateATI", (void **) &qglStencilFuncSeparate},
+	{NULL, NULL}
+};
+
+static dllfunction_t gl2separatestencilfuncs[] =
+{
+	{"glStencilOpSeparate", (void **) &qglStencilOpSeparate},
+	{"glStencilFuncSeparate", (void **) &qglStencilFuncSeparate},
+	{NULL, NULL}
+};
+
+static dllfunction_t stenciltwosidefuncs[] =
+{
+	{"glActiveStencilFaceEXT", (void **) &qglActiveStencilFaceEXT},
+	{NULL, NULL}
+};
+
+static dllfunction_t blendequationfuncs[] =
+{
+	{"glBlendEquationEXT", (void **) &qglBlendEquationEXT},
+	{NULL, NULL}
+};
+
+static dllfunction_t gl20shaderfuncs[] =
+{
+	{"glDeleteShader", (void **) &qglDeleteShader},
+	{"glDeleteProgram", (void **) &qglDeleteProgram},
+//	{"glGetHandle", (void **) &qglGetHandle},
+	{"glDetachShader", (void **) &qglDetachShader},
+	{"glCreateShader", (void **) &qglCreateShader},
+	{"glShaderSource", (void **) &qglShaderSource},
+	{"glCompileShader", (void **) &qglCompileShader},
+	{"glCreateProgram", (void **) &qglCreateProgram},
+	{"glAttachShader", (void **) &qglAttachShader},
+	{"glLinkProgram", (void **) &qglLinkProgram},
+	{"glUseProgram", (void **) &qglUseProgram},
+	{"glValidateProgram", (void **) &qglValidateProgram},
+	{"glUniform1f", (void **) &qglUniform1f},
+	{"glUniform2f", (void **) &qglUniform2f},
+	{"glUniform3f", (void **) &qglUniform3f},
+	{"glUniform4f", (void **) &qglUniform4f},
+	{"glUniform1i", (void **) &qglUniform1i},
+	{"glUniform2i", (void **) &qglUniform2i},
+	{"glUniform3i", (void **) &qglUniform3i},
+	{"glUniform4i", (void **) &qglUniform4i},
+	{"glUniform1fv", (void **) &qglUniform1fv},
+	{"glUniform2fv", (void **) &qglUniform2fv},
+	{"glUniform3fv", (void **) &qglUniform3fv},
+	{"glUniform4fv", (void **) &qglUniform4fv},
+	{"glUniform1iv", (void **) &qglUniform1iv},
+	{"glUniform2iv", (void **) &qglUniform2iv},
+	{"glUniform3iv", (void **) &qglUniform3iv},
+	{"glUniform4iv", (void **) &qglUniform4iv},
+	{"glUniformMatrix2fv", (void **) &qglUniformMatrix2fv},
+	{"glUniformMatrix3fv", (void **) &qglUniformMatrix3fv},
+	{"glUniformMatrix4fv", (void **) &qglUniformMatrix4fv},
+	{"glGetShaderiv", (void **) &qglGetShaderiv},
+	{"glGetProgramiv", (void **) &qglGetProgramiv},
+	{"glGetShaderInfoLog", (void **) &qglGetShaderInfoLog},
+	{"glGetProgramInfoLog", (void **) &qglGetProgramInfoLog},
+	{"glGetAttachedShaders", (void **) &qglGetAttachedShaders},
+	{"glGetUniformLocation", (void **) &qglGetUniformLocation},
+	{"glGetActiveUniform", (void **) &qglGetActiveUniform},
+	{"glGetUniformfv", (void **) &qglGetUniformfv},
+	{"glGetUniformiv", (void **) &qglGetUniformiv},
+	{"glGetShaderSource", (void **) &qglGetShaderSource},
+	{"glVertexAttrib1f", (void **) &qglVertexAttrib1f},
+	{"glVertexAttrib1s", (void **) &qglVertexAttrib1s},
+	{"glVertexAttrib1d", (void **) &qglVertexAttrib1d},
+	{"glVertexAttrib2f", (void **) &qglVertexAttrib2f},
+	{"glVertexAttrib2s", (void **) &qglVertexAttrib2s},
+	{"glVertexAttrib2d", (void **) &qglVertexAttrib2d},
+	{"glVertexAttrib3f", (void **) &qglVertexAttrib3f},
+	{"glVertexAttrib3s", (void **) &qglVertexAttrib3s},
+	{"glVertexAttrib3d", (void **) &qglVertexAttrib3d},
+	{"glVertexAttrib4f", (void **) &qglVertexAttrib4f},
+	{"glVertexAttrib4s", (void **) &qglVertexAttrib4s},
+	{"glVertexAttrib4d", (void **) &qglVertexAttrib4d},
+	{"glVertexAttrib4Nub", (void **) &qglVertexAttrib4Nub},
+	{"glVertexAttrib1fv", (void **) &qglVertexAttrib1fv},
+	{"glVertexAttrib1sv", (void **) &qglVertexAttrib1sv},
+	{"glVertexAttrib1dv", (void **) &qglVertexAttrib1dv},
+	{"glVertexAttrib2fv", (void **) &qglVertexAttrib1fv},
+	{"glVertexAttrib2sv", (void **) &qglVertexAttrib1sv},
+	{"glVertexAttrib2dv", (void **) &qglVertexAttrib1dv},
+	{"glVertexAttrib3fv", (void **) &qglVertexAttrib1fv},
+	{"glVertexAttrib3sv", (void **) &qglVertexAttrib1sv},
+	{"glVertexAttrib3dv", (void **) &qglVertexAttrib1dv},
+	{"glVertexAttrib4fv", (void **) &qglVertexAttrib1fv},
+	{"glVertexAttrib4sv", (void **) &qglVertexAttrib1sv},
+	{"glVertexAttrib4dv", (void **) &qglVertexAttrib1dv},
+//	{"glVertexAttrib4iv", (void **) &qglVertexAttrib1iv},
+//	{"glVertexAttrib4bv", (void **) &qglVertexAttrib1bv},
+//	{"glVertexAttrib4ubv", (void **) &qglVertexAttrib1ubv},
+//	{"glVertexAttrib4usv", (void **) &qglVertexAttrib1usv},
+//	{"glVertexAttrib4uiv", (void **) &qglVertexAttrib1uiv},
+//	{"glVertexAttrib4Nbv", (void **) &qglVertexAttrib1Nbv},
+//	{"glVertexAttrib4Nsv", (void **) &qglVertexAttrib1Nsv},
+//	{"glVertexAttrib4Niv", (void **) &qglVertexAttrib1Niv},
+//	{"glVertexAttrib4Nubv", (void **) &qglVertexAttrib1Nubv},
+//	{"glVertexAttrib4Nusv", (void **) &qglVertexAttrib1Nusv},
+//	{"glVertexAttrib4Nuiv", (void **) &qglVertexAttrib1Nuiv},
+	{"glVertexAttribPointer", (void **) &qglVertexAttribPointer},
+	{"glEnableVertexAttribArray", (void **) &qglEnableVertexAttribArray},
+	{"glDisableVertexAttribArray", (void **) &qglDisableVertexAttribArray},
+	{"glBindAttribLocation", (void **) &qglBindAttribLocation},
+	{"glGetActiveAttrib", (void **) &qglGetActiveAttrib},
+	{"glGetAttribLocation", (void **) &qglGetAttribLocation},
+	{"glGetVertexAttribdv", (void **) &qglGetVertexAttribdv},
+	{"glGetVertexAttribfv", (void **) &qglGetVertexAttribfv},
+	{"glGetVertexAttribiv", (void **) &qglGetVertexAttribiv},
+	{"glGetVertexAttribPointerv", (void **) &qglGetVertexAttribPointerv},
+	{NULL, NULL}
+};
+
+static dllfunction_t glsl130funcs[] =
+{
+	{"glBindFragDataLocation", (void **) &qglBindFragDataLocation},
+	{NULL, NULL}
+};
+
+static dllfunction_t vbofuncs[] =
+{
+	{"glBindBufferARB"    , (void **) &qglBindBufferARB},
+	{"glDeleteBuffersARB" , (void **) &qglDeleteBuffersARB},
+	{"glGenBuffersARB"    , (void **) &qglGenBuffersARB},
+	{"glIsBufferARB"      , (void **) &qglIsBufferARB},
+	{"glMapBufferARB"     , (void **) &qglMapBufferARB},
+	{"glUnmapBufferARB"   , (void **) &qglUnmapBufferARB},
+	{"glBufferDataARB"    , (void **) &qglBufferDataARB},
+	{"glBufferSubDataARB" , (void **) &qglBufferSubDataARB},
+	{NULL, NULL}
+};
+
+static dllfunction_t ubofuncs[] =
+{
+	{"glGetUniformIndices"        , (void **) &qglGetUniformIndices},
+	{"glGetActiveUniformsiv"      , (void **) &qglGetActiveUniformsiv},
+	{"glGetActiveUniformName"     , (void **) &qglGetActiveUniformName},
+	{"glGetUniformBlockIndex"     , (void **) &qglGetUniformBlockIndex},
+	{"glGetActiveUniformBlockiv"  , (void **) &qglGetActiveUniformBlockiv},
+	{"glGetActiveUniformBlockName", (void **) &qglGetActiveUniformBlockName},
+	{"glBindBufferRange"          , (void **) &qglBindBufferRange},
+	{"glBindBufferBase"           , (void **) &qglBindBufferBase},
+	{"glGetIntegeri_v"            , (void **) &qglGetIntegeri_v},
+	{"glUniformBlockBinding"      , (void **) &qglUniformBlockBinding},
+	{NULL, NULL}
+};
+
+static dllfunction_t arbfbofuncs[] =
+{
+	{"glIsRenderbuffer"                      , (void **) &qglIsRenderbuffer},
+	{"glBindRenderbuffer"                    , (void **) &qglBindRenderbuffer},
+	{"glDeleteRenderbuffers"                 , (void **) &qglDeleteRenderbuffers},
+	{"glGenRenderbuffers"                    , (void **) &qglGenRenderbuffers},
+	{"glRenderbufferStorage"                 , (void **) &qglRenderbufferStorage},
+	{"glRenderbufferStorageMultisample"      , (void **) &qglRenderbufferStorageMultisample}, // not in GL_EXT_framebuffer_object
+	{"glGetRenderbufferParameteriv"          , (void **) &qglGetRenderbufferParameteriv},
+	{"glIsFramebuffer"                       , (void **) &qglIsFramebuffer},
+	{"glBindFramebuffer"                     , (void **) &qglBindFramebuffer},
+	{"glDeleteFramebuffers"                  , (void **) &qglDeleteFramebuffers},
+	{"glGenFramebuffers"                     , (void **) &qglGenFramebuffers},
+	{"glCheckFramebufferStatus"              , (void **) &qglCheckFramebufferStatus},
+	{"glFramebufferTexture1D"                , (void **) &qglFramebufferTexture1D},
+	{"glFramebufferTexture2D"                , (void **) &qglFramebufferTexture2D},
+	{"glFramebufferTexture3D"                , (void **) &qglFramebufferTexture3D},
+	{"glFramebufferTextureLayer"             , (void **) &qglFramebufferTextureLayer}, // not in GL_EXT_framebuffer_object
+	{"glFramebufferRenderbuffer"             , (void **) &qglFramebufferRenderbuffer},
+	{"glGetFramebufferAttachmentParameteriv" , (void **) &qglGetFramebufferAttachmentParameteriv},
+	{"glBlitFramebuffer"                     , (void **) &qglBlitFramebuffer}, // not in GL_EXT_framebuffer_object
+	{"glGenerateMipmap"                      , (void **) &qglGenerateMipmap},
+	{NULL, NULL}
+};
+
+static dllfunction_t extfbofuncs[] =
+{
+	{"glIsRenderbufferEXT"                      , (void **) &qglIsRenderbuffer},
+	{"glBindRenderbufferEXT"                    , (void **) &qglBindRenderbuffer},
+	{"glDeleteRenderbuffersEXT"                 , (void **) &qglDeleteRenderbuffers},
+	{"glGenRenderbuffersEXT"                    , (void **) &qglGenRenderbuffers},
+	{"glRenderbufferStorageEXT"                 , (void **) &qglRenderbufferStorage},
+	{"glGetRenderbufferParameterivEXT"          , (void **) &qglGetRenderbufferParameteriv},
+	{"glIsFramebufferEXT"                       , (void **) &qglIsFramebuffer},
+	{"glBindFramebufferEXT"                     , (void **) &qglBindFramebuffer},
+	{"glDeleteFramebuffersEXT"                  , (void **) &qglDeleteFramebuffers},
+	{"glGenFramebuffersEXT"                     , (void **) &qglGenFramebuffers},
+	{"glCheckFramebufferStatusEXT"              , (void **) &qglCheckFramebufferStatus},
+	{"glFramebufferTexture1DEXT"                , (void **) &qglFramebufferTexture1D},
+	{"glFramebufferTexture2DEXT"                , (void **) &qglFramebufferTexture2D},
+	{"glFramebufferTexture3DEXT"                , (void **) &qglFramebufferTexture3D},
+	{"glFramebufferRenderbufferEXT"             , (void **) &qglFramebufferRenderbuffer},
+	{"glGetFramebufferAttachmentParameterivEXT" , (void **) &qglGetFramebufferAttachmentParameteriv},
+	{"glGenerateMipmapEXT"                      , (void **) &qglGenerateMipmap},
+	{NULL, NULL}
+};
+
+static dllfunction_t texturecompressionfuncs[] =
+{
+	{"glCompressedTexImage3DARB",    (void **) &qglCompressedTexImage3DARB},
+	{"glCompressedTexImage2DARB",    (void **) &qglCompressedTexImage2DARB},
+//	{"glCompressedTexImage1DARB",    (void **) &qglCompressedTexImage1DARB},
+	{"glCompressedTexSubImage3DARB", (void **) &qglCompressedTexSubImage3DARB},
+	{"glCompressedTexSubImage2DARB", (void **) &qglCompressedTexSubImage2DARB},
+//	{"glCompressedTexSubImage1DARB", (void **) &qglCompressedTexSubImage1DARB},
+	{"glGetCompressedTexImageARB",   (void **) &qglGetCompressedTexImageARB},
+	{NULL, NULL}
+};
+
+static dllfunction_t occlusionqueryfuncs[] =
+{
+	{"glGenQueriesARB",              (void **) &qglGenQueriesARB},
+	{"glDeleteQueriesARB",           (void **) &qglDeleteQueriesARB},
+	{"glIsQueryARB",                 (void **) &qglIsQueryARB},
+	{"glBeginQueryARB",              (void **) &qglBeginQueryARB},
+	{"glEndQueryARB",                (void **) &qglEndQueryARB},
+	{"glGetQueryivARB",              (void **) &qglGetQueryivARB},
+	{"glGetQueryObjectivARB",        (void **) &qglGetQueryObjectivARB},
+	{"glGetQueryObjectuivARB",       (void **) &qglGetQueryObjectuivARB},
+	{NULL, NULL}
+};
+
+static dllfunction_t drawbuffersfuncs[] =
+{
+	{"glDrawBuffersARB",             (void **) &qglDrawBuffersARB},
+	{NULL, NULL}
+};
+
+static dllfunction_t multisamplefuncs[] =
+{
+	{"glSampleCoverageARB",          (void **) &qglSampleCoverageARB},
+	{NULL, NULL}
+};
+
+static dllfunction_t blendfuncseparatefuncs[] =
+{
+	{"glBlendFuncSeparateEXT", (void **) &qglBlendFuncSeparate},
+	{NULL, NULL}
+};
+
+#endif
 
 void VID_ClearExtensions(void)
 {
@@ -696,156 +1000,233 @@ void VID_ClearExtensions(void)
 
 	// clear the extension flags
 	memset(&vid.support, 0, sizeof(vid.support));
+	vid.renderpath = RENDERPATH_GL20;
+	vid.sRGBcapable2D = false;
+	vid.sRGBcapable3D = false;
+	vid.useinterleavedarrays = false;
+	vid.forcevbo = false;
+	vid.maxtexturesize_2d = 0;
+	vid.maxtexturesize_3d = 0;
+	vid.maxtexturesize_cubemap = 0;
+	vid.texunits = 1;
+	vid.teximageunits = 1;
+	vid.texarrayunits = 1;
+	vid.max_anisotropy = 1;
+	vid.maxdrawbuffers = 1;
+
+#ifndef USE_GLES2
+	// this is a complete list of all functions that are directly checked in the renderer
+	qglDrawRangeElements = NULL;
+	qglDrawBuffer = NULL;
+	qglPolygonStipple = NULL;
+	qglFlush = NULL;
+	qglActiveTexture = NULL;
+	qglGetCompressedTexImageARB = NULL;
+	qglFramebufferTexture2D = NULL;
+	qglDrawBuffersARB = NULL;
+#endif
 }
 
-void GL_Setup(void)
+#ifndef USE_GLES2
+void VID_CheckExtensions(void)
 {
-	char *s;
-	int j;
-	GLint numextensions = 0;
-	const glfunction_t *func;
-	qbool missingrequiredfuncs = false;
-	static char missingfuncs[16384];
+	if (!GL_CheckExtension("glbase", opengl110funcs, NULL, false))
+		Sys_Error("OpenGL 1.1.0 functions not found");
+	vid.support.gl20shaders = GL_CheckExtension("2.0", gl20shaderfuncs, "-noshaders", true);
 
-#ifndef USE_GLES2
-	// first fetch the function pointers for everything - after this we can begin making GL calls.
-	for (func = openglfuncs; func->name != NULL; func++)
-		*func->funcvariable = (void *)GL_GetProcAddress(func->name);
-#endif
-
-	gl_renderer = (const char *)qglGetString(GL_RENDERER);
-	gl_vendor = (const char *)qglGetString(GL_VENDOR);
-	gl_version = (const char *)qglGetString(GL_VERSION);
-
-	Con_Printf("GL_VENDOR: %s\n", gl_vendor);
-	Con_Printf("GL_RENDERER: %s\n", gl_renderer);
-	Con_Printf("GL_VERSION: %s\n", gl_version);
-
-#ifndef USE_GLES2
-	qglGetIntegerv(GL_NUM_EXTENSIONS, &numextensions);
-	Con_DPrint("GL_EXTENSIONS:\n");
-	for (j = 0; j < numextensions; j++)
-	{
-		const char *ext = (const char *)qglGetStringi(GL_EXTENSIONS, j);
-		Con_DPrintf(" %s", ext);
-		if(j && !(j % 3))
-			Con_DPrintf("\n");
-	}
-	Con_DPrint("\n");
-#endif //USE_GLES2
-
-#ifndef USE_GLES2
-	missingfuncs[0] = 0;
-	for (func = openglfuncs; func && func->name != NULL; func++)
-	{
-		if (!*func->funcvariable && !strcmp(func->extension, "core"))
-		{
-			Con_DPrintf("GL context is missing required function \"%s\"!\n", func->name);
-			missingrequiredfuncs = true;
-			strlcat(missingfuncs, " ", sizeof(missingfuncs));
-			strlcat(missingfuncs, func->name, sizeof(missingfuncs));
-		}
-	}
-
-	if (missingrequiredfuncs)
-		Sys_Error("OpenGL driver/hardware lacks required features:\n%s", missingfuncs);
-#endif
+	CHECKGLERROR
 
 	Con_DPrint("Checking OpenGL extensions...\n");
 
-	// detect what GLSL version is available, to enable features like higher quality reliefmapping
-	vid.support.glshaderversion = 100;
-	s = (char *) qglGetString(GL_SHADING_LANGUAGE_VERSION);
-	if (s)
-		vid.support.glshaderversion = (int)(atof(s) * 100.0f + 0.5f);
-	if (vid.support.glshaderversion < 100)
+	if (vid.support.gl20shaders)
+	{
+		char *s;
+		// detect what GLSL version is available, to enable features like r_glsl_skeletal and higher quality reliefmapping
 		vid.support.glshaderversion = 100;
-	Con_Printf("Detected GLSL version %i\n", vid.support.glshaderversion);
+		s = (char *) qglGetString(GL_SHADING_LANGUAGE_VERSION);
+		if (s)
+			vid.support.glshaderversion = (int)(atof(s) * 100.0f + 0.5f);
+		if (vid.support.glshaderversion < 100)
+			vid.support.glshaderversion = 100;
+		Con_DPrintf("Detected GLSL #version %i\n", vid.support.glshaderversion);
+		// get the glBindFragDataLocation function
+		if (vid.support.glshaderversion >= 130)
+			vid.support.gl20shaders130 = GL_CheckExtension("glshaders130", glsl130funcs, "-noglsl130", true);
+	}
 
-#ifdef USE_GLES2
-	// GLES devices in general do not like GL_BGRA, so use GL_RGBA
-	vid.forcetextype = TEXTYPE_RGBA;
-#else
 	// GL drivers generally prefer GL_BGRA
 	vid.forcetextype = GL_BGRA;
-#endif
 
-	vid.support.amd_texture_texture4 = GL_CheckExtension("GL_AMD_texture_texture4", "-notexture4", false);
-	vid.support.arb_texture_gather = GL_CheckExtension("GL_ARB_texture_gather", "-notexturegather", false);
-	vid.support.ext_texture_compression_s3tc = GL_CheckExtension("GL_EXT_texture_compression_s3tc", "-nos3tc", false);
-	vid.support.ext_texture_filter_anisotropic = GL_CheckExtension("GL_EXT_texture_filter_anisotropic", "-noanisotropy", false);
-#ifndef USE_GLES2
-	vid.support.ext_texture_srgb = true; // GL3 core, but not GLES2
+	vid.support.amd_texture_texture4 = GL_CheckExtension("GL_AMD_texture_texture4", NULL, "-notexture4", false);
+	vid.support.arb_depth_texture = GL_CheckExtension("GL_ARB_depth_texture", NULL, "-nodepthtexture", false);
+	vid.support.arb_draw_buffers = GL_CheckExtension("GL_ARB_draw_buffers", drawbuffersfuncs, "-nodrawbuffers", false);
+	vid.support.arb_multitexture = GL_CheckExtension("GL_ARB_multitexture", multitexturefuncs, "-nomtex", false);
+	vid.support.arb_occlusion_query = GL_CheckExtension("GL_ARB_occlusion_query", occlusionqueryfuncs, "-noocclusionquery", false);
+	vid.support.arb_query_buffer_object = GL_CheckExtension("GL_ARB_query_buffer_object", NULL, "-noquerybuffer", true);
+	vid.support.arb_shadow = GL_CheckExtension("GL_ARB_shadow", NULL, "-noshadow", false);
+	vid.support.arb_texture_compression = GL_CheckExtension("GL_ARB_texture_compression", texturecompressionfuncs, "-notexturecompression", false);
+	vid.support.arb_texture_cube_map = GL_CheckExtension("GL_ARB_texture_cube_map", NULL, "-nocubemap", false);
+	vid.support.arb_texture_env_combine = GL_CheckExtension("GL_ARB_texture_env_combine", NULL, "-nocombine", false) || GL_CheckExtension("GL_EXT_texture_env_combine", NULL, "-nocombine", false);
+	vid.support.arb_texture_gather = GL_CheckExtension("GL_ARB_texture_gather", NULL, "-notexturegather", false);
+#ifndef __APPLE__
+	// LadyHavoc: too many bugs on OSX!
+	vid.support.arb_texture_non_power_of_two = GL_CheckExtension("GL_ARB_texture_non_power_of_two", NULL, "-notexturenonpoweroftwo", false);
 #endif
-	vid.support.arb_debug_output = GL_CheckExtension("GL_ARB_debug_output", "-nogldebugoutput", false);
+	vid.support.arb_vertex_buffer_object = GL_CheckExtension("GL_ARB_vertex_buffer_object", vbofuncs, "-novbo", false);
+	vid.support.arb_uniform_buffer_object = GL_CheckExtension("GL_ARB_uniform_buffer_object", ubofuncs, "-noubo", false);
+	vid.support.ati_separate_stencil = GL_CheckExtension("separatestencil", gl2separatestencilfuncs, "-noseparatestencil", true) || GL_CheckExtension("GL_ATI_separate_stencil", atiseparatestencilfuncs, "-noseparatestencil", false);
+	vid.support.ext_blend_minmax = GL_CheckExtension("GL_EXT_blend_minmax", blendequationfuncs, "-noblendminmax", false);
+	vid.support.ext_blend_subtract = GL_CheckExtension("GL_EXT_blend_subtract", blendequationfuncs, "-noblendsubtract", false);
+	vid.support.ext_blend_func_separate = GL_CheckExtension("GL_EXT_blend_func_separate", blendfuncseparatefuncs, "-noblendfuncseparate", false);
+	vid.support.ext_draw_range_elements = GL_CheckExtension("drawrangeelements", drawrangeelementsfuncs, "-nodrawrangeelements", true) || GL_CheckExtension("GL_EXT_draw_range_elements", drawrangeelementsextfuncs, "-nodrawrangeelements", false);
+	vid.support.arb_framebuffer_object = GL_CheckExtension("GL_ARB_framebuffer_object", arbfbofuncs, "-nofbo", false);
+	if (vid.support.arb_framebuffer_object)
+		vid.support.ext_framebuffer_object = true;
+	else
+		vid.support.ext_framebuffer_object = GL_CheckExtension("GL_EXT_framebuffer_object", extfbofuncs, "-nofbo", false);
+
+	vid.support.ext_packed_depth_stencil = GL_CheckExtension("GL_EXT_packed_depth_stencil", NULL, "-nopackeddepthstencil", false);
+	vid.support.ext_stencil_two_side = GL_CheckExtension("GL_EXT_stencil_two_side", stenciltwosidefuncs, "-nostenciltwoside", false);
+	vid.support.ext_texture_3d = GL_CheckExtension("GL_EXT_texture3D", texture3dextfuncs, "-notexture3d", false);
+	vid.support.ext_texture_compression_s3tc = GL_CheckExtension("GL_EXT_texture_compression_s3tc", NULL, "-nos3tc", false);
+	vid.support.ext_texture_edge_clamp = GL_CheckExtension("GL_EXT_texture_edge_clamp", NULL, "-noedgeclamp", false) || GL_CheckExtension("GL_SGIS_texture_edge_clamp", NULL, "-noedgeclamp", false);
+	vid.support.ext_texture_filter_anisotropic = GL_CheckExtension("GL_EXT_texture_filter_anisotropic", NULL, "-noanisotropy", false);
+	vid.support.ext_texture_srgb = GL_CheckExtension("GL_EXT_texture_sRGB", NULL, "-nosrgb", false);
+	vid.support.arb_texture_float = GL_CheckExtension("GL_ARB_texture_float", NULL, "-notexturefloat", false);
+	vid.support.arb_half_float_pixel = GL_CheckExtension("GL_ARB_half_float_pixel", NULL, "-nohalffloatpixel", false);
+	vid.support.arb_half_float_vertex = GL_CheckExtension("GL_ARB_half_float_vertex", NULL, "-nohalffloatvertex", false);
+	vid.support.arb_multisample = GL_CheckExtension("GL_ARB_multisample", multisamplefuncs, "-nomultisample", false);
 	vid.allowalphatocoverage = false;
 
+// COMMANDLINEOPTION: GL: -noshaders disables use of OpenGL 2.0 shaders (which allow pixel shader effects, can improve per pixel lighting performance and capabilities)
 // COMMANDLINEOPTION: GL: -noanisotropy disables GL_EXT_texture_filter_anisotropic (allows higher quality texturing)
+// COMMANDLINEOPTION: GL: -noblendminmax disables GL_EXT_blend_minmax
+// COMMANDLINEOPTION: GL: -noblendsubtract disables GL_EXT_blend_subtract
+// COMMANDLINEOPTION: GL: -nocombine disables GL_ARB_texture_env_combine or GL_EXT_texture_env_combine (required for bumpmapping and faster map rendering)
+// COMMANDLINEOPTION: GL: -nocubemap disables GL_ARB_texture_cube_map (required for bumpmapping)
+// COMMANDLINEOPTION: GL: -nodepthtexture disables use of GL_ARB_depth_texture (required for shadowmapping)
+// COMMANDLINEOPTION: GL: -nodrawbuffers disables use of GL_ARB_draw_buffers (required for r_shadow_deferredprepass)
+// COMMANDLINEOPTION: GL: -nodrawrangeelements disables GL_EXT_draw_range_elements (renders faster)
+// COMMANDLINEOPTION: GL: -noedgeclamp disables GL_EXT_texture_edge_clamp or GL_SGIS_texture_edge_clamp (recommended, some cards do not support the other texture clamp method)
+// COMMANDLINEOPTION: GL: -nofbo disables GL_EXT_framebuffer_object (which accelerates rendering), only used if GL_ARB_fragment_shader is also available
+// COMMANDLINEOPTION: GL: -nomtex disables GL_ARB_multitexture (required for faster map rendering)
+// COMMANDLINEOPTION: GL: -noocclusionquery disables GL_ARB_occlusion_query (which allows coronas to fade according to visibility, and potentially used for rendering optimizations)
+// COMMANDLINEOPTION: GL: -noquerybuffer disables GL_ARB_query_buffer_object (which allows corona fading without synchronous rendering)
 // COMMANDLINEOPTION: GL: -nos3tc disables GL_EXT_texture_compression_s3tc (which allows use of .dds texture caching)
+// COMMANDLINEOPTION: GL: -noseparatestencil disables use of OpenGL2.0 glStencilOpSeparate and GL_ATI_separate_stencil extensions (which accelerate shadow rendering)
+// COMMANDLINEOPTION: GL: -noshadow disables use of GL_ARB_shadow (required for hardware shadowmap filtering)
+// COMMANDLINEOPTION: GL: -nostenciltwoside disables GL_EXT_stencil_two_side (which accelerate shadow rendering)
+// COMMANDLINEOPTION: GL: -notexture3d disables GL_EXT_texture3D (required for spherical lights, otherwise they render as a column)
 // COMMANDLINEOPTION: GL: -notexture4 disables GL_AMD_texture_texture4 (which provides fetch4 sampling)
+// COMMANDLINEOPTION: GL: -notexturecompression disables GL_ARB_texture_compression (which saves video memory if it is supported, but can also degrade image quality, see gl_texturecompression cvar documentation for more information)
 // COMMANDLINEOPTION: GL: -notexturegather disables GL_ARB_texture_gather (which provides fetch4 sampling)
-// COMMANDLINEOPTION: GL: -nogldebugoutput disables GL_ARB_debug_output (which provides the gl_debug feature, if enabled)
+// COMMANDLINEOPTION: GL: -notexturenonpoweroftwo disables GL_ARB_texture_non_power_of_two (which saves video memory if it is supported, but crashes on some buggy drivers)
+// COMMANDLINEOPTION: GL: -novbo disables GL_ARB_vertex_buffer_object (which accelerates rendering)
+// COMMANDLINEOPTION: GL: -nosrgb disables GL_EXT_texture_sRGB (which is used for higher quality non-linear texture gamma)
+// COMMANDLINEOPTION: GL: -nomultisample disables GL_ARB_multisample
 
-#ifdef GL_MAX_DRAW_BUFFERS
-	qglGetIntegerv(GL_MAX_DRAW_BUFFERS, (GLint*)&vid.maxdrawbuffers);
-	CHECKGLERROR
-#endif
+	if (vid.support.arb_draw_buffers)
+		qglGetIntegerv(GL_MAX_DRAW_BUFFERS_ARB, (GLint*)&vid.maxdrawbuffers);
+
+	// disable non-power-of-two textures on Radeon X1600 and other cards that do not accelerate it with some filtering modes / repeat modes that we use
+	// we detect these cards by checking if the hardware supports vertex texture fetch (Geforce6 does, Radeon X1600 does not, all GL3-class hardware does)
+	if(vid.support.arb_texture_non_power_of_two && vid.support.gl20shaders)
+	{
+		int val = 0;
+		qglGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &val);CHECKGLERROR
+		if (val < 1)
+			vid.support.arb_texture_non_power_of_two = false;
+	}
+
+	// we don't care if it's an extension or not, they are identical functions, so keep it simple in the rendering code
+	if (qglDrawRangeElements == NULL)
+		qglDrawRangeElements = qglDrawRangeElementsEXT;
+
 	qglGetIntegerv(GL_MAX_TEXTURE_SIZE, (GLint*)&vid.maxtexturesize_2d);
-	CHECKGLERROR
-#ifdef GL_MAX_CUBE_MAP_TEXTURE_SIZE
-#ifdef USE_GLES2
-	if (GL_CheckExtension("GL_ARB_texture_cube_map", "-nocubemap", false))
-#endif
-	{
+	if (vid.support.ext_texture_filter_anisotropic)
+		qglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, (GLint*)&vid.max_anisotropy);
+	if (vid.support.arb_texture_cube_map)
 		qglGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, (GLint*)&vid.maxtexturesize_cubemap);
-		Con_DPrintf("GL_MAX_CUBE_MAP_TEXTURE_SIZE = %i\n", vid.maxtexturesize_cubemap);
-	}
-	CHECKGLERROR
-#endif
-#ifdef GL_MAX_3D_TEXTURE_SIZE
-#ifdef USE_GLES2
-	if (GL_CheckExtension("GL_EXT_texture3D", "-notexture3d", false)
-	 || GL_CheckExtension("GL_OES_texture3D", "-notexture3d", false))
-#endif
-	{
+	if (vid.support.ext_texture_3d)
 		qglGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, (GLint*)&vid.maxtexturesize_3d);
-		Con_DPrintf("GL_MAX_3D_TEXTURE_SIZE = %i\n", vid.maxtexturesize_3d);
-	}
-#endif
-	CHECKGLERROR
 
-#ifdef USE_GLES2
-	Con_Print("Using GLES2 rendering path\n");
-	vid.renderpath = RENDERPATH_GLES2;
-	vid.sRGBcapable2D = false;
-	vid.sRGBcapable3D = false;
-#else
-	Con_Print("Using GL32 rendering path\n");
-	vid.renderpath = RENDERPATH_GL32;
-	vid.sRGBcapable2D = false;
-	vid.sRGBcapable3D = true;
+	// verify that 3d textures are really supported
+	if (vid.support.ext_texture_3d && vid.maxtexturesize_3d < 32)
+	{
+		vid.support.ext_texture_3d = false;
+		Con_PrintLinef ("GL_EXT_texture3D reported bogus GL_MAX_3D_TEXTURE_SIZE, disabled");
+	}
+
+	vid.texunits = vid.teximageunits = vid.texarrayunits = 1;
+	if (vid.support.arb_multitexture)
+		qglGetIntegerv(GL_MAX_TEXTURE_UNITS, (GLint*)&vid.texunits);
+	if (vid_gl20.integer && vid.support.gl20shaders)
+	{
+		qglGetIntegerv(GL_MAX_TEXTURE_UNITS, (GLint*)&vid.texunits);
+		qglGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, (int *)&vid.teximageunits);CHECKGLERROR
+		qglGetIntegerv(GL_MAX_TEXTURE_COORDS, (int *)&vid.texarrayunits);CHECKGLERROR
+		vid.texunits = bound(4, vid.texunits, MAX_TEXTUREUNITS);
+		vid.teximageunits = bound(16, vid.teximageunits, MAX_TEXTUREUNITS);
+		vid.texarrayunits = bound(8, vid.texarrayunits, MAX_TEXTUREUNITS);
+		Con_DPrintf("Using GL2.0 rendering path - %i texture matrix, %i texture images, %i texcoords%s\n", vid.texunits, vid.teximageunits, vid.texarrayunits, vid.support.ext_framebuffer_object ? ", shadowmapping supported" : "");
+		vid.renderpath = RENDERPATH_GL20;
+		vid.sRGBcapable2D = false;
+		vid.sRGBcapable3D = true;
+		vid.useinterleavedarrays = false;
+		Con_Printf("vid.support.arb_multisample %i\n", vid.support.arb_multisample);
+		Con_Printf("vid.support.gl20shaders %i\n", vid.support.gl20shaders);
+		vid.allowalphatocoverage = true; // but see below, it may get turned to false again if GL_SAMPLES_ARB is <= 1
+	}
+	//else if (vid.support.arb_texture_env_combine && vid.texunits >= 2 && vid_gl13.integer)
+	//{
+	//	qglGetIntegerv(GL_MAX_TEXTURE_UNITS, (GLint*)&vid.texunits);
+	//	vid.texunits = bound(1, vid.texunits, MAX_TEXTUREUNITS);
+	//	vid.teximageunits = vid.texunits;
+	//	vid.texarrayunits = vid.texunits;
+	//	Con_DPrintf("Using GL1.3 rendering path - %i texture units, single pass rendering\n", vid.texunits);
+	//	vid.renderpath = RENDERPATH_GL13;
+	//	vid.sRGBcapable2D = false;
+	//	vid.sRGBcapable3D = false;
+	//	vid.useinterleavedarrays = false;
+	//}
+	else
+	{
+		// KILL?
+		vid.texunits = bound(1, vid.texunits, MAX_TEXTUREUNITS);
+		vid.teximageunits = vid.texunits;
+		vid.texarrayunits = vid.texunits;
+		Con_DPrintf("Using GL1.1 rendering path - %i texture units, two pass rendering\n", vid.texunits);
+		vid.renderpath = RENDERPATH_GL20;
+		vid.sRGBcapable2D = false;
+		vid.sRGBcapable3D = false;
+		vid.useinterleavedarrays = false;
+	}
+
 	// enable multisample antialiasing if possible
-	vid.allowalphatocoverage = true; // but see below, it may get turned to false again if GL_SAMPLES is <= 1
+	if(vid.support.arb_multisample)
 	{
 		int samples = 0;
-		qglGetIntegerv(GL_SAMPLES, &samples);
+		qglGetIntegerv(GL_SAMPLES_ARB, &samples);
 		vid.samples = samples;
 		if (samples > 1)
-			qglEnable(GL_MULTISAMPLE);
+			qglEnable(GL_MULTISAMPLE_ARB);
 		else
 			vid.allowalphatocoverage = false;
 	}
-	// currently MSAA antialiasing is not implemented for fbo viewports, so we actually have to force this off anyway.
-	vid.allowalphatocoverage = false;
-#endif
-	CHECKGLERROR
+	else
+	{
+		vid.allowalphatocoverage = false;
+		vid.samples = 1;
+	}
 
-#ifdef GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT
-	if (vid.support.ext_texture_filter_anisotropic)
-		qglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, (GLint*)&vid.max_anisotropy);
-#endif
-	CHECKGLERROR
+	// VorteX: set other info (maybe place them in VID_InitMode?)
+	Cvar_SetQuick(&gl_info_vendor, gl_vendor);
+	Cvar_SetQuick(&gl_info_renderer, gl_renderer);
+	Cvar_SetQuick(&gl_info_version, gl_version);
+	Cvar_SetQuick(&gl_info_platform, gl_platform ? gl_platform : "");
+	Cvar_SetQuick(&gl_info_driver, gl_driver);
 }
+#endif
 
 float VID_JoyState_GetAxis(const vid_joystate_t *joystate, int axis, float fsensitivity, float deadzone)
 {
@@ -945,10 +1326,10 @@ static void VID_KeyEventForButton(qbool oldbutton, qbool newbutton, int key, dou
 	{
 		if (newbutton)
 		{
-			if (host.realtime >= *timer)
+			if (realtime >= *timer)
 			{
 				Key_Event(key, 0, true);
-				*timer = host.realtime + 0.1;
+				*timer = realtime + 0.1;
 			}
 		}
 		else
@@ -962,7 +1343,7 @@ static void VID_KeyEventForButton(qbool oldbutton, qbool newbutton, int key, dou
 		if (newbutton)
 		{
 			Key_Event(key, 0, true);
-			*timer = host.realtime + 0.5;
+			*timer = realtime + 0.5;
 		}
 	}
 }
@@ -1084,29 +1465,14 @@ int VID_Shared_SetJoystick(int index)
 }
 
 
-static void Force_CenterView_f(cmd_state_t *cmd)
+static void Force_CenterView_f (void)
 {
 	cl.viewangles[PITCH] = 0;
 }
 
 static int gamma_forcenextframe = false;
 static float cachegamma, cachebrightness, cachecontrast, cacheblack[3], cachegrey[3], cachewhite[3], cachecontrastboost;
-static int cachecolorenable;
-
-void VID_ApplyGammaToColor(const float *rgb, float *out)
-{
-	int i;
-	if (cachecolorenable)
-	{
-		for (i = 0; i < 3; i++)
-			out[i] = pow(cachecontrastboost * rgb[i] / ((cachecontrastboost - 1) * rgb[i] + 1), 1.0 / invpow(0.5, 1 - cachegrey[i])) * cachewhite[i] + cacheblack[i];
-	}
-	else
-	{
-		for (i = 0; i < 3; i++)
-			out[i] = pow(cachecontrastboost * rgb[i] / ((cachecontrastboost - 1) * rgb[i] + 1), 1.0 / cachegamma) * cachecontrast + cachebrightness;
-	}
-}
+static int cachecolorenable, cachehwgamma;
 
 unsigned int vid_gammatables_serial = 0; // so other subsystems can poll if gamma parameters have changed
 qbool vid_gammatables_trivial = true;
@@ -1174,12 +1540,28 @@ void VID_BuildGammaTables(unsigned short *ramps, int rampsize)
 	}
 }
 
-void VID_UpdateGamma(void)
+void VID_UpdateGamma(qbool force, int rampsize)
 {
 	cvar_t *c;
 	float f;
+	int wantgamma;
 	qbool gamma_changed = false;
 
+	// LadyHavoc: don't mess with gamma tables if running dedicated
+	if (cls.state == ca_dedicated)
+		return;
+
+	wantgamma = v_hwgamma.integer;
+	switch(vid.renderpath)
+	{
+	case RENDERPATH_GL20:
+	case RENDERPATH_GLES2:
+		if (v_glslgamma.integer)
+			wantgamma = 0;
+		break;
+	}
+	if(!vid_activewindow)
+		wantgamma = 0;
 #define BOUNDCVAR(cvar, m1, m2) c = &(cvar);f = bound(m1, c->value, m2);if (c->value != f) Cvar_SetValueQuick(c, f);
 	BOUNDCVAR(v_gamma, 0.1, 5);
 	BOUNDCVAR(v_contrast, 0.2, 5);
@@ -1225,7 +1607,6 @@ void VID_UpdateGamma(void)
 		}
 	}
 
-	// if any gamma settings were changed, bump vid_gammatables_serial so we regenerate the gamma ramp texture
 #define GAMMACHECK(cache, value) if (cache != (value)) gamma_changed = true;cache = (value)
 	if(v_psycho.integer)
 		gamma_changed = true;
@@ -1246,7 +1627,64 @@ void VID_UpdateGamma(void)
 
 	if(gamma_changed)
 		++vid_gammatables_serial;
+
+	GAMMACHECK(cachehwgamma    , wantgamma);
 #undef GAMMACHECK
+
+	if (!force && !gamma_forcenextframe && !gamma_changed)
+		return;
+
+	gamma_forcenextframe = false;
+
+	if (cachehwgamma)
+	{
+		if (!vid_usinghwgamma)
+		{
+			vid_usinghwgamma = true;
+			if (vid_gammarampsize != rampsize || !vid_gammaramps)
+			{
+				vid_gammarampsize = rampsize;
+				if (vid_gammaramps)
+					Z_Free(vid_gammaramps);
+				vid_gammaramps = (unsigned short *)Z_Malloc(6 * vid_gammarampsize * sizeof(unsigned short));
+				vid_systemgammaramps = vid_gammaramps + 3 * vid_gammarampsize;
+			}
+			VID_GetGamma(vid_systemgammaramps, vid_gammarampsize);
+		}
+
+		VID_BuildGammaTables(vid_gammaramps, vid_gammarampsize);
+
+		// set vid_hardwaregammasupported to true if VID_SetGamma succeeds, OR if vid_hwgamma is >= 2 (forced gamma - ignores driver return value)
+		Cvar_SetValueQuick(&vid_hardwaregammasupported, VID_SetGamma(vid_gammaramps, vid_gammarampsize) || cachehwgamma >= 2);
+		// if custom gamma ramps failed (Windows stupidity), restore to system gamma
+		if(!vid_hardwaregammasupported.integer)
+		{
+			if (vid_usinghwgamma)
+			{
+				vid_usinghwgamma = false;
+				VID_SetGamma(vid_systemgammaramps, vid_gammarampsize);
+			}
+		}
+	}
+	else
+	{
+		if (vid_usinghwgamma)
+		{
+			vid_usinghwgamma = false;
+			VID_SetGamma(vid_systemgammaramps, vid_gammarampsize);
+		}
+	}
+}
+
+void VID_RestoreSystemGamma(void)
+{
+	if (vid_usinghwgamma)
+	{
+		vid_usinghwgamma = false;
+		Cvar_SetValueQuick(&vid_hardwaregammasupported, VID_SetGamma(vid_systemgammaramps, vid_gammarampsize));
+		// force gamma situation to be reexamined next frame
+		gamma_forcenextframe = true;
+	}
 }
 
 #ifdef _WIN32
@@ -1268,6 +1706,7 @@ static dllhandle_t xinputdll_dll = NULL;
 
 void VID_Shared_Init(void)
 {
+	Cvar_RegisterVariable(&vid_hardwaregammasupported);
 	Cvar_RegisterVariable(&gl_info_vendor);
 	Cvar_RegisterVariable(&gl_info_renderer);
 	Cvar_RegisterVariable(&gl_info_version);
@@ -1290,12 +1729,13 @@ void VID_Shared_Init(void)
 	Cvar_RegisterVariable(&v_color_white_g);
 	Cvar_RegisterVariable(&v_color_white_b);
 
+	Cvar_RegisterVariable(&v_hwgamma);
+	Cvar_RegisterVariable(&v_glslgamma);
 	Cvar_RegisterVariable(&v_glslgamma_2d);
 
 	Cvar_RegisterVariable(&v_psycho);
 
 	Cvar_RegisterVariable(&vid_fullscreen);
-	Cvar_RegisterVariable(&vid_borderless);
 	Cvar_RegisterVariable(&vid_width);
 	Cvar_RegisterVariable(&vid_height);
 
@@ -1305,7 +1745,6 @@ void VID_Shared_Init(void)
 	Cvar_RegisterVariable(&vid_window_width);
 	Cvar_RegisterVariable(&vid_window_height);
 
-	// Baker r0005: Autoscale 360p
 	Cvar_RegisterVariable(&vid_fullscreen_conscale);
 	Cvar_RegisterVariable(&vid_window_conscale);
 
@@ -1319,19 +1758,19 @@ void VID_Shared_Init(void)
 	Cvar_RegisterVariable(&vid_touchscreen_ydpi);
 	Cvar_RegisterVariable(&vid_vsync);
 	Cvar_RegisterVariable(&vid_mouse);
-	Cvar_RegisterVariable(&vid_mouse_clickthrough);
 	Cvar_RegisterVariable(&vid_grabkeyboard);
 	Cvar_RegisterVariable(&vid_touchscreen);
 	Cvar_RegisterVariable(&vid_touchscreen_showkeyboard);
 	Cvar_RegisterVariable(&vid_touchscreen_supportshowkeyboard);
 	Cvar_RegisterVariable(&vid_stick_mouse);
+#ifndef _WIN32
 	Cvar_RegisterVariable(&vid_resizable);
-	Cvar_RegisterVariable(&vid_desktopfullscreen);
-#ifdef _WIN32
-	Cvar_RegisterVariable(&vid_ignore_taskbar);
 #endif
+	Cvar_RegisterVariable(&vid_desktopfullscreen);
 	Cvar_RegisterVariable(&vid_minwidth);
 	Cvar_RegisterVariable(&vid_minheight);
+	Cvar_RegisterVariable(&vid_gl13);
+	Cvar_RegisterVariable(&vid_gl20);
 	Cvar_RegisterVariable(&gl_finish);
 	Cvar_RegisterVariable(&vid_sRGB);
 	Cvar_RegisterVariable(&vid_sRGB_fallback);
@@ -1386,11 +1825,14 @@ void VID_Shared_Init(void)
 	Sys_LoadDependency(xinputdllnames, &xinputdll_dll, xinputdllfuncs);
 #endif
 
-	Cmd_AddCommand(CF_CLIENT, "force_centerview", Force_CenterView_f, "recenters view (stops looking up/down)");
-	Cmd_AddCommand(CF_CLIENT, "vid_restart", VID_Restart_f, "restarts video system (closes and reopens the window, restarts renderer)");
+	Cmd_AddCommand("force_centerview", Force_CenterView_f, "recenters view (stops looking up/down)");
+	Cmd_AddCommand("vid_restart", VID_Restart_f, "restarts video system (closes and reopens the window, restarts renderer)");
+	{
+		void VID_ListModes_f(void);
+		Cmd_AddCommand("vid_listmodes", VID_ListModes_f, "list video modes [Zircon]");
+	}
 }
 
-// Baker r0005: Autoscale 360p
 float   yfactors;
 float    yfactor_mag_360;                    // output
 float    scale_width_360;
@@ -1448,10 +1890,10 @@ void scale_360_calc (void)
     scale_height_360 = vid.height * yfactor_mag_360;
 }
 
-
-static int VID_Mode(int fullscreen, int width, int height, int bpp, float refreshrate, int stereobuffer)
+static int VID_Mode(int fullscreen, int width, int height, int bpp, float refreshrate, int stereobuffer, int samples)
 {
 	viddef_mode_t mode;
+	char vabuf[1024];
 
 	memset(&mode, 0, sizeof(mode));
 	mode.fullscreen = fullscreen != 0;
@@ -1461,9 +1903,11 @@ static int VID_Mode(int fullscreen, int width, int height, int bpp, float refres
 	mode.refreshrate = vid_userefreshrate.integer ? max(1, refreshrate) : 0;
 	mode.userefreshrate = vid_userefreshrate.integer != 0;
 	mode.stereobuffer = stereobuffer != 0;
+	mode.samples = samples;
 	cl_ignoremousemoves = 2;
 	VID_ClearExtensions();
 
+	vid.samples = vid.mode.samples;
 	if (VID_InitMode(&mode))
 	{
 		// accept the (possibly modified) mode
@@ -1481,7 +1925,7 @@ static int VID_Mode(int fullscreen, int width, int height, int bpp, float refres
 
 		switch(vid.renderpath)
 		{
-		case RENDERPATH_GL32:
+		case RENDERPATH_GL20:
 #ifdef GL_STEREO
 			{
 				GLboolean stereo;
@@ -1500,38 +1944,38 @@ static int VID_Mode(int fullscreen, int width, int height, int bpp, float refres
 			(vid_sRGB_fallback.integer >= 3) // force fallback
 			||
 			(vid_sRGB_fallback.integer >= 2 && // fallback if framebuffer is 8bit
-				r_viewfbo.integer < 2)
+				!(r_viewfbo.integer >= 2 && vid.support.ext_framebuffer_object && vid.support.arb_texture_non_power_of_two && vid.samples < 2))
 		)
 			vid.sRGB2D = vid.sRGB3D = false;
 
-		Con_Printf("Video Mode: %s %dx%dx%dx%.2fhz%s\n", mode.fullscreen ? "fullscreen" : "window", mode.width, mode.height, mode.bitsperpixel, mode.refreshrate, mode.stereobuffer ? " stereo" : "");
+		if(vid.samples != vid.mode.samples)
+			Con_Printf("NOTE: requested %dx AA, got %dx AA\n", vid.mode.samples, vid.samples);
+
+		Con_Printf("Video Mode: %s %dx%dx%dx%.2fhz%s%s\n", mode.fullscreen ? "fullscreen" : "window", mode.width, mode.height, mode.bitsperpixel, mode.refreshrate, mode.stereobuffer ? " stereo" : "", mode.samples > 1 ? va(vabuf, sizeof(vabuf), " (%ix AA)", mode.samples) : "");
 
 		Cvar_SetValueQuick(&vid_fullscreen, vid.mode.fullscreen);
 
-		// Baker r0001 - ALT-ENTER support		 
+		 
 		if (vid_fullscreen.integer) {
-			Cvar_SetValueQuick(&vid_fullscreen_width, width);
-			Cvar_SetValueQuick(&vid_fullscreen_height, height);
+			Cvar_SetValueQuick(&vid_fullscreen_width, width); // Baker 2000
+			Cvar_SetValueQuick(&vid_fullscreen_height, height); // Baker 2000
 		} else {			
-			Cvar_SetValueQuick(&vid_window_width, width);
-			Cvar_SetValueQuick(&vid_window_height, height);
+			Cvar_SetValueQuick(&vid_window_width, width); // Baker 2000
+			Cvar_SetValueQuick(&vid_window_height, height); // Baker 2000
 		}
 
 		Cvar_SetValueQuick(&vid_width, vid.mode.width);
 		Cvar_SetValueQuick(&vid_height, vid.mode.height);
-		Cvar_SetValueQuick(&vid_bitsperpixel, vid.mode.bitsperpixel);
+		Cvar_SetValueQuick(&vid_bitsperpixel, vid.mode.bitsperpixel); 
 		Cvar_SetValueQuick(&vid_samples, vid.mode.samples);
 		if(vid_userefreshrate.integer)
 			Cvar_SetValueQuick(&vid_refreshrate, vid.mode.refreshrate);
 		Cvar_SetValueQuick(&vid_stereobuffer, vid.stereobuffer ? 1 : 0);
 
-		if (vid_touchscreen.integer) {
-			// Baker: Don't use the cvars
-			// although they get synced here
-			// and it makes no difference
-			// in this instance, it's still wrong
-			in_windowmouse_x = vid.mode.width / 2.f;
-			in_windowmouse_y = vid.mode.height / 2.f;
+		if (vid_touchscreen.integer)
+		{
+			in_windowmouse_x = vid.width / 2.f;
+			in_windowmouse_y = vid.height / 2.f;
 		}
 
 		return true;
@@ -1542,7 +1986,6 @@ static int VID_Mode(int fullscreen, int width, int height, int bpp, float refres
 
 static void VID_OpenSystems(void)
 {
-	Key_ReleaseAll();
 	R_Modules_Start();
 	S_Startup();
 }
@@ -1551,35 +1994,37 @@ static void VID_CloseSystems(void)
 {
 	S_Shutdown();
 	R_Modules_Shutdown();
-	Key_ReleaseAll();
 }
 
 qbool vid_commandlinecheck = true;
 extern qbool vid_opened;
 
-void VID_Restart_f(cmd_state_t *cmd)
+void VID_Restart_f(void)
 {
 	char vabuf[1024];
-
+	char vabuf2[1024];
 	// don't crash if video hasn't started yet
 	if (vid_commandlinecheck)
 		return;
 
-	Con_Printf("VID_Restart: changing from %s %dx%dx%dbpp%s, to %s %dx%dx%dbpp%s.\n",
-		vid.mode.fullscreen ? "fullscreen" : "window", vid.mode.width, vid.mode.height, vid.mode.bitsperpixel, vid.mode.fullscreen && vid.mode.userefreshrate ? va(vabuf, sizeof(vabuf), "x%.2fhz", vid.mode.refreshrate) : "",
-		vid_fullscreen.integer ? "fullscreen" : "window", vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_fullscreen.integer && vid_userefreshrate.integer ? va(vabuf, sizeof(vabuf), "x%.2fhz", vid_refreshrate.value) : "");
+	if (!vid_opened)
+	{
+		SCR_BeginLoadingPlaque(false);
+		return;
+	}
+
+	Con_Printf("VID_Restart: changing from %s %dx%dx%dbpp%s%s, to %s %dx%dx%dbpp%s%s.\n",
+		vid.mode.fullscreen ? "fullscreen" : "window", vid.mode.width, vid.mode.height, vid.mode.bitsperpixel, vid.mode.fullscreen && vid.mode.userefreshrate ? va(vabuf, sizeof(vabuf), "x%.2fhz", vid.mode.refreshrate) : "", vid.mode.samples > 1 ? va(vabuf2, sizeof(vabuf2), " (%ix AA)", vid.mode.samples) : "",
+		vid_fullscreen.integer ? "fullscreen" : "window", vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_fullscreen.integer && vid_userefreshrate.integer ? va(vabuf, sizeof(vabuf), "x%.2fhz", vid_refreshrate.value) : "", vid_samples.integer > 1 ? va(vabuf2, sizeof(vabuf2), " (%ix AA)", vid_samples.integer) : "");
 	VID_CloseSystems();
 	VID_Shutdown();
-	if (!VID_Mode(vid_fullscreen.integer, vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_refreshrate.value, vid_stereobuffer.integer))
+	if (!VID_Mode(vid_fullscreen.integer, vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_refreshrate.value, vid_stereobuffer.integer, vid_samples.integer))
 	{
 		Con_Print("Video mode change failed\n");
-		if (!VID_Mode(vid.mode.fullscreen, vid.mode.width, vid.mode.height, vid.mode.bitsperpixel, vid.mode.refreshrate, vid.mode.stereobuffer))
+		if (!VID_Mode(vid.mode.fullscreen, vid.mode.width, vid.mode.height, vid.mode.bitsperpixel, vid.mode.refreshrate, vid.mode.stereobuffer, vid.mode.samples))
 			Sys_Error("Unable to restore to last working video mode");
 	}
 
-	SCR_DeferLoadingPlaque(false);
-
-	// Baker r0005: Autoscale 360p
 	if (1) { // RESTORE
 		Cvar_SetValueQuick (&vid_conwidth,  scale_width_360);
 		Cvar_SetValueQuick (&vid_conheight, scale_height_360);
@@ -1597,39 +2042,32 @@ const char *vidfallbacks[][2] =
 	{"vid_userefreshrate", "0"},
 	{"vid_width", "640"},
 	{"vid_height", "480"},
-	{"vid_bitsperpixel", "32"},
+	{"vid_bitsperpixel", "16"},
 	{NULL, NULL}
 };
 
 // this is only called once by CL_StartVideo and again on each FS_GameDir_f
 void VID_Start(void)
 {
-	int i = 0;
-	int width, height, success;
+	int i, width, height, success;
 	if (vid_commandlinecheck)
 	{
 		// interpret command-line parameters
 		vid_commandlinecheck = false;
 // COMMANDLINEOPTION: Video: -window performs +vid_fullscreen 0
-		if (Sys_CheckParm("-window") || Sys_CheckParm("-safe") || ((i = Sys_CheckParm("+vid_fullscreen")) != 0 && atoi(sys.argv[i+1]) == 0))
+		if (Sys_CheckParm("-window") || Sys_CheckParm("-safe"))
 			Cvar_SetValueQuick(&vid_fullscreen, false);
-// COMMANDLINEOPTION: Video: -borderless performs +vid_borderless 1
-		if (Sys_CheckParm("-borderless") || ((i = Sys_CheckParm("+vid_borderless")) != 0 && atoi(sys.argv[i+1]) == 1))
-		{
-			Cvar_SetValueQuick(&vid_borderless, true);
-			Cvar_SetValueQuick(&vid_fullscreen, false);
-		}
 // COMMANDLINEOPTION: Video: -fullscreen performs +vid_fullscreen 1
-		if (Sys_CheckParm("-fullscreen") || ((i = Sys_CheckParm("+vid_fullscreen")) != 0 && atoi(sys.argv[i+1]) == 1))
+		if (Sys_CheckParm("-fullscreen"))
 			Cvar_SetValueQuick(&vid_fullscreen, true);
 		width = 0;
 		height = 0;
 // COMMANDLINEOPTION: Video: -width <pixels> performs +vid_width <pixels> and also +vid_height <pixels*3/4> if only -width is specified (example: -width 1024 sets 1024x768 mode)
-		if ((i = Sys_CheckParm("-width")) != 0 || ((i = Sys_CheckParm("+vid_width")) != 0))
-			width = atoi(sys.argv[i+1]);
+		if ((i = Sys_CheckParm("-width")) != 0)
+			width = atoi(com_argv[i+1]);
 // COMMANDLINEOPTION: Video: -height <pixels> performs +vid_height <pixels> and also +vid_width <pixels*4/3> if only -height is specified (example: -height 768 sets 1024x768 mode)
-		if ((i = Sys_CheckParm("-height")) != 0 || ((i = Sys_CheckParm("+vid_height")) != 0))
-			height = atoi(sys.argv[i+1]);
+		if ((i = Sys_CheckParm("-height")) != 0)
+			height = atoi(com_argv[i+1]);
 		if (width == 0)
 			width = height * 4 / 3;
 		if (height == 0)
@@ -1638,25 +2076,27 @@ void VID_Start(void)
 			Cvar_SetValueQuick(&vid_width, width);
 		if (height)
 			Cvar_SetValueQuick(&vid_height, height);
+// COMMANDLINEOPTION: Video: -bpp <bits> performs +vid_bitsperpixel <bits> (example -bpp 32 or -bpp 16)
+		if ((i = Sys_CheckParm("-bpp")) != 0)
+			Cvar_SetQuick(&vid_bitsperpixel, com_argv[i+1]);
 // COMMANDLINEOPTION: Video: -density <multiplier> performs +vid_touchscreen_density <multiplier> (example -density 1 or -density 1.5)
 		if ((i = Sys_CheckParm("-density")) != 0)
-			Cvar_SetQuick(&vid_touchscreen_density, sys.argv[i+1]);
+			Cvar_SetQuick(&vid_touchscreen_density, com_argv[i+1]);
 // COMMANDLINEOPTION: Video: -xdpi <dpi> performs +vid_touchscreen_xdpi <dpi> (example -xdpi 160 or -xdpi 320)
 		if ((i = Sys_CheckParm("-touchscreen_xdpi")) != 0)
-			Cvar_SetQuick(&vid_touchscreen_xdpi, sys.argv[i+1]);
+			Cvar_SetQuick(&vid_touchscreen_xdpi, com_argv[i+1]);
 // COMMANDLINEOPTION: Video: -ydpi <dpi> performs +vid_touchscreen_ydpi <dpi> (example -ydpi 160 or -ydpi 320)
 		if ((i = Sys_CheckParm("-touchscreen_ydpi")) != 0)
-			Cvar_SetQuick(&vid_touchscreen_ydpi, sys.argv[i+1]);
+			Cvar_SetQuick(&vid_touchscreen_ydpi, com_argv[i+1]);
 	}
 
-	success = VID_Mode(vid_fullscreen.integer, vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_refreshrate.value, vid_stereobuffer.integer);
-	if (!success)
-	{
+	success = VID_Mode(vid_fullscreen.integer, vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_refreshrate.value, vid_stereobuffer.integer, vid_samples.integer);
+	if (!success)  {
 		Con_Print("Desired video mode fail, trying fallbacks...\n");
 		for (i = 0;!success && vidfallbacks[i][0] != NULL;i++)
 		{
-			Cvar_Set(&cvars_all, vidfallbacks[i][0], vidfallbacks[i][1]);
-			success = VID_Mode(vid_fullscreen.integer, vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_refreshrate.value, vid_stereobuffer.integer);
+			Cvar_Set(vidfallbacks[i][0], vidfallbacks[i][1]);
+			success = VID_Mode(vid_fullscreen.integer, vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_refreshrate.value, vid_stereobuffer.integer, vid_samples.integer);
 		}
 		if (!success)
 			Sys_Error("Video modes failed");
@@ -1732,3 +2172,4 @@ size_t VID_SortModes(vid_mode_t *modes, size_t count, qbool usebpp, qbool useref
 	}
 	return count;
 }
+

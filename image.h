@@ -2,14 +2,8 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include <stddef.h>
-#include "qtypes.h"
-#include "cvar.h"
-#include "r_textures.h"
-
 extern int image_width, image_height;
 
-unsigned char *Image_GenerateNoTexture(void);
 
 // swizzle components (even converting number of components) and flip images
 // (warning: input must be different than output due to non-linear read/write)
@@ -30,9 +24,6 @@ unsigned char *LoadTGA_BGRA (const unsigned char *f, int filesize, int *miplevel
 
 // loads a texture, as pixel data
 unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool allowFixtrans, qbool convertsRGB, int *miplevel);
-
-// searches for lmp and wad pics of the provided name and returns true and their dimensions if found
-qbool Image_GetStockPicSize(const char *filename, int *returnwidth, int *returnheight);
 
 // loads an 8bit pcx image into a 296x194x8bit buffer, with cropping as needed
 qbool LoadPCX_QWSkin(const unsigned char *f, int filesize, unsigned char *pixels, int outwidth, int outheight);
@@ -61,7 +52,7 @@ void Image_MipReduce32(const unsigned char *in, unsigned char *out, int *width, 
 void Image_HeightmapToNormalmap_BGRA(const unsigned char *inpixels, unsigned char *outpixels, int width, int height, int clamp, float bumpscale);
 
 // console command to fix the colors of transparent pixels (to prevent weird borders)
-void Image_FixTransparentPixels_f(cmd_state_t *cmd);
+void Image_FixTransparentPixels_f(void);
 extern cvar_t r_fixtrans_auto;
 
 #define Image_LinearFloatFromsRGBFloat(c) (((c) <= 0.04045f) ? (c) * (1.0f / 12.92f) : (float)pow(((c) + 0.055f)*(1.0f/1.055f), 2.4f))

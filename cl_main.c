@@ -1,3 +1,5 @@
+// Baker: STAT_VIEWZOOM fix
+
 /*
 Copyright (C) 1996-1997 Id Software, Inc.
 
@@ -27,7 +29,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "r_shadow.h"
 #include "libcurl.h"
 #include "snd_main.h"
-#include "cdaudio.h"
 
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
@@ -36,7 +37,6 @@ cvar_t csqc_progname = {CF_CLIENT | CF_SERVER, "csqc_progname","csprogs.dat","na
 cvar_t csqc_progcrc = {CF_CLIENT | CF_READONLY, "csqc_progcrc","-1","CRC of csprogs.dat file to load (-1 is none), only used during level changes and then reset to -1"};
 cvar_t csqc_progsize = {CF_CLIENT | CF_READONLY, "csqc_progsize","-1","file size of csprogs.dat file to load (-1 is none), only used during level changes and then reset to -1"};
 cvar_t csqc_usedemoprogs = {CF_CLIENT, "csqc_usedemoprogs","1","use csprogs stored in demos"};
-cvar_t csqc_polygons_defaultmaterial_nocullface = {CF_CLIENT, "csqc_polygons_defaultmaterial_nocullface", "0", "use 'cull none' behavior in the default shader for rendering R_PolygonBegin - warning: enabling this is not consistent with FTEQW behavior on this feature"};
 
 cvar_t cl_shownet = {CF_CLIENT, "cl_shownet","0","1 = print packet size, 2 = print packet message list"};
 cvar_t cl_nolerp = {CF_CLIENT, "cl_nolerp", "0","network update smoothing"};
@@ -62,7 +62,8 @@ cvar_t cl_autodemo = {CF_CLIENT | CF_ARCHIVE, "cl_autodemo", "0", "records every
 cvar_t cl_autodemo_nameformat = {CF_CLIENT | CF_ARCHIVE, "cl_autodemo_nameformat", "autodemos/%Y-%m-%d_%H-%M", "The format of the cl_autodemo filename, followed by the map name (the date is encoded using strftime escapes)" };
 cvar_t cl_autodemo_delete = {CF_CLIENT, "cl_autodemo_delete", "0", "Delete demos after recording.  This is a bitmask, bit 1 gives the default, bit 0 the value for the current demo.  Thus, the values are: 0 = disabled; 1 = delete current demo only; 2 = delete all demos except the current demo; 3 = delete all demos from now on" };
 
-cvar_t r_skyfog = { CF_CLIENT, "r_skyfog", "0.5"," Controls how much the sky is obscured by the fog. 0 = sky is completely unfogged, 1 = sky is completely fogged.  [Zircon]" }; // Baker r1201: FitzQuake r_skyfog
+cvar_t r_skyfog = {CF_CLIENT, "r_skyfog", "0.5"," Controls how much the sky is obscured by the fog. 0 = sky is completely unfogged, 1 = sky is completely fogged.  [Zircon]"};
+
 cvar_t r_draweffects = {CF_CLIENT, "r_draweffects", "1","renders temporary sprite effects"};
 
 cvar_t cl_explosions_alpha_start = {CF_CLIENT | CF_ARCHIVE, "cl_explosions_alpha_start", "1.5","starting alpha of an explosion shell"};
@@ -89,12 +90,14 @@ cvar_t cl_dlights_decaybrightness = {CF_CLIENT | CF_ARCHIVE, "cl_dlights_decaybr
 cvar_t qport = {CF_CLIENT, "qport", "0", "identification key for playing on qw servers (allows you to maintain a connection to a quakeworld server even if your port changes)"};
 
 cvar_t cl_prydoncursor = {CF_CLIENT, "cl_prydoncursor", "0", "enables a mouse pointer which is able to click on entities in the world, useful for point and click mods, see PRYDON_CLIENTCURSOR extension in dpextensions.qc"};
-cvar_t cl_prydoncursor_notrace = {CF_CLIENT, "cl_prydoncursor_notrace", "1", "disables traceline used in prydon cursor reporting to the game, saving some cpu time [Zircon default]"}; // Baker r5002: This defaults to off, a value of 1.  There are no mods I know of that use this except Prydon Gate, I have seen no evidence that Xonotic uses it in the Xonotic QuakeC source nor any other DarkPlaces mods.
+cvar_t cl_prydoncursor_notrace = {CF_CLIENT, "cl_prydoncursor_notrace", "1", "disables traceline used in prydon cursor reporting to the game, saving some cpu time"};
 
 cvar_t cl_deathnoviewmodel = {CF_CLIENT, "cl_deathnoviewmodel", "1", "hides gun model when dead"};
 
 cvar_t cl_locs_enable = {CF_CLIENT | CF_ARCHIVE, "locs_enable", "1", "enables replacement of certain % codes in chat messages: %l (location), %d (last death location), %h (health), %a (armor), %x (rockets), %c (cells), %r (rocket launcher status), %p (powerup status), %w (weapon status), %t (current time in level)"};
 cvar_t cl_locs_show = {CF_CLIENT, "locs_show", "0", "shows defined locations for editing purposes"};
+
+cvar_t cl_maxphysicsframesperserverframe = {0, "cl_maxphysicsframesperserverframe","10", "maximum number of physics frames per server frame"};
 
 cvar_t cl_minfps = {CF_CLIENT | CF_ARCHIVE, "cl_minfps", "40", "minimum fps target - while the rendering performance is below this, it will drift toward lower quality"};
 cvar_t cl_minfps_fade = {CF_CLIENT | CF_ARCHIVE, "cl_minfps_fade", "1", "how fast the quality adapts to varying framerate"};
@@ -104,13 +107,11 @@ cvar_t cl_minfps_qualitymultiply = {CF_CLIENT | CF_ARCHIVE, "cl_minfps_qualitymu
 cvar_t cl_minfps_qualityhysteresis = {CF_CLIENT | CF_ARCHIVE, "cl_minfps_qualityhysteresis", "0.05", "reduce all quality increments by this to reduce flickering"};
 cvar_t cl_minfps_qualitystepmax = {CF_CLIENT | CF_ARCHIVE, "cl_minfps_qualitystepmax", "0.1", "maximum quality change in a single frame"};
 cvar_t cl_minfps_force = {CF_CLIENT, "cl_minfps_force", "0", "also apply quality reductions in timedemo/capturevideo"};
-cvar_t cl_maxfps = {CF_CLIENT | CF_ARCHIVE, "cl_maxfps", "144", "maximum fps cap, 0 = unlimited, if game is running faster than this it will wait before running another frame (useful to make cpu time available to other programs)"};  // Baker r5001: laptop battery/cooling fan nice defaults, that means cl_maxfps 144, 800 fps does a laptop no favors.
-cvar_t cl_maxfps_alwayssleep = {CF_CLIENT | CF_ARCHIVE, "cl_maxfps_alwayssleep","1", "gives up some processing time to other applications each frame, value in milliseconds, disabled if cl_maxfps is 0"};
+cvar_t cl_maxfps = {CF_CLIENT | CF_ARCHIVE, "cl_maxfps", "144", "maximum fps cap, 0 = unlimited, if game is running faster than this it will wait before running another frame (useful to make cpu time available to other programs) [Zircon default]"};
+cvar_t cl_maxfps_alwayssleep = {CF_CLIENT, "cl_maxfps_alwayssleep","1", "gives up some processing time to other applications each frame, value in milliseconds, disabled if cl_maxfps is 0"}; // SEPUS no
 cvar_t cl_maxidlefps = {CF_CLIENT | CF_ARCHIVE, "cl_maxidlefps", "20", "maximum fps cap when the game is not the active window (makes cpu time available to other programs"};
-
-cvar_t cl_areagrid_link_SOLID_NOT = {CF_CLIENT, "cl_areagrid_link_SOLID_NOT", "1", "set to 0 to prevent SOLID_NOT entities from being linked to the area grid, and unlink any that are already linked (in the code paths that would otherwise link them), for better performance"};
-cvar_t cl_gameplayfix_nudgeoutofsolid_separation = {CF_CLIENT, "cl_gameplayfix_nudgeoutofsolid_separation", "0.03125", "keep objects this distance apart to prevent collision issues on seams"};
-
+cvar_t cl_maxconsole_menu_fps = {CF_CLIENT, "cl_maxconsole_menu_fps", "72", "maximum fps cap when console is up or menu is up and not hosting a game [Zircon]"}; // Baker 1017.1
+extern cvar_t r_viewmodel_ring_alpha;
 
 client_static_t	cls;
 client_state_t	cl;
@@ -144,17 +145,17 @@ void CL_ClearState(void)
 	cl.csqc_vidvars.drawcrosshair = true;
 
 	// set up the float version of the stats array for easier access to float stats
-	cl.statsf = (float *)cl.stats;
+	cl.statsf_sv = (float *)cl.stats_sv;
 
 	cl.num_entities = 0;
 	cl.num_static_entities = 0;
 	cl.num_brushmodel_entities = 0;
 
-	cl.stats[STAT_VIEWZOOM] = 255; // Baker r9001: Avoid zoom effect in Quake by correctly reseting cl viewzoom field
+	cl.stats_sv[STAT_VIEWZOOM] = 255; // Baker 1006
 
 	// tweak these if the game runs out
 	cl.max_csqcrenderentities = 0;
-	cl.max_entities = MAX_ENTITIES_INITIAL;
+	cl.max_entities = MAX_ENITIES_INITIAL;
 	cl.max_static_entities = MAX_STATICENTITIES;
 	cl.max_effects = MAX_EFFECTS;
 	cl.max_beams = MAX_BEAMS;
@@ -162,6 +163,7 @@ void CL_ClearState(void)
 	cl.max_lightstyle = MAX_LIGHTSTYLES;
 	cl.max_brushmodel_entities = MAX_EDICTS;
 	cl.max_particles = MAX_PARTICLES_INITIAL; // grows dynamically
+	cl.max_decals = MAX_DECALS_INITIAL; // grows dynamically
 	cl.max_showlmps = 0;
 
 	cl.num_dlights = 0;
@@ -178,6 +180,7 @@ void CL_ClearState(void)
 	cl.lightstyle = (lightstyle_t *)Mem_Alloc(cls.levelmempool, cl.max_lightstyle * sizeof(lightstyle_t));
 	cl.brushmodel_entities = (int *)Mem_Alloc(cls.levelmempool, cl.max_brushmodel_entities * sizeof(int));
 	cl.particles = (particle_t *) Mem_Alloc(cls.levelmempool, cl.max_particles * sizeof(particle_t));
+	cl.decals = (decal_t *) Mem_Alloc(cls.levelmempool, cl.max_decals * sizeof(decal_t));
 	cl.showlmps = NULL;
 
 	// LadyHavoc: have to set up the baseline info for alpha and other stuff
@@ -228,9 +231,6 @@ void CL_ClearState(void)
 	CL_Screen_NewMap();
 }
 
-extern cvar_t cl_topcolor;
-extern cvar_t cl_bottomcolor;
-
 void CL_SetInfo(const char *key, const char *value, qbool send, qbool allowstarkey, qbool allowmodel, qbool quiet)
 {
 	int i;
@@ -238,7 +238,7 @@ void CL_SetInfo(const char *key, const char *value, qbool send, qbool allowstark
 	char vabuf[1024];
 	if (!allowstarkey && key[0] == '*')
 		fail = true;
-	if (!allowmodel && (!strcasecmp(key, "pmodel") || !strcasecmp(key, "emodel")))
+	if (!allowmodel && (String_Does_Match_Caseless(key, "pmodel") || String_Does_Match_Caseless(key, "emodel")))
 		fail = true;
 	for (i = 0;key[i];i++)
 		if (ISWHITESPACE(key[i]) || key[i] == '\"')
@@ -260,37 +260,35 @@ void CL_SetInfo(const char *key, const char *value, qbool send, qbool allowstark
 			MSG_WriteByte(&cls.netcon->message, qw_clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "setinfo \"%s\" \"%s\"", key, value));
 		}
-		else if (!strcasecmp(key, "name"))
+		else if (String_Does_Match_Caseless(key, "name"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "name \"%s\"", value));
 		}
-		else if (!strcasecmp(key, "playermodel"))
+		else if (String_Does_Match_Caseless(key, "playermodel"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "playermodel \"%s\"", value));
 		}
-		else if (!strcasecmp(key, "playerskin"))
+		else if (String_Does_Match_Caseless(key, "playerskin"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "playerskin \"%s\"", value));
 		}
-		else if (!strcasecmp(key, "topcolor"))
+		else if (String_Does_Match_Caseless(key, "topcolor"))
 		{
-			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
-			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "color %i %i", atoi(value), cl_bottomcolor.integer));
+			// don't send anything, the combined color code will be updated manually
 		}
-		else if (!strcasecmp(key, "bottomcolor"))
+		else if (String_Does_Match_Caseless(key, "bottomcolor"))
 		{
-			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
-			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "color %i %i", cl_topcolor.integer, atoi(value)));
+			// don't send anything, the combined color code will be updated manually
 		}
-		else if (!strcasecmp(key, "rate"))
+		else if (String_Does_Match_Caseless(key, "rate"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "rate \"%s\"", value));
 		}
-		else if (!strcasecmp(key, "rate_burstsize"))
+		else if (String_Does_Match_Caseless(key, "rate_burstsize"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "rate_burstsize \"%s\"", value));
@@ -347,18 +345,6 @@ void CL_ExpandCSQCRenderEntities(int num)
 	}
 }
 
-static void CL_ToggleMenu_Hook(void)
-{
-#ifdef CONFIG_MENU
-	// remove menu
-	if (key_dest == key_menu || key_dest == key_menu_grabbed)
-		MR_ToggleMenu(0);
-#endif
-	key_dest = key_game;
-}
-
-extern cvar_t rcon_secure;
-
 /*
 =====================
 CL_Disconnect
@@ -367,22 +353,10 @@ Sends a disconnect message to the server
 This is also called on Host_Error, so it shouldn't cause any errors
 =====================
 */
-
-void CL_DisconnectEx(qbool kicked, const char *fmt, ... )
+void CL_Disconnect(void)
 {
-	va_list argptr;
-	char reason[512];
-
 	if (cls.state == ca_dedicated)
 		return;
-
-	if (fmt) {
-		va_start(argptr,fmt);
-		dpvsnprintf(reason,sizeof(reason),fmt,argptr);
-		va_end(argptr);
-	} else {
-		dpsnprintf(reason, sizeof(reason), "Disconnect by user");
-	}
 
 	if (Sys_CheckParm("-profilegameonly"))
 		Sys_AllowProfiling(false);
@@ -391,13 +365,11 @@ void CL_DisconnectEx(qbool kicked, const char *fmt, ... )
 
 	Con_DPrintf("CL_Disconnect\n");
 
-	Cvar_SetValueQuick(&csqc_progcrc, -1);
+    Cvar_SetValueQuick(&csqc_progcrc, -1);
 	Cvar_SetValueQuick(&csqc_progsize, -1);
 	CL_VM_ShutDown();
-	// stop sounds (especially looping!)
-	S_StopAllSounds();
-	// prevent dlcache assets from this server from interfering with the next one
-	FS_UnloadPacks_dlcache();
+// stop sounds (especially looping!)
+	S_StopAllSounds ();
 
 	cl.parsingtextexpectingpingforscores = 0; // just in case no reply has come yet
 
@@ -416,147 +388,44 @@ void CL_DisconnectEx(qbool kicked, const char *fmt, ... )
 	else if (cls.netcon)
 	{
 		sizebuf_t buf;
-		unsigned char bufdata[520];
+		unsigned char bufdata[8];
 		if (cls.demorecording)
-			CL_Stop_f(cmd_local);
+			CL_Stop_f();
 
-		if(!kicked)
+		// send disconnect message 3 times to improve chances of server
+		// receiving it (but it still fails sometimes)
+		memset(&buf, 0, sizeof(buf));
+		buf.data = bufdata;
+		buf.maxsize = sizeof(bufdata);
+		if (cls.protocol == PROTOCOL_QUAKEWORLD)
 		{
-			// send disconnect message 3 times to improve chances of server
-			// receiving it (but it still fails sometimes)
-			memset(&buf, 0, sizeof(buf));
-			buf.data = bufdata;
-			buf.maxsize = sizeof(bufdata);
-			if (cls.protocol == PROTOCOL_QUAKEWORLD)
-			{
-				Con_DPrint("Sending drop command\n");
-				MSG_WriteByte(&buf, qw_clc_stringcmd);
-				MSG_WriteString(&buf, "drop");
-			}
-			else
-			{
-				Con_DPrint("Sending clc_disconnect\n");
-				MSG_WriteByte(&buf, clc_disconnect);
-				if(cls.protocol == PROTOCOL_DARKPLACES8)
-					MSG_WriteString(&buf, reason);
-			}
-			NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, 0, false);
-			NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, 0, false);
-			NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, 0, false);
+			Con_DPrint("Sending drop command\n");
+			MSG_WriteByte(&buf, qw_clc_stringcmd);
+			MSG_WriteString(&buf, "drop");
 		}
-
+		else
+		{
+			Con_DPrint("Sending clc_disconnect\n");
+			MSG_WriteByte(&buf, clc_disconnect);
+		}
+		NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, 0, false);
+		NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, 0, false);
+		NetConn_SendUnreliableMessage(cls.netcon, &buf, cls.protocol, 10000, 0, false);
 		NetConn_Close(cls.netcon);
 		cls.netcon = NULL;
-		if(fmt)
-			Con_Printf("Disconnect: %s\n", reason);
-		else
-			Con_Printf("Disconnected\n");
 	}
 	cls.state = ca_disconnected;
 	cl.islocalgame = false;
 
-	cls.demoplayback = cls.timedemo = host.restless = false;
+	cls.demoplayback = cls.timedemo = false;
 	cls.signon = 0;
-
-	Cvar_Callback(&cl_netport);
-
-	// If we're dropped mid-connection attempt, it won't clear otherwise.
-	SCR_ClearLoadingScreen(false);
-
-	if(host.hook.SV_Shutdown)
-		host.hook.SV_Shutdown();
 }
 
-void CL_Disconnect(void)
+void CL_Disconnect_f(void)
 {
-	CL_DisconnectEx(false, NULL);
-}
-
-/*
-==================
-CL_Reconnect_f
-
-This command causes the client to wait for the signon messages again.
-This is sent just before a server changes levels
-==================
-*/
-static void CL_Reconnect_f(cmd_state_t *cmd)
-{
-	char temp[128];
-	// if not connected, reconnect to the most recent server
-	if (!cls.netcon)
-	{
-		// if we have connected to a server recently, the userinfo
-		// will still contain its IP address, so get the address...
-		InfoString_GetValue(cls.userinfo, "*ip", temp, sizeof(temp));
-		if (temp[0])
-			CL_EstablishConnection(temp, -1);
-		else
-			Con_Printf("Reconnect to what server?  (you have not connected to a server yet)\n");
-		return;
-	}
-
-	Con_CloseConsole_If_Client(); // Baker r1003: close console for map/load/etc.
-
-	// if connected, do something based on protocol
-	if (cls.protocol == PROTOCOL_QUAKEWORLD)
-	{
-		// quakeworld can just re-login
-		if (cls.qw_downloadmemory)  // don't change when downloading
-			return;
-
-		S_StopAllSounds();
-
-		if (cls.state == ca_connected)
-		{
-			Con_Printf("Server is changing level...\n");
-			MSG_WriteChar(&cls.netcon->message, qw_clc_stringcmd);
-			MSG_WriteString(&cls.netcon->message, "new");
-		}
-	}
-	else
-	{
-		// netquake uses reconnect on level changes (silly)
-		if (Cmd_Argc(cmd) != 1)
-		{
-			Con_Print("reconnect : wait for signon messages again\n");
-			return;
-		}
-		if (!cls.signon)
-		{
-			Con_Print("reconnect: no signon, ignoring reconnect\n");
-			return;
-		}
-		cls.signon = 0;		// need new connection messages
-	}
-}
-
-/*
-=====================
-CL_Connect_f
-
-User command to connect to server
-=====================
-*/
-static void CL_Connect_f(cmd_state_t *cmd)
-{
-	if (Cmd_Argc(cmd) < 2)
-	{
-		Con_Print("connect <serveraddress> [<key> <value> ...]: connect to a multiplayer game\n");
-		return;
-	}
-
-	Con_CloseConsole_If_Client(); // Baker r1003: close console for map/load/etc.
-
-	// clear the rcon password, to prevent vulnerability by stuffcmd-ing a connect command
-	if(rcon_secure.integer <= 0)
-		Cvar_SetQuick(&rcon_password, "");
-	CL_EstablishConnection(Cmd_Argv(cmd, 1), 2);
-}
-
-void CL_Disconnect_f(cmd_state_t *cmd)
-{
-	Cmd_Argc(cmd) < 1 ? CL_Disconnect() : CL_DisconnectEx(false, Cmd_Argv(cmd, 1));
+	CL_Disconnect ();
+	if (sv.active)
+		Host_ShutdownServer ();
 }
 
 
@@ -569,7 +438,7 @@ CL_EstablishConnection
 Host should be either "local" or a net address
 =====================
 */
-void CL_EstablishConnection(const char *address, int firstarg)
+void CL_EstablishConnection(const char *host, int firstarg)
 {
 	if (cls.state == ca_dedicated)
 		return;
@@ -582,11 +451,19 @@ void CL_EstablishConnection(const char *address, int firstarg)
 #ifdef CONFIG_MENU
 	M_Update_Return_Reason("");
 #endif
+	cls.demonum = -1;
+
+	// stop demo loop in case this fails
+	if (cls.demoplayback)
+		CL_StopPlayback();
+
+	// if downloads are running, cancel their finishing action
+	Curl_Clear_forthismap();
 
 	// make sure the client ports are open before attempting to connect
 	NetConn_UpdateSockets();
 
-	if (LHNETADDRESS_FromString(&cls.connect_address, address, 26000) && (cls.connect_mysocket = NetConn_ChooseClientSocketForAddress(&cls.connect_address)))
+	if (LHNETADDRESS_FromString(&cls.connect_address, host, 26000) && (cls.connect_mysocket = NetConn_ChooseClientSocketForAddress(&cls.connect_address)))
 	{
 		cls.connect_trying = true;
 		cls.connect_remainingtries = 3;
@@ -597,8 +474,8 @@ void CL_EstablishConnection(const char *address, int firstarg)
 		{
 			int i;
 			*cls.connect_userinfo = 0;
-			for(i = firstarg; i+2 <= Cmd_Argc(cmd_local); i += 2)
-				InfoString_SetValue(cls.connect_userinfo, sizeof(cls.connect_userinfo), Cmd_Argv(cmd_local, i), Cmd_Argv(cmd_local, i+1));
+			for(i = firstarg; i+2 <= Cmd_Argc(); i += 2)
+				InfoString_SetValue(cls.connect_userinfo, sizeof(cls.connect_userinfo), Cmd_Argv(i), Cmd_Argv(i+1));
 		}
 		else if(firstarg < -1)
 		{
@@ -610,26 +487,15 @@ void CL_EstablishConnection(const char *address, int firstarg)
 #ifdef CONFIG_MENU
 		M_Update_Return_Reason("Trying to connect...");
 #endif
-		SCR_BeginLoadingPlaque(false);
+		SCR_BeginLoadingPlaque (false);
 	}
 	else
 	{
-		Con_Print("Unable to find a suitable network socket to connect to server.\n");
+		Con_PrintLinef ("Unable to find a suitable network socket to connect to server.");
 #ifdef CONFIG_MENU
 		M_Update_Return_Reason("No network");
 #endif
 	}
-}
-
-static void CL_EstablishConnection_Local(void)
-{
-	if(cls.state == ca_disconnected)
-		CL_EstablishConnection("local:1", -2);
-}
-
-static qbool CL_Intermission(void)
-{
-	return cl.intermission;
 }
 
 /*
@@ -637,7 +503,7 @@ static qbool CL_Intermission(void)
 CL_PrintEntities_f
 ==============
 */
-static void CL_PrintEntities_f(cmd_state_t *cmd)
+static void CL_PrintEntities_f(void)
 {
 	entity_t *ent;
 	int i;
@@ -653,7 +519,7 @@ static void CL_PrintEntities_f(cmd_state_t *cmd)
 			modelname = ent->render.model->model_name;
 		else
 			modelname = "--no model--";
-		Con_Printf("%3i: %-25s:%4i (%5i %5i %5i) [%3i %3i %3i] %4.2f %5.3f\n", i, modelname, ent->render.framegroupblend[0].frame, (int) ent->state_current.origin[0], (int) ent->state_current.origin[1], (int) ent->state_current.origin[2], (int) ent->state_current.angles[0] % 360, (int) ent->state_current.angles[1] % 360, (int) ent->state_current.angles[2] % 360, ent->render.scale, ent->render.alpha);
+		Con_PrintLinef ("%3d: %-25s:%4d (%5d %5d %5d) [%3d %3d %3d] %4.2f %5.3f", i, modelname, ent->render.framegroupblend[0].frame, (int) ent->state_current.origin[0], (int) ent->state_current.origin[1], (int) ent->state_current.origin[2], (int) ent->state_current.angles[0] % 360, (int) ent->state_current.angles[1] % 360, (int) ent->state_current.angles[2] % 360, ent->render.scale, ent->render.alpha);
 	}
 }
 
@@ -664,7 +530,7 @@ CL_ModelIndexList_f
 List information on all models in the client modelindex
 ===============
 */
-static void CL_ModelIndexList_f(cmd_state_t *cmd)
+static void CL_ModelIndexList_f(void)
 {
 	int i;
 	model_t *model;
@@ -678,9 +544,9 @@ static void CL_ModelIndexList_f(cmd_state_t *cmd)
 		if (!model)
 			continue;
 		if(model->loaded || i == 1)
-			Con_Printf("%3i: %-30s %-8s %-10i\n", i, model->model_name, model->modeldatatypestring, model->surfmesh.num_triangles);
+			Con_PrintLinef ("%3d: %-30s %-8s %-10d", i, model->model_name, model->modeldatatypestring, model->surfmesh.num_triangles);
 		else
-			Con_Printf("%3i: %-30s %-30s\n", i, model->model_name, "--no local model found--");
+			Con_PrintLinef ("%3d: %-30s %-30s", i, model->model_name, "--no local model found--");
 		i++;
 	}
 }
@@ -692,7 +558,7 @@ CL_SoundIndexList_f
 List all sounds in the client soundindex
 ===============
 */
-static void CL_SoundIndexList_f(cmd_state_t *cmd)
+static void CL_SoundIndexList_f(void)
 {
 	int i = 1;
 
@@ -824,20 +690,20 @@ entity_render_t *CL_NewTempEntity(double shadertime)
 	return render;
 }
 
-void CL_Effect(vec3_t org, model_t *model, int startframe, int framecount, float framerate)
+void CL_Effect(vec3_t org, int modelindex, int startframe, int framecount, float framerate)
 {
 	int i;
 	cl_effect_t *e;
-	if (!model) // sanity check
+	if (!modelindex) // sanity check
 		return;
 	if (framerate < 1)
 	{
-		Con_Printf("CL_Effect: framerate %f is < 1\n", framerate);
+		Con_DPrintf("CL_Effect: framerate %f is < 1\n", framerate); // SEPuS
 		return;
 	}
 	if (framecount < 1)
 	{
-		Con_Printf("CL_Effect: framecount %i is < 1\n", framecount);
+		Con_DPrintf("CL_Effect: framecount %i is < 1\n", framecount); // SEPuS
 		return;
 	}
 	for (i = 0, e = cl.effects;i < cl.max_effects;i++, e++)
@@ -846,7 +712,7 @@ void CL_Effect(vec3_t org, model_t *model, int startframe, int framecount, float
 			continue;
 		e->active = true;
 		VectorCopy(org, e->origin);
-		e->model = model;
+		e->modelindex = modelindex;
 		e->starttime = cl.time;
 		e->startframe = startframe;
 		e->endframe = startframe + framecount;
@@ -860,7 +726,7 @@ void CL_Effect(vec3_t org, model_t *model, int startframe, int framecount, float
 	}
 }
 
-void CL_AllocLightFlash(entity_render_t *ent, matrix4x4_t *matrix, float radius, float red, float green, float blue, float decay, float lifetime, char *cubemapname, int style, int shadowenable, vec_t corona, vec_t coronasizescale, vec_t ambientscale, vec_t diffusescale, vec_t specularscale, int flags)
+void CL_AllocLightFlash(entity_render_t *ent, matrix4x4_t *matrix, float radius, float red, float green, float blue, float decay, float lifetime, int cubemapnum, int style, int shadowenable, vec_t corona, vec_t coronasizescale, vec_t ambientscale, vec_t diffusescale, vec_t specularscale, int flags)
 {
 	int i;
 	dlight_t *dl;
@@ -897,9 +763,10 @@ void CL_AllocLightFlash(entity_render_t *ent, matrix4x4_t *matrix, float radius,
 		dl->die = cl.time + lifetime;
 	else
 		dl->die = 0;
-	dl->cubemapname[0] = 0;
-	if (cubemapname && cubemapname[0])
-		strlcpy(dl->cubemapname, cubemapname, sizeof(dl->cubemapname));
+	if (cubemapnum > 0)
+		dpsnprintf(dl->cubemapname, sizeof(dl->cubemapname), "cubemaps/%i", cubemapnum);
+	else
+		dl->cubemapname[0] = 0;
 	dl->style = style;
 	dl->shadow = shadowenable;
 	dl->corona = corona;
@@ -1232,7 +1099,7 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 		// if model is alias or this is a tenebrae-like dlight, reverse pitch direction
 		if (e->render.model->type == mod_alias)
 			angles[0] = -angles[0];
-		if ((e->render.effects & EF_SELECTABLE) && cl.cmd.cursor_entitynumber == e->state_current.number)
+		if (Have_Flag(e->render.effects, EF_SELECTABLE) && cl.cmd.cursor_entitynumber == e->state_current.number)
 		{
 			VectorScale(e->render.colormod, 2, e->render.colormod);
 			VectorScale(e->render.glowmod, 2, e->render.glowmod);
@@ -1316,7 +1183,7 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 	if (e->state_current.number == cl.viewentity)
 		e->render.crflags |= RENDER_EXTERIORMODEL;
 	// either fullbright or lit
-	if(!r_fullbright.integer /*0*/ && r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->lit) // Baker r1002: Proper Quake behavior for Q1BSP maps with no light data -- all entities in map render fullbright.
+	if(!r_fullbright.integer)
 	{
 		if (!(e->render.effects & EF_FULLBRIGHT))
 			e->render.crflags |= RENDER_LIGHT;
@@ -1468,13 +1335,10 @@ static void CL_UpdateNetworkCollisionEntities(void)
 
 	// start on the entity after the world
 	cl.num_brushmodel_entities = 0;
-	for (i = cl.maxclients + 1;i < cl.num_entities;i++)
-	{
-		if (cl.entities_active[i])
-		{
+	for (i = cl.maxclients + 1;i < cl.num_entities;i++) {
+		if (cl.entities_active[i]) {
 			ent = cl.entities + i;
-			if (ent->state_current.active && ent->render.model && ent->render.model->model_name[0] == '*' && ent->render.model->TraceBox)
-			{
+			if (ent->state_current.active && ent->render.model && ent->render.model->model_name[0] == '*' && ent->render.model->TraceBox) {
 				// do not interpolate the bmodels for this
 				CL_UpdateNetworkEntity(ent, 32, false);
 				cl.brushmodel_entities[cl.num_brushmodel_entities++] = i;
@@ -1524,19 +1388,25 @@ static void CL_UpdateViewModel(void)
 	ent->state_current.time = cl.time;
 	ent->state_current.number = (unsigned short)-1;
 	ent->state_current.active = true;
-	ent->state_current.modelindex = cl.stats[STAT_WEAPON];
-	ent->state_current.frame = cl.stats[STAT_WEAPONFRAME];
+	ent->state_current.modelindex = cl.stats_sv[STAT_WEAPON];
+	ent->state_current.frame = cl.stats_sv[STAT_WEAPONFRAME];
 	ent->state_current.flags = RENDER_VIEWMODEL;
-	if ((cl.stats[STAT_HEALTH] <= 0 && cl_deathnoviewmodel.integer) || cl.intermission)
+	if ((cl.stats_sv[STAT_HEALTH] <= 0 && cl_deathnoviewmodel.integer) || cl.intermission)
 		ent->state_current.modelindex = 0;
-	else if (cl.stats[STAT_ITEMS] & IT_INVISIBILITY)
+	else if (cl.stats_sv[STAT_ITEMS] & IT_INVISIBILITY)
 	{
-		if (gamemode == GAME_TRANSFUSION)
+		
+		if (r_viewmodel_ring_alpha.value) {
+			ent->state_current.alpha = (byte)(r_viewmodel_ring_alpha.value * 255.0); // IIX
+			goto skip;
+		} else if (gamemode == GAME_TRANSFUSION) {
 			ent->state_current.alpha = 128;
-		else
+		} else {
 			ent->state_current.modelindex = 0;
+		}
 	}
 	ent->state_current.alpha = cl.entities[cl.viewentity].state_current.alpha;
+skip:
 	ent->state_current.effects = EF_NOSHADOW | (cl.entities[cl.viewentity].state_current.effects & (EF_ADDITIVE | EF_FULLBRIGHT | EF_NODEPTHTEST | EF_NOGUNBOB));
 
 	// reset animation interpolation on weaponmodel if model changed
@@ -1593,7 +1463,7 @@ static void CL_LinkNetworkEntity(entity_t *e)
 	dlightcolor[1] = 0;
 	dlightcolor[2] = 0;
 	// LadyHavoc: if the entity has no effects, don't check each
-	if (e->render.effects & (EF_BRIGHTFIELD | EF_DIMLIGHT | EF_BRIGHTLIGHT | EF_RED | EF_BLUE | EF_FLAME | EF_STARDUST))
+	if (e->render.effects & (EF_BRIGHTFIELD | EF_DIMLIGHT | EF_BRIGHTLIGHT | EF_RED | EF_BLUE | EF_FLAME | EF_STARDUST)) 
 	{
 		if (e->render.effects & EF_BRIGHTFIELD)
 		{
@@ -1642,7 +1512,7 @@ static void CL_LinkNetworkEntity(entity_t *e)
 		trace_t trace;
 		matrix4x4_t tempmatrix;
 		Matrix4x4_Transform(&e->render.matrix, muzzleflashorigin, v2);
-		trace = CL_TraceLine(origin, v2, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
+		trace = CL_TraceLine(origin, v2, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, collision_extendmovelength.value, true, false, NULL, false, false);
 		Matrix4x4_Normalize(&tempmatrix, &e->render.matrix);
 		Matrix4x4_SetOrigin(&tempmatrix, trace.endpos[0], trace.endpos[1], trace.endpos[2]);
 		Matrix4x4_Scale(&tempmatrix, 150, 1);
@@ -1697,8 +1567,7 @@ static void CL_LinkNetworkEntity(entity_t *e)
 		r_refdef.scene.lights[r_refdef.scene.numlights] = &r_refdef.scene.templights[r_refdef.scene.numlights];r_refdef.scene.numlights++;
 	}
 	// make the glow dlight
-	else if (dlightradius > 0 && (dlightcolor[0] || dlightcolor[1] || dlightcolor[2]) && !(e->render.crflags & RENDER_VIEWMODEL) && r_refdef.scene.numlights < MAX_DLIGHTS)
-	{
+	else if ( dlightradius > 0 && (dlightcolor[0] || dlightcolor[1] || dlightcolor[2]) && !(e->render.crflags & RENDER_VIEWMODEL) && r_refdef.scene.numlights < MAX_DLIGHTS) {
 		matrix4x4_t dlightmatrix;
 		Matrix4x4_Normalize(&dlightmatrix, &e->render.matrix);
 		// hack to make glowing player light shine on their gun
@@ -1709,7 +1578,7 @@ static void CL_LinkNetworkEntity(entity_t *e)
 		r_refdef.scene.lights[r_refdef.scene.numlights] = &r_refdef.scene.templights[r_refdef.scene.numlights];r_refdef.scene.numlights++;
 	}
 	// do trail light
-	if (e->render.crflags & RENDER_GLOWTRAIL)
+	if (Have_Flag (e->render.crflags, RENDER_GLOWTRAIL))
 		trailtype = EFFECT_TR_GLOWTRAIL;
 	if (e->state_current.traileffectnum)
 		trailtype = (effectnameindex_t)e->state_current.traileffectnum;
@@ -1730,7 +1599,7 @@ static void CL_RelinkWorld(void)
 	// FIXME: this should be done at load
 	ent->render.matrix = identitymatrix;
 	ent->render.crflags = RENDER_SHADOW;
-	if (!r_fullbright.integer /*0*/ && r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->lit) // Baker r1002: Proper Quake behavior for Q1BSP maps with no light data -- all entities in map render fullbright.
+	if (!r_fullbright.integer)
 		ent->render.crflags |= RENDER_LIGHT;
 	VectorSet(ent->render.colormod, 1, 1, 1);
 	VectorSet(ent->render.glowmod, 1, 1, 1);
@@ -1755,7 +1624,7 @@ static void CL_RelinkStaticEntities(void)
 		// need to re-fetch the model pointer
 		e->render.model = CL_GetModelByIndex(e->state_baseline.modelindex);
 		// either fullbright or lit
-		if(!r_fullbright.integer /*0*/ && r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->lit) // Baker r1002: Proper Quake behavior for Q1BSP maps with no light data -- all entities in map render fullbright.
+		if(!r_fullbright.integer)
 		{
 			if (!(e->render.effects & EF_FULLBRIGHT))
 				e->render.crflags |= RENDER_LIGHT;
@@ -1846,7 +1715,7 @@ static void CL_RelinkEffects(void)
 				}
 
 				// normal stuff
-				entrender->model = e->model;
+				entrender->model = CL_GetModelByIndex(e->modelindex);
 				entrender->alpha = 1;
 				VectorSet(entrender->colormod, 1, 1, 1);
 				VectorSet(entrender->glowmod, 1, 1, 1);
@@ -1926,10 +1795,7 @@ void CL_RelinkBeams(void)
 				r_refdef.scene.lights[r_refdef.scene.numlights] = &r_refdef.scene.templights[r_refdef.scene.numlights];r_refdef.scene.numlights++;
 			}
 			if (cl_beams_polygons.integer)
-			{
-				CL_Beam_AddPolygons(b);
 				continue;
-			}
 		}
 
 		// calculate pitch and yaw
@@ -2032,12 +1898,9 @@ void CSQC_RelinkAllEntities (int drawmask)
 {
 	// link stuff
 	CL_RelinkWorld();
-	// the scene mesh is added first for easier debugging (consistent spot in render entities list)
-	CL_MeshEntities_Scene_AddRenderEntity();
 	CL_RelinkStaticEntities();
 	CL_RelinkBeams();
 	CL_RelinkEffects();
-	CL_RelinkLightFlashes();
 
 	// link stuff
 	if (drawmask & ENTMASK_ENGINE)
@@ -2098,14 +1961,8 @@ void CL_UpdateWorld(void)
 		// update the engine-based viewmodel
 		CL_UpdateViewModel();
 
-		// when csqc is loaded, it will call this in CSQC_UpdateView
-		if (!cl.csqc_loaded)
-		{
-			// clear the CL_Mesh_Scene() used for some engine effects
-			CL_MeshEntities_Scene_Clear();
-			// add engine entities and effects
-			CSQC_RelinkAllEntities(ENTMASK_ENGINE | ENTMASK_ENGINEVIEWMODELS);
-		}
+		CL_RelinkLightFlashes();
+		CSQC_RelinkAllEntities(ENTMASK_ENGINE | ENTMASK_ENGINEVIEWMODELS);
 
 		// decals, particles, and explosions will be updated during rneder
 	}
@@ -2113,34 +1970,45 @@ void CL_UpdateWorld(void)
 	r_refdef.scene.time = cl.time;
 }
 
+// LadyHavoc: pausedemo command
+static void CL_PauseDemo_f (void)
+{
+	cls.demopaused = !cls.demopaused;
+	if (cls.demopaused)
+		Con_Print("Demo paused\n");
+	else
+		Con_Print("Demo unpaused\n");
+}
+
 /*
 ======================
 CL_Fog_f
 ======================
 */
-static void CL_Fog_f(cmd_state_t *cmd)
+static void CL_Fog_f (void)
 {
-	int is_fog_alpha_requested = false; // Baker r1201: FitzQuake r_skyfog
-	if (Cmd_Argc (cmd) == 1)
+	int is_fog_alpha_requested = 0;
+	if (Cmd_Argc () == 1)
 	{
 		Con_Printf("\"fog\" is \"%f %f %f %f %f %f %f %f %f\"\n", r_refdef.fog_density, r_refdef.fog_red, r_refdef.fog_green, r_refdef.fog_blue, r_refdef.fog_alpha, r_refdef.fog_start, r_refdef.fog_end, r_refdef.fog_height, r_refdef.fog_fadedepth);
 		return;
 	}
 	FOG_clear(); // so missing values get good defaults
-	if(Cmd_Argc(cmd) > 1)
-		r_refdef.fog_density0 = atof(Cmd_Argv(cmd, 1)); // Baker r1201: FitzQuake r_skyfog
-	if(Cmd_Argc(cmd) > 2)
-		r_refdef.fog_red = atof(Cmd_Argv(cmd, 2));
-	if(Cmd_Argc(cmd) > 3)
-		r_refdef.fog_green = atof(Cmd_Argv(cmd, 3));
-	if(Cmd_Argc(cmd) > 4)
-		r_refdef.fog_blue = atof(Cmd_Argv(cmd, 4));
-	if (Cmd_Argc(cmd) > 5) {
-		is_fog_alpha_requested = true; // Baker r1201: FitzQuake r_skyfog
-		r_refdef.fog_alpha = atof(Cmd_Argv(cmd, 5));
+	if(Cmd_Argc() > 1) {
+		r_refdef.fog_density0 = atof(Cmd_Argv(1));
 	}
 
-	// Baker r1201: FitzQuake r_skyfog			
+	if(Cmd_Argc() > 2)
+		r_refdef.fog_red = atof(Cmd_Argv(2));
+	if(Cmd_Argc() > 3)
+		r_refdef.fog_green = atof(Cmd_Argv(3));
+	if(Cmd_Argc() > 4)
+		r_refdef.fog_blue = atof(Cmd_Argv(4));
+	if(Cmd_Argc() > 5) {
+		is_fog_alpha_requested = true;
+		r_refdef.fog_alpha = atof(Cmd_Argv(5));
+	}
+
 	if (is_fog_alpha_requested == false && r_skyfog.value) {
 		float a = bound(0.0, r_skyfog.value, 1.0);
 		r_refdef.fog_density = r_refdef.fog_density0 / (a * a);
@@ -2148,15 +2016,15 @@ static void CL_Fog_f(cmd_state_t *cmd)
 	} else {
 		r_refdef.fog_density = r_refdef.fog_density0;
 	}
-		
-	if(Cmd_Argc(cmd) > 6)
-		r_refdef.fog_start = atof(Cmd_Argv(cmd, 6));
-	if(Cmd_Argc(cmd) > 7)
-		r_refdef.fog_end = atof(Cmd_Argv(cmd, 7));
-	if(Cmd_Argc(cmd) > 8)
-		r_refdef.fog_height = atof(Cmd_Argv(cmd, 8));
-	if(Cmd_Argc(cmd) > 9)
-		r_refdef.fog_fadedepth = atof(Cmd_Argv(cmd, 9));
+
+	if(Cmd_Argc() > 6)
+		r_refdef.fog_start = atof(Cmd_Argv(6));
+	if(Cmd_Argc() > 7)
+		r_refdef.fog_end = atof(Cmd_Argv(7));
+	if(Cmd_Argc() > 8)
+		r_refdef.fog_height = atof(Cmd_Argv(8));
+	if(Cmd_Argc() > 9)
+		r_refdef.fog_fadedepth = atof(Cmd_Argv(9));
 }
 
 /*
@@ -2164,24 +2032,24 @@ static void CL_Fog_f(cmd_state_t *cmd)
 CL_FogHeightTexture_f
 ======================
 */
-static void CL_Fog_HeightTexture_f(cmd_state_t *cmd)
+static void CL_Fog_HeightTexture_f (void)
 {
-	if (Cmd_Argc (cmd) < 11)
+	if (Cmd_Argc () < 11)
 	{
 		Con_Printf("\"fog_heighttexture\" is \"%f %f %f %f %f %f %f %f %f %s\"\n", r_refdef.fog_density, r_refdef.fog_red, r_refdef.fog_green, r_refdef.fog_blue, r_refdef.fog_alpha, r_refdef.fog_start, r_refdef.fog_end, r_refdef.fog_height, r_refdef.fog_fadedepth, r_refdef.fog_height_texturename);
 		return;
 	}
 	FOG_clear(); // so missing values get good defaults
-	r_refdef.fog_density = atof(Cmd_Argv(cmd, 1));
-	r_refdef.fog_red = atof(Cmd_Argv(cmd, 2));
-	r_refdef.fog_green = atof(Cmd_Argv(cmd, 3));
-	r_refdef.fog_blue = atof(Cmd_Argv(cmd, 4));
-	r_refdef.fog_alpha = atof(Cmd_Argv(cmd, 5));
-	r_refdef.fog_start = atof(Cmd_Argv(cmd, 6));
-	r_refdef.fog_end = atof(Cmd_Argv(cmd, 7));
-	r_refdef.fog_height = atof(Cmd_Argv(cmd, 8));
-	r_refdef.fog_fadedepth = atof(Cmd_Argv(cmd, 9));
-	strlcpy(r_refdef.fog_height_texturename, Cmd_Argv(cmd, 10), sizeof(r_refdef.fog_height_texturename));
+	r_refdef.fog_density = atof(Cmd_Argv(1));
+	r_refdef.fog_red = atof(Cmd_Argv(2));
+	r_refdef.fog_green = atof(Cmd_Argv(3));
+	r_refdef.fog_blue = atof(Cmd_Argv(4));
+	r_refdef.fog_alpha = atof(Cmd_Argv(5));
+	r_refdef.fog_start = atof(Cmd_Argv(6));
+	r_refdef.fog_end = atof(Cmd_Argv(7));
+	r_refdef.fog_height = atof(Cmd_Argv(8));
+	r_refdef.fog_fadedepth = atof(Cmd_Argv(9));
+	strlcpy(r_refdef.fog_height_texturename, Cmd_Argv(10), sizeof(r_refdef.fog_height_texturename));
 }
 
 
@@ -2192,7 +2060,7 @@ CL_TimeRefresh_f
 For program optimization
 ====================
 */
-static void CL_TimeRefresh_f(cmd_state_t *cmd)
+static void CL_TimeRefresh_f (void)
 {
 	int i;
 	double timestart, timedelta;
@@ -2211,7 +2079,7 @@ static void CL_TimeRefresh_f(cmd_state_t *cmd)
 	Con_Printf("%f seconds (%f fps)\n", timedelta, 128/timedelta);
 }
 
-static void CL_AreaStats_f(cmd_state_t *cmd)
+static void CL_AreaStats_f(void)
 {
 	World_PrintAreaStats(&cl.world, "client");
 }
@@ -2286,29 +2154,29 @@ static void CL_Locs_AddNode(vec3_t mins, vec3_t maxs, const char *name)
 	*pointer = node;
 }
 
-static void CL_Locs_Add_f(cmd_state_t *cmd)
+static void CL_Locs_Add_f(void)
 {
 	vec3_t mins, maxs;
-	if (Cmd_Argc(cmd) != 5 && Cmd_Argc(cmd) != 8)
+	if (Cmd_Argc() != 5 && Cmd_Argc() != 8)
 	{
-		Con_Printf("usage: %s x y z[ x y z] name\n", Cmd_Argv(cmd, 0));
+		Con_Printf("usage: %s x y z[ x y z] name\n", Cmd_Argv(0));
 		return;
 	}
-	mins[0] = atof(Cmd_Argv(cmd, 1));
-	mins[1] = atof(Cmd_Argv(cmd, 2));
-	mins[2] = atof(Cmd_Argv(cmd, 3));
-	if (Cmd_Argc(cmd) == 8)
+	mins[0] = atof(Cmd_Argv(1));
+	mins[1] = atof(Cmd_Argv(2));
+	mins[2] = atof(Cmd_Argv(3));
+	if (Cmd_Argc() == 8)
 	{
-		maxs[0] = atof(Cmd_Argv(cmd, 4));
-		maxs[1] = atof(Cmd_Argv(cmd, 5));
-		maxs[2] = atof(Cmd_Argv(cmd, 6));
-		CL_Locs_AddNode(mins, maxs, Cmd_Argv(cmd, 7));
+		maxs[0] = atof(Cmd_Argv(4));
+		maxs[1] = atof(Cmd_Argv(5));
+		maxs[2] = atof(Cmd_Argv(6));
+		CL_Locs_AddNode(mins, maxs, Cmd_Argv(7));
 	}
 	else
-		CL_Locs_AddNode(mins, mins, Cmd_Argv(cmd, 4));
+		CL_Locs_AddNode(mins, mins, Cmd_Argv(4));
 }
 
-static void CL_Locs_RemoveNearest_f(cmd_state_t *cmd)
+static void CL_Locs_RemoveNearest_f(void)
 {
 	cl_locnode_t *loc;
 	loc = CL_Locs_FindNearest(r_refdef.view.origin);
@@ -2318,13 +2186,13 @@ static void CL_Locs_RemoveNearest_f(cmd_state_t *cmd)
 		Con_Printf("no loc point or box found for your location\n");
 }
 
-static void CL_Locs_Clear_f(cmd_state_t *cmd)
+static void CL_Locs_Clear_f(void)
 {
 	while (cl.locnodes)
 		CL_Locs_FreeNode(cl.locnodes);
 }
 
-static void CL_Locs_Save_f(cmd_state_t *cmd)
+static void CL_Locs_Save_f(void)
 {
 	cl_locnode_t *loc;
 	qfile_t *outfile;
@@ -2356,7 +2224,7 @@ static void CL_Locs_Save_f(cmd_state_t *cmd)
 			if (VectorCompare(loc->mins, loc->maxs))
 				break;
 		if (loc)
-			Con_Printf(CON_WARN "Warning: writing loc file containing a mixture of qizmo-style points and proquake-style boxes may not work in qizmo or proquake!\n");
+			Con_Printf("Warning: writing loc file containing a mixture of qizmo-style points and proquake-style boxes may not work in qizmo or proquake!\n");
 	}
 	for (loc = cl.locnodes;loc;loc = loc->next)
 	{
@@ -2369,16 +2237,16 @@ static void CL_Locs_Save_f(cmd_state_t *cmd)
 			for (len = 0;len < (int)sizeof(name) - 1 && *in;)
 			{
 				if (*in == ' ') {s = "$loc_name_separator";in++;}
-				else if (!strncmp(in, "SSG", 3)) {s = "$loc_name_ssg";in += 3;}
-				else if (!strncmp(in, "NG", 2)) {s = "$loc_name_ng";in += 2;}
-				else if (!strncmp(in, "SNG", 3)) {s = "$loc_name_sng";in += 3;}
-				else if (!strncmp(in, "GL", 2)) {s = "$loc_name_gl";in += 2;}
-				else if (!strncmp(in, "RL", 2)) {s = "$loc_name_rl";in += 2;}
-				else if (!strncmp(in, "LG", 2)) {s = "$loc_name_lg";in += 2;}
-				else if (!strncmp(in, "GA", 2)) {s = "$loc_name_ga";in += 2;}
-				else if (!strncmp(in, "YA", 2)) {s = "$loc_name_ya";in += 2;}
-				else if (!strncmp(in, "RA", 2)) {s = "$loc_name_ra";in += 2;}
-				else if (!strncmp(in, "MEGA", 4)) {s = "$loc_name_mh";in += 4;}
+				else if (String_Does_Start_With(in, "SSG"/*, 3*/))		{s = "$loc_name_ssg";in += 3;}
+				else if (String_Does_Start_With(in, "NG"/*, 2*/))		{s = "$loc_name_ng";in += 2;}
+				else if (String_Does_Start_With(in, "SNG"/*, 3*/))		{s = "$loc_name_sng";in += 3;}
+				else if (String_Does_Start_With(in, "GL"/*, 2*/))		{s = "$loc_name_gl";in += 2;}
+				else if (String_Does_Start_With(in, "RL"/*, 2*/))		{s = "$loc_name_rl";in += 2;}
+				else if (String_Does_Start_With(in, "LG"/*, 2*/))		{s = "$loc_name_lg";in += 2;}
+				else if (String_Does_Start_With(in, "GA"/*, 2*/))		{s = "$loc_name_ga";in += 2;}
+				else if (String_Does_Start_With(in, "YA"/*, 2*/))		{s = "$loc_name_ya";in += 2;}
+				else if (String_Does_Start_With(in, "RA"/*, 2*/))		{s = "$loc_name_ra";in += 2;}
+				else if (String_Does_Start_With(in, "MEGA"/*, 4*/))		{s = "$loc_name_mh";in += 4;}
 				else s = NULL;
 				if (s)
 				{
@@ -2397,7 +2265,7 @@ static void CL_Locs_Save_f(cmd_state_t *cmd)
 	FS_Close(outfile);
 }
 
-void CL_Locs_Reload_f(cmd_state_t *cmd)
+void CL_Locs_Reload_f(void)
 {
 	int i, linenumber, limit, len;
 	const char *s;
@@ -2413,16 +2281,15 @@ void CL_Locs_Reload_f(cmd_state_t *cmd)
 		return;
 	}
 
-	CL_Locs_Clear_f(cmd);
+	CL_Locs_Clear_f();
 
 	// try maps/something.loc first (LadyHavoc: where I think they should be)
 	dpsnprintf(locfilename, sizeof(locfilename), "%s.loc", cl.worldnamenoextension);
-	filedata = (char *)FS_LoadFile(locfilename, cls.levelmempool, false, &filesize);
-	if (!filedata)
-	{
+	filedata = (char *)FS_LoadFile(locfilename, cls.levelmempool, false, &filesize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
+	if (!filedata) {
 		// try proquake name as well (LadyHavoc: I hate path mangling)
 		dpsnprintf(locfilename, sizeof(locfilename), "locs/%s.loc", cl.worldbasename);
-		filedata = (char *)FS_LoadFile(locfilename, cls.levelmempool, false, &filesize);
+		filedata = (char *)FS_LoadFile(locfilename, cls.levelmempool, false, &filesize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL);
 		if (!filedata)
 			return;
 	}
@@ -2533,444 +2400,6 @@ void CL_Locs_Reload_f(cmd_state_t *cmd)
 	}
 }
 
-entity_t cl_meshentities[NUM_MESHENTITIES];
-model_t cl_meshentitymodels[NUM_MESHENTITIES];
-const char *cl_meshentitynames[NUM_MESHENTITIES] =
-{
-	"MESH_SCENE",
-	"MESH_UI",
-};
-
-static void CL_MeshEntities_Restart(void)
-{
-	int i;
-	entity_t *ent;
-	for (i = 0; i < NUM_MESHENTITIES; i++)
-	{
-		ent = cl_meshentities + i;
-		Mod_Mesh_Destroy(ent->render.model);
-		Mod_Mesh_Create(ent->render.model, cl_meshentitynames[i]);
-	}
-}
-
-static void CL_MeshEntities_Start(void)
-{
-	int i;
-	entity_t *ent;
-	for(i = 0; i < NUM_MESHENTITIES; i++)
-	{
-		ent = cl_meshentities + i;
-		Mod_Mesh_Create(ent->render.model, cl_meshentitynames[i]);
-	}
-}
-
-static void CL_MeshEntities_Shutdown(void)
-{
-	int i;
-	entity_t *ent;
-	for(i = 0; i < NUM_MESHENTITIES; i++)
-	{
-		ent = cl_meshentities + i;
-		Mod_Mesh_Destroy(ent->render.model);
-	}
-}
-
-void CL_MeshEntities_Init(void)
-{
-	int i;
-	entity_t *ent;
-	for (i = 0; i < NUM_MESHENTITIES; i++)
-	{
-		ent = cl_meshentities + i;
-		ent->state_current.active = true;
-		ent->render.model = cl_meshentitymodels + i;
-		Mod_Mesh_Create(ent->render.model, cl_meshentitynames[i]);	
-		ent->render.alpha = 1;
-		ent->render.crflags = RENDER_SHADOW | RENDER_LIGHT;
-		ent->render.framegroupblend[0].lerp = 1;
-		ent->render.frameblend[0].lerp = 1;
-		VectorSet(ent->render.colormod, 1, 1, 1);
-		VectorSet(ent->render.glowmod, 1, 1, 1);
-		VectorSet(ent->render.custommodellight_ambient, 1, 1, 1);
-		VectorSet(ent->render.custommodellight_diffuse, 0, 0, 0);
-		VectorSet(ent->render.custommodellight_lightdir, 0, 0, 1);
-		VectorSet(ent->render.render_fullbright, 1, 1, 1);
-		VectorSet(ent->render.render_glowmod, 0, 0, 0);
-		VectorSet(ent->render.render_modellight_ambient, 1, 1, 1);
-		VectorSet(ent->render.render_modellight_diffuse, 0, 0, 0);
-		VectorSet(ent->render.render_modellight_specular, 0, 0, 0);
-		VectorSet(ent->render.render_modellight_lightdir_world, 0, 0, 1);
-		VectorSet(ent->render.render_modellight_lightdir_local, 0, 0, 1); // local doesn't matter because no diffuse/specular color
-		VectorSet(ent->render.render_lightmap_ambient, 0, 0, 0);
-		VectorSet(ent->render.render_lightmap_diffuse, 1, 1, 1);
-		VectorSet(ent->render.render_lightmap_specular, 1, 1, 1);
-		VectorSet(ent->render.render_rtlight_diffuse, 1, 1, 1);
-		VectorSet(ent->render.render_rtlight_specular, 1, 1, 1);
-
-		Matrix4x4_CreateIdentity(&ent->render.matrix);
-		CL_UpdateRenderEntity(&ent->render);
-	}
-	cl_meshentities[MESH_UI].render.crflags = RENDER_NOSELFSHADOW;
-	R_RegisterModule("CL_MeshEntities", CL_MeshEntities_Start, CL_MeshEntities_Shutdown, CL_MeshEntities_Restart, CL_MeshEntities_Restart, CL_MeshEntities_Restart);
-}
-
-void CL_MeshEntities_Scene_Clear(void)
-{
-	Mod_Mesh_Reset(CL_Mesh_Scene());
-}
-
-void CL_MeshEntities_Scene_AddRenderEntity(void)
-{
-	entity_t* ent = &cl_meshentities[MESH_SCENE];
-	r_refdef.scene.entities[r_refdef.scene.numentities++] = &ent->render;
-}
-
-void CL_MeshEntities_Scene_FinalizeRenderEntity(void)
-{
-	entity_t *ent = &cl_meshentities[MESH_SCENE];
-	Mod_Mesh_Finalize(ent->render.model);
-	VectorCopy(ent->render.model->normalmins, ent->render.mins);
-	VectorCopy(ent->render.model->normalmaxs, ent->render.maxs);
-}
-
-extern cvar_t r_overheadsprites_pushback;
-extern cvar_t r_fullbright_directed_pitch_relative;
-extern cvar_t r_fullbright_directed_pitch;
-extern cvar_t r_fullbright_directed_ambient;
-extern cvar_t r_fullbright_directed_diffuse;
-extern cvar_t r_fullbright_directed;
-extern cvar_t r_hdr_glowintensity;
-
-static void CL_UpdateEntityShading_GetDirectedFullbright(vec3_t ambient, vec3_t diffuse, vec3_t worldspacenormal)
-{
-	vec3_t angles;
-
-	VectorSet(ambient, r_fullbright_directed_ambient.value, r_fullbright_directed_ambient.value, r_fullbright_directed_ambient.value);
-	VectorSet(diffuse, r_fullbright_directed_diffuse.value, r_fullbright_directed_diffuse.value, r_fullbright_directed_diffuse.value);
-
-	// Use cl.viewangles and not r_refdef.view.forward here so it is the
-	// same for all stereo views, and to better handle pitches outside
-	// [-90, 90] (in_pitch_* cvars allow that).
-	VectorCopy(cl.viewangles, angles);
-	if (r_fullbright_directed_pitch_relative.integer) {
-		angles[PITCH] += r_fullbright_directed_pitch.value;
-	}
-	else {
-		angles[PITCH] = r_fullbright_directed_pitch.value;
-	}
-	AngleVectors(angles, worldspacenormal, NULL, NULL);
-	VectorNegate(worldspacenormal, worldspacenormal);
-}
-
-static void CL_UpdateEntityShading_Entity(entity_render_t *ent)
-{
-	float shadingorigin[3], a[3], c[3], dir[3];
-	int q;
-
-	for (q = 0; q < 3; q++)
-		a[q] = c[q] = dir[q] = 0;
-
-	ent->render_lightgrid = false;
-	ent->render_modellight_forced = false;
-	ent->render_rtlight_disabled = false;
-
-	// pick an appropriate value for render_modellight_origin - if this is an
-	// attachment we want to use the parent's render_modellight_origin so that
-	// shading is the same (also important for r_shadows to cast shadows in the
-	// same direction)
-	if (VectorLength2(ent->custommodellight_origin))
-	{
-		// CSQC entities always provide this (via CL_GetTagMatrix)
-		for (q = 0; q < 3; q++)
-			shadingorigin[q] = ent->custommodellight_origin[q];
-	}
-	else if (ent->entitynumber > 0 && ent->entitynumber < cl.num_entities)
-	{
-		// network entity - follow attachment chain back to a root entity,
-		int entnum = ent->entitynumber, recursion;
-		for (recursion = 32; recursion > 0; --recursion)
-		{
-			int parentnum = cl.entities[entnum].state_current.tagentity;
-			if (parentnum < 1 || parentnum >= cl.num_entities || !cl.entities_active[parentnum])
-				break;
-			entnum = parentnum;
-		}
-		// grab the root entity's origin
-		Matrix4x4_OriginFromMatrix(&cl.entities[entnum].render.matrix, shadingorigin);
-	}
-	else
-	{
-		// not a CSQC entity (which sets custommodellight_origin), not a network
-		// entity - so it's probably not attached to anything
-		Matrix4x4_OriginFromMatrix(&ent->matrix, shadingorigin);
-	}
-
-	if (!(ent->crflags & RENDER_LIGHT) || (r_fullbright.integer || !r_refdef.scene.worldmodel || !r_refdef.scene.worldmodel->lit) ) // Baker r1002: Proper Quake behavior for Q1BSP maps with no light data -- all entities in map render fullbright.
-	{
-		// intentionally EF_FULLBRIGHT entity
-		// the only type that is not scaled by r_refdef.scene.lightmapintensity
-		// CSQC can still provide its own customized modellight values
-		ent->render_rtlight_disabled = true;
-		ent->render_modellight_forced = true;
-		if (ent->crflags & RENDER_CUSTOMIZEDMODELLIGHT)
-		{
-			// custom colors provided by CSQC
-			for (q = 0; q < 3; q++)
-			{
-				a[q] = ent->custommodellight_ambient[q];
-				c[q] = ent->custommodellight_diffuse[q];
-				dir[q] = ent->custommodellight_lightdir[q];
-			}
-		}
-		else if (r_fullbright_directed.integer)
-			CL_UpdateEntityShading_GetDirectedFullbright(a, c, dir);
-		else
-			for (q = 0; q < 3; q++)
-				a[q] = 1;
-	}
-	else
-	{
-		// fetch the lighting from the worldmodel data
-
-		// CSQC can provide its own customized modellight values
-		if (ent->crflags & RENDER_CUSTOMIZEDMODELLIGHT)
-		{
-			ent->render_modellight_forced = true;
-			for (q = 0; q < 3; q++)
-			{
-				a[q] = ent->custommodellight_ambient[q];
-				c[q] = ent->custommodellight_diffuse[q];
-				dir[q] = ent->custommodellight_lightdir[q];
-			}
-		}
-		else if (ent->model->type == mod_sprite && !(ent->model->data_textures[0].basematerialflags & MATERIALFLAG_FULLBRIGHT))
-		{
-			if (ent->model->sprite.sprnum_type == SPR_OVERHEAD) // apply offset for overhead sprites
-				shadingorigin[2] = shadingorigin[2] + r_overheadsprites_pushback.value;
-			R_CompleteLightPoint(a, c, dir, shadingorigin, LP_LIGHTMAP | LP_RTWORLD | LP_DYNLIGHT, r_refdef.scene.lightmapintensity, r_refdef.scene.ambientintensity);
-			ent->render_modellight_forced = true;
-			ent->render_rtlight_disabled = true;
-		}
-		else if (((ent->model && !ent->model->lit) || (ent->model == r_refdef.scene.worldmodel ? mod_q3bsp_lightgrid_world_surfaces.integer : mod_q3bsp_lightgrid_bsp_surfaces.integer))
-			&& r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->lit && r_refdef.scene.worldmodel->brushq3.lightgridtexture && mod_q3bsp_lightgrid_texture.integer)
-		{
-			ent->render_lightgrid = true;
-			// no need to call R_CompleteLightPoint as we base it on render_lightmap_*
-		}
-		else if (r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->lit && r_refdef.scene.worldmodel->brush.LightPoint)
-			R_CompleteLightPoint(a, c, dir, shadingorigin, LP_LIGHTMAP, r_refdef.scene.lightmapintensity, r_refdef.scene.ambientintensity);
-		else if (r_fullbright_directed.integer)
-			CL_UpdateEntityShading_GetDirectedFullbright(a, c, dir);
-		else
-			R_CompleteLightPoint(a, c, dir, shadingorigin, LP_LIGHTMAP, r_refdef.scene.lightmapintensity, r_refdef.scene.ambientintensity);
-	}
-
-	for (q = 0; q < 3; q++)
-	{
-		ent->render_fullbright[q] = ent->colormod[q];
-		ent->render_glowmod[q] = ent->glowmod[q] * r_hdr_glowintensity.value;
-		ent->render_modellight_ambient[q] = a[q] * ent->colormod[q];
-		ent->render_modellight_diffuse[q] = c[q] * ent->colormod[q];
-		ent->render_modellight_specular[q] = c[q];
-		ent->render_modellight_lightdir_world[q] = dir[q];
-		ent->render_lightmap_ambient[q] = ent->colormod[q] * r_refdef.scene.ambientintensity;
-		ent->render_lightmap_diffuse[q] = ent->colormod[q] * r_refdef.scene.lightmapintensity;
-		ent->render_lightmap_specular[q] = r_refdef.scene.lightmapintensity;
-		ent->render_rtlight_diffuse[q] = ent->colormod[q];
-		ent->render_rtlight_specular[q] = 1;
-	}
-
-	// these flags disable code paths, make sure it's obvious if they're ignored by storing 0 1 2
-	if (ent->render_modellight_forced)
-		for (q = 0; q < 3; q++)
-			ent->render_lightmap_ambient[q] = ent->render_lightmap_diffuse[q] = ent->render_lightmap_specular[q] = q;
-	if (ent->render_rtlight_disabled)
-		for (q = 0; q < 3; q++)
-			ent->render_rtlight_diffuse[q] = ent->render_rtlight_specular[q] = q;
-
-	if (VectorLength2(ent->render_modellight_lightdir_world) == 0)
-		VectorSet(ent->render_modellight_lightdir_world, 0, 0, 1); // have to set SOME valid vector here
-	VectorNormalize(ent->render_modellight_lightdir_world);
-	// transform into local space for the entity as well
-	Matrix4x4_Transform3x3(&ent->inversematrix, ent->render_modellight_lightdir_world, ent->render_modellight_lightdir_local);
-	VectorNormalize(ent->render_modellight_lightdir_local);
-}
-
-
-void CL_UpdateEntityShading(void)
-{
-	int i;
-	CL_UpdateEntityShading_Entity(r_refdef.scene.worldentity);
-	for (i = 0; i < r_refdef.scene.numentities; i++)
-		CL_UpdateEntityShading_Entity(r_refdef.scene.entities[i]);
-}
-
-qbool vid_opened = false;
-void CL_StartVideo(void)
-{
-	if (!vid_opened && cls.state != ca_dedicated)
-	{
-		vid_opened = true;
-#ifdef _WIN32
-		// make sure we open sockets before opening video because the Windows Firewall "unblock?" dialog can screw up the graphics context on some graphics drivers
-		NetConn_UpdateSockets();
-#endif
-		VID_Start();
-		CDAudio_Startup();
-	}
-}
-
-extern cvar_t host_framerate;
-extern cvar_t host_speeds;
-
-double CL_Frame (double time)
-{
-	static double clframetime;
-	static double cl_timer = 0;
-	static double time1 = 0, time2 = 0, time3 = 0;
-	int pass1, pass2, pass3;
-
-	CL_VM_PreventInformationLeaks();
-
-	/*
-	 * If the accumulator hasn't become positive, don't
-	 * run the frame. Everything that happens before this
-	 * point will happen even if we're sleeping this frame.
-	 */
-	if((cl_timer += time) < 0)
-		return cl_timer;
-
-	// limit the frametime steps to no more than 100ms each
-	if (cl_timer > 0.1)
-		cl_timer = 0.1;
-
-	if (cls.state != ca_dedicated && (cl_timer > 0 || cls.timedemo || ((vid_activewindow ? cl_maxfps : cl_maxidlefps).value < 1)))
-	{
-		R_TimeReport("---");
-		Collision_Cache_NewFrame();
-		R_TimeReport("photoncache");
-#ifdef CONFIG_VIDEO_CAPTURE
-		// decide the simulation time
-		if (cls.capturevideo.active)
-		{
-			//***
-			if (cls.capturevideo.realtime)
-				clframetime = cl.realframetime = max(time, 1.0 / cls.capturevideo.framerate);
-			else
-			{
-				clframetime = 1.0 / cls.capturevideo.framerate;
-				cl.realframetime = max(time, clframetime);
-			}
-		}
-		else if (vid_activewindow && cl_maxfps.value >= 1 && !cls.timedemo)
-
-#else
-		if (vid_activewindow && cl_maxfps.value >= 1 && !cls.timedemo)
-#endif
-		{
-			clframetime = cl.realframetime = max(cl_timer, 1.0 / cl_maxfps.value);
-			// when running slow, we need to sleep to keep input responsive
-			if (cl_maxfps_alwayssleep.value > 0)
-				Sys_Sleep((int)bound(0, cl_maxfps_alwayssleep.value * 1000, 100000));
-		}
-		else if (!vid_activewindow && cl_maxidlefps.value >= 1 && !cls.timedemo)
-			clframetime = cl.realframetime = max(cl_timer, 1.0 / cl_maxidlefps.value);
-		else
-			clframetime = cl.realframetime = cl_timer;
-
-		// apply slowmo scaling
-		clframetime *= cl.movevars_timescale;
-		// scale playback speed of demos by slowmo cvar
-		if (cls.demoplayback)
-		{
-			clframetime *= host_timescale.value;
-			// if demo playback is paused, don't advance time at all
-			if (cls.demopaused)
-				clframetime = 0;
-		}
-		else
-		{
-			// host_framerate overrides all else
-			if (host_framerate.value)
-				clframetime = host_framerate.value;
-
-			if (cl.paused || host.paused)
-				clframetime = 0;
-		}
-
-		if (cls.timedemo)
-			clframetime = cl.realframetime = cl_timer;
-
-		// deduct the frame time from the accumulator
-		cl_timer -= cl.realframetime;
-
-		cl.oldtime = cl.time;
-		cl.time += clframetime;
-
-		// update video
-		if (host_speeds.integer)
-			time1 = Sys_DirtyTime();
-		R_TimeReport("pre-input");
-
-		// Collect input into cmd
-		CL_Input();
-
-		R_TimeReport("input");
-
-		// check for new packets
-		NetConn_ClientFrame();
-
-		// read a new frame from a demo if needed
-		CL_ReadDemoMessage();
-		R_TimeReport("clientnetwork");
-
-		// now that packets have been read, send input to server
-		CL_SendMove();
-		R_TimeReport("sendmove");
-
-		// update client world (interpolate entities, create trails, etc)
-		CL_UpdateWorld();
-		R_TimeReport("lerpworld");
-
-		CL_Video_Frame();
-
-		R_TimeReport("client");
-
-		CL_UpdateScreen();
-		R_TimeReport("render");
-
-		if (host_speeds.integer)
-			time2 = Sys_DirtyTime();
-
-		// update audio
-		if(cl.csqc_usecsqclistener)
-		{
-			S_Update(&cl.csqc_listenermatrix);
-			cl.csqc_usecsqclistener = false;
-		}
-		else
-			S_Update(&r_refdef.view.matrix);
-
-		CDAudio_Update();
-		R_TimeReport("audio");
-
-		// reset gathering of mouse input
-		in_mouse_x = in_mouse_y = 0;
-
-		if (host_speeds.integer)
-		{
-			pass1 = (int)((time1 - time3)*1000000);
-			time3 = Sys_DirtyTime();
-			pass2 = (int)((time2 - time1)*1000000);
-			pass3 = (int)((time3 - time2)*1000000);
-			Con_Printf("%6ius total %6ius server %6ius gfx %6ius snd\n",
-						pass1+pass2+pass3, pass1, pass2, pass3);
-		}
-	}
-	// if there is some time remaining from this frame, reset the timer
-	return cl_timer >= 0 ? 0 : cl_timer;
-}
-
 /*
 ===========
 CL_Shutdown
@@ -2978,33 +2407,9 @@ CL_Shutdown
 */
 void CL_Shutdown (void)
 {
-	// be quiet while shutting down
-	S_StopAllSounds();
-	
-	// disconnect client from server if active
-	CL_Disconnect();
-	
-	CL_Video_Shutdown();
-
-#ifdef CONFIG_MENU
-	// Shutdown menu
-	if(MR_Shutdown)
-		MR_Shutdown();
-#endif
-
-	CDAudio_Shutdown ();
-	S_Terminate ();
-	
-	R_Modules_Shutdown();
-	VID_Shutdown();
-
 	CL_Screen_Shutdown();
 	CL_Particles_Shutdown();
 	CL_Parse_Shutdown();
-	CL_MeshEntities_Shutdown();
-
-	Key_Shutdown();
-	S_Shutdown();
 
 	Mem_FreePool (&cls.permanentmempool);
 	Mem_FreePool (&cls.levelmempool);
@@ -3017,156 +2422,130 @@ CL_Init
 */
 void CL_Init (void)
 {
-	if (cls.state == ca_dedicated)
-	{
-		Cmd_AddCommand(CF_SERVER, "disconnect", CL_Disconnect_f, "disconnect from server (or disconnect all clients if running a server)");
-	}
-	else
-	{
-		Con_Printf("Initializing client\n");
 
-		Cvar_SetValueQuick(&host_isclient, 1);
+	cls.levelmempool = Mem_AllocPool("client (per-level memory)", 0, NULL);
+	cls.permanentmempool = Mem_AllocPool("client (long term memory)", 0, NULL);
 
-		R_Modules_Init();
-		Palette_Init();
-#ifdef CONFIG_MENU
-		MR_Init_Commands();
-#endif
-		VID_Shared_Init();
-		VID_Init();
-		Render_Init();
-		S_Init();
-		CDAudio_Init();
-		Key_Init();
-		V_Init();
+	memset(&r_refdef, 0, sizeof(r_refdef));
+	// max entities sent to renderer per frame
+	r_refdef.scene.maxentities = MAX_EDICTS + 256 + 512;
+	r_refdef.scene.entities = (entity_render_t **)Mem_Alloc(cls.permanentmempool, sizeof(entity_render_t *) * r_refdef.scene.maxentities);
 
-		cls.levelmempool = Mem_AllocPool("client (per-level memory)", 0, NULL);
-		cls.permanentmempool = Mem_AllocPool("client (long term memory)", 0, NULL);
+	// max temp entities
+	r_refdef.scene.maxtempentities = MAX_TEMPENTITIES;
+	r_refdef.scene.tempentities = (entity_render_t *)Mem_Alloc(cls.permanentmempool, sizeof(entity_render_t) * r_refdef.scene.maxtempentities);
 
-		memset(&r_refdef, 0, sizeof(r_refdef));
-		// max entities sent to renderer per frame
-		r_refdef.scene.maxentities = MAX_EDICTS + 256 + 512;
-		r_refdef.scene.entities = (entity_render_t **)Mem_Alloc(cls.permanentmempool, sizeof(entity_render_t *) * r_refdef.scene.maxentities);
+	CL_InitInput ();
 
-		// max temp entities
-		r_refdef.scene.maxtempentities = MAX_TEMPENTITIES;
-		r_refdef.scene.tempentities = (entity_render_t *)Mem_Alloc(cls.permanentmempool, sizeof(entity_render_t) * r_refdef.scene.maxtempentities);
+//
+// register our commands
+//
+	Cvar_RegisterVariable (&cl_upspeed);
+	Cvar_RegisterVariable (&cl_forwardspeed);
+	Cvar_RegisterVariable (&cl_backspeed);
+	Cvar_RegisterVariable (&cl_sidespeed);
+	Cvar_RegisterVariable (&cl_movespeedkey);
+	Cvar_RegisterVariable (&cl_yawspeed);
+	Cvar_RegisterVariable (&cl_pitchspeed);
+	Cvar_RegisterVariable (&cl_anglespeedkey);
+	Cvar_RegisterVariable (&cl_shownet);
+	Cvar_RegisterVariable (&cl_nolerp);
+	Cvar_RegisterVariable (&cl_lerpexcess);
+	Cvar_RegisterVariable (&cl_lerpanim_maxdelta_server);
+	Cvar_RegisterVariable (&cl_lerpanim_maxdelta_framegroups);
+	Cvar_RegisterVariable (&cl_deathfade);
+	Cvar_RegisterVariable (&lookspring);
+	Cvar_RegisterVariable (&lookstrafe);
+	Cvar_RegisterVariable (&sensitivity);
+	Cvar_RegisterVariable (&freelook);
 
-		CL_InitInput ();
+	Cvar_RegisterVariable (&m_pitch);
+	Cvar_RegisterVariable (&m_yaw);
+	Cvar_RegisterVariable (&m_forward);
+	Cvar_RegisterVariable (&m_side);
 
-	//
-	// register our commands
-	//
-		CL_InitCommands();
+	Cvar_RegisterVariable (&cl_itembobspeed);
+	Cvar_RegisterVariable (&cl_itembobheight);
 
-		Cvar_RegisterVariable (&cl_upspeed);
-		Cvar_RegisterVariable (&cl_forwardspeed);
-		Cvar_RegisterVariable (&cl_backspeed);
-		Cvar_RegisterVariable (&cl_sidespeed);
-		Cvar_RegisterVariable (&cl_movespeedkey);
-		Cvar_RegisterVariable (&cl_yawspeed);
-		Cvar_RegisterVariable (&cl_pitchspeed);
-		Cvar_RegisterVariable (&cl_anglespeedkey);
-		Cvar_RegisterVariable (&cl_shownet);
-		Cvar_RegisterVariable (&cl_nolerp);
-		Cvar_RegisterVariable (&cl_lerpexcess);
-		Cvar_RegisterVariable (&cl_lerpanim_maxdelta_server);
-		Cvar_RegisterVariable (&cl_lerpanim_maxdelta_framegroups);
-		Cvar_RegisterVariable (&cl_deathfade);
-		Cvar_RegisterVariable (&lookspring);
-		Cvar_RegisterVariable (&lookstrafe);
-		Cvar_RegisterVariable (&sensitivity);
-		Cvar_RegisterVariable (&freelook);
+	Cmd_AddCommand ("entities", CL_PrintEntities_f, "print information on network entities known to client");
+	Cmd_AddCommand ("disconnect", CL_Disconnect_f, "disconnect from server (or disconnect all clients if running a server)");
+	Cmd_AddCommand ("record", CL_Record_f, "record a demo");
+	Cmd_AddCommand ("stop", CL_Stop_f, "stop recording or playing a demo");
+	Cmd_AddCommand ("playdemo", CL_PlayDemo_f, "watch a demo file");
+	Cmd_AddCommand ("timedemo", CL_TimeDemo_f, "play back a demo as fast as possible and save statistics to benchmark.log");
 
-		Cvar_RegisterVariable (&m_pitch);
-		Cvar_RegisterVariable (&m_yaw);
-		Cvar_RegisterVariable (&m_forward);
-		Cvar_RegisterVariable (&m_side);
+	// Support Client-side Model Index List
+	Cmd_AddCommand ("cl_modelindexlist", CL_ModelIndexList_f, "list information on all models in the client modelindex");
+	// Support Client-side Sound Index List
+	Cmd_AddCommand ("cl_soundindexlist", CL_SoundIndexList_f, "list all sounds in the client soundindex");
 
-		Cvar_RegisterVariable (&cl_itembobspeed);
-		Cvar_RegisterVariable (&cl_itembobheight);
+	Cvar_RegisterVariable (&cl_autodemo);
+	Cvar_RegisterVariable (&cl_autodemo_nameformat);
+	Cvar_RegisterVariable (&cl_autodemo_delete);
 
-		CL_Demo_Init();
+	Cvar_RegisterVariable (&r_skyfog);
 
-		Cmd_AddCommand(CF_CLIENT, "entities", CL_PrintEntities_f, "print information on network entities known to client");
-		Cmd_AddCommand(CF_CLIENT, "disconnect", CL_Disconnect_f, "disconnect from server (or disconnect all clients if running a server)");
-		Cmd_AddCommand(CF_CLIENT | CF_CLIENTCLOSECONSOLE, "connect", CL_Connect_f, "connect to a server by IP address or hostname"); // Baker r1003: close console for map/load/etc.
-		Cmd_AddCommand(CF_CLIENT | CF_CLIENT_FROM_SERVER | CF_CLIENTCLOSECONSOLE, "reconnect", CL_Reconnect_f, "reconnect to the last server you were on, or resets a quakeworld connection (do not use if currently playing on a netquake server)"); // Baker r1003: close console for map/load/etc.
+	
 
-		// Support Client-side Model Index List
-		Cmd_AddCommand(CF_CLIENT, "cl_modelindexlist", CL_ModelIndexList_f, "list information on all models in the client modelindex");
-		// Support Client-side Sound Index List
-		Cmd_AddCommand(CF_CLIENT, "cl_soundindexlist", CL_SoundIndexList_f, "list all sounds in the client soundindex");
+	Cmd_AddCommand ("fog", CL_Fog_f, "set global fog parameters (density red green blue [alpha [mindist [maxdist [top [fadedepth]]]]])");
+	Cmd_AddCommand ("fog_heighttexture", CL_Fog_HeightTexture_f, "set global fog parameters (density red green blue alpha mindist maxdist top depth textures/mapname/fogheight.tga)");
 
-		Cmd_AddCommand(CF_CLIENT, "fog", CL_Fog_f, "set global fog parameters (density red green blue [alpha [mindist [maxdist [top [fadedepth]]]]])");
-		Cmd_AddCommand(CF_CLIENT, "fog_heighttexture", CL_Fog_HeightTexture_f, "set global fog parameters (density red green blue alpha mindist maxdist top depth textures/mapname/fogheight.tga)");
+	// LadyHavoc: added pausedemo
+	Cmd_AddCommand ("pausedemo", CL_PauseDemo_f, "pause demo playback (can also safely pause demo recording if using QUAKE, QUAKEDP or NEHAHRAMOVIE protocol, useful for making movies)");
 
-		Cmd_AddCommand(CF_CLIENT, "cl_areastats", CL_AreaStats_f, "prints statistics on entity culling during collision traces");
+	Cmd_AddCommand ("cl_areastats", CL_AreaStats_f, "prints statistics on entity culling during collision traces");
 
-		Cvar_RegisterVariable(&r_draweffects);
-		Cvar_RegisterVariable(&r_skyfog); // Baker r1201: FitzQuake r_skyfog
-		Cvar_RegisterVariable(&cl_explosions_alpha_start);
-		Cvar_RegisterVariable(&cl_explosions_alpha_end);
-		Cvar_RegisterVariable(&cl_explosions_size_start);
-		Cvar_RegisterVariable(&cl_explosions_size_end);
-		Cvar_RegisterVariable(&cl_explosions_lifetime);
-		Cvar_RegisterVariable(&cl_stainmaps);
-		Cvar_RegisterVariable(&cl_stainmaps_clearonload);
-		Cvar_RegisterVariable(&cl_beams_polygons);
-		Cvar_RegisterVariable(&cl_beams_quakepositionhack);
-		Cvar_RegisterVariable(&cl_beams_instantaimhack);
-		Cvar_RegisterVariable(&cl_beams_lightatend);
-		Cvar_RegisterVariable(&cl_noplayershadow);
-		Cvar_RegisterVariable(&cl_dlights_decayradius);
-		Cvar_RegisterVariable(&cl_dlights_decaybrightness);
+	Cvar_RegisterVariable(&r_draweffects);
+	Cvar_RegisterVariable(&cl_explosions_alpha_start);
+	Cvar_RegisterVariable(&cl_explosions_alpha_end);
+	Cvar_RegisterVariable(&cl_explosions_size_start);
+	Cvar_RegisterVariable(&cl_explosions_size_end);
+	Cvar_RegisterVariable(&cl_explosions_lifetime);
+	Cvar_RegisterVariable(&cl_stainmaps);
+	Cvar_RegisterVariable(&cl_stainmaps_clearonload);
+	Cvar_RegisterVariable(&cl_beams_polygons);
+	Cvar_RegisterVariable(&cl_beams_quakepositionhack);
+	Cvar_RegisterVariable(&cl_beams_instantaimhack);
+	Cvar_RegisterVariable(&cl_beams_lightatend);
+	Cvar_RegisterVariable(&cl_noplayershadow);
+	Cvar_RegisterVariable(&cl_dlights_decayradius);
+	Cvar_RegisterVariable(&cl_dlights_decaybrightness);
 
-		Cvar_RegisterVariable(&cl_prydoncursor);
-		Cvar_RegisterVariable(&cl_prydoncursor_notrace);
+	Cvar_RegisterVariable(&cl_prydoncursor);
+	Cvar_RegisterVariable(&cl_prydoncursor_notrace);
 
-		Cvar_RegisterVariable(&cl_deathnoviewmodel);
+	Cvar_RegisterVariable(&cl_deathnoviewmodel);
 
-		// for QW connections
-		Cvar_RegisterVariable(&qport);
-		Cvar_SetValueQuick(&qport, (rand() * RAND_MAX + rand()) & 0xffff);
+	// for QW connections
+	Cvar_RegisterVariable(&qport);
+	Cvar_SetValueQuick(&qport, (rand() * RAND_MAX + rand()) & 0xffff);
 
-		Cmd_AddCommand(CF_CLIENT, "timerefresh", CL_TimeRefresh_f, "turn quickly and print rendering statistcs");
+	Cmd_AddCommand("timerefresh", CL_TimeRefresh_f, "turn quickly and print rendering statistcs");
 
-		Cvar_RegisterVariable(&cl_locs_enable);
-		Cvar_RegisterVariable(&cl_locs_show);
-		Cmd_AddCommand(CF_CLIENT, "locs_add", CL_Locs_Add_f, "add a point or box location (usage: x y z[ x y z] \"name\", if two sets of xyz are supplied it is a box, otherwise point)");
-		Cmd_AddCommand(CF_CLIENT, "locs_removenearest", CL_Locs_RemoveNearest_f, "remove the nearest point or box (note: you need to be very near a box to remove it)");
-		Cmd_AddCommand(CF_CLIENT, "locs_clear", CL_Locs_Clear_f, "remove all loc points/boxes");
-		Cmd_AddCommand(CF_CLIENT, "locs_reload", CL_Locs_Reload_f, "reload .loc file for this map");
-		Cmd_AddCommand(CF_CLIENT, "locs_save", CL_Locs_Save_f, "save .loc file for this map containing currently defined points and boxes");
+	Cvar_RegisterVariable(&cl_locs_enable);
+	Cvar_RegisterVariable(&cl_locs_show);
+	Cmd_AddCommand("locs_add", CL_Locs_Add_f, "add a point or box location (usage: x y z[ x y z] \"name\", if two sets of xyz are supplied it is a box, otherwise point)");
+	Cmd_AddCommand("locs_removenearest", CL_Locs_RemoveNearest_f, "remove the nearest point or box (note: you need to be very near a box to remove it)");
+	Cmd_AddCommand("locs_clear", CL_Locs_Clear_f, "remove all loc points/boxes");
+	Cmd_AddCommand("locs_reload", CL_Locs_Reload_f, "reload .loc file for this map");
+	Cmd_AddCommand("locs_save", CL_Locs_Save_f, "save .loc file for this map containing currently defined points and boxes");
+	Cvar_RegisterVariable (&cl_minfps);
+	Cvar_RegisterVariable (&cl_minfps_fade);
+	Cvar_RegisterVariable (&cl_minfps_qualitymax);
+	Cvar_RegisterVariable (&cl_minfps_qualitymin);
+	Cvar_RegisterVariable (&cl_minfps_qualitystepmax);
+	Cvar_RegisterVariable (&cl_minfps_qualityhysteresis);
+	Cvar_RegisterVariable (&cl_minfps_qualitymultiply);
+	Cvar_RegisterVariable (&cl_minfps_force);
+	Cvar_RegisterVariable (&cl_maxfps);
+	Cvar_RegisterVariable (&cl_maxfps_alwayssleep);
+	Cvar_RegisterVariable (&cl_maxidlefps);
+	Cvar_RegisterVariable (&cl_maxconsole_menu_fps); // Baker 1017.2
+	Cvar_RegisterVariable (&cl_maxphysicsframesperserverframe);
 
-		Cvar_RegisterVariable(&csqc_polygons_defaultmaterial_nocullface);
+	CL_Parse_Init();
+	CL_Particles_Init();
+	CL_Screen_Init();
 
-		Cvar_RegisterVariable (&cl_minfps);
-		Cvar_RegisterVariable (&cl_minfps_fade);
-		Cvar_RegisterVariable (&cl_minfps_qualitymax);
-		Cvar_RegisterVariable (&cl_minfps_qualitymin);
-		Cvar_RegisterVariable (&cl_minfps_qualitystepmax);
-		Cvar_RegisterVariable (&cl_minfps_qualityhysteresis);
-		Cvar_RegisterVariable (&cl_minfps_qualitymultiply);
-		Cvar_RegisterVariable (&cl_minfps_force);
-		Cvar_RegisterVariable (&cl_maxfps);
-		Cvar_RegisterVariable (&cl_maxfps_alwayssleep);
-		Cvar_RegisterVariable (&cl_maxidlefps);
-
-		Cvar_RegisterVariable (&cl_areagrid_link_SOLID_NOT);
-		Cvar_RegisterVariable (&cl_gameplayfix_nudgeoutofsolid_separation);
-
-		CL_Parse_Init();
-		CL_Particles_Init();
-		CL_Screen_Init();
-
-		CL_Video_Init();
-
-		Cvar_Callback(&cl_netport);
-
-		host.hook.ConnectLocal = CL_EstablishConnection_Local;
-		host.hook.Disconnect = CL_DisconnectEx;
-		host.hook.CL_Intermission = CL_Intermission;
-		host.hook.ToggleMenu = CL_ToggleMenu_Hook;
-	}
+	CL_Video_Init();
 }

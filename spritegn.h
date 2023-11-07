@@ -51,6 +51,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define SPRITE2_VERSION		2
 
+typedef enum synctype_e {ST_SYNC=0, ST_RAND } synctype_t;
+
 typedef struct dsprite_s
 {
 	int			ident;
@@ -61,7 +63,7 @@ typedef struct dsprite_s
 	int			height;
 	int			numframes;
 	float		beamlength;
-	int			synctype;
+	synctype_t	synctype;
 } dsprite_t;
 
 typedef struct dspritehl_s
@@ -75,7 +77,7 @@ typedef struct dspritehl_s
 	int			height;
 	int			numframes;
 	float		beamlength;
-	int			synctype;
+	synctype_t	synctype;
 } dspritehl_t;
 
 typedef struct dsprite2frame_s
@@ -128,3 +130,4 @@ typedef struct dspriteframetype_s {
 } dspriteframetype_t;
 
 #endif
+

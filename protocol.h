@@ -22,10 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
-#include <stddef.h>
-#include "qtypes.h"
-#include "qdefs.h"
-#include "qstats.h"
 struct mempool_s;
 struct sizebuf_s;
 // protocolversion_t is defined in common.h
@@ -64,15 +60,21 @@ void Protocol_Names(char *buffer, size_t buffersize);
 #define	MF_ZOMGIB	32			// small blood trail
 #define	MF_TRACER2	64			// orange split trail + rotate
 #define	MF_TRACER3	128			// purple trail
+#define MF_FENCE	16384		// 0x40000	FFX
 
 // entity effects
 #define	EF_BRIGHTFIELD			1
 #define	EF_MUZZLEFLASH 			2
 #define	EF_BRIGHTLIGHT 			4
 #define	EF_DIMLIGHT 			8
-#define	EF_NODRAW_16				16
-#define EF_ADDITIVE				32
-#define EF_BLUE					64
+#define	EF_NODRAW_16			16			// EF_QEX_QUADLIGHT FIGHTS	EF_NODRAW_16	// AURA 7.0
+
+#define	EF_QEX_QUADLIGHT_FIGHTS_NODRAW_16			16			// EF_QEX_QUADLIGHT FIGHTS	EF_NODRAW_16
+#define	EF_QEX_PENTALIGHT_FIGHTS_ADDITIVE_32		32
+#define	EF_QEX_CANDLELIGHT_FIGHTS_BLUE_64			64
+
+#define EF_ADDITIVE				32			// EF_QEX_PENTALIGHT FIGHTS	EF_ADDITIVE 32
+#define EF_BLUE					64			// EF_QEX_CANDLELIGHT FIGHTS EF_BLUE
 #define EF_RED					128
 #define EF_NOGUNBOB				256			// LadyHavoc: when used with .viewmodelforclient this makes the entity attach to the view without gun bobbing and such effects, it also works on the player entity to disable gun bobbing of the engine-managed .viewmodel (without affecting any .viewmodelforclient entities attached to the player)
 #define EF_FULLBRIGHT			512			// LadyHavoc: fullbright
@@ -83,7 +85,7 @@ void Protocol_Names(char *buffer, size_t buffersize);
 #define EF_SELECTABLE			16384		// LadyHavoc: highlights when PRYDON_CLIENTCURSOR mouse is over it
 #define EF_DOUBLESIDED			32768		//[515]: disable cull face for this entity
 #define EF_NOSELFSHADOW			65536		// LadyHavoc: does not cast a shadow on itself (or any other EF_NOSELFSHADOW entities)
-#define EF_DYNAMICMODELLIGHT			131072
+#define EF_DYNAMICMODELLIGHT	131072
 #define EF_UNUSED18				262144
 #define EF_UNUSED19				524288
 #define EF_RESTARTANIM_BIT		1048576     // div0: restart animation bit (like teleport bit, but lerps between end and start of the anim, and doesn't stop player lerping)
@@ -264,6 +266,28 @@ void Protocol_Names(char *buffer, size_t buffersize);
 #define	svc_hidelmp			36		// [string] slotname
 #define	svc_skybox			37		// [string] skyname
 
+#define	svc_zirc_qex_svc_spawnstatic2_35				35		// [string] slotname [string] lmpfilename [short] x [short] y
+
+// AURA 7.1
+#define svc_qex_botchat								38		// AURA
+#define svc_achievement_fights_effect_52			52		// AURA
+#define svc_qex_localsound_fights_spawnstatic2_56	56		// AURA
+
+// 2021 RE-RELEASE:
+	//"svc_setviews", // 45		AURA 1.1
+	//"svc_updateping", // 46
+	//"svc_updatesocial", // 47
+	//"svc_updateplinfo", // 48
+	//"svc_rawprint", // 49
+	//"svc_servervars", // 50
+	//"svc_seq", // 51
+	//"svc_achievement", // 52
+	//"svc_chat", // 53
+	//"svc_levelcompleted", // 54
+	//"svc_backtolobby", // 55
+	//"svc_localsound" // 56
+
+
 // LadyHavoc: my svc_ range, 50-69
 #define svc_downloaddata	50		// [int] start [short] size
 #define svc_updatestatubyte	51		// [byte] stat [byte] value
@@ -365,6 +389,7 @@ void Protocol_Names(char *buffer, size_t buffersize);
 #define RENDER_LIGHT 131072 // receive light
 #define RENDER_NOSELFSHADOW 262144 // render lighting on this entity before its own shadow is added to the scene
 // (note: all RENDER_NOSELFSHADOW entities are grouped together and rendered in a batch before their shadows are rendered, so they can not shadow eachother either)
+#define RENDER_EQUALIZE 524288 // (subflag of RENDER_LIGHT) equalize the light from the light grid hitting this ent (less invasive EF_FULLBRIGHT implementation)
 #define RENDER_NODEPTHTEST 1048576
 #define RENDER_ADDITIVE 2097152
 #define RENDER_DOUBLESIDED 4194304
@@ -388,9 +413,10 @@ typedef struct usercmd_s
 	vec_t	cursor_fraction;
 	int		cursor_entitynumber;
 
-	double time; // time the move is executed for (non-cl_movement is executed at receivetime)
-	float receivetime; // time the move was received at (used for ping)
-	unsigned char msec; // for predicted moves
+	double time; // time the move is executed for (cl_movement: clienttime, non-cl_movement: receivetime)
+	double receivetime; // time the move was received at
+	double clienttime; // time to which server state the move corresponds to
+	int msec; // for predicted moves
 	int buttons;
 	int impulse;
 	unsigned int sequence;

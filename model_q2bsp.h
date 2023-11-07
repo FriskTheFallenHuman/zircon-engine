@@ -186,4 +186,10 @@ typedef struct q2darea_s
 } q2darea_t;
 */
 
+typedef struct model_brushq2_s
+{
+	int dummy; // MSVC can't handle an empty struct
+}
+model_brushq2_t;
+
 #endif

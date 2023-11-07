@@ -2,7 +2,6 @@
 
 /*
 Copyright (C) 1996-1997 Id Software, Inc.
-Copyright (C) 2000-2020 DarkPlaces contributors
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,18 +23,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <stdarg.h>
-#include <assert.h>
-#include "qtypes.h"
-#include "qdefs.h"
-#include "baker.h"
 
 /// MSVC has a different name for several standard functions
 #ifdef _WIN32
 # define strcasecmp _stricmp
 # define strncasecmp _strnicmp
-#else
-#include "strings.h"
 #endif
 
 // Create our own define for Mac OS X
@@ -43,10 +35,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 # define MACOSX
 #endif
 
+#ifdef SUNOS
+#include <sys/file.h>		///< Needed for FNDELAY
+#endif
 
 //============================================================================
-
-#define ContainerOf(ptr, type, member) ((type *)((char *)(ptr) - offsetof(type, member)))
 
 typedef struct sizebuf_s
 {
@@ -134,7 +127,6 @@ void StoreLittleShort (unsigned char *buffer, unsigned short i);
 typedef enum protocolversion_e
 {
 	PROTOCOL_UNKNOWN,
-	PROTOCOL_DARKPLACES8, ///< added parting messages. WIP
 	PROTOCOL_DARKPLACES7, ///< added QuakeWorld-style movement protocol to allow more consistent prediction
 	PROTOCOL_DARKPLACES6, ///< various changes
 	PROTOCOL_DARKPLACES5, ///< uses EntityFrame5 entity snapshot encoder/decoder which is based on a Tribes networking article at http://www.garagegames.com/articles/networking1/
@@ -214,28 +206,30 @@ int COM_ParseToken_QuakeC(const char **datapointer, qbool returnnewline);
 int COM_ParseToken_VM_Tokenize(const char **datapointer, qbool returnnewline);
 int COM_ParseToken_Console(const char **datapointer);
 
+extern int com_argc;
+extern const char **com_argv;
+extern int com_selffd;
+
+int Sys_CheckParm (const char *parm);
 void COM_Init (void);
 void COM_Shutdown (void);
+void COM_InitGameType (void);
 
 char *va(char *buf, size_t buflen, const char *format, ...) DP_FUNC_PRINTF(3);
+char *va3(const char *format, ...) DP_FUNC_PRINTF(1);
+
 // does a varargs printf into provided buffer, returns buffer (so it can be called in-line unlike dpsnprintf)
 
-// GCC with -Werror=c++-compat will error out if static_assert is used even though the macro is valid C11...
-#ifndef __cplusplus
-#define DP_STATIC_ASSERT(expr, str) _Static_assert(expr, str)
-#else
-#define DP_STATIC_ASSERT(expr, str) static_assert(expr, str)
-#endif
 
 // snprintf and vsnprintf are NOT portable. Use their DP counterparts instead
 #ifdef snprintf
 # undef snprintf
 #endif
-#define snprintf DP_STATIC_ASSERT(0, "snprintf is forbidden for portability reasons. Use dpsnprintf instead.")
+#define snprintf DO_NOT_USE_SNPRINTF__USE_DPSNPRINTF
 #ifdef vsnprintf
 # undef vsnprintf
 #endif
-#define vsnprintf DP_STATIC_ASSERT(0, "vsnprintf is forbidden for portability reasons. Use dpvsnprintf instead.")
+#define vsnprintf DO_NOT_USE_VSNPRINTF__USE_DPVSNPRINTF
 
 // dpsnprintf and dpvsnprintf
 // return the number of printed characters, excluding the final '\0'
@@ -264,15 +258,16 @@ extern char *dpreplacechar (char *s_edit, int ch_find, int ch_replace); // Baker
 // A bunch of functions are forbidden for security reasons (and also to please MSVS 2005, for some of them)
 // LadyHavoc: added #undef lines here to avoid warnings in Linux
 #undef strcat
-#define strcat DP_STATIC_ASSERT(0, "strcat is forbidden for security reasons. Use strlcat or memcpy instead.")
+#define strcat DO_NOT_USE_STRCAT__USE_STRLCAT_OR_MEMCPY
 #undef strncat
-#define strncat DP_STATIC_ASSERT(0, "strncat is forbidden for security reasons. Use strlcat or memcpy instead.")
+#define strncat DO_NOT_USE_STRNCAT__USE_STRLCAT_OR_MEMCPY
 #undef strcpy
-#define strcpy DP_STATIC_ASSERT(0, "strcpy is forbidden for security reasons. Use strlcpy or memcpy instead.")
+#define strcpy DO_NOT_USE_STRCPY__USE_STRLCPY_OR_MEMCPY
 #undef strncpy
-#define strncpy DP_STATIC_ASSERT(0, "strncpy is forbidden for security reasons. Use strlcpy or memcpy instead.")
-#undef sprintf
-#define sprintf DP_STATIC_ASSERT(0, "sprintf is forbidden for security reasons. Use dpsnprintf instead.")
+#define strncpy DO_NOT_USE_STRNCPY__USE_STRLCPY_OR_MEMCPY
+//#undef sprintf
+//#define sprintf DO_NOT_USE_SPRINTF__USE_DPSNPRINTF
+
 
 
 //============================================================================
@@ -290,6 +285,64 @@ typedef enum userdirmode_e
 }
 userdirmode_t;
 
+typedef enum gamemode_e
+{
+	GAME_NORMAL,
+	GAME_HIPNOTIC,
+	GAME_ROGUE,
+	GAME_QUOTH,
+	GAME_QUAKE3_QUAKE1,
+	GAME_NEHAHRA,
+	GAME_NEXUIZ,
+//	GAME_ZIRCON,
+	GAME_XONOTIC,
+	GAME_TRANSFUSION,
+	GAME_GOODVSBAD2,
+	GAME_TEU,
+	GAME_BATTLEMECH,
+	GAME_ZYMOTIC,
+	GAME_SETHERAL,
+	GAME_TENEBRAE, // full of evil hackery
+	GAME_NEOTERIC,
+	GAME_OPENQUARTZ, //this game sucks
+	GAME_PRYDON,
+	GAME_DELUXEQUAKE,
+	GAME_THEHUNTED,
+	GAME_DEFEATINDETAIL2,
+	GAME_DARSANA,
+	GAME_CONTAGIONTHEORY,
+	GAME_EDU2P,
+	GAME_PROPHECY,
+	GAME_BLOODOMNICIDE,
+	GAME_STEELSTORM, // added by motorsep
+	GAME_STEELSTORM2, // added by motorsep
+	GAME_SSAMMO, // added by motorsep
+	GAME_STEELSTORMREVENANTS, // added by motorsep 07/19/2015
+	GAME_TOMESOFMEPHISTOPHELES, // added by motorsep
+	GAME_STRAPBOMB, // added by motorsep for Urre
+	GAME_MOONHELM,
+	GAME_VORETOURNAMENT,
+	GAME_COUNT
+}
+gamemode_t;
+
+// Master switch for some hacks/changes that eventually should become cvars.
+#define IS_NEXUIZ_DERIVED(g) ((g) == GAME_NEXUIZ || (g) == GAME_XONOTIC || (g) == GAME_VORETOURNAMENT)
+// Pre-csqcmodels era.
+#define IS_OLDNEXUIZ_DERIVED(g) ((g) == GAME_NEXUIZ || (g) == GAME_VORETOURNAMENT)
+
+extern gamemode_t gamemode;
+
+extern const char *gamename;
+extern const char *gamenetworkfiltername;
+extern const char *gamedirname1;
+extern const char *gamedirname2;
+extern const char *gamescreenshotname;
+extern const char *gameuserdirname;
+extern char com_modname[MAX_OSPATH];
+
+void COM_ChangeGameTypeForGameDirs(void);
+
 void COM_ToLowerString (const char *in, char *out, size_t size_out);
 void COM_ToUpperString (const char *in, char *out, size_t size_out);
 int COM_StringBeginsWith(const char *s, const char *match);
@@ -301,6 +354,26 @@ qbool COM_StringDecolorize(const char *in, size_t size_in, char *out, size_t siz
 void COM_ToLowerString (const char *in, char *out, size_t size_out);
 void COM_ToUpperString (const char *in, char *out, size_t size_out);
 
+typedef struct stringlist_s
+{
+	/// maxstrings changes as needed, causing reallocation of strings[] array
+	int maxstrings;
+	int numstrings;
+	char **strings;
+} stringlist_t;
+
+int matchpattern(const char *in, const char *pattern, int caseinsensitive);
+int matchpattern_with_separator(const char *in, const char *pattern, int caseinsensitive, const char *separators, qbool wildcard_least_one);
+void stringlistinit(stringlist_t *list);
+void stringlistfreecontents(stringlist_t *list);
+void stringlistappend(stringlist_t *list, const char *text);
+void stringlistsort(stringlist_t *list, qbool uniq);
+void listdirectory(stringlist_t *list, const char *basepath, const char *path);
+
+char *InfoString_GetValue(const char *buffer, const char *key, char *value, size_t valuelength);
+void InfoString_SetValue(char *buffer, size_t bufferlength, const char *key, const char *value);
+void InfoString_Print(char *buffer);
+
 // strlcat and strlcpy, from OpenBSD
 // Most (all?) BSDs already have them
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(MACOSX)
@@ -310,22 +383,22 @@ void COM_ToUpperString (const char *in, char *out, size_t size_out);
 
 #ifndef HAVE_STRLCAT
 /*!
- * Appends src to string dst of size dsize (unlike strncat, dsize is the
- * full size of dst, not space left).  At most dsize-1 characters
- * will be copied.  Always NUL terminates (unless dsize <= strlen(dst)).
- * Returns strlen(src) + MIN(dsize, strlen(initial dst)).
- * If retval >= dsize, truncation occurred.
+ * Appends src to string dst of size siz (unlike strncat, siz is the
+ * full size of dst, not space left).  At most siz-1 characters
+ * will be copied.  Always NUL terminates (unless siz <= strlen(dst)).
+ * Returns strlen(src) + MIN(siz, strlen(initial dst)).
+ * If retval >= siz, truncation occurred.
  */
-size_t strlcat(char *dst, const char *src, size_t dsize);
+size_t strlcat(char *dst, const char *src, size_t siz);
 #endif  // #ifndef HAVE_STRLCAT
 
 #ifndef HAVE_STRLCPY
 /*!
- * Copy string src to buffer dst of size dsize.  At most dsize-1
- * chars will be copied.  Always NUL terminates (unless dsize == 0).
- * Returns strlen(src); if retval >= dsize, truncation occurred.
+ * Copy src to string dst of size siz.  At most siz-1 characters
+ * will be copied.  Always NUL terminates (unless siz == 0).
+ * Returns strlen(src); if retval >= siz, truncation occurred.
  */
-size_t strlcpy(char *dst, const char *src, size_t dsize);
+size_t strlcpy(char *dst, const char *src, size_t siz);
 
 #endif  // #ifndef HAVE_STRLCPY
 
@@ -335,10 +408,6 @@ void FindFraction(double val, int *num, int *denom, int denomMax);
 char **XPM_DecodeString(const char *in);
 
 size_t base64_encode(unsigned char *buf, size_t buflen, size_t outbuflen);
-
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
-float Com_CalcRoll (const vec3_t angles, const vec3_t velocity, const vec_t angleval, const vec_t velocityval);
 
 
 // extras2
@@ -460,3 +529,4 @@ void Math_Project (vec_t *src3d, vec_t *dest2d);
 void Math_Unproject (vec_t *src2d, vec_t *dest3d);
 
 #endif // COMMON_H
+

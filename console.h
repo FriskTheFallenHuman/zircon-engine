@@ -24,16 +24,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
-#include <stddef.h>
-#include "qtypes.h"
-#include "cmd.h"
-#include "lhnet.h"
-
 //
 // console
 //
 extern int con_totallines;
 extern int con_backscroll;
+
+extern cvar_t con_zircon_autocomplete;
 
 extern qbool con_initialized;
 
@@ -48,6 +45,9 @@ void Con_Init_Commands (void);
 void Con_Shutdown (void);
 void Con_DrawConsole (int lines);
 
+void Partial_Reset (void);
+void Selection_Line_Reset_Clear (void);
+
 /// Prints to a chosen console target
 void Con_MaskPrint(int mask, const char *msg);
 
@@ -60,7 +60,7 @@ void Con_Print(const char *txt);
 /// Prints to all appropriate console targets.
 void Con_Printf(const char *fmt, ...) DP_FUNC_PRINTF(1);
 
-void Con_PrintLinef(const char* fmt, ...) DP_FUNC_PRINTF(1);  // Baker 1009: Jan 19 2022
+void Con_PrintLinef(const char *fmt, ...)DP_FUNC_PRINTF(1); // Baker 1009: Jan 19 2022
 
 void Con_LogCenterPrint(const char *str); // Baker 8501
 
@@ -69,8 +69,8 @@ void Con_DPrint(const char *msg);
 
 /// A Con_Printf that only shows up if the "developer" cvar is set
 void Con_DPrintf(const char *fmt, ...) DP_FUNC_PRINTF(1);
-void Con_DPrintLinef(const char* fmt, ...) DP_FUNC_PRINTF(1);
-void Con_Clear_f(cmd_state_t *cmd);
+void Con_DPrintLinef(const char *fmt, ...) DP_FUNC_PRINTF(1);
+void Con_Clear_f (void);
 
 void Con_HidenotifyPrintLinef(const char *fmt, ...) DP_FUNC_PRINTF(1); //
 
@@ -78,16 +78,54 @@ void Con_DrawNotify (void);
 
 /// Clear all notify lines.
 void Con_ClearNotify (void);
-void Con_ToggleConsole_f(cmd_state_t *cmd);
-void Con_CloseConsole_If_Client(void);
+void Con_ToggleConsole_f (void);
 
-qbool GetMapList (const char *s, char *completedname, int completednamebufferlength);
+int Nicks_CompleteChatLine(char *buffer, size_t size, unsigned int pos);
+
+int GetMapList (const char *s, char *completedname, int completednamebufferlength, int is_menu_fill, int is_autocomplete, int is_suppress_print );
+
+typedef struct {
+	unsigned char *sm_a;
+	unsigned char *smtru_a;
+	unsigned char *smsg_a;
+	unsigned char *sqbsp;
+} maplist_s;
+extern int m_maplist_count;
+#define MAXMAPLIST_4096 4096
+extern maplist_s m_maplist[MAXMAPLIST_4096];
+
+//=============================================================================
+/* MODLIST MENU */
+// same limit of mod dirs as in fs.c
+#define MODLIST_MAXDIRS 16
+extern int modlist_enabled [MODLIST_MAXDIRS];	//array of indexs to modlist
+extern int modlist_numenabled;			//number of enabled (or in process to be..) mods
+
+typedef struct modlist_entry_s
+{
+	qbool loaded;	// used to determine whether this entry is loaded and running
+	int enabled;		// index to array of modlist_enabled
+
+	// name of the modification, this is (will...be) displayed on the menu entry
+	char name[128];
+	// directory where we will find it
+	char dir[MAX_QPATH];
+} modlist_entry_t;
+
+extern int modlist_cursor;
+//static int modlist_viewcount;
+
+extern int modlist_count;
+extern modlist_entry_t modlist[MODLIST_TOTALSIZE];
+
+extern int lanConfig_cursor;
 
 /// wrapper function to attempt to either complete the command line
 /// or to list possible matches grouped by type
 /// (i.e. will display possible variables, aliases, commands
 /// that match what they've typed so far)
-int Con_CompleteCommandLine(cmd_state_t *cmd, qbool is_console);
+void Con_CompleteCommandLine_Zircon(int is_shifted, int is_from_nothing);
+void Con_CompleteCommandLine(void);
 
 /// Generic libs/util/console.c function to display a list
 /// formatted in columns on the console
@@ -105,17 +143,17 @@ void Log_DestBuffer_Flush (void); ///< call this once per frame to send out repl
 void Log_Printf(const char *logfilename, const char *fmt, ...) DP_FUNC_PRINTF(2);
 //@}
 
-#define CON_WARN "^3"
-#define CON_ERROR "^1"
+#define CON_WARN ""
+#define CON_ERROR ""
 
 // CON_MASK_PRINT is the default (Con_Print/Con_Printf)
 // CON_MASK_DEVELOPER is used by Con_DPrint/Con_DPrintf
 #define CON_MASK_NONE_0			0
-#define CON_MASK_CHAT 1
-#define CON_MASK_INPUT 2
-#define CON_MASK_DEVELOPER 4
-#define CON_MASK_PRINT 8
-#define CON_MASK_HIDENOTIFY 128
+#define CON_MASK_CHAT			1
+#define CON_MASK_INPUT			2
+#define CON_MASK_DEVELOPER		4
+#define CON_MASK_PRINT			8
+#define CON_MASK_HIDENOTIFY		128
 
 typedef struct con_lineinfo_s
 {
@@ -149,6 +187,8 @@ void ConBuffer_Init(conbuffer_t *buf, int textsize, int maxlines, mempool_t *mem
 void ConBuffer_Clear (conbuffer_t *buf);
 void ConBuffer_Shutdown(conbuffer_t *buf);
 
+void Con_History_Maybe_Push (const char *stext);
+
 /*! Notifies the console code about the current time
  * (and shifts back times of other entries when the time
  * went backwards)
@@ -167,6 +207,7 @@ int ConBuffer_FindPrevLine(conbuffer_t *buf, int mask_must, int mask_mustnot, in
 int ConBuffer_FindNextLine(conbuffer_t *buf, int mask_must, int mask_mustnot, int start);
 const char *ConBuffer_GetLine(conbuffer_t *buf, int i);
 
+void Con_Undo_Clear (void);
 // Baker r0004: Ctrl + up/down size console like JoeQuake
 extern float console_user_pct;
 void Con_AdjustConsoleHeight(const float delta);

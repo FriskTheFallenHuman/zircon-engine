@@ -2,7 +2,8 @@
 // Microsoft Developer Studio generated include file.
 // Used by darkplaces.rc
 //
-#define IDI_ICON1                       101
+#define IDI_ICON1                       1	// Baker 1000.1
+#define IDI_ICON2                       2	// Baker 1000.1
 
 // Next default values for new objects
 // 

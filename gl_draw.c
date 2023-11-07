@@ -18,60 +18,291 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#include "quakedef.h"
+#include "darkplaces.h"
 #include "image.h"
 #include "wad.h"
 
 #include "cl_video.h"
+#include "cl_dyntexture.h"
 
 #include "ft2.h"
 #include "ft2_fontdefs.h"
 
-struct cachepic_s
-{
-	// size of pic
-	int width, height;
-	// this flag indicates that it should be loaded and unloaded on demand
-	int autoload;
-	// texture flags to upload with
-	int texflags;
-	// texture may be freed after a while
-	int lastusedframe;
-	// renderable texture
-	skinframe_t *skinframe;
-	// used for hash lookups
-	struct cachepic_s *chain;
-	// flags - CACHEPICFLAG_NEWPIC for example
-	unsigned int flags;
-	// name of pic
-	char name[MAX_QPATH];
-};
-
 dp_fonts_t dp_fonts;
 static mempool_t *fonts_mempool = NULL;
 
-cvar_t r_textshadow = {CF_CLIENT | CF_ARCHIVE, "r_textshadow", "0", "draws a shadow on all text to improve readability (note: value controls offset, 1 = 1 pixel, 1.5 = 1.5 pixels, etc)"};
-cvar_t r_textbrightness = {CF_CLIENT | CF_ARCHIVE, "r_textbrightness", "0", "additional brightness for text color codes (0 keeps colors as is, 1 makes them all white)"};
-cvar_t r_textcontrast = {CF_CLIENT | CF_ARCHIVE, "r_textcontrast", "1", "additional contrast for text color codes (1 keeps colors as is, 0 makes them all black)"};
+cvar_t r_textshadow = {CVAR_SAVE, "r_textshadow", "0", "draws a shadow on all text to improve readability (note: value controls offset, 1 = 1 pixel, 1.5 = 1.5 pixels, etc)"};
+cvar_t r_textbrightness = {CVAR_SAVE, "r_textbrightness", "0", "additional brightness for text color codes (0 keeps colors as is, 1 makes them all white)"};
+cvar_t r_textcontrast = {CVAR_SAVE, "r_textcontrast", "1", "additional contrast for text color codes (1 keeps colors as is, 0 makes them all black)"};
 
-cvar_t r_font_postprocess_blur = {CF_CLIENT | CF_ARCHIVE, "r_font_postprocess_blur", "0", "font blur amount"};
-cvar_t r_font_postprocess_outline = {CF_CLIENT | CF_ARCHIVE, "r_font_postprocess_outline", "0", "font outline amount"};
-cvar_t r_font_postprocess_shadow_x = {CF_CLIENT | CF_ARCHIVE, "r_font_postprocess_shadow_x", "0", "font shadow X shift amount, applied during outlining"};
-cvar_t r_font_postprocess_shadow_y = {CF_CLIENT | CF_ARCHIVE, "r_font_postprocess_shadow_y", "0", "font shadow Y shift amount, applied during outlining"};
-cvar_t r_font_postprocess_shadow_z = {CF_CLIENT | CF_ARCHIVE, "r_font_postprocess_shadow_z", "0", "font shadow Z shift amount, applied during blurring"};
-cvar_t r_font_hinting = {CF_CLIENT | CF_ARCHIVE, "r_font_hinting", "3", "0 = no hinting, 1 = light autohinting, 2 = full autohinting, 3 = full hinting"};
-cvar_t r_font_antialias = {CF_CLIENT | CF_ARCHIVE, "r_font_antialias", "1", "0 = monochrome, 1 = grey" /* , 2 = rgb, 3 = bgr" */};
-cvar_t r_nearest_2d = {CF_CLIENT | CF_ARCHIVE, "r_nearest_2d", "1", "use nearest filtering on all 2d textures (including conchars) [Zircon default]"}; // Baker r8103 - default 1 for crispness
-cvar_t r_nearest_conchars = {CF_CLIENT | CF_ARCHIVE, "r_nearest_conchars", "1", "use nearest filtering on conchars texture [Zircon default]"}; // Baker r8103 - default 1 for crispness
+cvar_t r_font_postprocess_blur = {CVAR_SAVE, "r_font_postprocess_blur", "0", "font blur amount"};
+cvar_t r_font_postprocess_outline = {CVAR_SAVE, "r_font_postprocess_outline", "0", "font outline amount"};
+cvar_t r_font_postprocess_shadow_x = {CVAR_SAVE, "r_font_postprocess_shadow_x", "0", "font shadow X shift amount, applied during outlining"};
+cvar_t r_font_postprocess_shadow_y = {CVAR_SAVE, "r_font_postprocess_shadow_y", "0", "font shadow Y shift amount, applied during outlining"};
+cvar_t r_font_postprocess_shadow_z = {CVAR_SAVE, "r_font_postprocess_shadow_z", "0", "font shadow Z shift amount, applied during blurring"};
+cvar_t r_font_hinting = {CVAR_SAVE, "r_font_hinting", "3", "0 = no hinting, 1 = light autohinting, 2 = full autohinting, 3 = full hinting"};
+cvar_t r_font_antialias = {CVAR_SAVE, "r_font_antialias", "1", "0 = monochrome, 1 = grey" /* , 2 = rgb, 3 = bgr" */};
+cvar_t r_nearest_2d = {CVAR_SAVE, "r_nearest_2d", "1", "use nearest filtering on all 2d textures (including conchars)"};
+cvar_t r_nearest_conchars = {CVAR_SAVE | CVAR_NQUSERINFOHACK, "r_nearest_conchars", "1", "use nearest filtering on conchars texture [Zircon will apply immediately in full]]"};
+
+extern cvar_t v_glslgamma;
 
 //=============================================================================
 /* Support Routines */
 
+#define FONT_FILESIZE 13468
 static cachepic_t *cachepichash[CACHEPICHASHSIZE];
 static cachepic_t cachepics[MAX_CACHED_PICS];
 static int numcachepics;
 
 rtexturepool_t *drawtexturepool;
+
+static const unsigned char concharimage[FONT_FILESIZE] =
+{
+#include "lhfont.h"
+};
+
+static rtexture_t *draw_generateconchars(void)
+{
+	int i;
+	unsigned char *data;
+	double random;
+	rtexture_t *tex;
+
+	data = LoadTGA_BGRA (concharimage, FONT_FILESIZE, NULL);
+// Gold numbers
+	for (i = 0;i < 8192;i++)
+	{
+		random = lhrandom (0.0,1.0);
+		data[i*4+3] = data[i*4+0];
+		data[i*4+2] = 83 + (unsigned char)(random * 64);
+		data[i*4+1] = 71 + (unsigned char)(random * 32);
+		data[i*4+0] = 23 + (unsigned char)(random * 16);
+	}
+// White chars
+	for (i = 8192;i < 32768;i++)
+	{
+		random = lhrandom (0.0,1.0);
+		data[i*4+3] = data[i*4+0];
+		data[i*4+2] = 95 + (unsigned char)(random * 64);
+		data[i*4+1] = 95 + (unsigned char)(random * 64);
+		data[i*4+0] = 95 + (unsigned char)(random * 64);
+	}
+// Gold numbers
+	for (i = 32768;i < 40960;i++)
+	{
+		random = lhrandom (0.0,1.0);
+		data[i*4+3] = data[i*4+0];
+		data[i*4+2] = 83 + (unsigned char)(random * 64);
+		data[i*4+1] = 71 + (unsigned char)(random * 32);
+		data[i*4+0] = 23 + (unsigned char)(random * 16);
+	}
+// Red chars
+	for (i = 40960;i < 65536;i++)
+	{
+		random = lhrandom (0.0,1.0);
+		data[i*4+3] = data[i*4+0];
+		data[i*4+2] = 96 + (unsigned char)(random * 64);
+		data[i*4+1] = 43 + (unsigned char)(random * 32);
+		data[i*4+0] = 27 + (unsigned char)(random * 32);
+	}
+
+#if 0
+	Image_WriteTGABGRA ("gfx/generated_conchars.tga", 256, 256, data);
+#endif
+
+	tex = R_LoadTexture2D(drawtexturepool, "conchars", 256, 256, data, TEXTYPE_BGRA, TEXF_ALPHA | (r_nearest_conchars.integer ? TEXF_FORCENEAREST : 0), -1, NULL);
+	Mem_Free(data);
+	return tex;
+}
+
+static rtexture_t *draw_generateditherpattern(void)
+{
+	int x, y;
+	unsigned char pixels[8][8];
+	for (y = 0;y < 8;y++)
+		for (x = 0;x < 8;x++)
+			pixels[y][x] = ((x^y) & 4) ? 254 : 0;
+	return R_LoadTexture2D(drawtexturepool, "ditherpattern", 8, 8, pixels[0], TEXTYPE_PALETTE, TEXF_FORCENEAREST, -1, palette_bgra_transparent);
+}
+
+typedef struct embeddedpic_s
+{
+	const char *name;
+	int width;
+	int height;
+	const char *pixels;
+}
+embeddedpic_t;
+
+static const embeddedpic_t embeddedpics[] =
+{
+	{
+	"gfx/prydoncursor001", 16, 16,
+	"477777774......."
+	"77.....6........"
+	"7.....6........."
+	"7....6.........."
+	"7.....6........."
+	"7..6...6........"
+	"7.6.6...6......."
+	"76...6...6......"
+	"4.....6.6......."
+	".......6........"
+	"................"
+	"................"
+	"................"
+	"................"
+	"................"
+	"................"
+	},
+	{
+	"ui/mousepointer", 16, 16,
+	"477777774......."
+	"77.....6........"
+	"7.....6........."
+	"7....6.........."
+	"7.....6........."
+	"7..6...6........"
+	"7.6.6...6......."
+	"76...6...6......"
+	"4.....6.6......."
+	".......6........"
+	"................"
+	"................"
+	"................"
+	"................"
+	"................"
+	"................"
+	},
+	{
+	"gfx/crosshair1", 16, 16,
+	"................"
+	"................"
+	"................"
+	"...33......33..."
+	"...355....553..."
+	"....577..775...."
+	".....77..77....."
+	"................"
+	"................"
+	".....77..77....."
+	"....577..775...."
+	"...355....553..."
+	"...33......33..."
+	"................"
+	"................"
+	"................"
+	},
+	{
+	"gfx/crosshair2", 16, 16,
+	"................"
+	"................"
+	"................"
+	"...3........3..."
+	"....5......5...."
+	".....7....7....."
+	"......7..7......"
+	"................"
+	"................"
+	"......7..7......"
+	".....7....7....."
+	"....5......5...."
+	"...3........3..."
+	"................"
+	"................"
+	"................"
+	},
+	{
+	"gfx/crosshair3", 16, 16,
+	"................"
+	".......77......."
+	".......77......."
+	"................"
+	"................"
+	".......44......."
+	".......44......."
+	".77..44..44..77."
+	".77..44..44..77."
+	".......44......."
+	".......44......."
+	"................"
+	"................"
+	".......77......."
+	".......77......."
+	"................"
+	},
+	{
+	"gfx/crosshair4", 16, 16,
+	"................"
+	"................"
+	"................"
+	"................"
+	"................"
+	"................"
+	"................"
+	"................"
+	"........7777777."
+	"........752....."
+	"........72......"
+	"........7......."
+	"........7......."
+	"........7......."
+	"........7......."
+	"................"
+	},
+	{
+	"gfx/crosshair5", 8, 8,
+	"........"
+	"........"
+	"....7..."
+	"........"
+	"..7.7.7."
+	"........"
+	"....7..."
+	"........"
+	},
+	{
+	"gfx/crosshair6", 2, 2,
+	"77"
+	"77"
+	},
+	{
+	"gfx/crosshair7", 16, 16,
+	"................"
+	".3............3."
+	"..5...2332...5.."
+	"...7.3....3.7..."
+	"....7......7...."
+	"...3.7....7.3..."
+	"..2...7..7...2.."
+	"..3..........3.."
+	"..3..........3.."
+	"..2...7..7...2.."
+	"...3.7....7.3..."
+	"....7......7...."
+	"...7.3....3.7..."
+	"..5...2332...5.."
+	".3............3."
+	"................"
+	},
+	{NULL, 0, 0, NULL}
+};
+
+static rtexture_t *draw_generatepic(const char *name, qbool quiet)
+{
+	const embeddedpic_t *p;
+	for (p = embeddedpics;p->name;p++)
+		if (String_Does_Match(name, p->name))
+			return R_LoadTexture2D(drawtexturepool, p->name, p->width, p->height, (const unsigned char *)p->pixels, TEXTYPE_PALETTE, TEXF_ALPHA, -1, palette_bgra_embeddedpic);
+	if (String_Does_Match(name, "gfx/conchars"))
+		return draw_generateconchars();
+	if (String_Does_Match(name, "gfx/colorcontrol/ditherpattern"))
+		return draw_generateditherpattern();
+	if (!quiet)
+		Con_DPrintf("Draw_CachePic: failed to load %s\n", name);
+	return r_texture_notexture;
+}
 
 int draw_frame = 1;
 
@@ -84,8 +315,17 @@ Draw_CachePic
 cachepic_t *Draw_CachePic_Flags(const char *path, unsigned int cachepicflags)
 {
 	int crc, hashkey;
+	unsigned char *pixels = NULL;
 	cachepic_t *pic;
+	fs_offset_t lmpsize;
+	unsigned char *lmpdata;
+	char lmpname[MAX_QPATH];
 	int texflags;
+	int j;
+	qbool ddshasalpha;
+	float ddsavgcolor[4];
+	qbool loaded = false;
+	char vabuf[1024];
 
 	texflags = TEXF_ALPHA;
 	if (!(cachepicflags & CACHEPICFLAG_NOCLAMP))
@@ -94,9 +334,7 @@ cachepic_t *Draw_CachePic_Flags(const char *path, unsigned int cachepicflags)
 		texflags |= TEXF_MIPMAP;
 	if (!(cachepicflags & CACHEPICFLAG_NOCOMPRESSION) && gl_texturecompression_2d.integer && gl_texturecompression.integer)
 		texflags |= TEXF_COMPRESS;
-	if (cachepicflags & CACHEPICFLAG_LINEAR)
-		texflags |= TEXF_FORCELINEAR;
-	else if ((cachepicflags & CACHEPICFLAG_NEAREST) || r_nearest_2d.integer)
+	if ((cachepicflags & CACHEPICFLAG_NEAREST) || r_nearest_2d.integer)
 		texflags |= TEXF_FORCENEAREST;
 
 	// check whether the picture has already been cached
@@ -104,42 +342,31 @@ cachepic_t *Draw_CachePic_Flags(const char *path, unsigned int cachepicflags)
 	hashkey = ((crc >> 8) ^ crc) % CACHEPICHASHSIZE;
 	for (pic = cachepichash[hashkey];pic;pic = pic->chain)
 	{
-		if (!strcmp(path, pic->name))
+		if (String_Does_Match (path, pic->name))
 		{
 			// if it was created (or replaced) by Draw_NewPic, just return it
-			if (!(pic->flags & CACHEPICFLAG_NEWPIC))
+			if(pic->flags & CACHEPICFLAG_NEWPIC)
+				return pic;
+			if (!((pic->texflags ^ texflags) & ~(TEXF_COMPRESS | TEXF_MIPMAP))) // ignore TEXF_COMPRESS when comparing, because fallback pics remove the flag, and ignore TEXF_MIPMAP because QC specifies that
 			{
-				// reload the pic if texflags changed in important ways
-				// ignore TEXF_COMPRESS when comparing, because fallback pics remove the flag, and ignore TEXF_MIPMAP because QC specifies that
-				if ((pic->texflags ^ texflags) & ~(TEXF_COMPRESS | TEXF_MIPMAP))
+				if(!(cachepicflags & CACHEPICFLAG_NOTPERSISTENT))
 				{
-					Con_DPrintf("Draw_CachePic(\"%s\"): frame %i: reloading pic due to mismatch on flags\n", path, draw_frame);
-					goto reload;
+					if(pic->tex)
+						pic->autoload = false; // persist it
+					else
+						goto reload; // load it below, and then persist
 				}
-				if (!pic->skinframe || !pic->skinframe->base)
-				{
-					if (pic->flags & CACHEPICFLAG_FAILONMISSING)
-						return NULL;
-					Con_DPrintf("Draw_CachePic(\"%s\"): frame %i: reloading pic\n", path, draw_frame);
-					goto reload;
-				}
-				if (!(cachepicflags & CACHEPICFLAG_NOTPERSISTENT))
-					pic->autoload = false; // caller is making this pic persistent
+				return pic;
 			}
-			if (pic->skinframe)
-				R_SkinFrame_MarkUsed(pic->skinframe);
-			pic->lastusedframe = draw_frame;
-			return pic;
 		}
 	}
 
 	if (numcachepics == MAX_CACHED_PICS)
 	{
-		Con_DPrintf ("Draw_CachePic(\"%s\"): frame %i: numcachepics == MAX_CACHED_PICS\n", path, draw_frame);
+		Con_Printf ("Draw_CachePic: numcachepics == MAX_CACHED_PICS\n");
 		// FIXME: support NULL in callers?
 		return cachepics; // return the first one
 	}
-	Con_DPrintf("Draw_CachePic(\"%s\"): frame %i: loading pic%s\n", path, draw_frame, (cachepicflags & CACHEPICFLAG_NOTPERSISTENT) ? " notpersist" : "");
 	pic = cachepics + (numcachepics++);
 	memset(pic, 0, sizeof(*pic));
 	strlcpy (pic->name, path, sizeof(pic->name));
@@ -148,34 +375,138 @@ cachepic_t *Draw_CachePic_Flags(const char *path, unsigned int cachepicflags)
 	cachepichash[hashkey] = pic;
 
 reload:
-	if (pic->skinframe)
-		R_SkinFrame_PurgeSkinFrame(pic->skinframe);
+	// TODO why does this crash?
+	if(pic->allow_free_tex && pic->tex)
+		R_PurgeTexture(pic->tex);
 
+	// check whether it is an dynamic texture (if so, we can directly use its texture handler)
 	pic->flags = cachepicflags;
+	pic->tex = CL_GetDynTexture( path );
+	// if so, set the width/height, too
+	if( pic->tex ) {
+		pic->allow_free_tex = false;
+		pic->width = R_TextureWidth(pic->tex);
+		pic->height = R_TextureHeight(pic->tex);
+		// we're done now (early-out)
+		return pic;
+	}
+
+	pic->allow_free_tex = true;
+
+	pic->hasalpha = true; // assume alpha unless we know it has none
 	pic->texflags = texflags;
-	pic->autoload = (cachepicflags & CACHEPICFLAG_NOTPERSISTENT) != 0;
+	pic->autoload = (cachepicflags & CACHEPICFLAG_NOTPERSISTENT);
 	pic->lastusedframe = draw_frame;
 
-	if (pic->skinframe)
+	// load a high quality image from disk if possible
+	if (!loaded && r_texture_dds_load.integer != 0 && (pic->tex = R_LoadTextureDDSFile(drawtexturepool, va(vabuf, sizeof(vabuf), "dds/%s.dds", pic->name), vid.sRGB2D, pic->texflags, &ddshasalpha, ddsavgcolor, 0, false)))
 	{
-		// reload image after it was unloaded or texflags changed significantly
-		R_SkinFrame_LoadExternal_SkinFrame(pic->skinframe, pic->name, texflags | TEXF_FORCE_RELOAD, (cachepicflags & CACHEPICFLAG_QUIET) == 0, (cachepicflags & CACHEPICFLAG_FAILONMISSING) == 0);
+		// note this loads even if autoload is true, otherwise we can't get the width/height
+		loaded = true;
+		pic->hasalpha = ddshasalpha;
+		pic->width = R_TextureWidth(pic->tex);
+		pic->height = R_TextureHeight(pic->tex);
 	}
-	else
+	if (!loaded && ((pixels = loadimagepixelsbgra(pic->name, false, true, false, NULL)) || (!strncmp(pic->name, "gfx/", 4) && (pixels = loadimagepixelsbgra(pic->name+4, false, true, false, NULL)))))
 	{
-		// load high quality image (this falls back to low quality too)
-		pic->skinframe = R_SkinFrame_LoadExternal(pic->name, texflags | TEXF_FORCE_RELOAD, (cachepicflags & CACHEPICFLAG_QUIET) == 0, (cachepicflags & CACHEPICFLAG_FAILONMISSING) == 0);
+		loaded = true;
+		pic->hasalpha = false;
+		if (pic->texflags & TEXF_ALPHA)
+		{
+			for (j = 3;j < image_width * image_height * 4;j += 4)
+			{
+				if (pixels[j] < 255)
+				{
+					pic->hasalpha = true;
+					break;
+				}
+			}
+		}
+
+		pic->width = image_width;
+		pic->height = image_height;
+		if (!pic->autoload)
+		{
+			pic->tex = R_LoadTexture2D(drawtexturepool, pic->name, image_width, image_height, pixels, vid.sRGB2D ? TEXTYPE_SRGB_BGRA : TEXTYPE_BGRA, pic->texflags & (pic->hasalpha ? ~0 : ~TEXF_ALPHA), -1, NULL);
+#ifndef USE_GLES2
+			if (r_texture_dds_save.integer && qglGetCompressedTexImageARB && pic->tex)
+				R_SaveTextureDDSFile(pic->tex, va(vabuf, sizeof(vabuf), "dds/%s.dds", pic->name), r_texture_dds_save.integer < 2, pic->hasalpha);
+#endif
+		}
+	}
+	if (!loaded)
+	{
+		pic->autoload = false;
+		// never compress the fallback images
+		pic->texflags &= ~TEXF_COMPRESS;
 	}
 
-	// get the dimensions of the image we loaded (if it was successful)
-	if (pic->skinframe && pic->skinframe->base)
+	// now read the low quality version (wad or lmp file), and take the pic
+	// size from that even if we don't upload the texture, this way the pics
+	// show up the right size in the menu even if they were replaced with
+	// higher or lower resolution versions
+	dpsnprintf(lmpname, sizeof(lmpname), "%s.lmp", pic->name);
+	if ((!strncmp(pic->name, "gfx/", 4) || (gamemode == GAME_BLOODOMNICIDE && !strncmp(pic->name, "locale/", 6))) && (lmpdata = FS_LoadFile(lmpname, tempmempool, false, &lmpsize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL)))
 	{
-		pic->width = R_TextureWidth(pic->skinframe->base);
-		pic->height = R_TextureHeight(pic->skinframe->base);
+		if (developer_loading.integer)
+			Con_Printf("loading lump \"%s\"\n", pic->name);
+
+		if (lmpsize >= 9)
+		{
+			pic->width = lmpdata[0] + lmpdata[1] * 256 + lmpdata[2] * 65536 + lmpdata[3] * 16777216;
+			pic->height = lmpdata[4] + lmpdata[5] * 256 + lmpdata[6] * 65536 + lmpdata[7] * 16777216;
+			// if no high quality replacement image was found, upload the original low quality texture
+			if (!loaded)
+			{
+				loaded = true;
+				pic->tex = R_LoadTexture2D(drawtexturepool, pic->name, pic->width, pic->height, lmpdata + 8, vid.sRGB2D ? TEXTYPE_SRGB_PALETTE : TEXTYPE_PALETTE, pic->texflags, -1, palette_bgra_transparent);
+			}
+		}
+		Mem_Free(lmpdata);
+	}
+	else if ((lmpdata = W_GetLumpName (pic->name + 4, /*offset reply*/ NULL)))
+	{
+		if (developer_loading.integer)
+			Con_Printf("loading gfx.wad lump \"%s\"\n", pic->name + 4);
+
+		if (String_Does_Match(pic->name, "gfx/conchars"))
+		{
+			// conchars is a raw image and with color 0 as transparent instead of 255
+			pic->width = 128;
+			pic->height = 128;
+			// if no high quality replacement image was found, upload the original low quality texture
+			if (!loaded)
+			{
+				loaded = true;
+				pic->tex = R_LoadTexture2D(drawtexturepool, pic->name, 128, 128, lmpdata, vid.sRGB2D != 0 ? TEXTYPE_SRGB_PALETTE : TEXTYPE_PALETTE, pic->texflags, -1, palette_bgra_font);
+			}
+		}
+		else
+		{
+			pic->width = lmpdata[0] + lmpdata[1] * 256 + lmpdata[2] * 65536 + lmpdata[3] * 16777216;
+			pic->height = lmpdata[4] + lmpdata[5] * 256 + lmpdata[6] * 65536 + lmpdata[7] * 16777216;
+			// if no high quality replacement image was found, upload the original low quality texture
+			if (!loaded)
+			{
+				loaded = true;
+				pic->tex = R_LoadTexture2D(drawtexturepool, pic->name, pic->width, pic->height, lmpdata + 8, vid.sRGB2D != 0 ? TEXTYPE_SRGB_PALETTE : TEXTYPE_PALETTE, pic->texflags, -1, palette_bgra_transparent);
+			}
+		}
 	}
 
-	// check for a low quality version of the pic and use its size if possible, to match the stock hud
-	Image_GetStockPicSize(pic->name, &pic->width, &pic->height);
+	if (pixels)
+	{
+		Mem_Free(pixels);
+		pixels = NULL;
+	}
+	if (!loaded)
+	{
+		// if it's not found on disk, generate an image
+		pic->tex = draw_generatepic(pic->name, (cachepicflags & CACHEPICFLAG_QUIET) != 0);
+		pic->width = R_TextureWidth(pic->tex);
+		pic->height = R_TextureHeight(pic->tex);
+		pic->allow_free_tex = (pic->tex != r_texture_notexture);
+	}
 
 	return pic;
 }
@@ -185,51 +516,38 @@ cachepic_t *Draw_CachePic (const char *path)
 	return Draw_CachePic_Flags (path, 0); // default to persistent!
 }
 
-const char *Draw_GetPicName(cachepic_t *pic)
-{
-	if (pic == NULL)
-		return "";
-	return pic->name;
-}
-
-int Draw_GetPicWidth(cachepic_t *pic)
-{
-	if (pic == NULL)
-		return 0;
-	return pic->width;
-}
-
-int Draw_GetPicHeight(cachepic_t *pic)
-{
-	if (pic == NULL)
-		return 0;
-	return pic->height;
-}
-
-qbool Draw_IsPicLoaded(cachepic_t *pic)
-{
-	if (pic == NULL)
-		return false;
-	if (pic->autoload && (!pic->skinframe || !pic->skinframe->base))
-	{
-		Con_DPrintf("Draw_IsPicLoaded(\"%s\"): Loading external skin\n", pic->name);
-		pic->skinframe = R_SkinFrame_LoadExternal(pic->name, pic->texflags | TEXF_FORCE_RELOAD, false, true);
-	}
-	// skinframe will only be NULL if the pic was created with CACHEPICFLAG_FAILONMISSING and not found
-	return pic->skinframe != NULL && pic->skinframe->base != NULL;
-}
-
 rtexture_t *Draw_GetPicTexture(cachepic_t *pic)
 {
-	if (pic == NULL)
-		return NULL;
-	if (pic->autoload && (!pic->skinframe || !pic->skinframe->base))
+	char vabuf[1024];
+	if (pic->autoload && !pic->tex)
 	{
-		Con_DPrintf("Draw_GetPicTexture(\"%s\"): Loading external skin\n", pic->name);
-		pic->skinframe = R_SkinFrame_LoadExternal(pic->name, pic->texflags | TEXF_FORCE_RELOAD, false, true);
+		if (pic->tex == NULL && r_texture_dds_load.integer != 0)
+		{
+			qbool ddshasalpha;
+			float ddsavgcolor[4];
+			pic->tex = R_LoadTextureDDSFile(drawtexturepool, va(vabuf, sizeof(vabuf), "dds/%s.dds", pic->name), vid.sRGB2D, pic->texflags, &ddshasalpha, ddsavgcolor, 0, false);
+		}
+		if (pic->tex == NULL)
+		{
+			pic->tex = loadtextureimage(drawtexturepool, pic->name, false, pic->texflags, true, vid.sRGB2D);
+#ifndef USE_GLES2
+			if (r_texture_dds_save.integer && qglGetCompressedTexImageARB && pic->tex)
+				R_SaveTextureDDSFile(pic->tex, va(vabuf, sizeof(vabuf), "dds/%s.dds", pic->name), r_texture_dds_save.integer < 2, pic->hasalpha);
+#endif
+		}
+		if (pic->tex == NULL && !strncmp(pic->name, "gfx/", 4))
+		{
+			pic->tex = loadtextureimage(drawtexturepool, pic->name+4, false, pic->texflags, true, vid.sRGB2D);
+#ifndef USE_GLES2
+			if (r_texture_dds_save.integer && qglGetCompressedTexImageARB && pic->tex)
+				R_SaveTextureDDSFile(pic->tex, va(vabuf, sizeof(vabuf), "dds/%s.dds", pic->name), r_texture_dds_save.integer < 2, pic->hasalpha);
+#endif
+		}
+		if (pic->tex == NULL)
+			pic->tex = draw_generatepic(pic->name, true);
 	}
 	pic->lastusedframe = draw_frame;
-	return pic->skinframe ? pic->skinframe->base : NULL;
+	return pic->tex;
 }
 
 void Draw_Frame(void)
@@ -237,21 +555,21 @@ void Draw_Frame(void)
 	int i;
 	cachepic_t *pic;
 	static double nextpurgetime;
-	if (nextpurgetime > host.realtime)
+	if (nextpurgetime > realtime)
 		return;
-	nextpurgetime = host.realtime + 0.05;
+	nextpurgetime = realtime + 0.05;
 	for (i = 0, pic = cachepics;i < numcachepics;i++, pic++)
 	{
-		if (pic->autoload && pic->skinframe && pic->skinframe->base && pic->lastusedframe < draw_frame - 3)
+		if (pic->autoload && pic->tex && pic->lastusedframe < draw_frame)
 		{
-			Con_DPrintf("Draw_Frame(%i): Unloading \"%s\"\n", draw_frame, pic->name);
-			R_SkinFrame_PurgeSkinFrame(pic->skinframe);
+			R_FreeTexture(pic->tex);
+			pic->tex = NULL;
 		}
 	}
 	draw_frame++;
 }
 
-cachepic_t *Draw_NewPic(const char *picname, int width, int height, unsigned char *pixels_bgra, textype_t textype, int texflags)
+cachepic_t *Draw_NewPic(const char *picname, int width, int height, int alpha, unsigned char *pixels_bgra)
 {
 	int crc, hashkey;
 	cachepic_t *pic;
@@ -259,30 +577,25 @@ cachepic_t *Draw_NewPic(const char *picname, int width, int height, unsigned cha
 	crc = CRC_Block((unsigned char *)picname, strlen(picname));
 	hashkey = ((crc >> 8) ^ crc) % CACHEPICHASHSIZE;
 	for (pic = cachepichash[hashkey];pic;pic = pic->chain)
-		if (!strcmp (picname, pic->name))
+		if (String_Does_Match (picname, pic->name))
 			break;
 
 	if (pic)
 	{
-		if (pic->flags & CACHEPICFLAG_NEWPIC && pic->skinframe && pic->skinframe->base && pic->width == width && pic->height == height)
+		if (pic->flags == CACHEPICFLAG_NEWPIC && pic->tex && pic->width == width && pic->height == height)
 		{
-			Con_DPrintf("Draw_NewPic(\"%s\"): frame %i: updating texture\n", picname, draw_frame);
-			R_UpdateTexture(pic->skinframe->base, pixels_bgra, 0, 0, 0, width, height, 1, 0);
-			R_SkinFrame_MarkUsed(pic->skinframe);
-			pic->lastusedframe = draw_frame;
+			R_UpdateTexture(pic->tex, pixels_bgra, 0, 0, 0, width, height, 1);
 			return pic;
 		}
-		Con_DPrintf("Draw_NewPic(\"%s\"): frame %i: reloading pic because flags/size changed\n", picname, draw_frame);
 	}
 	else
 	{
 		if (numcachepics == MAX_CACHED_PICS)
 		{
-			Con_DPrintf ("Draw_NewPic(\"%s\"): frame %i: numcachepics == MAX_CACHED_PICS\n", picname, draw_frame);
+			Con_Printf ("Draw_NewPic: numcachepics == MAX_CACHED_PICS\n");
 			// FIXME: support NULL in callers?
 			return cachepics; // return the first one
 		}
-		Con_DPrintf("Draw_NewPic(\"%s\"): frame %i: creating new cachepic\n", picname, draw_frame);
 		pic = cachepics + (numcachepics++);
 		memset(pic, 0, sizeof(*pic));
 		strlcpy (pic->name, picname, sizeof(pic->name));
@@ -291,16 +604,12 @@ cachepic_t *Draw_NewPic(const char *picname, int width, int height, unsigned cha
 		cachepichash[hashkey] = pic;
 	}
 
-	R_SkinFrame_PurgeSkinFrame(pic->skinframe);
-
-	pic->autoload = false;
 	pic->flags = CACHEPICFLAG_NEWPIC; // disable texflags checks in Draw_CachePic
-	pic->flags |= (texflags & TEXF_CLAMP) ? 0 : CACHEPICFLAG_NOCLAMP;
-	pic->flags |= (texflags & TEXF_FORCENEAREST) ? CACHEPICFLAG_NEAREST : 0;
 	pic->width = width;
 	pic->height = height;
-	pic->skinframe = R_SkinFrame_LoadInternalBGRA(picname, texflags | TEXF_FORCE_RELOAD, pixels_bgra, width, height, 0, 0, 0, vid.sRGB2D, /*q1skyload*/ false);
-	pic->lastusedframe = draw_frame;
+	if (pic->allow_free_tex && pic->tex)
+		R_FreeTexture(pic->tex);
+	pic->tex = R_LoadTexture2D(drawtexturepool, picname, width, height, pixels_bgra, TEXTYPE_BGRA, (alpha ? TEXF_ALPHA : 0), -1, NULL);
 	return pic;
 }
 
@@ -309,15 +618,17 @@ void Draw_FreePic(const char *picname)
 	int crc;
 	int hashkey;
 	cachepic_t *pic;
-	// this doesn't really free the pic, but does free its texture
+	// this doesn't really free the pic, but does free it's texture
 	crc = CRC_Block((unsigned char *)picname, strlen(picname));
 	hashkey = ((crc >> 8) ^ crc) % CACHEPICHASHSIZE;
 	for (pic = cachepichash[hashkey];pic;pic = pic->chain)
 	{
-		if (!strcmp (picname, pic->name) && pic->skinframe)
+		if (String_Does_Match (picname, pic->name) && pic->tex)
 		{
-			Con_DPrintf("Draw_FreePic(\"%s\"): frame %i: freeing pic\n", picname, draw_frame);
-			R_SkinFrame_PurgeSkinFrame(pic->skinframe);
+			R_FreeTexture(pic->tex);
+			pic->tex = NULL;
+			pic->width = 0;
+			pic->height = 0;
 			return;
 		}
 	}
@@ -325,7 +636,9 @@ void Draw_FreePic(const char *picname)
 
 static float snap_to_pixel_x(float x, float roundUpAt);
 extern int con_linewidth; // to force rewrapping
-void LoadFont(qbool override, const char *name, dp_font_t *fnt, float scale, float voffset)
+// loadfont console gfx/conchars,gfx/fallback 8 12 16 24 32
+WARP_X_ (LoadFont_f)
+void LoadFont(qbool override, const char *fname, dp_font_t *fnt, float scale, float voffset)
 {
 	int i, ch;
 	float maxwidth;
@@ -335,7 +648,7 @@ void LoadFont(qbool override, const char *name, dp_font_t *fnt, float scale, flo
 
 	if(override || !fnt->texpath[0])
 	{
-		strlcpy(fnt->texpath, name, sizeof(fnt->texpath));
+		strlcpy(fnt->texpath, fname, sizeof(fnt->texpath));
 		// load the cvars when the font is FIRST loader
 		fnt->settings.scale = scale;
 		fnt->settings.voffset = voffset;
@@ -362,26 +675,26 @@ void LoadFont(qbool override, const char *name, dp_font_t *fnt, float scale, flo
 		fnt->ft2 = NULL;
 	}
 
-	if (fnt->req_face != -1)
+	if(fnt->req_face != -1)
 	{
 		if(!Font_LoadFont(fnt->texpath, fnt))
 			Con_DPrintf("Failed to load font-file for '%s', it will not support as many characters.\n", fnt->texpath);
 	}
 
-	fnt->pic = Draw_CachePic_Flags(fnt->texpath, CACHEPICFLAG_QUIET | CACHEPICFLAG_NOCOMPRESSION | (r_nearest_conchars.integer ? CACHEPICFLAG_NEAREST : 0) | CACHEPICFLAG_FAILONMISSING);
-	if(!Draw_IsPicLoaded(fnt->pic))
+	fnt->tex = Draw_CachePic_Flags(fnt->texpath, CACHEPICFLAG_QUIET | CACHEPICFLAG_NOCOMPRESSION | (r_nearest_conchars.integer ? CACHEPICFLAG_NEAREST : 0))->tex;
+	if(fnt->tex == r_texture_notexture)
 	{
 		for (i = 0; i < MAX_FONT_FALLBACKS; ++i)
 		{
 			if (!fnt->fallbacks[i][0])
 				break;
-			fnt->pic = Draw_CachePic_Flags(fnt->fallbacks[i], CACHEPICFLAG_QUIET | CACHEPICFLAG_NOCOMPRESSION | (r_nearest_conchars.integer ? CACHEPICFLAG_NEAREST : 0) | CACHEPICFLAG_FAILONMISSING);
-			if(Draw_IsPicLoaded(fnt->pic))
+			fnt->tex = Draw_CachePic_Flags(fnt->fallbacks[i], CACHEPICFLAG_QUIET | CACHEPICFLAG_NOCOMPRESSION | (r_nearest_conchars.integer ? CACHEPICFLAG_NEAREST : 0))->tex;
+			if(fnt->tex != r_texture_notexture)
 				break;
 		}
-		if(!Draw_IsPicLoaded(fnt->pic))
+		if(fnt->tex == r_texture_notexture)
 		{
-			fnt->pic = Draw_CachePic_Flags("gfx/conchars", CACHEPICFLAG_NOCOMPRESSION | (r_nearest_conchars.integer ? CACHEPICFLAG_NEAREST : 0));
+			fnt->tex = Draw_CachePic_Flags("gfx/conchars", CACHEPICFLAG_NOCOMPRESSION | (r_nearest_conchars.integer ? CACHEPICFLAG_NEAREST : 0))->tex;
 			strlcpy(widthfile, "gfx/conchars.width", sizeof(widthfile));
 		}
 		else
@@ -395,7 +708,7 @@ void LoadFont(qbool override, const char *name, dp_font_t *fnt, float scale, flo
 		fnt->width_of[ch] = 1;
 
 	// FIXME load "name.width", if it fails, fill all with 1
-	if((widthbuf = (char *) FS_LoadFile(widthfile, tempmempool, true, &widthbufsize)))
+	if((widthbuf = (char *) FS_LoadFile(widthfile, tempmempool, true, &widthbufsize, NOLOADINFO_IN_NULL, NOLOADINFO_OUT_NULL)))
 	{
 		float extraspacing = 0;
 		const char *p = widthbuf;
@@ -425,13 +738,13 @@ void LoadFont(qbool override, const char *name, dp_font_t *fnt, float scale, flo
 					ch++;
 					break;
 				default:
-					if(!strcmp(com_token, "extraspacing"))
+					if(String_Does_Match(com_token, "extraspacing"))
 					{
 						if(!COM_ParseToken_Simple(&p, false, false, true))
 							return;
 						extraspacing = atof(com_token);
 					}
-					else if(!strcmp(com_token, "scale"))
+					else if(String_Does_Match(com_token, "scale"))
 					{
 						if(!COM_ParseToken_Simple(&p, false, false, true))
 							return;
@@ -439,7 +752,7 @@ void LoadFont(qbool override, const char *name, dp_font_t *fnt, float scale, flo
 					}
 					else
 					{
-						Con_DPrintf("Warning: skipped unknown font property %s\n", com_token);
+						Con_Printf("Warning: skipped unknown font property %s\n", com_token);
 						if(!COM_ParseToken_Simple(&p, false, false, true))
 							return;
 					}
@@ -481,7 +794,7 @@ dp_font_t *FindFont(const char *title, qbool allocate_new)
 
 	// find font
 	for(i = 0; i < dp_fonts.maxsize; ++i)
-		if(!strcmp(dp_fonts.f[i].title, title))
+		if(String_Does_Match(dp_fonts.f[i].title, title))
 			return &dp_fonts.f[i];
 	// if not found - try allocate
 	if (allocate_new)
@@ -489,7 +802,7 @@ dp_font_t *FindFont(const char *title, qbool allocate_new)
 		// find any font with empty title
 		for(i = 0; i < dp_fonts.maxsize; ++i)
 		{
-			if(!strcmp(dp_fonts.f[i].title, ""))
+			if(String_Does_Match(dp_fonts.f[i].title, ""))
 			{
 				strlcpy(dp_fonts.f[i].title, title, sizeof(dp_fonts.f[i].title));
 				return &dp_fonts.f[i];
@@ -538,7 +851,8 @@ static float snap_to_pixel_y(float y, float roundUpAt)
 	*/
 }
 
-static void LoadFont_f(cmd_state_t *cmd)
+// loadfont console gfx/conchars,gfx/fallback 8 12 16 24 32
+static void LoadFont_f(void)
 {
 	dp_font_t *f;
 	int i, sizes;
@@ -546,7 +860,7 @@ static void LoadFont_f(cmd_state_t *cmd)
 	float sz, scale, voffset;
 	char mainfont[MAX_QPATH];
 
-	if(Cmd_Argc(cmd) < 2)
+	if(Cmd_Argc() < 2)
 	{
 		Con_Printf("Available font commands:\n");
 		for(i = 0; i < dp_fonts.maxsize; ++i)
@@ -566,17 +880,20 @@ static void LoadFont_f(cmd_state_t *cmd)
 			);
 		return;
 	}
-	f = FindFont(Cmd_Argv(cmd, 1), true);
+
+	// Cmd_Argv(1) is like "console"
+	f = FindFont(Cmd_Argv(1), true);
 	if(f == NULL)
 	{
 		Con_Printf("font function not found\n");
 		return;
 	}
 
-	if(Cmd_Argc(cmd) < 3)
+	// Cmd_Argv(1) is like "gfx/conchars"
+	if(Cmd_Argc() < 3)
 		filelist = "gfx/conchars";
 	else
-		filelist = Cmd_Argv(cmd, 2);
+		filelist = Cmd_Argv(2);
 
 	memset(f->fallbacks, 0, sizeof(f->fallbacks));
 	memset(f->fallback_faces, 0, sizeof(f->fallback_faces));
@@ -635,23 +952,23 @@ static void LoadFont_f(cmd_state_t *cmd)
 
 	scale = 1;
 	voffset = 0;
-	if(Cmd_Argc(cmd) >= 4)
+	if(Cmd_Argc() >= 4)
 	{
-		for(sizes = 0, i = 3; i < Cmd_Argc(cmd); ++i)
+		for(sizes = 0, i = 3; i < Cmd_Argc(); ++i)
 		{
 			// special switches
-			if (!strcmp(Cmd_Argv(cmd, i), "scale"))
+			if (String_Does_Match(Cmd_Argv(i), "scale"))
 			{
 				i++;
-				if (i < Cmd_Argc(cmd))
-					scale = atof(Cmd_Argv(cmd, i));
+				if (i < Cmd_Argc())
+					scale = atof(Cmd_Argv(i));
 				continue;
 			}
-			if (!strcmp(Cmd_Argv(cmd, i), "voffset"))
+			if (String_Does_Match(Cmd_Argv(i), "voffset"))
 			{
 				i++;
-				if (i < Cmd_Argc(cmd))
-					voffset = atof(Cmd_Argv(cmd, i));
+				if (i < Cmd_Argc())
+					voffset = atof(Cmd_Argv(i));
 				continue;
 			}
 
@@ -659,7 +976,7 @@ static void LoadFont_f(cmd_state_t *cmd)
 				continue; // no slot for other sizes
 
 			// parse one of sizes
-			sz = atof(Cmd_Argv(cmd, i));
+			sz = atof(Cmd_Argv(i));
 			if (sz > 0.001f && sz < 1000.0f) // do not use crap sizes
 			{
 				// search for duplicated sizes
@@ -672,7 +989,7 @@ static void LoadFont_f(cmd_state_t *cmd)
 
 				if (sizes == MAX_FONT_SIZES)
 				{
-					Con_Printf(CON_WARN "Warning: specified more than %i different font sizes, exceding ones are ignored\n", MAX_FONT_SIZES);
+					Con_Printf("Warning: specified more than %i different font sizes, exceding ones are ignored\n", MAX_FONT_SIZES);
 					sizes = -1;
 					continue;
 				}
@@ -705,6 +1022,9 @@ static void gl_draw_start(void)
 	for(i = 0; i < dp_fonts.maxsize; ++i)
 		if (dp_fonts.f[i].title[0])
 			LoadFont(false, va(vabuf, sizeof(vabuf), "gfx/font_%s", dp_fonts.f[i].title), &dp_fonts.f[i], 1, 0);
+
+	// draw the loading screen so people have something to see in the newly opened window
+	SCR_UpdateLoadingScreen(true, true);
 }
 
 static void gl_draw_shutdown(void)
@@ -719,16 +1039,7 @@ static void gl_draw_shutdown(void)
 
 static void gl_draw_newmap(void)
 {
-	int i;
 	font_newmap();
-
-	// mark all of the persistent pics so they are not purged...
-	for (i = 0; i < numcachepics; i++)
-	{
-		cachepic_t *pic = cachepics + i;
-		if (!pic->autoload && pic->skinframe)
-			R_SkinFrame_MarkUsed(pic->skinframe);
-	}
 }
 
 void GL_Draw_Init (void)
@@ -768,88 +1079,242 @@ void GL_Draw_Init (void)
 		if(!FONT_USER(i)->title[0])
 			dpsnprintf(FONT_USER(i)->title, sizeof(FONT_USER(i)->title), "user%d", j++);
 
-	Cmd_AddCommand(CF_CLIENT, "loadfont", LoadFont_f, "loadfont function tganame loads a font; example: loadfont console gfx/veramono; loadfont without arguments lists the available functions");
+	Cmd_AddCommand ("loadfont",LoadFont_f, "loadfont function tganame loads a font; example: loadfont console gfx/veramono; loadfont without arguments lists the available functions");
 	R_RegisterModule("GL_Draw", gl_draw_start, gl_draw_shutdown, gl_draw_newmap, NULL, NULL);
 }
 
-void DrawQ_Start(void)
+static void _DrawQ_Setup(void) // see R_ResetViewRendering2D
 {
+	if (r_refdef.draw2dstage == 1)
+		return;
 	r_refdef.draw2dstage = 1;
-	R_ResetViewRendering2D_Common(0, NULL, NULL, 0, 0, vid.width, vid.height, vid_conwidth.integer, vid_conheight.integer);
+
+	R_ResetViewRendering2D_Common(0, NULL, NULL, vid_conwidth.integer, vid_conheight.integer);
 }
 
 qbool r_draw2d_force = false;
+static void _DrawQ_SetupAndProcessDrawFlag(int flags, cachepic_t *pic, float alpha)
+{
+	_DrawQ_Setup();
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+	DrawQ_ProcessDrawFlag(flags, (alpha < 1) || (pic && pic->hasalpha));
+}
+void DrawQ_ProcessDrawFlag(int flags, qbool alpha)
+{
+	if(flags == DRAWFLAG_ADDITIVE)
+	{
+		GL_DepthMask(false);
+		GL_BlendFunc(alpha ? GL_SRC_ALPHA : GL_ONE, GL_ONE);
+	}
+	else if(flags == DRAWFLAG_MODULATE)
+	{
+		GL_DepthMask(false);
+		GL_BlendFunc(GL_DST_COLOR, GL_ZERO);
+	}
+	else if(flags == DRAWFLAG_2XMODULATE)
+	{
+		GL_DepthMask(false);
+		GL_BlendFunc(GL_DST_COLOR, GL_SRC_COLOR);
+	}
+	else if(flags == DRAWFLAG_SCREEN)
+	{
+		GL_DepthMask(false);
+		GL_BlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE);
+	}
+	else if(alpha)
+	{
+		GL_DepthMask(false);
+		GL_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
+	else
+	{
+		GL_DepthMask(true);
+		GL_BlendFunc(GL_ONE, GL_ZERO);
+	}
+}
 
 void DrawQ_Pic(float x, float y, cachepic_t *pic, float width, float height, float red, float green, float blue, float alpha, int flags)
 {
-	model_t *mod = CL_Mesh_UI();
-	msurface_t *surf;
-	int e0, e1, e2, e3;
-	if (!pic)
-		pic = Draw_CachePic("white");
-	// make sure pic is loaded - we don't use the texture here, Mod_Mesh_GetTexture looks up the skinframe by name
-	Draw_GetPicTexture(pic);
-	if (width == 0)
-		width = pic->width;
-	if (height == 0)
-		height = pic->height;
-	surf = Mod_Mesh_AddSurface(mod, Mod_Mesh_GetTexture(mod, pic->name, flags, pic->texflags, MATERIALFLAG_WALL | MATERIALFLAG_VERTEXCOLOR | MATERIALFLAG_ALPHAGEN_VERTEX | MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED | MATERIALFLAG_NOSHADOW), true);
-	e0 = Mod_Mesh_IndexForVertex(mod, surf, x        , y         , 0, 0, 0, -1, 0, 0, 0, 0, red, green, blue, alpha);
-	e1 = Mod_Mesh_IndexForVertex(mod, surf, x + width, y         , 0, 0, 0, -1, 1, 0, 0, 0, red, green, blue, alpha);
-	e2 = Mod_Mesh_IndexForVertex(mod, surf, x + width, y + height, 0, 0, 0, -1, 1, 1, 0, 0, red, green, blue, alpha);
-	e3 = Mod_Mesh_IndexForVertex(mod, surf, x        , y + height, 0, 0, 0, -1, 0, 1, 0, 0, red, green, blue, alpha);
-	Mod_Mesh_AddTriangle(mod, surf, e0, e1, e2);
-	Mod_Mesh_AddTriangle(mod, surf, e0, e2, e3);
+	float floats[36];
+
+	_DrawQ_SetupAndProcessDrawFlag(flags, pic, alpha);
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+
+//	R_Mesh_ResetTextureState();
+	floats[12] = 0.0f;floats[13] = 0.0f;
+	floats[14] = 1.0f;floats[15] = 0.0f;
+	floats[16] = 1.0f;floats[17] = 1.0f;
+	floats[18] = 0.0f;floats[19] = 1.0f;
+	floats[20] = floats[24] = floats[28] = floats[32] = red;
+	floats[21] = floats[25] = floats[29] = floats[33] = green;
+	floats[22] = floats[26] = floats[30] = floats[34] = blue;
+	floats[23] = floats[27] = floats[31] = floats[35] = alpha;
+	if (pic)
+	{
+		if (width == 0)
+			width = pic->width;
+		if (height == 0)
+			height = pic->height;
+		R_SetupShader_Generic(Draw_GetPicTexture(pic), NULL, GL_MODULATE, 1, (flags & DRAWFLAGS_BLEND) ? false : true, true, false);
+
+#if 0
+      // AK07: lets be texel correct on the corners
+      {
+         float horz_offset = 0.5f / pic->width;
+         float vert_offset = 0.5f / pic->height;
+
+		   floats[12] = 0.0f + horz_offset;floats[13] = 0.0f + vert_offset;
+		   floats[14] = 1.0f - horz_offset;floats[15] = 0.0f + vert_offset;
+		   floats[16] = 1.0f - horz_offset;floats[17] = 1.0f - vert_offset;
+		   floats[18] = 0.0f + horz_offset;floats[19] = 1.0f - vert_offset;
+      }
+#endif
+	}
+	else
+		R_SetupShader_Generic_NoTexture((flags & DRAWFLAGS_BLEND) ? false : true, true);
+
+	floats[2] = floats[5] = floats[8] = floats[11] = 0;
+	floats[0] = floats[9] = x;
+	floats[1] = floats[4] = y;
+	floats[3] = floats[6] = x + width;
+	floats[7] = floats[10] = y + height;
+
+	R_Mesh_PrepareVertices_Generic_Arrays(4, floats, floats + 20, floats + 12);
+	R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
 }
 
 void DrawQ_RotPic(float x, float y, cachepic_t *pic, float width, float height, float org_x, float org_y, float angle, float red, float green, float blue, float alpha, int flags)
 {
+	float floats[36];
 	float af = DEG2RAD(-angle); // forward
 	float ar = DEG2RAD(-angle + 90); // right
 	float sinaf = sin(af);
 	float cosaf = cos(af);
 	float sinar = sin(ar);
 	float cosar = cos(ar);
-	model_t *mod = CL_Mesh_UI();
-	msurface_t *surf;
-	int e0, e1, e2, e3;
-	if (!pic)
-		pic = Draw_CachePic("white");
-	// make sure pic is loaded - we don't use the texture here, Mod_Mesh_GetTexture looks up the skinframe by name
-	Draw_GetPicTexture(pic);
-	if (width == 0)
-		width = pic->width;
-	if (height == 0)
-		height = pic->height;
-	surf = Mod_Mesh_AddSurface(mod, Mod_Mesh_GetTexture(mod, pic->name, flags, pic->texflags, MATERIALFLAG_WALL | MATERIALFLAG_VERTEXCOLOR | MATERIALFLAG_ALPHAGEN_VERTEX | MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED | MATERIALFLAG_NOSHADOW), true);
-	e0 = Mod_Mesh_IndexForVertex(mod, surf, x - cosaf *          org_x  - cosar *           org_y , y - sinaf *          org_x  - sinar *           org_y , 0, 0, 0, -1, 0, 0, 0, 0, red, green, blue, alpha);
-	e1 = Mod_Mesh_IndexForVertex(mod, surf, x + cosaf * (width - org_x) - cosar *           org_y , y + sinaf * (width - org_x) - sinar *           org_y , 0, 0, 0, -1, 1, 0, 0, 0, red, green, blue, alpha);
-	e2 = Mod_Mesh_IndexForVertex(mod, surf, x + cosaf * (width - org_x) + cosar * (height - org_y), y + sinaf * (width - org_x) + sinar * (height - org_y), 0, 0, 0, -1, 1, 1, 0, 0, red, green, blue, alpha);
-	e3 = Mod_Mesh_IndexForVertex(mod, surf, x - cosaf *          org_x  + cosar * (height - org_y), y - sinaf *          org_x  + sinar * (height - org_y), 0, 0, 0, -1, 0, 1, 0, 0, red, green, blue, alpha);
-	Mod_Mesh_AddTriangle(mod, surf, e0, e1, e2);
-	Mod_Mesh_AddTriangle(mod, surf, e0, e2, e3);
+
+	_DrawQ_SetupAndProcessDrawFlag(flags, pic, alpha);
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+
+//	R_Mesh_ResetTextureState();
+	if (pic)
+	{
+		if (width == 0)
+			width = pic->width;
+		if (height == 0)
+			height = pic->height;
+		R_SetupShader_Generic(Draw_GetPicTexture(pic), NULL, GL_MODULATE, 1, (flags & DRAWFLAGS_BLEND) ? false : true, true, false);
+	}
+	else
+		R_SetupShader_Generic_NoTexture((flags & DRAWFLAGS_BLEND) ? false : true, true);
+
+	floats[2] = floats[5] = floats[8] = floats[11] = 0;
+
+// top left
+	floats[0] = x - cosaf*org_x - cosar*org_y;
+	floats[1] = y - sinaf*org_x - sinar*org_y;
+
+// top right
+	floats[3] = x + cosaf*(width-org_x) - cosar*org_y;
+	floats[4] = y + sinaf*(width-org_x) - sinar*org_y;
+
+// bottom right
+	floats[6] = x + cosaf*(width-org_x) + cosar*(height-org_y);
+	floats[7] = y + sinaf*(width-org_x) + sinar*(height-org_y);
+
+// bottom left
+	floats[9]  = x - cosaf*org_x + cosar*(height-org_y);
+	floats[10] = y - sinaf*org_x + sinar*(height-org_y);
+
+	floats[12] = 0.0f;floats[13] = 0.0f;
+	floats[14] = 1.0f;floats[15] = 0.0f;
+	floats[16] = 1.0f;floats[17] = 1.0f;
+	floats[18] = 0.0f;floats[19] = 1.0f;
+	floats[20] = floats[24] = floats[28] = floats[32] = red;
+	floats[21] = floats[25] = floats[29] = floats[33] = green;
+	floats[22] = floats[26] = floats[30] = floats[34] = blue;
+	floats[23] = floats[27] = floats[31] = floats[35] = alpha;
+
+	R_Mesh_PrepareVertices_Generic_Arrays(4, floats, floats + 20, floats + 12);
+	R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+}
+
+
+
+void DrawQ_FillModulate(float x, float y, float width, float height, float red, float green, float blue, float alpha, int flags)
+{
+	float floats[36];
+
+	_DrawQ_SetupAndProcessDrawFlag(flags, NULL, alpha);
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+
+	R_SetupShader_Generic_NoTexture((flags & DRAWFLAGS_BLEND) ? false : true, true);
+
+	floats[2] = floats[5] = floats[8] = floats[11] = 0;
+	floats[0] = floats[9] = x;
+	floats[1] = floats[4] = y;
+	floats[3] = floats[6] = x + width;
+	floats[7] = floats[10] = y + height;
+	floats[12] = 0.0f;floats[13] = 0.0f;
+	floats[14] = 1.0f;floats[15] = 0.0f;
+	floats[16] = 1.0f;floats[17] = 1.0f;
+	floats[18] = 0.0f;floats[19] = 1.0f;
+	floats[20] = floats[24] = floats[28] = floats[32] = red;
+	floats[21] = floats[25] = floats[29] = floats[33] = green;
+	floats[22] = floats[26] = floats[30] = floats[34] = blue;
+	floats[23] = floats[27] = floats[31] = floats[35] = alpha;
+
+	R_Mesh_PrepareVertices_Generic_Arrays(4, floats, floats + 20, floats + 12);
+	R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
 }
 
 void DrawQ_Fill(float x, float y, float width, float height, float red, float green, float blue, float alpha, int flags)
 {
-	DrawQ_Pic(x, y, Draw_CachePic("white"), width, height, red, green, blue, alpha, flags);
+	float floats[36];
+
+	_DrawQ_SetupAndProcessDrawFlag(flags, NULL, alpha);
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+
+//	R_Mesh_ResetTextureState();
+	R_SetupShader_Generic_NoTexture((flags & DRAWFLAGS_BLEND) ? false : true, true);
+
+	floats[2] = floats[5] = floats[8] = floats[11] = 0;
+	floats[0] = floats[9] = x;
+	floats[1] = floats[4] = y;
+	floats[3] = floats[6] = x + width;
+	floats[7] = floats[10] = y + height;
+	floats[12] = 0.0f;floats[13] = 0.0f;
+	floats[14] = 1.0f;floats[15] = 0.0f;
+	floats[16] = 1.0f;floats[17] = 1.0f;
+	floats[18] = 0.0f;floats[19] = 1.0f;
+	floats[20] = floats[24] = floats[28] = floats[32] = red;
+	floats[21] = floats[25] = floats[29] = floats[33] = green;
+	floats[22] = floats[26] = floats[30] = floats[34] = blue;
+	floats[23] = floats[27] = floats[31] = floats[35] = alpha;
+
+	R_Mesh_PrepareVertices_Generic_Arrays(4, floats, floats + 20, floats + 12);
+	R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
 }
 
 /// color tag printing
 static const vec4_t string_colors[] =
 {
-	// Baker r1004: Use a Quake identical bronze color instead of yellow
 	// Quake3 colors
 	// LadyHavoc: why on earth is cyan before magenta in Quake3?
 	// LadyHavoc: note: Doom3 uses white for [0] and [7]
 	/*0*/		{0.0, 0.0, 0.0, 1.0}, // black 0
 	/*1*/		{1.0, 0.0, 0.0, 1.0}, // red 1											//{0.75, 0.50, 0.50, 1.0}, // Baker 1007 soft purple
-	
+
 	/*2*/		{0.0, 1.0, 0.0, 1.0}, // green 2
-	
+
 	/*3*/		{1.03, 0.5, 0.36, 1.0}, // Baker 1007 bronzey Baker 1007 3
-				// US: 143 69 50
-				// MV: 143 67 51
+			// US: 143 69 50
+		// MV: 143 67 51
 	/*4*/		{0.0, 0.0, 1.0, 1.0}, // blue
 	/*5*/		{0.0, 1.0, 1.0, 1.0}, // cyan
 	/*6*/		{1.0, 0.0, 1.0, 1.0}, // magenta
@@ -891,38 +1356,16 @@ static void DrawQ_GetTextColor(float color[4], int colorindex, float r, float g,
 	}
 }
 
-// returns a colorindex (format 0x1RGBA) if str is a valid RGB string
-// returns 0 otherwise
-static int RGBstring_to_colorindex(const char *str)
-{
-	Uchar ch; 
-	int ind = 0x0001 << 4;
-	do {
-		if (*str <= '9' && *str >= '0')
-			ind |= (*str - '0');
-		else
-		{
-			ch = tolower(*str);
-			if (ch >= 'a' && ch <= 'f')
-				ind |= (ch - 87);
-			else
-				return 0;
-		}
-		++str;
-		ind <<= 4;
-	} while(!(ind & 0x10000));
-	return ind | 0xf; // add costant alpha value
-}
-
 // NOTE: this function always draws exactly one character if maxwidth <= 0
 float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *maxlen, float w, float h, float sw, float sh, int *outcolor, qbool ignorecolorcodes, const dp_font_t *fnt, float maxwidth)
 {
 	const char *text_start = text;
-	int colorindex;
+	int colorindex = STRING_COLOR_DEFAULT;
 	size_t i;
 	float x = 0;
 	Uchar ch, mapch, nextch;
 	Uchar prevch = 0; // used for kerning
+	int tempcolorindex;
 	float kx;
 	int map_index = 0;
 	size_t bytes_left;
@@ -1003,6 +1446,7 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 			x += width_of[(int) ' '] * dw;
 			continue;
 		}
+		// i points to the char after ^
 		if (ch == STRING_COLOR_TAG && !ignorecolorcodes && i < *maxlen)
 		{
 			ch = *text; // colors are ascii, so no u8_ needed
@@ -1013,19 +1457,41 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 				++i;
 				continue;
 			}
+			// i points to the char after ^...
+			// i+3 points to 3 in ^x123
+			// i+3 == *maxlen would mean that char is missing
 			else if (ch == STRING_COLOR_RGB_TAG_CHAR && i + 3 < *maxlen ) // ^x found
 			{
-				const char *text_p = &text[1];
-				int tempcolorindex = RGBstring_to_colorindex(text_p);
+				// building colorindex...
+				ch = tolower(text[1]);
+				tempcolorindex = 0x10000; // binary: 1,0000,0000,0000,0000
+				if (ch <= '9' && ch >= '0') tempcolorindex |= (ch - '0') << 12;
+				else if (ch >= 'a' && ch <= 'f') tempcolorindex |= (ch - 87) << 12;
+				else tempcolorindex = 0;
 				if (tempcolorindex)
 				{
-					colorindex = tempcolorindex;
-					i+=4;
-					text += 4;
-					continue;
+					ch = tolower(text[2]);
+					if (ch <= '9' && ch >= '0') tempcolorindex |= (ch - '0') << 8;
+					else if (ch >= 'a' && ch <= 'f') tempcolorindex |= (ch - 87) << 8;
+					else tempcolorindex = 0;
+					if (tempcolorindex)
+					{
+						ch = tolower(text[3]);
+						if (ch <= '9' && ch >= '0') tempcolorindex |= (ch - '0') << 4;
+						else if (ch >= 'a' && ch <= 'f') tempcolorindex |= (ch - 87) << 4;
+						else tempcolorindex = 0;
+						if (tempcolorindex)
+						{
+							colorindex = tempcolorindex | 0xf;
+							// ...done! now colorindex has rgba codes (1,rrrr,gggg,bbbb,aaaa)
+							i+=4;
+							text += 4;
+							continue;
+						}
+					}
 				}
 			}
-			else if (ch == STRING_COLOR_TAG) // ^^ found
+			else if (ch == STRING_COLOR_TAG) // ^^ found, ignore the first ^ and go to print the second
 			{
 				i++;
 				text++;
@@ -1085,8 +1551,14 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 	int shadow, colorindex = STRING_COLOR_DEFAULT;
 	size_t i;
 	float x = startx, y, s, t, u, v, thisw;
+	float *av, *at, *ac;
+	int batchcount;
+	static float vertex3f[QUADELEMENTS_MAXQUADS*4*3];
+	static float texcoord2f[QUADELEMENTS_MAXQUADS*4*2];
+	static float color4f[QUADELEMENTS_MAXQUADS*4*4];
 	Uchar ch, mapch, nextch;
 	Uchar prevch = 0; // used for kerning
+	int tempcolorindex;
 	int map_index = 0;
 	//ft2_font_map_t *prevmap = NULL; // the previous map
 	ft2_font_map_t *map = NULL;     // the currently used map
@@ -1100,12 +1572,10 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 	size_t bytes_left;
 	float dw, dh;
 	const float *width_of;
-	model_t *mod = CL_Mesh_UI();
-	msurface_t *surf = NULL;
-	int e0, e1, e2, e3;
+
 	int tw, th;
-	tw = Draw_GetPicWidth(fnt->pic);
-	th = Draw_GetPicHeight(fnt->pic);
+	tw = R_TextureWidth(fnt->tex);
+	th = R_TextureHeight(fnt->tex);
 
 	if (!h) h = w;
 	if (!h) {
@@ -1136,8 +1606,19 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 	if (maxlen < 1)
 		maxlen = 1<<30;
 
+	_DrawQ_SetupAndProcessDrawFlag(flags, NULL, 0);
 	if(!r_draw2d.integer && !r_draw2d_force)
 		return startx + DrawQ_TextWidth_UntilWidth_TrackColors_Scale(text, &maxlen, w, h, sw, sh, NULL, ignorecolorcodes, fnt, 1000000000);
+
+//	R_Mesh_ResetTextureState();
+	if (!fontmap)
+		R_Mesh_TexBind(0, fnt->tex);
+	R_SetupShader_Generic(fnt->tex, NULL, GL_MODULATE, 1, (flags & DRAWFLAGS_BLEND) ? false : true, true, false);
+
+	ac = color4f;
+	at = texcoord2f;
+	av = vertex3f;
+	batchcount = 0;
 
 	//ftbase_x = snap_to_pixel_x(ftbase_x);
 	if(snap)
@@ -1200,15 +1681,35 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 				}
 				else if (ch == STRING_COLOR_RGB_TAG_CHAR && i+3 < maxlen ) // ^x found
 				{
-					const char *text_p = &text[1];
-					int tempcolorindex = RGBstring_to_colorindex(text_p);
-					if(tempcolorindex)
+					// building colorindex...
+					ch = tolower(text[1]);
+					tempcolorindex = 0x10000; // binary: 1,0000,0000,0000,0000
+					if (ch <= '9' && ch >= '0') tempcolorindex |= (ch - '0') << 12;
+					else if (ch >= 'a' && ch <= 'f') tempcolorindex |= (ch - 87) << 12;
+					else tempcolorindex = 0;
+					if (tempcolorindex)
 					{
-						colorindex = tempcolorindex;
-						DrawQ_GetTextColor(DrawQ_Color, colorindex, basered, basegreen, baseblue, basealpha, shadow != 0);
-						i+=4;
-						text+=4;
-						continue;
+						ch = tolower(text[2]);
+						if (ch <= '9' && ch >= '0') tempcolorindex |= (ch - '0') << 8;
+						else if (ch >= 'a' && ch <= 'f') tempcolorindex |= (ch - 87) << 8;
+						else tempcolorindex = 0;
+						if (tempcolorindex)
+						{
+							ch = tolower(text[3]);
+							if (ch <= '9' && ch >= '0') tempcolorindex |= (ch - '0') << 4;
+							else if (ch >= 'a' && ch <= 'f') tempcolorindex |= (ch - 87) << 4;
+							else tempcolorindex = 0;
+							if (tempcolorindex)
+							{
+								colorindex = tempcolorindex | 0xf;
+								// ...done! now colorindex has rgba codes (1,rrrr,gggg,bbbb,aaaa)
+								//Con_Printf("^1colorindex:^7 %x\n", colorindex);
+								DrawQ_GetTextColor(DrawQ_Color, colorindex, basered, basegreen, baseblue, basealpha, shadow != 0);
+								i+=4;
+								text+=4;
+								continue;
+							}
+						}
 					}
 				}
 				else if (ch == STRING_COLOR_TAG)
@@ -1235,7 +1736,23 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 				if (ch > 0xFF)
 					goto out;
 				if (fontmap)
-					map = ft2_oldstyle_map;
+				{
+					if (map != ft2_oldstyle_map)
+					{
+						if (batchcount)
+						{
+							// switching from freetype to non-freetype rendering
+							R_Mesh_PrepareVertices_Generic_Arrays(batchcount * 4, vertex3f, color4f, texcoord2f);
+							R_Mesh_Draw(0, batchcount * 4, 0, batchcount * 2, quadelement3i, NULL, 0, quadelement3s, NULL, 0);
+							batchcount = 0;
+							ac = color4f;
+							at = texcoord2f;
+							av = vertex3f;
+						}
+						R_SetupShader_Generic(fnt->tex, NULL, GL_MODULATE, 1, (flags & DRAWFLAGS_BLEND) ? false : true, true, false);
+						map = ft2_oldstyle_map;
+					}
+				}
 				prevch = 0;
 				//num = (unsigned char) text[i];
 				//thisw = fnt->width_of[num];
@@ -1255,17 +1772,46 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 					u = 0.0625f * thisw - (1.0f / tw);
 					v = 0.0625f - (1.0f / th);
 				}
-				surf = Mod_Mesh_AddSurface(mod, Mod_Mesh_GetTexture(mod, fnt->pic->name, flags, TEXF_ALPHA | TEXF_CLAMP, MATERIALFLAG_WALL | MATERIALFLAG_VERTEXCOLOR | MATERIALFLAG_ALPHAGEN_VERTEX | MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED | MATERIALFLAG_NOSHADOW), true);
-				e0 = Mod_Mesh_IndexForVertex(mod, surf, x         , y   , 10, 0, 0, -1, s  , t  , 0, 0, DrawQ_Color[0], DrawQ_Color[1], DrawQ_Color[2], DrawQ_Color[3]);
-				e1 = Mod_Mesh_IndexForVertex(mod, surf, x+dw*thisw, y   , 10, 0, 0, -1, s+u, t  , 0, 0, DrawQ_Color[0], DrawQ_Color[1], DrawQ_Color[2], DrawQ_Color[3]);
-				e2 = Mod_Mesh_IndexForVertex(mod, surf, x+dw*thisw, y+dh, 10, 0, 0, -1, s+u, t+v, 0, 0, DrawQ_Color[0], DrawQ_Color[1], DrawQ_Color[2], DrawQ_Color[3]);
-				e3 = Mod_Mesh_IndexForVertex(mod, surf, x         , y+dh, 10, 0, 0, -1, s  , t+v, 0, 0, DrawQ_Color[0], DrawQ_Color[1], DrawQ_Color[2], DrawQ_Color[3]);
-				Mod_Mesh_AddTriangle(mod, surf, e0, e1, e2);
-				Mod_Mesh_AddTriangle(mod, surf, e0, e2, e3);
+				ac[ 0] = DrawQ_Color[0];ac[ 1] = DrawQ_Color[1];ac[ 2] = DrawQ_Color[2];ac[ 3] = DrawQ_Color[3];
+				ac[ 4] = DrawQ_Color[0];ac[ 5] = DrawQ_Color[1];ac[ 6] = DrawQ_Color[2];ac[ 7] = DrawQ_Color[3];
+				ac[ 8] = DrawQ_Color[0];ac[ 9] = DrawQ_Color[1];ac[10] = DrawQ_Color[2];ac[11] = DrawQ_Color[3];
+				ac[12] = DrawQ_Color[0];ac[13] = DrawQ_Color[1];ac[14] = DrawQ_Color[2];ac[15] = DrawQ_Color[3];
+				at[ 0] = s		; at[ 1] = t	;
+				at[ 2] = s+u	; at[ 3] = t	;
+				at[ 4] = s+u	; at[ 5] = t+v	;
+				at[ 6] = s		; at[ 7] = t+v	;
+				av[ 0] = x			; av[ 1] = y	; av[ 2] = 10;
+				av[ 3] = x+dw*thisw	; av[ 4] = y	; av[ 5] = 10;
+				av[ 6] = x+dw*thisw	; av[ 7] = y+dh	; av[ 8] = 10;
+				av[ 9] = x			; av[10] = y+dh	; av[11] = 10;
+				ac += 16;
+				at += 8;
+				av += 12;
+				batchcount++;
+				if (batchcount >= QUADELEMENTS_MAXQUADS)
+				{
+					R_Mesh_PrepareVertices_Generic_Arrays(batchcount * 4, vertex3f, color4f, texcoord2f);
+					R_Mesh_Draw(0, batchcount * 4, 0, batchcount * 2, quadelement3i, NULL, 0, quadelement3s, NULL, 0);
+					batchcount = 0;
+					ac = color4f;
+					at = texcoord2f;
+					av = vertex3f;
+				}
 				x += width_of[ch] * dw;
 			} else {
 				if (!map || map == ft2_oldstyle_map || ch < map->start || ch >= map->start + FONT_CHARS_PER_MAP)
 				{
+					// new charmap - need to render
+					if (batchcount)
+					{
+						// we need a different character map, render what we currently have:
+						R_Mesh_PrepareVertices_Generic_Arrays(batchcount * 4, vertex3f, color4f, texcoord2f);
+						R_Mesh_Draw(0, batchcount * 4, 0, batchcount * 2, quadelement3i, NULL, 0, quadelement3s, NULL, 0);
+						batchcount = 0;
+						ac = color4f;
+						at = texcoord2f;
+						av = vertex3f;
+					}
 					// find the new map
 					map = FontMap_FindForChar(fontmap, ch);
 					if (!map)
@@ -1282,6 +1828,7 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 							break;
 						}
 					}
+					R_SetupShader_Generic(map->pic->tex, NULL, GL_MODULATE, 1, (flags & DRAWFLAGS_BLEND) ? false : true, true, false);
 				}
 
 				mapch = ch - map->start;
@@ -1296,17 +1843,35 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 				}
 				else
 					kx = ky = 0;
-				surf = Mod_Mesh_AddSurface(mod, Mod_Mesh_GetTexture(mod, map->pic->name, flags, TEXF_ALPHA | TEXF_CLAMP, MATERIALFLAG_WALL | MATERIALFLAG_VERTEXCOLOR | MATERIALFLAG_ALPHAGEN_VERTEX | MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED | MATERIALFLAG_NOSHADOW), true);
-				e0 = Mod_Mesh_IndexForVertex(mod, surf, x + dw * map->glyphs[mapch].vxmin, y + dh * map->glyphs[mapch].vymin, 10, 0, 0, -1, map->glyphs[mapch].txmin, map->glyphs[mapch].tymin, 0, 0, DrawQ_Color[0], DrawQ_Color[1], DrawQ_Color[2], DrawQ_Color[3]);
-				e1 = Mod_Mesh_IndexForVertex(mod, surf, x + dw * map->glyphs[mapch].vxmax, y + dh * map->glyphs[mapch].vymin, 10, 0, 0, -1, map->glyphs[mapch].txmax, map->glyphs[mapch].tymin, 0, 0, DrawQ_Color[0], DrawQ_Color[1], DrawQ_Color[2], DrawQ_Color[3]);
-				e2 = Mod_Mesh_IndexForVertex(mod, surf, x + dw * map->glyphs[mapch].vxmax, y + dh * map->glyphs[mapch].vymax, 10, 0, 0, -1, map->glyphs[mapch].txmax, map->glyphs[mapch].tymax, 0, 0, DrawQ_Color[0], DrawQ_Color[1], DrawQ_Color[2], DrawQ_Color[3]);
-				e3 = Mod_Mesh_IndexForVertex(mod, surf, x + dw * map->glyphs[mapch].vxmin, y + dh * map->glyphs[mapch].vymax, 10, 0, 0, -1, map->glyphs[mapch].txmin, map->glyphs[mapch].tymax, 0, 0, DrawQ_Color[0], DrawQ_Color[1], DrawQ_Color[2], DrawQ_Color[3]);
-				Mod_Mesh_AddTriangle(mod, surf, e0, e1, e2);
-				Mod_Mesh_AddTriangle(mod, surf, e0, e2, e3);
+				ac[ 0] = DrawQ_Color[0]; ac[ 1] = DrawQ_Color[1]; ac[ 2] = DrawQ_Color[2]; ac[ 3] = DrawQ_Color[3];
+				ac[ 4] = DrawQ_Color[0]; ac[ 5] = DrawQ_Color[1]; ac[ 6] = DrawQ_Color[2]; ac[ 7] = DrawQ_Color[3];
+				ac[ 8] = DrawQ_Color[0]; ac[ 9] = DrawQ_Color[1]; ac[10] = DrawQ_Color[2]; ac[11] = DrawQ_Color[3];
+				ac[12] = DrawQ_Color[0]; ac[13] = DrawQ_Color[1]; ac[14] = DrawQ_Color[2]; ac[15] = DrawQ_Color[3];
+				at[0] = map->glyphs[mapch].txmin; at[1] = map->glyphs[mapch].tymin;
+				at[2] = map->glyphs[mapch].txmax; at[3] = map->glyphs[mapch].tymin;
+				at[4] = map->glyphs[mapch].txmax; at[5] = map->glyphs[mapch].tymax;
+				at[6] = map->glyphs[mapch].txmin; at[7] = map->glyphs[mapch].tymax;
+				av[ 0] = x + dw * map->glyphs[mapch].vxmin; av[ 1] = y + dh * map->glyphs[mapch].vymin; av[ 2] = 10;
+				av[ 3] = x + dw * map->glyphs[mapch].vxmax; av[ 4] = y + dh * map->glyphs[mapch].vymin; av[ 5] = 10;
+				av[ 6] = x + dw * map->glyphs[mapch].vxmax; av[ 7] = y + dh * map->glyphs[mapch].vymax; av[ 8] = 10;
+				av[ 9] = x + dw * map->glyphs[mapch].vxmin; av[10] = y + dh * map->glyphs[mapch].vymax; av[11] = 10;
 				//x -= ftbase_x;
 				y -= ftbase_y;
 
 				x += thisw * dw;
+				ac += 16;
+				at += 8;
+				av += 12;
+				batchcount++;
+				if (batchcount >= QUADELEMENTS_MAXQUADS)
+				{
+					R_Mesh_PrepareVertices_Generic_Arrays(batchcount * 4, vertex3f, color4f, texcoord2f);
+					R_Mesh_Draw(0, batchcount * 4, 0, batchcount * 2, quadelement3i, NULL, 0, quadelement3s, NULL, 0);
+					batchcount = 0;
+					ac = color4f;
+					at = texcoord2f;
+					av = vertex3f;
+				}
 
 				//prevmap = map;
 				prevch = ch;
@@ -1318,6 +1883,11 @@ out:
 				y -= 1.0/pix_y * r_textshadow.value;
 			}
 		}
+	}
+	if (batchcount > 0)
+	{
+		R_Mesh_PrepareVertices_Generic_Arrays(batchcount * 4, vertex3f, color4f, texcoord2f);
+		R_Mesh_Draw(0, batchcount * 4, 0, batchcount * 2, quadelement3i, NULL, 0, quadelement3s, NULL, 0);
 	}
 
 	if (outcolor)
@@ -1389,112 +1959,283 @@ static int DrawQ_BuildColoredText(char *output2c, size_t maxoutchars, const char
 
 void DrawQ_SuperPic(float x, float y, cachepic_t *pic, float width, float height, float s1, float t1, float r1, float g1, float b1, float a1, float s2, float t2, float r2, float g2, float b2, float a2, float s3, float t3, float r3, float g3, float b3, float a3, float s4, float t4, float r4, float g4, float b4, float a4, int flags)
 {
-	model_t *mod = CL_Mesh_UI();
-	msurface_t *surf;
-	int e0, e1, e2, e3;
-	if (!pic)
-		pic = Draw_CachePic("white");
-	// make sure pic is loaded - we don't use the texture here, Mod_Mesh_GetTexture looks up the skinframe by name
-	Draw_GetPicTexture(pic);
-	if (width == 0)
-		width = pic->width;
-	if (height == 0)
-		height = pic->height;
-	surf = Mod_Mesh_AddSurface(mod, Mod_Mesh_GetTexture(mod, pic->name, flags, pic->texflags, MATERIALFLAG_WALL | MATERIALFLAG_VERTEXCOLOR | MATERIALFLAG_ALPHAGEN_VERTEX | MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED | MATERIALFLAG_NOSHADOW), true);
-	e0 = Mod_Mesh_IndexForVertex(mod, surf, x        , y         , 0, 0, 0, -1, s1, t1, 0, 0, r1, g1, b1, a1);
-	e1 = Mod_Mesh_IndexForVertex(mod, surf, x + width, y         , 0, 0, 0, -1, s2, t2, 0, 0, r2, g2, b2, a2);
-	e2 = Mod_Mesh_IndexForVertex(mod, surf, x + width, y + height, 0, 0, 0, -1, s4, t4, 0, 0, r4, g4, b4, a4);
-	e3 = Mod_Mesh_IndexForVertex(mod, surf, x        , y + height, 0, 0, 0, -1, s3, t3, 0, 0, r3, g3, b3, a3);
-	Mod_Mesh_AddTriangle(mod, surf, e0, e1, e2);
-	Mod_Mesh_AddTriangle(mod, surf, e0, e2, e3);
-}
+	float floats[36];
 
-void DrawQ_Line (float width, float x1, float y1, float x2, float y2, float r, float g, float b, float alpha, int flags)
-{
-	model_t *mod = CL_Mesh_UI();
-	msurface_t *surf;
-	int e0, e1, e2, e3;
-	float offsetx, offsety;
-	// width is measured in real pixels
-	if (fabs(x2 - x1) > fabs(y2 - y1))
+	_DrawQ_SetupAndProcessDrawFlag(flags, pic, a1*a2*a3*a4);
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+
+//	R_Mesh_ResetTextureState();
+	if (pic)
 	{
-		offsetx = 0;
-		offsety = 0.5f * width * vid_conheight.value / vid.height;
+		if (width == 0)
+			width = pic->width;
+		if (height == 0)
+			height = pic->height;
+		R_SetupShader_Generic(Draw_GetPicTexture(pic), NULL, GL_MODULATE, 1, (flags & (DRAWFLAGS_BLEND | DRAWFLAG_NOGAMMA)) ? false : true, true, false);
 	}
 	else
+		R_SetupShader_Generic_NoTexture((flags & (DRAWFLAGS_BLEND | DRAWFLAG_NOGAMMA)) ? false : true, true);
+
+	floats[2] = floats[5] = floats[8] = floats[11] = 0;
+	floats[0] = floats[9] = x;
+	floats[1] = floats[4] = y;
+	floats[3] = floats[6] = x + width;
+	floats[7] = floats[10] = y + height;
+	floats[12] = s1;floats[13] = t1;
+	floats[14] = s2;floats[15] = t2;
+	floats[16] = s4;floats[17] = t4;
+	floats[18] = s3;floats[19] = t3;
+	floats[20] = r1;floats[21] = g1;floats[22] = b1;floats[23] = a1;
+	floats[24] = r2;floats[25] = g2;floats[26] = b2;floats[27] = a2;
+	floats[28] = r4;floats[29] = g4;floats[30] = b4;floats[31] = a4;
+	floats[32] = r3;floats[33] = g3;floats[34] = b3;floats[35] = a3;
+
+	R_Mesh_PrepareVertices_Generic_Arrays(4, floats, floats + 20, floats + 12);
+	R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+}
+
+void DrawQ_Mesh (drawqueuemesh_t *mesh, int flags, qbool hasalpha)
+{
+	_DrawQ_Setup();
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+	DrawQ_ProcessDrawFlag(flags, hasalpha);
+
+//	R_Mesh_ResetTextureState();
+	R_SetupShader_Generic(mesh->texture, NULL, GL_MODULATE, 1, (flags & DRAWFLAGS_BLEND) ? false : true, true, false);
+
+	R_Mesh_PrepareVertices_Generic_Arrays(mesh->num_vertices, mesh->data_vertex3f, mesh->data_color4f, mesh->data_texcoord2f);
+	R_Mesh_Draw(0, mesh->num_vertices, 0, mesh->num_triangles, mesh->data_element3i, NULL, 0, mesh->data_element3s, NULL, 0);
+}
+
+void DrawQ_LineLoop (drawqueuemesh_t *mesh, int flags)
+{
+	_DrawQ_SetupAndProcessDrawFlag(flags, NULL, 1);
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+
+	GL_Color(1,1,1,1);
+	switch(vid.renderpath)
 	{
-		offsetx = 0.5f * width * vid_conwidth.value / vid.width;
-		offsety = 0;
+	case RENDERPATH_GL20:
+#ifndef USE_GLES2
+		{
+			int num;
+			CHECKGLERROR
+			qglBegin(GL_LINE_LOOP);
+			for (num = 0;num < mesh->num_vertices;num++)
+			{
+				if (mesh->data_color4f)
+					GL_Color(mesh->data_color4f[num*4+0], mesh->data_color4f[num*4+1], mesh->data_color4f[num*4+2], mesh->data_color4f[num*4+3]);
+				qglVertex2f(mesh->data_vertex3f[num*3+0], mesh->data_vertex3f[num*3+1]);
+			}
+			qglEnd();
+			CHECKGLERROR
+		}
+#endif
+		break;
+	case RENDERPATH_GLES2:
+		//Con_DPrintf("FIXME GLES2 %s:%i %s\n", __FILE__, __LINE__, __FUNCTION__);
+		return;
 	}
-	surf = Mod_Mesh_AddSurface(mod, Mod_Mesh_GetTexture(mod, "white", 0, 0, MATERIALFLAG_WALL | MATERIALFLAG_VERTEXCOLOR | MATERIALFLAG_ALPHAGEN_VERTEX | MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED | MATERIALFLAG_NOSHADOW), true);
-	e0 = Mod_Mesh_IndexForVertex(mod, surf, x1 - offsetx, y1 - offsety, 10, 0, 0, -1, 0, 0, 0, 0, r, g, b, alpha);
-	e1 = Mod_Mesh_IndexForVertex(mod, surf, x2 - offsetx, y2 - offsety, 10, 0, 0, -1, 0, 0, 0, 0, r, g, b, alpha);
-	e2 = Mod_Mesh_IndexForVertex(mod, surf, x2 + offsetx, y2 + offsety, 10, 0, 0, -1, 0, 0, 0, 0, r, g, b, alpha);
-	e3 = Mod_Mesh_IndexForVertex(mod, surf, x1 + offsetx, y1 + offsety, 10, 0, 0, -1, 0, 0, 0, 0, r, g, b, alpha);
-	Mod_Mesh_AddTriangle(mod, surf, e0, e1, e2);
-	Mod_Mesh_AddTriangle(mod, surf, e0, e2, e3);
+}
+
+//[515]: this is old, delete
+void DrawQ_Line (float width, float x1, float y1, float x2, float y2, float r, float g, float b, float alpha, int flags)
+{
+	_DrawQ_SetupAndProcessDrawFlag(flags, NULL, alpha);
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+
+	R_SetupShader_Generic_NoTexture((flags & DRAWFLAGS_BLEND) ? false : true, true);
+
+	switch(vid.renderpath)
+	{
+	case RENDERPATH_GL20:
+#ifndef USE_GLES2
+		CHECKGLERROR
+
+		//qglLineWidth(width);CHECKGLERROR
+
+		GL_Color(r,g,b,alpha);
+		CHECKGLERROR
+		qglBegin(GL_LINES);
+		qglVertex2f(x1, y1);
+		qglVertex2f(x2, y2);
+		qglEnd();
+		CHECKGLERROR
+#endif
+		break;
+	case RENDERPATH_GLES2:
+		//Con_DPrintf("FIXME GLES2 %s:%i %s\n", __FILE__, __LINE__, __FUNCTION__);
+		return;
+	}
+}
+
+void DrawQ_Lines (float width, int numlines, int flags, qbool hasalpha)
+{
+	_DrawQ_SetupAndProcessDrawFlag(flags, NULL, hasalpha ? 0.5f : 1.0f);
+
+	if(!r_draw2d.integer && !r_draw2d_force)
+		return;
+
+	switch(vid.renderpath)
+	{
+	case RENDERPATH_GL20:
+		CHECKGLERROR
+
+		R_SetupShader_Generic_NoTexture((flags & DRAWFLAGS_BLEND) ? false : true, true);
+
+		//qglLineWidth(width);CHECKGLERROR
+
+		CHECKGLERROR
+		qglDrawArrays(GL_LINES, 0, numlines*2);
+		CHECKGLERROR
+		break;
+	case RENDERPATH_GLES2:
+		//Con_DPrintf("FIXME GLES2 %s:%i %s\n", __FILE__, __LINE__, __FUNCTION__);
+		return;
+	}
 }
 
 void DrawQ_SetClipArea(float x, float y, float width, float height)
 {
 	int ix, iy, iw, ih;
-	DrawQ_FlushUI();
+	_DrawQ_Setup();
 
 	// We have to convert the con coords into real coords
-	// OGL uses bottom to top (origin is in bottom left)
-	ix = (int)(0.5 + x * ((float)r_refdef.view.width / vid_conwidth.integer)) + r_refdef.view.x;
-	iy = (int)(0.5 + y * ((float)r_refdef.view.height / vid_conheight.integer)) + r_refdef.view.y;
-	iw = (int)(0.5 + width * ((float)r_refdef.view.width / vid_conwidth.integer));
-	ih = (int)(0.5 + height * ((float)r_refdef.view.height / vid_conheight.integer));
+	// OGL uses top to bottom
+	ix = (int)(0.5 + x * ((float)vid.width / vid_conwidth.integer));
+	iy = (int)(0.5 + y * ((float) vid.height / vid_conheight.integer));
+	iw = (int)(0.5 + (x+width) * ((float)vid.width / vid_conwidth.integer)) - ix;
+	ih = (int)(0.5 + (y+height) * ((float) vid.height / vid_conheight.integer)) - iy;
 	switch(vid.renderpath)
 	{
-	case RENDERPATH_GL32:
+	case RENDERPATH_GL20:
 	case RENDERPATH_GLES2:
 		GL_Scissor(ix, vid.height - iy - ih, iw, ih);
 		break;
-	}
+	} // switch
 
 	GL_ScissorTest(true);
 }
 
 void DrawQ_ResetClipArea(void)
 {
-	DrawQ_FlushUI();
+	_DrawQ_Setup();
 	GL_ScissorTest(false);
 }
 
 void DrawQ_Finish(void)
 {
-	DrawQ_FlushUI();
 	r_refdef.draw2dstage = 0;
 }
 
 void DrawQ_RecalcView(void)
 {
-	DrawQ_FlushUI();
 	if(r_refdef.draw2dstage)
 		r_refdef.draw2dstage = -1; // next draw call will set viewport etc. again
 }
 
-void DrawQ_FlushUI(void)
+static float blendvertex3f[9] = {-5000, -5000, 10, 10000, -5000, 10, -5000, 10000, 10};
+void R_DrawGamma(void)
 {
-	model_t *mod = CL_Mesh_UI();
-	if (mod->num_surfaces == 0)
-		return;
-
-	if (!r_draw2d.integer && !r_draw2d_force)
+	float c[4];
+	switch(vid.renderpath)
 	{
-		Mod_Mesh_Reset(mod);
-		return;
+	case RENDERPATH_GL20:
+	case RENDERPATH_GLES2:
+		if (vid_usinghwgamma || v_glslgamma.integer)
+			return;
+		break;
+	}
+	// all the blends ignore depth
+//	R_Mesh_ResetTextureState();
+	R_SetupShader_Generic_NoTexture(true, true);
+	GL_DepthMask(true);
+	GL_DepthRange(0, 1);
+	GL_PolygonOffset(0, 0);
+	GL_DepthTest(false);
+
+	// interpretation of brightness and contrast:
+	//   color range := brightness .. (brightness + contrast)
+	// i.e. "c *= contrast; c += brightness"
+	// plausible values for brightness thus range from -contrast to 1
+
+	// apply pre-brightness (subtractive brightness, for where contrast was >= 1)
+	if (vid.support.ext_blend_subtract)
+	{
+		if (v_color_enable.integer)
+		{
+			c[0] = -v_color_black_r.value / v_color_white_r.value;
+			c[1] = -v_color_black_g.value / v_color_white_g.value;
+			c[2] = -v_color_black_b.value / v_color_white_b.value;
+		}
+		else
+			c[0] = c[1] = c[2] = -v_brightness.value / v_contrast.value;
+		if (c[0] >= 0.01f || c[1] >= 0.01f || c[2] >= 0.01f)
+		{
+			// need SUBTRACTIVE blending to do this!
+			GL_BlendEquationSubtract(true);
+			GL_BlendFunc(GL_ONE, GL_ONE);
+			GL_Color(c[0], c[1], c[2], 1);
+			R_Mesh_PrepareVertices_Generic_Arrays(3, blendvertex3f, NULL, NULL);
+			R_Mesh_Draw(0, 3, 0, 1, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+			GL_BlendEquationSubtract(false);
+		}
 	}
 
-	// this is roughly equivalent to R_Mod_Draw, so the UI can use full material feature set
-	r_refdef.view.colorscale = 1;
-	r_textureframe++; // used only by R_GetCurrentTexture
-	GL_DepthMask(false);
+	// apply contrast
+	if (v_color_enable.integer)
+	{
+		c[0] = v_color_white_r.value;
+		c[1] = v_color_white_g.value;
+		c[2] = v_color_white_b.value;
+	}
+	else
+		c[0] = c[1] = c[2] = v_contrast.value;
+	if (c[0] >= 1.003f || c[1] >= 1.003f || c[2] >= 1.003f)
+	{
+		GL_BlendFunc(GL_DST_COLOR, GL_ONE);
+		while (c[0] >= 1.003f || c[1] >= 1.003f || c[2] >= 1.003f)
+		{
+			float cc[4];
+			cc[0] = bound(0, c[0] - 1, 1);
+			cc[1] = bound(0, c[1] - 1, 1);
+			cc[2] = bound(0, c[2] - 1, 1);
+			GL_Color(cc[0], cc[1], cc[2], 1);
+			R_Mesh_PrepareVertices_Generic_Arrays(3, blendvertex3f, NULL, NULL);
+			R_Mesh_Draw(0, 3, 0, 1, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+			c[0] /= 1 + cc[0];
+			c[1] /= 1 + cc[1];
+			c[2] /= 1 + cc[2];
+		}
+	}
+	if (c[0] <= 0.997f || c[1] <= 0.997f || c[2] <= 0.997f)
+	{
+		GL_BlendFunc(GL_DST_COLOR, GL_ZERO);
+		GL_Color(c[0], c[1], c[2], 1);
+		R_Mesh_PrepareVertices_Generic_Arrays(3, blendvertex3f, NULL, NULL);
+		R_Mesh_Draw(0, 3, 0, 1, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+	}
 
-	Mod_Mesh_Finalize(mod);
-	R_DrawModelSurfaces(&cl_meshentities[MESH_UI].render, false, false, false, false, false, true);
-
-	Mod_Mesh_Reset(mod);
+	// apply post-brightness (additive brightness, for where contrast was <= 1)
+	if (v_color_enable.integer)
+	{
+		c[0] = v_color_black_r.value;
+		c[1] = v_color_black_g.value;
+		c[2] = v_color_black_b.value;
+	}
+	else
+		c[0] = c[1] = c[2] = v_brightness.value;
+	if (c[0] >= 0.01f || c[1] >= 0.01f || c[2] >= 0.01f)
+	{
+		GL_BlendFunc(GL_ONE, GL_ONE);
+		GL_Color(c[0], c[1], c[2], 1);
+		R_Mesh_PrepareVertices_Generic_Arrays(3, blendvertex3f, NULL, NULL);
+		R_Mesh_Draw(0, 3, 0, 1, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+	}
 }
+
+// mark 5

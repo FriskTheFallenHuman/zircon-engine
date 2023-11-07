@@ -18,50 +18,23 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #undef WIN32_LEAN_AND_MEAN  //hush a warning, SDL.h redefines this
-#include <SDL.h>
+
+#if defined(_MSC_VER) || defined(CORE_XCODE)
+	#include <SDL2/SDL.h>
+#else
+	#include <SDL.h>
+#endif // _MSC_VER
+
+
 #include <stdio.h>
 
-#include "quakedef.h"
+#include "darkplaces.h"
 #include "image.h"
 #include "utf8lib.h"
 
-#ifndef __IPHONEOS__
-#ifdef MACOSX
-#include <Carbon/Carbon.h>
-#include <IOKit/hidsystem/IOHIDLib.h>
-#include <IOKit/hidsystem/IOHIDParameter.h>
-#include <IOKit/hidsystem/event_status_driver.h>
-#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000)
-	#define IOMainPort IOMasterPort
-#endif
-static cvar_t apple_mouse_noaccel = {CF_CLIENT | CF_ARCHIVE, "apple_mouse_noaccel", "1", "disables mouse acceleration while DarkPlaces is active"};
-static qbool vid_usingnoaccel;
-static double originalMouseSpeed = -1.0;
-static io_connect_t IN_GetIOHandle(void)
-{
-	io_connect_t iohandle = MACH_PORT_NULL;
-	kern_return_t status;
-	io_service_t iohidsystem = MACH_PORT_NULL;
-	mach_port_t masterport;
-
-	status = IOMainPort(MACH_PORT_NULL, &masterport);
-	if(status != KERN_SUCCESS)
-		return 0;
-
-	iohidsystem = IORegistryEntryFromPath(masterport, kIOServicePlane ":/IOResources/IOHIDSystem");
-	if(!iohidsystem)
-		return 0;
-
-	status = IOServiceOpen(iohidsystem, mach_task_self(), kIOHIDParamConnectType, &iohandle);
-	IOObjectRelease(iohidsystem);
-
-	return iohandle;
-}
-#endif
-#endif
 
 #ifdef _WIN32
-#define SDL_R_RESTART
+	#define SDL_R_RESTART
 #endif
 
 // Tell startup code that we have a client
@@ -77,8 +50,6 @@ static qbool vid_isfullscreen;
 
 static qbool vid_usingvsync = false;
 static SDL_Joystick *vid_sdljoystick = NULL;
-static SDL_GameController *vid_sdlgamecontroller = NULL;
-static cvar_t joy_sdl2_trigger_deadzone = {CF_ARCHIVE | CF_CLIENT, "joy_sdl2_trigger_deadzone", "0.5", "deadzone for triggers to be registered as key presses"};
 // GAME_STEELSTORM specific
 static cvar_t *steelstorm_showing_map = NULL; // detect but do not create the cvar
 static cvar_t *steelstorm_showing_mousecursor = NULL; // detect but do not create the cvar
@@ -102,7 +73,7 @@ static vid_mode_t desktop_mode;
 // Input handling
 
 #ifndef SDLK_PERCENT
-#define SDLK_PERCENT '%'
+	#define SDLK_PERCENT '%'
 #endif
 
 static int MapKey( unsigned int sdlkey )
@@ -381,79 +352,25 @@ qbool VID_ShowingKeyboard(void)
 	return SDL_IsTextInputActive() != 0;
 }
 
-void VID_SetMouse(qbool relative, qbool hidecursor)
+void VID_SetMouse(qbool fullscreengrab, qbool relative, qbool hidecursor)
 {
-#ifndef DP_MOBILETOUCH
-#ifdef MACOSX
-	if(relative)
-		if(vid_usingmouse && (vid_usingnoaccel != !!apple_mouse_noaccel.integer))
-			VID_SetMouse(false, false); // ungrab first!
-#endif
-	if (vid_usingmouse != relative)
-	{
+	if (hidecursor) {
+		hidecursor = hidecursor;
+	}
+	if (vid_usingmouse != relative) {
 		vid_usingmouse = relative;
 		cl_ignoremousemoves = 2;
 		vid_usingmouse_relativeworks = SDL_SetRelativeMouseMode(relative ? SDL_TRUE : SDL_FALSE) == 0;
-//		Con_Printf("VID_SetMouse(%i, %i) relativeworks = %i\n", (int)relative, (int)hidecursor, (int)vid_usingmouse_relativeworks);
-#ifdef MACOSX
-		if(relative)
-		{
-			// Save the status of mouse acceleration
-			originalMouseSpeed = -1.0; // in case of error
-			if(apple_mouse_noaccel.integer)
-			{
-				io_connect_t mouseDev = IN_GetIOHandle();
-				if(mouseDev != 0)
-				{
-					if(IOHIDGetAccelerationWithKey(mouseDev, CFSTR(kIOHIDMouseAccelerationType), &originalMouseSpeed) == kIOReturnSuccess)
-					{
-						Con_DPrintf("previous mouse acceleration: %f\n", originalMouseSpeed);
-						if(IOHIDSetAccelerationWithKey(mouseDev, CFSTR(kIOHIDMouseAccelerationType), -1.0) != kIOReturnSuccess)
-						{
-							Con_Print("Could not disable mouse acceleration (failed at IOHIDSetAccelerationWithKey).\n");
-							Cvar_SetValueQuick(&apple_mouse_noaccel, 0);
-						}
-					}
-					else
-					{
-						Con_Print("Could not disable mouse acceleration (failed at IOHIDGetAccelerationWithKey).\n");
-						Cvar_SetValueQuick(&apple_mouse_noaccel, 0);
-					}
-					IOServiceClose(mouseDev);
-				}
-				else
-				{
-					Con_Print("Could not disable mouse acceleration (failed at IO_GetIOHandle).\n");
-					Cvar_SetValueQuick(&apple_mouse_noaccel, 0);
-				}
-			}
-
-			vid_usingnoaccel = !!apple_mouse_noaccel.integer;
-		}
-		else
-		{
-			if(originalMouseSpeed != -1.0)
-			{
-				io_connect_t mouseDev = IN_GetIOHandle();
-				if(mouseDev != 0)
-				{
-					Con_DPrintf("restoring mouse acceleration to: %f\n", originalMouseSpeed);
-					if(IOHIDSetAccelerationWithKey(mouseDev, CFSTR(kIOHIDMouseAccelerationType), originalMouseSpeed) != kIOReturnSuccess)
-						Con_Print("Could not re-enable mouse acceleration (failed at IOHIDSetAccelerationWithKey).\n");
-					IOServiceClose(mouseDev);
-				}
-				else
-					Con_Print("Could not re-enable mouse acceleration (failed at IO_GetIOHandle).\n");
-			}
-		}
-#endif
 	}
-	if (vid_usinghidecursor != hidecursor)
-	{
+	WARP_X_ (VM_CL_setcursormode)
+#ifdef CORE_SDL // How is CSQC hide/show cursor working?
+	hidecursor = false; // HACK
+#endif
+
+	if (vid_usinghidecursor != hidecursor) {
 		vid_usinghidecursor = hidecursor;
 		SDL_ShowCursor( hidecursor ? SDL_DISABLE : SDL_ENABLE);
 	}
-#endif
 }
 
 // multitouch[10][] represents the mouse pointer
@@ -468,11 +385,11 @@ float multitouch[MAXFINGERS][3];
 int multitouchs[MAXFINGERS];
 
 // modified heavily by ELUAN
-static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, float pheight, 
-	const char *icon, float textheight, const char *text, 
-	float *resultmove, qbool *resultbutton, keynum_t key, 
-	const char *typedtext, float deadzone, 
-	float oversizepixels_x, float oversizepixels_y, qbool iamexclusive)
+static qbool VID_TouchscreenArea (int corner, float px, float py, float pwidth, float pheight, 
+								 const char *icon, float textheight, const char *text, 
+								 float *resultmove, qbool *resultbutton, keynum_t key, 
+								 const char *typedtext, float deadzone, 
+								 float oversizepixels_x, float oversizepixels_y, qbool iamexclusive)
 {
 	int finger;
 	float fx, fy, fwidth, fheight;
@@ -480,7 +397,7 @@ static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, f
 	float rel[3] = {0}; //VectorClear(rel);
 	float sqsum;
 	qbool button = false;
-
+	
 	if (pwidth > 0 && pheight > 0) {
 		if (corner & 1) px += vid_conwidth.value;
 		if (corner & 2) py += vid_conheight.value;
@@ -513,7 +430,7 @@ static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, f
 		overfwidth = fwidth + 2*oversizepixels_x;
 		overfheight = fheight + 2*oversizepixels_y;
 
-		for (finger = 0;finger < MAXFINGERS;finger++) {
+		for (finger = 0; finger < MAXFINGERS; finger++) {
 			if (multitouchs[finger] && iamexclusive) // for this to work correctly, you must call touch areas in order of highest to lowest priority
 				continue;
 
@@ -521,7 +438,7 @@ static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, f
 			if (multitouch[finger][0] && 
 				multitouch[finger][1] >= overfx && 
 				multitouch[finger][2] >= overfy && 
-				multitouch[finger][1] < overfx + overfwidth && multitouch[finger][2] < overfy + overfheight)
+				multitouch[finger][1] <  overfx + overfwidth && multitouch[finger][2] < overfy + overfheight)
 			{
 				multitouchs[finger]++;
 
@@ -531,7 +448,7 @@ static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, f
 
 				sqsum = rel[0]*rel[0] + rel[1]*rel[1];
 				// 2d deadzone
-				if (sqsum < deadzone*deadzone)
+				if (sqsum < deadzone * deadzone)
 				{
 					rel[0] = 0;
 					rel[1] = 0;
@@ -573,13 +490,13 @@ static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, f
 		if (*resultbutton != button)
 		{
 			if ((int)key > 0)
-				Key_Event(key, 0, button);
+				Key_Event (key, 0, button);
 
 			if (typedtext && typedtext[0] && !*resultbutton)
 			{
 				// FIXME: implement UTF8 support - nothing actually specifies a UTF8 string here yet, but should support it...
 				int i;
-				for (i = 0;typedtext[i];i++) {
+				for (i = 0; typedtext[i]; i++) {
 					Key_Event(K_TEXT, typedtext[i], true);
 					Key_Event(K_TEXT, typedtext[i], false);
 				}
@@ -592,7 +509,7 @@ static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, f
 
 // ELUAN:
 // not reentrant, but we only need one mouse cursor anyway...
-static void VID_TouchscreenCursor(float px, float py, float pwidth, float pheight, qbool *resultbutton, keynum_t key)
+static void VID_TouchscreenCursor (float px, float py, float pwidth, float pheight, qbool *resultbutton, keynum_t key)
 {
 	int finger;
 	float fx, fy, fwidth, fheight;
@@ -605,7 +522,7 @@ static void VID_TouchscreenCursor(float px, float py, float pwidth, float pheigh
 	static double clickrealtime = 0;
 
 	if (steelstorm_showing_mousecursor && steelstorm_showing_mousecursor->integer)
-
+	
 	if (pwidth > 0 && pheight > 0)
 	{
 		fx = px / vid_conwidth.value;
@@ -632,7 +549,7 @@ static void VID_TouchscreenCursor(float px, float py, float pwidth, float pheigh
 		}
 		if (scr_numtouchscreenareas < 128)
 		{
-			if (clickrealtime + 1 > host.realtime)
+			if (clickrealtime + 1 > realtime)
 			{
 				scr_touchscreenareas[scr_numtouchscreenareas].pic = "gfx/gui/touch_puck_cur_click.tga";
 			}
@@ -642,7 +559,7 @@ static void VID_TouchscreenCursor(float px, float py, float pwidth, float pheigh
 			}
 			else
 			{
-				switch ((int)host.realtime * 10 % 20)
+				switch ((int)realtime * 10 % 20)
 				{
 				case 0:
 					scr_touchscreenareas[scr_numtouchscreenareas].pic = "gfx/gui/touch_puck_cur_touch.tga";
@@ -696,11 +613,11 @@ static void VID_TouchscreenCursor(float px, float py, float pwidth, float pheigh
 			{
 				Key_Event(key, 0, true);
 				canclick = false;
-				clickrealtime = host.realtime;
+				clickrealtime = realtime;
 			}
 
 			// SS:BR can't qc can't cope with presses and releases on the same frame
-			if (clickrealtime && clickrealtime + 0.1 < host.realtime)
+			if (clickrealtime && clickrealtime + 0.1 < realtime)
 			{
 				Key_Event(key, 0, false);
 				clickrealtime = 0;
@@ -719,31 +636,14 @@ void VID_BuildJoyState(vid_joystate_t *joystate)
 	{
 		SDL_Joystick *joy = vid_sdljoystick;
 		int j;
-
-		if (vid_sdlgamecontroller)
-		{
-			for (j = 0; j <= SDL_CONTROLLER_AXIS_MAX; ++j)
-			{
-				joystate->axis[j] = SDL_GameControllerGetAxis(vid_sdlgamecontroller, (SDL_GameControllerAxis)j) * (1.0f / 32767.0f);
-			}
-			for (j = 0; j < SDL_CONTROLLER_BUTTON_MAX; ++j)
-				joystate->button[j] = SDL_GameControllerGetButton(vid_sdlgamecontroller, (SDL_GameControllerButton)j);
-			// emulate joy buttons for trigger "axes"
-			joystate->button[SDL_CONTROLLER_BUTTON_MAX] = VID_JoyState_GetAxis(joystate, SDL_CONTROLLER_AXIS_TRIGGERLEFT, 1, joy_sdl2_trigger_deadzone.value) > 0.0f;
-			joystate->button[SDL_CONTROLLER_BUTTON_MAX+1] = VID_JoyState_GetAxis(joystate, SDL_CONTROLLER_AXIS_TRIGGERRIGHT, 1, joy_sdl2_trigger_deadzone.value) > 0.0f;
-		}
-		else
-
-		{
-			int numaxes;
-			int numbuttons;
-			numaxes = SDL_JoystickNumAxes(joy);
-			for (j = 0;j < numaxes;j++)
-				joystate->axis[j] = SDL_JoystickGetAxis(joy, j) * (1.0f / 32767.0f);
-			numbuttons = SDL_JoystickNumButtons(joy);
-			for (j = 0;j < numbuttons;j++)
-				joystate->button[j] = SDL_JoystickGetButton(joy, j);
-		}
+		int numaxes;
+		int numbuttons;
+		numaxes = SDL_JoystickNumAxes(joy);
+		for (j = 0;j < numaxes;j++)
+			joystate->axis[j] = SDL_JoystickGetAxis(joy, j) * (1.0f / 32767.0f);
+		numbuttons = SDL_JoystickNumButtons(joy);
+		for (j = 0;j < numbuttons;j++)
+			joystate->button[j] = SDL_JoystickGetButton(joy, j);
 	}
 
 	VID_Shared_BuildJoyState_Finish(joystate);
@@ -788,7 +688,7 @@ static void IN_Move_TouchScreen_SteelStorm(void)
 	float move[3], aim[3];
 	static qbool oldbuttons[128];
 	static qbool buttons[128];
-	keydest_t keydest = Have_Flag(key_consoleactive, KEY_CONSOLEACTIVE_USER_1) ? key_console : key_dest;
+	keydest_t keydest = (key_consoleactive & KEY_CONSOLEACTIVE_FORCED_4) ? key_console : key_dest;
 	memcpy(oldbuttons, buttons, sizeof(oldbuttons));
 	memset(multitouchs, 0, sizeof(multitouchs));
 
@@ -903,10 +803,10 @@ static void IN_Move_TouchScreen_Quake(void)
 	static qbool oldbuttons[128];
 	static qbool buttons[128];
 
-	keydest_t keydest = Have_Flag(key_consoleactive, KEY_CONSOLEACTIVE_USER_1) ? key_console : key_dest;
+	keydest_t keydest = Have_Flag (key_consoleactive, KEY_CONSOLEACTIVE_USER_1)  ? key_console : key_dest;
 
-	memcpy(oldbuttons, buttons, sizeof(oldbuttons));
-	memset(multitouchs, 0, sizeof(multitouchs));
+	memcpy (oldbuttons, buttons, sizeof(oldbuttons));
+	memset (multitouchs, 0, sizeof(multitouchs));
 
 	// simple quake controls
 	multitouch[MAXFINGERS-1][0] = SDL_GetMouseState(&x, &y);
@@ -923,7 +823,7 @@ static void IN_Move_TouchScreen_Quake(void)
 		VID_TouchscreenArea( 0,  64,   0,  64,  64, "gfx/touch_menu.tga"         , 0.0f, NULL, NULL, &buttons[14], K_ESCAPE, NULL, 0, 0, 0, true);
 		if (!VID_ShowingKeyboard()) {
 			// user entered a command, close the console now
-			Con_ToggleConsole_f(cmd_local);
+			Con_ToggleConsole_f();
 		}
 		VID_TouchscreenArea( 0,   0,   0,   0,   0, NULL                         , 0.0f, NULL, NULL, &buttons[15], (keynum_t)0, NULL, 0, 0, 0, true);
 		VID_TouchscreenArea( 0,   0,   0,   0,   0, NULL                         , 0.0f, NULL, move, &buttons[0], K_MOUSE4, NULL, 0, 0, 0, true);
@@ -931,10 +831,15 @@ static void IN_Move_TouchScreen_Quake(void)
 		VID_TouchscreenArea( 0,   0,   0,   0,   0, NULL                         , 0.0f, NULL, click,&buttons[2], K_MOUSE1, NULL, 0, 0, 0, true);
 		VID_TouchscreenArea( 0,   0,   0,   0,   0, NULL                         , 0.0f, NULL, NULL, &buttons[3], K_SPACE, NULL, 0, 0, 0, true);
 		VID_TouchscreenArea( 0,   0,   0,   0,   0, NULL                         , 0.0f, NULL, NULL, &buttons[4], K_MOUSE2, NULL, 0, 0, 0, true);
+
+		VID_TouchscreenArea (1 + 8,-150,  -64,   50,   50, "gfx/touch_up.tga"    , 0.0f, NULL, NULL, &buttons[5], K_UPARROW, NULL, 0, 0, 0, true);
+		VID_TouchscreenArea (1 + 8,-100,  -64,   50,   50, "gfx/touch_down.tga"    , 0.0f, NULL, NULL, &buttons[6], K_DOWNARROW, NULL, 0, 0, 0, true);
+		VID_TouchscreenArea (1 + 8, -50,  -64,   50,   50, "gfx/touch_tab.tga"    , 0.0f, NULL, NULL, &buttons[7], K_TAB, NULL, 0, 0, 0, true);
+
 		break;
 
 	case key_game:
-		VID_TouchscreenArea( 0,   0,   0,  64,  64, "gfx/touch_console.tga"                         , 0.0f, NULL, NULL, &buttons[13], (keynum_t)'`', NULL, 0, 0, 0, true);
+		VID_TouchscreenArea( 0,   0,   0,  64,  64, "gfx/touch_console.tga"      , 0.0f, NULL, NULL, &buttons[13], (keynum_t)'`', NULL, 0, 0, 0, true);
 		VID_TouchscreenArea( 0,  64,   0,  64,  64, "gfx/touch_menu.tga"         , 0.0f, NULL, NULL, &buttons[14], K_ESCAPE, NULL, 0, 0, 0, true);
 		VID_TouchscreenArea( 2,   0,-128, 128, 128, "gfx/touch_movebutton.tga"   , 0.0f, NULL, move, &buttons[0], K_MOUSE4, NULL, 0, 0, 0, true);
 		VID_TouchscreenArea( 3,-128,-128, 128, 128, "gfx/touch_aimbutton.tga"    , 0.0f, NULL, aim,  &buttons[1], K_MOUSE5, NULL, 0, 0, 0, true);
@@ -946,11 +851,11 @@ static void IN_Move_TouchScreen_Quake(void)
 
 	// key_menu key_message
 	default:
-		VID_TouchscreenArea( 0,   0,   0,  64,  64, "gfx/touch_console.tga"                         , 0.0f, NULL, NULL, &buttons[13], (keynum_t)'`', NULL, 0, 0, 0, true);
+		VID_TouchscreenArea( 0,   0,   0,  64,  64, "gfx/touch_console.tga"      , 0.0f, NULL, NULL, &buttons[13], (keynum_t)'`', NULL, 0, 0, 0, true);
 		VID_TouchscreenArea( 0,  64,   0,  64,  64, "gfx/touch_menu.tga"         , 0.0f, NULL, NULL, &buttons[14], K_ESCAPE, NULL, 0, 0, 0, true);
 		// in menus, an icon in the corner activates keyboard
 		VID_TouchscreenArea( 2,   0, -32,  32,  32, "gfx/touch_keyboard.tga"     , 0.0f, NULL, NULL, &buttons[15], (keynum_t)0, NULL, 0, 0, 0, true);
-
+		
 		if (buttons[15])
 			VID_ShowKeyboard(true);
 
@@ -959,6 +864,11 @@ static void IN_Move_TouchScreen_Quake(void)
 		VID_TouchscreenArea(16, -320,-480,640, 960, NULL                         , 0.0f, NULL, click,&buttons[2], K_MOUSE1, NULL, 0, 0, 0, true);
 		VID_TouchscreenArea( 0,   0,   0,   0,   0, NULL                         , 0.0f, NULL, NULL, &buttons[3], K_SPACE, NULL, 0, 0, 0, true);
 		VID_TouchscreenArea( 0,   0,   0,   0,   0, NULL                         , 0.0f, NULL, NULL, &buttons[4], K_MOUSE2, NULL, 0, 0, 0, true);
+
+		VID_TouchscreenArea ( 3,  -100,  -125,  50,  50, "gfx/touch_square.tga"                     , 0.0f, NULL, NULL, &buttons[5], K_UPARROW, NULL, 0, 0, 0, true);
+		VID_TouchscreenArea ( 3,  -150,  -100,  50,  50, "gfx/touch_square.tga"                     , 0.0f, NULL, NULL, &buttons[6], K_LEFTARROW, NULL, 0, 0, 0, true);
+		VID_TouchscreenArea ( 3,   -50,  -100,  50,  50, "gfx/touch_square.tga"                     , 0.0f, NULL, NULL, &buttons[8], K_ENTER, NULL, 0, 0, 0, true);
+		VID_TouchscreenArea ( 3,  -100,   -75,  50,  50, "gfx/touch_square.tga"                     , 0.0f, NULL, NULL, &buttons[7], K_DOWNARROW, NULL, 0, 0, 0, true);
 
 		if (buttons[2]) { // attack?
 			in_windowmouse_x = x;
@@ -973,7 +883,7 @@ static void IN_Move_TouchScreen_Quake(void)
 	cl.viewangles[1] -= aim[0] * cl_yawspeed.value * cl.realframetime;
 }
 
-void IN_Move( void )
+void IN_Move (void)
 {
 	static int old_x = 0, old_y = 0;
 	static int stuck = 0;
@@ -1018,7 +928,7 @@ void IN_Move( void )
 			{
 				// have the mouse stuck in the middle, example use: prevent expose effect of beryl during the game when not using
 				// window grabbing. --blub
-	
+
 				// we need 2 frames to initialize the center position
 				if(!stuck)
 				{
@@ -1196,13 +1106,16 @@ void Sys_SendKeyEvents( void )
 	VID_EnableJoystick(true);
 
 	while( SDL_PollEvent( &event ) ) {
+#ifdef DEBUGSDLEVENTS
+		Con_DPrintLinef ("event.type: %d", event.type);
+#endif
 		loop_start:
 		switch( event.type ) {
 			case SDL_QUIT:
 #ifdef DEBUGSDLEVENTS
 				Con_DPrintLinef ("SDL_Event: SDL_QUIT");
 #endif
-				host.state = host_shutdown;
+				Sys_Quit(0);
 				break;
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
@@ -1300,32 +1213,31 @@ void Sys_SendKeyEvents( void )
 					case SDL_WINDOWEVENT_MOVED:
 						break;
 					case SDL_WINDOWEVENT_RESIZED:
-						if (vid_resizable.integer < 2) {
+						if (0 && vid_resizable.integer < 2) { // Baker: This causes real issues.  sdl_needs_restart is not referenced in the source except to set it, never read. 
 							vid.width = event.window.data1;
 							vid.height = event.window.data2;
 #ifdef SDL_R_RESTART
 							// better not call R_Modules_Restart from here directly, as this may wreak havoc...
 							// so, let's better queue it for next frame
 							if (!sdl_needs_restart) {
-								Cbuf_AddText (cmd_local, NEWLINE "r_restart" NEWLINE);
+								Cbuf_AddTextLine ( NEWLINE "r_restart");
 								sdl_needs_restart = true;
 							}
 #endif
 						}
 						break;
 					case SDL_WINDOWEVENT_MINIMIZED:
-						Key_ReleaseAll(); // Baker r9004: Release keys on loss of focus/hidden or major sizing change
+						vid.minimized = true;
 						break;
 					case SDL_WINDOWEVENT_MAXIMIZED:
-						Key_ReleaseAll(); // Baker r9004: Release keys on loss of focus/hidden or major sizing change
+						vid.minimized = false;
 						break;
 					case SDL_WINDOWEVENT_RESTORED:
+						vid.minimized = false;
 						break;
 					case SDL_WINDOWEVENT_ENTER:
-						Key_ReleaseAll(); // Baker r9004: Release keys on loss of focus/hidden or major sizing change
 						break;
 					case SDL_WINDOWEVENT_LEAVE:
-						Key_ReleaseAll(); // Baker r9004: Release keys on loss of focus/hidden or major sizing change
 						break;
 					case SDL_WINDOWEVENT_FOCUS_GAINED:
 						IN_Keyboard_Acquire(); // Baker r1413: Disable windows key
@@ -1337,7 +1249,7 @@ void Sys_SendKeyEvents( void )
 						break;
 					case SDL_WINDOWEVENT_CLOSE:
 						IN_Keyboard_Unacquire();
-						host.state = host_shutdown;
+						Sys_Quit(0);
 						break;
 					}
 				}
@@ -1369,7 +1281,7 @@ void Sys_SendKeyEvents( void )
 #ifdef DEBUGSDLEVENTS
 				Con_DPrintLinef ("SDL_FINGERDOWN for finger %d", (int)event.tfinger.fingerId);
 #endif
-				for (i = 0;i < MAXFINGERS-1;i++) {
+				for (i = 0;i < MAXFINGERS - 1; i ++) {
 					if (!multitouch[i][0]) {
 						multitouch[i][0] = event.tfinger.fingerId + 1;
 						multitouch[i][1] = event.tfinger.x;
@@ -1378,27 +1290,27 @@ void Sys_SendKeyEvents( void )
 						break;
 					}
 				} // for
-				if (i == MAXFINGERS-1)
+				if (i == MAXFINGERS - 1)
 					Con_DPrintLinef ("Too many fingers at once!");
 				break;
 			case SDL_FINGERUP:
 #ifdef DEBUGSDLEVENTS
 				Con_DPrintLinef ("SDL_FINGERUP for finger %d", (int)event.tfinger.fingerId);
 #endif
-				for (i = 0;i < MAXFINGERS-1;i++) {
+				for (i = 0; i < MAXFINGERS-1; i++) {
 					if (multitouch[i][0] == event.tfinger.fingerId + 1) {
 						multitouch[i][0] = 0;
 						break;
 					}
 				} // for
-				if (i == MAXFINGERS-1)
+				if (i == MAXFINGERS - 1)
 					Con_DPrintLinef ("No SDL_FINGERDOWN event matches this SDL_FINGERMOTION event");
 				break;
 			case SDL_FINGERMOTION:
 #ifdef DEBUGSDLEVENTS
 				Con_DPrintLinef ("SDL_FINGERMOTION for finger %d", (int)event.tfinger.fingerId);
 #endif
-				for (i = 0;i < MAXFINGERS-1;i++) {
+				for (i = 0;i < MAXFINGERS - 1; i++) {
 					if (multitouch[i][0] == event.tfinger.fingerId + 1) {
 						multitouch[i][1] = event.tfinger.x;
 						multitouch[i][2] = event.tfinger.y;
@@ -1406,7 +1318,7 @@ void Sys_SendKeyEvents( void )
 					}
 				} // for
 
-				if (i == MAXFINGERS-1)
+				if (i == MAXFINGERS - 1)
 					Con_DPrintLinef ("No SDL_FINGERDOWN event matches this SDL_FINGERMOTION event");
 				break;
 			default:
@@ -1440,16 +1352,609 @@ void Sys_SendKeyEvents( void )
 // Video system
 ////
 
+#ifdef USE_GLES2
+	#ifndef qglClear
+	#ifdef __IPHONEOS__
+		#include <OpenGLES/ES2/gl.h>
+	#else
+		#include <SDL_opengles.h>
+	#endif
+
+//#define PRECALL //Con_Printf("GLCALL %s:%i\n", __FILE__, __LINE__)
+#define PRECALL
+#define POSTCALL
+GLboolean wrapglIsBuffer(GLuint buffer) {PRECALL;return glIsBuffer(buffer);POSTCALL;}
+GLboolean wrapglIsEnabled(GLenum cap) {PRECALL;return glIsEnabled(cap);POSTCALL;}
+GLboolean wrapglIsFramebuffer(GLuint framebuffer) {PRECALL;return glIsFramebuffer(framebuffer);POSTCALL;}
+//GLboolean wrapglIsQuery(GLuint qid) {PRECALL;return glIsQuery(qid);POSTCALL;}
+GLboolean wrapglIsRenderbuffer(GLuint renderbuffer) {PRECALL;return glIsRenderbuffer(renderbuffer);POSTCALL;}
+//GLboolean wrapglUnmapBuffer(GLenum target) {PRECALL;return glUnmapBuffer(target);POSTCALL;}
+GLenum wrapglCheckFramebufferStatus(GLenum target) {PRECALL;return glCheckFramebufferStatus(target);POSTCALL;}
+GLenum wrapglGetError(void) {PRECALL;return glGetError();POSTCALL;}
+GLuint wrapglCreateProgram(void) {PRECALL;return glCreateProgram();POSTCALL;}
+GLuint wrapglCreateShader(GLenum shaderType) {PRECALL;return glCreateShader(shaderType);POSTCALL;}
+//GLuint wrapglGetHandle(GLenum pname) {PRECALL;return glGetHandle(pname);POSTCALL;}
+GLint wrapglGetAttribLocation(GLuint programObj, const GLchar *name) {PRECALL;return glGetAttribLocation(programObj, name);POSTCALL;}
+GLint wrapglGetUniformLocation(GLuint programObj, const GLchar *name) {PRECALL;return glGetUniformLocation(programObj, name);POSTCALL;}
+//GLvoid* wrapglMapBuffer(GLenum target, GLenum access) {PRECALL;return glMapBuffer(target, access);POSTCALL;}
+const GLubyte* wrapglGetString(GLenum name) {PRECALL;return (const GLubyte*)glGetString(name);POSTCALL;}
+void wrapglActiveStencilFace(GLenum e) {PRECALL;Con_Printf("glActiveStencilFace(e)\n");POSTCALL;}
+void wrapglActiveTexture(GLenum e) {PRECALL;glActiveTexture(e);POSTCALL;}
+void wrapglAlphaFunc(GLenum func, GLclampf ref) {PRECALL;Con_Printf("glAlphaFunc(func, ref)\n");POSTCALL;}
+void wrapglArrayElement(GLint i) {PRECALL;Con_Printf("glArrayElement(i)\n");POSTCALL;}
+void wrapglAttachShader(GLuint containerObj, GLuint obj) {PRECALL;glAttachShader(containerObj, obj);POSTCALL;}
+//void wrapglBegin(GLenum mode) {PRECALL;Con_Printf("glBegin(mode)\n");POSTCALL;}
+//void wrapglBeginQuery(GLenum target, GLuint qid) {PRECALL;glBeginQuery(target, qid);POSTCALL;}
+void wrapglBindAttribLocation(GLuint programObj, GLuint index, const GLchar *name) {PRECALL;glBindAttribLocation(programObj, index, name);POSTCALL;}
+//void wrapglBindFragDataLocation(GLuint programObj, GLuint index, const GLchar *name) {PRECALL;glBindFragDataLocation(programObj, index, name);POSTCALL;}
+void wrapglBindBuffer(GLenum target, GLuint buffer) {PRECALL;glBindBuffer(target, buffer);POSTCALL;}
+void wrapglBindFramebuffer(GLenum target, GLuint framebuffer) {PRECALL;glBindFramebuffer(target, framebuffer);POSTCALL;}
+void wrapglBindRenderbuffer(GLenum target, GLuint renderbuffer) {PRECALL;glBindRenderbuffer(target, renderbuffer);POSTCALL;}
+void wrapglBindTexture(GLenum target, GLuint texture) {PRECALL;glBindTexture(target, texture);POSTCALL;}
+void wrapglBlendEquation(GLenum e) {PRECALL;glBlendEquation(e);POSTCALL;}
+void wrapglBlendFunc(GLenum sfactor, GLenum dfactor) {PRECALL;glBlendFunc(sfactor, dfactor);POSTCALL;}
+void wrapglBufferData(GLenum target, GLsizeiptrARB size, const GLvoid *data, GLenum usage) {PRECALL;glBufferData(target, size, data, usage);POSTCALL;}
+void wrapglBufferSubData(GLenum target, GLintptrARB offset, GLsizeiptrARB size, const GLvoid *data) {PRECALL;glBufferSubData(target, offset, size, data);POSTCALL;}
+void wrapglClear(GLbitfield mask) {PRECALL;glClear(mask);POSTCALL;}
+void wrapglClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) {PRECALL;glClearColor(red, green, blue, alpha);POSTCALL;}
+void wrapglClearDepth(GLclampd depth) {PRECALL;/*Con_Printf("glClearDepth(%f)\n", depth);glClearDepthf((float)depth);*/POSTCALL;}
+void wrapglClearStencil(GLint s) {PRECALL;glClearStencil(s);POSTCALL;}
+void wrapglClientActiveTexture(GLenum target) {PRECALL;Con_Printf("glClientActiveTexture(target)\n");POSTCALL;}
+void wrapglColor4f(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) {PRECALL;Con_Printf("glColor4f(red, green, blue, alpha)\n");POSTCALL;}
+void wrapglColor4ub(GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha) {PRECALL;Con_Printf("glColor4ub(red, green, blue, alpha)\n");POSTCALL;}
+void wrapglColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha) {PRECALL;glColorMask(red, green, blue, alpha);POSTCALL;}
+void wrapglColorPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr) {PRECALL;Con_Printf("glColorPointer(size, type, stride, ptr)\n");POSTCALL;}
+void wrapglCompileShader(GLuint shaderObj) {PRECALL;glCompileShader(shaderObj);POSTCALL;}
+void wrapglCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border,  GLsizei imageSize, const void *data) {PRECALL;glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);POSTCALL;}
+void wrapglCompressedTexImage3D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data) {PRECALL;Con_Printf("glCompressedTexImage3D(target, level, internalformat, width, height, depth, border, imageSize, data)\n");POSTCALL;}
+void wrapglCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data) {PRECALL;glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, data);POSTCALL;}
+void wrapglCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data) {PRECALL;Con_Printf("glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)\n");POSTCALL;}
+void wrapglCopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border) {PRECALL;glCopyTexImage2D(target, level, internalformat, x, y, width, height, border);POSTCALL;}
+void wrapglCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height) {PRECALL;glCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height);POSTCALL;}
+void wrapglCopyTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height) {PRECALL;Con_Printf("glCopyTexSubImage3D(target, level, xoffset, yoffset, zoffset, x, y, width, height)\n");POSTCALL;}
+void wrapglCullFace(GLenum mode) {PRECALL;glCullFace(mode);POSTCALL;}
+void wrapglDeleteBuffers(GLsizei n, const GLuint *buffers) {PRECALL;glDeleteBuffers(n, buffers);POSTCALL;}
+void wrapglDeleteFramebuffers(GLsizei n, const GLuint *framebuffers) {PRECALL;glDeleteFramebuffers(n, framebuffers);POSTCALL;}
+void wrapglDeleteShader(GLuint obj) {PRECALL;glDeleteShader(obj);POSTCALL;}
+void wrapglDeleteProgram(GLuint obj) {PRECALL;glDeleteProgram(obj);POSTCALL;}
+//void wrapglDeleteQueries(GLsizei n, const GLuint *ids) {PRECALL;glDeleteQueries(n, ids);POSTCALL;}
+void wrapglDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers) {PRECALL;glDeleteRenderbuffers(n, renderbuffers);POSTCALL;}
+void wrapglDeleteTextures(GLsizei n, const GLuint *textures) {PRECALL;glDeleteTextures(n, textures);POSTCALL;}
+void wrapglDepthFunc(GLenum func) {PRECALL;glDepthFunc(func);POSTCALL;}
+void wrapglDepthMask(GLboolean flag) {PRECALL;glDepthMask(flag);POSTCALL;}
+//void wrapglDepthRange(GLclampd near_val, GLclampd far_val) {PRECALL;glDepthRangef((float)near_val, (float)far_val);POSTCALL;}
+void wrapglDepthRangef(GLclampf near_val, GLclampf far_val) {PRECALL;glDepthRangef(near_val, far_val);POSTCALL;}
+void wrapglDetachShader(GLuint containerObj, GLuint attachedObj) {PRECALL;glDetachShader(containerObj, attachedObj);POSTCALL;}
+void wrapglDisable(GLenum cap) {PRECALL;glDisable(cap);POSTCALL;}
+void wrapglDisableClientState(GLenum cap) {PRECALL;Con_Printf("glDisableClientState(cap)\n");POSTCALL;}
+void wrapglDisableVertexAttribArray(GLuint index) {PRECALL;glDisableVertexAttribArray(index);POSTCALL;}
+void wrapglDrawArrays(GLenum mode, GLint first, GLsizei count) {PRECALL;glDrawArrays(mode, first, count);POSTCALL;}
+void wrapglDrawBuffer(GLenum mode) {PRECALL;Con_Printf("glDrawBuffer(mode)\n");POSTCALL;}
+void wrapglDrawBuffers(GLsizei n, const GLenum *bufs) {PRECALL;Con_Printf("glDrawBuffers(n, bufs)\n");POSTCALL;}
+void wrapglDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices) {PRECALL;glDrawElements(mode, count, type, indices);POSTCALL;}
+//void wrapglDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices) {PRECALL;glDrawRangeElements(mode, start, end, count, type, indices);POSTCALL;}
+//void wrapglDrawRangeElementsEXT(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices) {PRECALL;glDrawRangeElements(mode, start, end, count, type, indices);POSTCALL;}
+void wrapglEnable(GLenum cap) {PRECALL;glEnable(cap);POSTCALL;}
+void wrapglEnableClientState(GLenum cap) {PRECALL;Con_Printf("glEnableClientState(cap)\n");POSTCALL;}
+void wrapglEnableVertexAttribArray(GLuint index) {PRECALL;glEnableVertexAttribArray(index);POSTCALL;}
+//void wrapglEnd(void) {PRECALL;Con_Printf("glEnd()\n");POSTCALL;}
+//void wrapglEndQuery(GLenum target) {PRECALL;glEndQuery(target);POSTCALL;}
+void wrapglFinish(void) {PRECALL;glFinish();POSTCALL;}
+void wrapglFlush(void) {PRECALL;glFlush();POSTCALL;}
+void wrapglFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) {PRECALL;glFramebufferRenderbuffer(target, attachment, renderbuffertarget, renderbuffer);POSTCALL;}
+void wrapglFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) {PRECALL;glFramebufferTexture2D(target, attachment, textarget, texture, level);POSTCALL;}
+void wrapglFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset) {PRECALL;Con_Printf("glFramebufferTexture3D()\n");POSTCALL;}
+void wrapglGenBuffers(GLsizei n, GLuint *buffers) {PRECALL;glGenBuffers(n, buffers);POSTCALL;}
+void wrapglGenFramebuffers(GLsizei n, GLuint *framebuffers) {PRECALL;glGenFramebuffers(n, framebuffers);POSTCALL;}
+//void wrapglGenQueries(GLsizei n, GLuint *ids) {PRECALL;glGenQueries(n, ids);POSTCALL;}
+void wrapglGenRenderbuffers(GLsizei n, GLuint *renderbuffers) {PRECALL;glGenRenderbuffers(n, renderbuffers);POSTCALL;}
+void wrapglGenTextures(GLsizei n, GLuint *textures) {PRECALL;glGenTextures(n, textures);POSTCALL;}
+void wrapglGenerateMipmap(GLenum target) {PRECALL;glGenerateMipmap(target);POSTCALL;}
+void wrapglGetActiveAttrib(GLuint programObj, GLuint index, GLsizei maxLength, GLsizei *length, GLint *size, GLenum *type, GLchar *name) {PRECALL;glGetActiveAttrib(programObj, index, maxLength, length, size, type, name);POSTCALL;}
+void wrapglGetActiveUniform(GLuint programObj, GLuint index, GLsizei maxLength, GLsizei *length, GLint *size, GLenum *type, GLchar *name) {PRECALL;glGetActiveUniform(programObj, index, maxLength, length, size, type, name);POSTCALL;}
+void wrapglGetAttachedShaders(GLuint containerObj, GLsizei maxCount, GLsizei *count, GLuint *obj) {PRECALL;glGetAttachedShaders(containerObj, maxCount, count, obj);POSTCALL;}
+void wrapglGetBooleanv(GLenum pname, GLboolean *params) {PRECALL;glGetBooleanv(pname, params);POSTCALL;}
+void wrapglGetCompressedTexImage(GLenum target, GLint lod, void *img) {PRECALL;Con_Printf("glGetCompressedTexImage(target, lod, img)\n");POSTCALL;}
+void wrapglGetDoublev(GLenum pname, GLdouble *params) {PRECALL;Con_Printf("glGetDoublev(pname, params)\n");POSTCALL;}
+void wrapglGetFloatv(GLenum pname, GLfloat *params) {PRECALL;glGetFloatv(pname, params);POSTCALL;}
+void wrapglGetFramebufferAttachmentParameteriv(GLenum target, GLenum attachment, GLenum pname, GLint *params) {PRECALL;glGetFramebufferAttachmentParameteriv(target, attachment, pname, params);POSTCALL;}
+void wrapglGetShaderInfoLog(GLuint obj, GLsizei maxLength, GLsizei *length, GLchar *infoLog) {PRECALL;glGetShaderInfoLog(obj, maxLength, length, infoLog);POSTCALL;}
+void wrapglGetProgramInfoLog(GLuint obj, GLsizei maxLength, GLsizei *length, GLchar *infoLog) {PRECALL;glGetProgramInfoLog(obj, maxLength, length, infoLog);POSTCALL;}
+void wrapglGetIntegerv(GLenum pname, GLint *params) {PRECALL;glGetIntegerv(pname, params);POSTCALL;}
+void wrapglGetShaderiv(GLuint obj, GLenum pname, GLint *params) {PRECALL;glGetShaderiv(obj, pname, params);POSTCALL;}
+void wrapglGetProgramiv(GLuint obj, GLenum pname, GLint *params) {PRECALL;glGetProgramiv(obj, pname, params);POSTCALL;}
+//void wrapglGetQueryObjectiv(GLuint qid, GLenum pname, GLint *params) {PRECALL;glGetQueryObjectiv(qid, pname, params);POSTCALL;}
+//void wrapglGetQueryObjectuiv(GLuint qid, GLenum pname, GLuint *params) {PRECALL;glGetQueryObjectuiv(qid, pname, params);POSTCALL;}
+//void wrapglGetQueryiv(GLenum target, GLenum pname, GLint *params) {PRECALL;glGetQueryiv(target, pname, params);POSTCALL;}
+void wrapglGetRenderbufferParameteriv(GLenum target, GLenum pname, GLint *params) {PRECALL;glGetRenderbufferParameteriv(target, pname, params);POSTCALL;}
+void wrapglGetShaderSource(GLuint obj, GLsizei maxLength, GLsizei *length, GLchar *source) {PRECALL;glGetShaderSource(obj, maxLength, length, source);POSTCALL;}
+void wrapglGetTexImage(GLenum target, GLint level, GLenum format, GLenum type, GLvoid *pixels) {PRECALL;Con_Printf("glGetTexImage(target, level, format, type, pixels)\n");POSTCALL;}
+void wrapglGetTexLevelParameterfv(GLenum target, GLint level, GLenum pname, GLfloat *params) {PRECALL;Con_Printf("glGetTexLevelParameterfv(target, level, pname, params)\n");POSTCALL;}
+void wrapglGetTexLevelParameteriv(GLenum target, GLint level, GLenum pname, GLint *params) {PRECALL;Con_Printf("glGetTexLevelParameteriv(target, level, pname, params)\n");POSTCALL;}
+void wrapglGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params) {PRECALL;glGetTexParameterfv(target, pname, params);POSTCALL;}
+void wrapglGetTexParameteriv(GLenum target, GLenum pname, GLint *params) {PRECALL;glGetTexParameteriv(target, pname, params);POSTCALL;}
+void wrapglGetUniformfv(GLuint programObj, GLint location, GLfloat *params) {PRECALL;glGetUniformfv(programObj, location, params);POSTCALL;}
+void wrapglGetUniformiv(GLuint programObj, GLint location, GLint *params) {PRECALL;glGetUniformiv(programObj, location, params);POSTCALL;}
+void wrapglHint(GLenum target, GLenum mode) {PRECALL;glHint(target, mode);POSTCALL;}
+void wrapglLineWidth(GLfloat width) {PRECALL;glLineWidth(width);POSTCALL;}
+void wrapglLinkProgram(GLuint programObj) {PRECALL;glLinkProgram(programObj);POSTCALL;}
+void wrapglLoadIdentity(void) {PRECALL;Con_Printf("glLoadIdentity()\n");POSTCALL;}
+void wrapglLoadMatrixf(const GLfloat *m) {PRECALL;Con_Printf("glLoadMatrixf(m)\n");POSTCALL;}
+void wrapglMatrixMode(GLenum mode) {PRECALL;Con_Printf("glMatrixMode(mode)\n");POSTCALL;}
+void wrapglMultiTexCoord1f(GLenum target, GLfloat s) {PRECALL;Con_Printf("glMultiTexCoord1f(target, s)\n");POSTCALL;}
+void wrapglMultiTexCoord2f(GLenum target, GLfloat s, GLfloat t) {PRECALL;Con_Printf("glMultiTexCoord2f(target, s, t)\n");POSTCALL;}
+void wrapglMultiTexCoord3f(GLenum target, GLfloat s, GLfloat t, GLfloat r) {PRECALL;Con_Printf("glMultiTexCoord3f(target, s, t, r)\n");POSTCALL;}
+void wrapglMultiTexCoord4f(GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q) {PRECALL;Con_Printf("glMultiTexCoord4f(target, s, t, r, q)\n");POSTCALL;}
+void wrapglNormalPointer(GLenum type, GLsizei stride, const GLvoid *ptr) {PRECALL;Con_Printf("glNormalPointer(type, stride, ptr)\n");POSTCALL;}
+void wrapglPixelStorei(GLenum pname, GLint param) {PRECALL;glPixelStorei(pname, param);POSTCALL;}
+void wrapglPointSize(GLfloat size) {PRECALL;Con_Printf("glPointSize(size)\n");POSTCALL;}
+//void wrapglPolygonMode(GLenum face, GLenum mode) {PRECALL;Con_Printf("glPolygonMode(face, mode)\n");POSTCALL;}
+void wrapglPolygonOffset(GLfloat factor, GLfloat units) {PRECALL;glPolygonOffset(factor, units);POSTCALL;}
+void wrapglPolygonStipple(const GLubyte *mask) {PRECALL;Con_Printf("glPolygonStipple(mask)\n");POSTCALL;}
+void wrapglReadBuffer(GLenum mode) {PRECALL;Con_Printf("glReadBuffer(mode)\n");POSTCALL;}
+void wrapglReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels) {PRECALL;glReadPixels(x, y, width, height, format, type, pixels);POSTCALL;}
+void wrapglRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height) {PRECALL;glRenderbufferStorage(target, internalformat, width, height);POSTCALL;}
+void wrapglScissor(GLint x, GLint y, GLsizei width, GLsizei height) {PRECALL;glScissor(x, y, width, height);POSTCALL;}
+void wrapglShaderSource(GLuint shaderObj, GLsizei count, const GLchar **string, const GLint *length) {PRECALL;glShaderSource(shaderObj, count, string, length);POSTCALL;}
+void wrapglStencilFunc(GLenum func, GLint ref, GLuint mask) {PRECALL;glStencilFunc(func, ref, mask);POSTCALL;}
+void wrapglStencilFuncSeparate(GLenum func1, GLenum func2, GLint ref, GLuint mask) {PRECALL;Con_Printf("glStencilFuncSeparate(func1, func2, ref, mask)\n");POSTCALL;}
+void wrapglStencilMask(GLuint mask) {PRECALL;glStencilMask(mask);POSTCALL;}
+void wrapglStencilOp(GLenum fail, GLenum zfail, GLenum zpass) {PRECALL;glStencilOp(fail, zfail, zpass);POSTCALL;}
+void wrapglStencilOpSeparate(GLenum e1, GLenum e2, GLenum e3, GLenum e4) {PRECALL;Con_Printf("glStencilOpSeparate(e1, e2, e3, e4)\n");POSTCALL;}
+void wrapglTexCoord1f(GLfloat s) {PRECALL;Con_Printf("glTexCoord1f(s)\n");POSTCALL;}
+void wrapglTexCoord2f(GLfloat s, GLfloat t) {PRECALL;Con_Printf("glTexCoord2f(s, t)\n");POSTCALL;}
+void wrapglTexCoord3f(GLfloat s, GLfloat t, GLfloat r) {PRECALL;Con_Printf("glTexCoord3f(s, t, r)\n");POSTCALL;}
+void wrapglTexCoord4f(GLfloat s, GLfloat t, GLfloat r, GLfloat q) {PRECALL;Con_Printf("glTexCoord4f(s, t, r, q)\n");POSTCALL;}
+void wrapglTexCoordPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr) {PRECALL;Con_Printf("glTexCoordPointer(size, type, stride, ptr)\n");POSTCALL;}
+void wrapglTexEnvf(GLenum target, GLenum pname, GLfloat param) {PRECALL;Con_Printf("glTexEnvf(target, pname, param)\n");POSTCALL;}
+void wrapglTexEnvfv(GLenum target, GLenum pname, const GLfloat *params) {PRECALL;Con_Printf("glTexEnvfv(target, pname, params)\n");POSTCALL;}
+void wrapglTexEnvi(GLenum target, GLenum pname, GLint param) {PRECALL;Con_Printf("glTexEnvi(target, pname, param)\n");POSTCALL;}
+void wrapglTexImage2D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels) {PRECALL;glTexImage2D(target, level, internalFormat, width, height, border, format, type, pixels);POSTCALL;}
+void wrapglTexImage3D(GLenum target, GLint level, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels) {PRECALL;Con_Printf("glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, pixels)\n");POSTCALL;}
+void wrapglTexParameterf(GLenum target, GLenum pname, GLfloat param) {PRECALL;glTexParameterf(target, pname, param);POSTCALL;}
+void wrapglTexParameterfv(GLenum target, GLenum pname, GLfloat *params) {PRECALL;glTexParameterfv(target, pname, params);POSTCALL;}
+void wrapglTexParameteri(GLenum target, GLenum pname, GLint param) {PRECALL;glTexParameteri(target, pname, param);POSTCALL;}
+void wrapglTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels) {PRECALL;glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);POSTCALL;}
+void wrapglTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const GLvoid *pixels) {PRECALL;Con_Printf("glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)\n");POSTCALL;}
+void wrapglUniform1f(GLint location, GLfloat v0) {PRECALL;glUniform1f(location, v0);POSTCALL;}
+void wrapglUniform1fv(GLint location, GLsizei count, const GLfloat *value) {PRECALL;glUniform1fv(location, count, value);POSTCALL;}
+void wrapglUniform1i(GLint location, GLint v0) {PRECALL;glUniform1i(location, v0);POSTCALL;}
+void wrapglUniform1iv(GLint location, GLsizei count, const GLint *value) {PRECALL;glUniform1iv(location, count, value);POSTCALL;}
+void wrapglUniform2f(GLint location, GLfloat v0, GLfloat v1) {PRECALL;glUniform2f(location, v0, v1);POSTCALL;}
+void wrapglUniform2fv(GLint location, GLsizei count, const GLfloat *value) {PRECALL;glUniform2fv(location, count, value);POSTCALL;}
+void wrapglUniform2i(GLint location, GLint v0, GLint v1) {PRECALL;glUniform2i(location, v0, v1);POSTCALL;}
+void wrapglUniform2iv(GLint location, GLsizei count, const GLint *value) {PRECALL;glUniform2iv(location, count, value);POSTCALL;}
+void wrapglUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2) {PRECALL;glUniform3f(location, v0, v1, v2);POSTCALL;}
+void wrapglUniform3fv(GLint location, GLsizei count, const GLfloat *value) {PRECALL;glUniform3fv(location, count, value);POSTCALL;}
+void wrapglUniform3i(GLint location, GLint v0, GLint v1, GLint v2) {PRECALL;glUniform3i(location, v0, v1, v2);POSTCALL;}
+void wrapglUniform3iv(GLint location, GLsizei count, const GLint *value) {PRECALL;glUniform3iv(location, count, value);POSTCALL;}
+void wrapglUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) {PRECALL;glUniform4f(location, v0, v1, v2, v3);POSTCALL;}
+void wrapglUniform4fv(GLint location, GLsizei count, const GLfloat *value) {PRECALL;glUniform4fv(location, count, value);POSTCALL;}
+void wrapglUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3) {PRECALL;glUniform4i(location, v0, v1, v2, v3);POSTCALL;}
+void wrapglUniform4iv(GLint location, GLsizei count, const GLint *value) {PRECALL;glUniform4iv(location, count, value);POSTCALL;}
+void wrapglUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {PRECALL;glUniformMatrix2fv(location, count, transpose, value);POSTCALL;}
+void wrapglUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {PRECALL;glUniformMatrix3fv(location, count, transpose, value);POSTCALL;}
+void wrapglUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {PRECALL;glUniformMatrix4fv(location, count, transpose, value);POSTCALL;}
+void wrapglUseProgram(GLuint programObj) {PRECALL;glUseProgram(programObj);POSTCALL;}
+void wrapglValidateProgram(GLuint programObj) {PRECALL;glValidateProgram(programObj);POSTCALL;}
+void wrapglVertex2f(GLfloat x, GLfloat y) {PRECALL;Con_Printf("glVertex2f(x, y)\n");POSTCALL;}
+void wrapglVertex3f(GLfloat x, GLfloat y, GLfloat z) {PRECALL;Con_Printf("glVertex3f(x, y, z)\n");POSTCALL;}
+void wrapglVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w) {PRECALL;Con_Printf("glVertex4f(x, y, z, w)\n");POSTCALL;}
+void wrapglVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *pointer) {PRECALL;glVertexAttribPointer(index, size, type, normalized, stride, pointer);POSTCALL;}
+void wrapglVertexPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr) {PRECALL;Con_Printf("glVertexPointer(size, type, stride, ptr)\n");POSTCALL;}
+void wrapglViewport(GLint x, GLint y, GLsizei width, GLsizei height) {PRECALL;glViewport(x, y, width, height);POSTCALL;}
+void wrapglVertexAttrib1f(GLuint index, GLfloat v0) {PRECALL;glVertexAttrib1f(index, v0);POSTCALL;}
+//void wrapglVertexAttrib1s(GLuint index, GLshort v0) {PRECALL;glVertexAttrib1s(index, v0);POSTCALL;}
+//void wrapglVertexAttrib1d(GLuint index, GLdouble v0) {PRECALL;glVertexAttrib1d(index, v0);POSTCALL;}
+void wrapglVertexAttrib2f(GLuint index, GLfloat v0, GLfloat v1) {PRECALL;glVertexAttrib2f(index, v0, v1);POSTCALL;}
+//void wrapglVertexAttrib2s(GLuint index, GLshort v0, GLshort v1) {PRECALL;glVertexAttrib2s(index, v0, v1);POSTCALL;}
+//void wrapglVertexAttrib2d(GLuint index, GLdouble v0, GLdouble v1) {PRECALL;glVertexAttrib2d(index, v0, v1);POSTCALL;}
+void wrapglVertexAttrib3f(GLuint index, GLfloat v0, GLfloat v1, GLfloat v2) {PRECALL;glVertexAttrib3f(index, v0, v1, v2);POSTCALL;}
+//void wrapglVertexAttrib3s(GLuint index, GLshort v0, GLshort v1, GLshort v2) {PRECALL;glVertexAttrib3s(index, v0, v1, v2);POSTCALL;}
+//void wrapglVertexAttrib3d(GLuint index, GLdouble v0, GLdouble v1, GLdouble v2) {PRECALL;glVertexAttrib3d(index, v0, v1, v2);POSTCALL;}
+void wrapglVertexAttrib4f(GLuint index, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) {PRECALL;glVertexAttrib4f(index, v0, v1, v2, v3);POSTCALL;}
+//void wrapglVertexAttrib4s(GLuint index, GLshort v0, GLshort v1, GLshort v2, GLshort v3) {PRECALL;glVertexAttrib4s(index, v0, v1, v2, v3);POSTCALL;}
+//void wrapglVertexAttrib4d(GLuint index, GLdouble v0, GLdouble v1, GLdouble v2, GLdouble v3) {PRECALL;glVertexAttrib4d(index, v0, v1, v2, v3);POSTCALL;}
+//void wrapglVertexAttrib4Nub(GLuint index, GLubyte x, GLubyte y, GLubyte z, GLubyte w) {PRECALL;glVertexAttrib4Nub(index, x, y, z, w);POSTCALL;}
+void wrapglVertexAttrib1fv(GLuint index, const GLfloat *v) {PRECALL;glVertexAttrib1fv(index, v);POSTCALL;}
+//void wrapglVertexAttrib1sv(GLuint index, const GLshort *v) {PRECALL;glVertexAttrib1sv(index, v);POSTCALL;}
+//void wrapglVertexAttrib1dv(GLuint index, const GLdouble *v) {PRECALL;glVertexAttrib1dv(index, v);POSTCALL;}
+void wrapglVertexAttrib2fv(GLuint index, const GLfloat *v) {PRECALL;glVertexAttrib2fv(index, v);POSTCALL;}
+//void wrapglVertexAttrib2sv(GLuint index, const GLshort *v) {PRECALL;glVertexAttrib2sv(index, v);POSTCALL;}
+//void wrapglVertexAttrib2dv(GLuint index, const GLdouble *v) {PRECALL;glVertexAttrib2dv(index, v);POSTCALL;}
+void wrapglVertexAttrib3fv(GLuint index, const GLfloat *v) {PRECALL;glVertexAttrib3fv(index, v);POSTCALL;}
+//void wrapglVertexAttrib3sv(GLuint index, const GLshort *v) {PRECALL;glVertexAttrib3sv(index, v);POSTCALL;}
+//void wrapglVertexAttrib3dv(GLuint index, const GLdouble *v) {PRECALL;glVertexAttrib3dv(index, v);POSTCALL;}
+void wrapglVertexAttrib4fv(GLuint index, const GLfloat *v) {PRECALL;glVertexAttrib4fv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4sv(GLuint index, const GLshort *v) {PRECALL;glVertexAttrib4sv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4dv(GLuint index, const GLdouble *v) {PRECALL;glVertexAttrib4dv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4iv(GLuint index, const GLint *v) {PRECALL;glVertexAttrib4iv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4bv(GLuint index, const GLbyte *v) {PRECALL;glVertexAttrib4bv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4ubv(GLuint index, const GLubyte *v) {PRECALL;glVertexAttrib4ubv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4usv(GLuint index, const GLushort *v) {PRECALL;glVertexAttrib4usv(index, GLushort v);POSTCALL;}
+//void wrapglVertexAttrib4uiv(GLuint index, const GLuint *v) {PRECALL;glVertexAttrib4uiv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4Nbv(GLuint index, const GLbyte *v) {PRECALL;glVertexAttrib4Nbv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4Nsv(GLuint index, const GLshort *v) {PRECALL;glVertexAttrib4Nsv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4Niv(GLuint index, const GLint *v) {PRECALL;glVertexAttrib4Niv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4Nubv(GLuint index, const GLubyte *v) {PRECALL;glVertexAttrib4Nubv(index, v);POSTCALL;}
+//void wrapglVertexAttrib4Nusv(GLuint index, const GLushort *v) {PRECALL;glVertexAttrib4Nusv(index, GLushort v);POSTCALL;}
+//void wrapglVertexAttrib4Nuiv(GLuint index, const GLuint *v) {PRECALL;glVertexAttrib4Nuiv(index, v);POSTCALL;}
+//void wrapglGetVertexAttribdv(GLuint index, GLenum pname, GLdouble *params) {PRECALL;glGetVertexAttribdv(index, pname, params);POSTCALL;}
+void wrapglGetVertexAttribfv(GLuint index, GLenum pname, GLfloat *params) {PRECALL;glGetVertexAttribfv(index, pname, params);POSTCALL;}
+void wrapglGetVertexAttribiv(GLuint index, GLenum pname, GLint *params) {PRECALL;glGetVertexAttribiv(index, pname, params);POSTCALL;}
+void wrapglGetVertexAttribPointerv(GLuint index, GLenum pname, GLvoid **pointer) {PRECALL;glGetVertexAttribPointerv(index, pname, pointer);POSTCALL;}
+#endif // !USE_GLES2
+
+
+void GLES_Init(void)
+{
+#ifndef qglClear
+	qglIsBufferARB = wrapglIsBuffer;
+	qglIsEnabled = wrapglIsEnabled;
+	qglIsFramebufferEXT = wrapglIsFramebuffer;
+//	qglIsQueryARB = wrapglIsQuery;
+	qglIsRenderbufferEXT = wrapglIsRenderbuffer;
+//	qglUnmapBufferARB = wrapglUnmapBuffer;
+	qglCheckFramebufferStatus = wrapglCheckFramebufferStatus;
+	qglGetError = wrapglGetError;
+	qglCreateProgram = wrapglCreateProgram;
+	qglCreateShader = wrapglCreateShader;
+//	qglGetHandleARB = wrapglGetHandle;
+	qglGetAttribLocation = wrapglGetAttribLocation;
+	qglGetUniformLocation = wrapglGetUniformLocation;
+//	qglMapBufferARB = wrapglMapBuffer;
+	qglGetString = wrapglGetString;
+//	qglActiveStencilFaceEXT = wrapglActiveStencilFace;
+	qglActiveTexture = wrapglActiveTexture;
+	qglAlphaFunc = wrapglAlphaFunc;
+	qglArrayElement = wrapglArrayElement;
+	qglAttachShader = wrapglAttachShader;
+//	qglBegin = wrapglBegin;
+//	qglBeginQueryARB = wrapglBeginQuery;
+	qglBindAttribLocation = wrapglBindAttribLocation;
+//	qglBindFragDataLocation = wrapglBindFragDataLocation;
+	qglBindBufferARB = wrapglBindBuffer;
+	qglBindFramebuffer = wrapglBindFramebuffer;
+	qglBindRenderbuffer = wrapglBindRenderbuffer;
+	qglBindTexture = wrapglBindTexture;
+	qglBlendEquationEXT = wrapglBlendEquation;
+	qglBlendFunc = wrapglBlendFunc;
+	qglBufferDataARB = wrapglBufferData;
+	qglBufferSubDataARB = wrapglBufferSubData;
+	qglClear = wrapglClear;
+	qglClearColor = wrapglClearColor;
+	qglClearDepth = wrapglClearDepth;
+	qglClearStencil = wrapglClearStencil;
+	qglClientActiveTexture = wrapglClientActiveTexture;
+	qglColor4f = wrapglColor4f;
+	qglColor4ub = wrapglColor4ub;
+	qglColorMask = wrapglColorMask;
+	qglColorPointer = wrapglColorPointer;
+	qglCompileShader = wrapglCompileShader;
+	qglCompressedTexImage2DARB = wrapglCompressedTexImage2D;
+	qglCompressedTexImage3DARB = wrapglCompressedTexImage3D;
+	qglCompressedTexSubImage2DARB = wrapglCompressedTexSubImage2D;
+	qglCompressedTexSubImage3DARB = wrapglCompressedTexSubImage3D;
+	qglCopyTexImage2D = wrapglCopyTexImage2D;
+	qglCopyTexSubImage2D = wrapglCopyTexSubImage2D;
+	qglCopyTexSubImage3D = wrapglCopyTexSubImage3D;
+	qglCullFace = wrapglCullFace;
+	qglDeleteBuffersARB = wrapglDeleteBuffers;
+	qglDeleteFramebuffers = wrapglDeleteFramebuffers;
+	qglDeleteProgram = wrapglDeleteProgram;
+	qglDeleteShader = wrapglDeleteShader;
+//	qglDeleteQueriesARB = wrapglDeleteQueries;
+	qglDeleteRenderbuffers = wrapglDeleteRenderbuffers;
+	qglDeleteTextures = wrapglDeleteTextures;
+	qglDepthFunc = wrapglDepthFunc;
+	qglDepthMask = wrapglDepthMask;
+	qglDepthRangef = wrapglDepthRangef;
+	qglDetachShader = wrapglDetachShader;
+	qglDisable = wrapglDisable;
+	qglDisableClientState = wrapglDisableClientState;
+	qglDisableVertexAttribArray = wrapglDisableVertexAttribArray;
+	qglDrawArrays = wrapglDrawArrays;
+//	qglDrawBuffer = wrapglDrawBuffer;
+//	qglDrawBuffersARB = wrapglDrawBuffers;
+	qglDrawElements = wrapglDrawElements;
+//	qglDrawRangeElements = wrapglDrawRangeElements;
+	qglEnable = wrapglEnable;
+	qglEnableClientState = wrapglEnableClientState;
+	qglEnableVertexAttribArray = wrapglEnableVertexAttribArray;
+//	qglEnd = wrapglEnd;
+//	qglEndQueryARB = wrapglEndQuery;
+	qglFinish = wrapglFinish;
+	qglFlush = wrapglFlush;
+	qglFramebufferRenderbufferEXT = wrapglFramebufferRenderbuffer;
+	qglFramebufferTexture2DEXT = wrapglFramebufferTexture2D;
+	qglFramebufferTexture3DEXT = wrapglFramebufferTexture3D;
+	qglGenBuffersARB = wrapglGenBuffers;
+	qglGenFramebuffers = wrapglGenFramebuffers;
+//	qglGenQueriesARB = wrapglGenQueries;
+	qglGenRenderbuffers = wrapglGenRenderbuffers;
+	qglGenTextures = wrapglGenTextures;
+	qglGenerateMipmapEXT = wrapglGenerateMipmap;
+	qglGetActiveAttrib = wrapglGetActiveAttrib;
+	qglGetActiveUniform = wrapglGetActiveUniform;
+	qglGetAttachedShaders = wrapglGetAttachedShaders;
+	qglGetBooleanv = wrapglGetBooleanv;
+//	qglGetCompressedTexImageARB = wrapglGetCompressedTexImage;
+	qglGetDoublev = wrapglGetDoublev;
+	qglGetFloatv = wrapglGetFloatv;
+	qglGetFramebufferAttachmentParameterivEXT = wrapglGetFramebufferAttachmentParameteriv;
+	qglGetProgramInfoLog = wrapglGetProgramInfoLog;
+	qglGetShaderInfoLog = wrapglGetShaderInfoLog;
+	qglGetIntegerv = wrapglGetIntegerv;
+	qglGetShaderiv = wrapglGetShaderiv;
+	qglGetProgramiv = wrapglGetProgramiv;
+//	qglGetQueryObjectivARB = wrapglGetQueryObjectiv;
+//	qglGetQueryObjectuivARB = wrapglGetQueryObjectuiv;
+//	qglGetQueryivARB = wrapglGetQueryiv;
+	qglGetRenderbufferParameterivEXT = wrapglGetRenderbufferParameteriv;
+	qglGetShaderSource = wrapglGetShaderSource;
+	qglGetTexImage = wrapglGetTexImage;
+	qglGetTexLevelParameterfv = wrapglGetTexLevelParameterfv;
+	qglGetTexLevelParameteriv = wrapglGetTexLevelParameteriv;
+	qglGetTexParameterfv = wrapglGetTexParameterfv;
+	qglGetTexParameteriv = wrapglGetTexParameteriv;
+	qglGetUniformfv = wrapglGetUniformfv;
+	qglGetUniformiv = wrapglGetUniformiv;
+	qglHint = wrapglHint;
+	qglLineWidth = wrapglLineWidth;
+	qglLinkProgram = wrapglLinkProgram;
+	qglLoadIdentity = wrapglLoadIdentity;
+	qglLoadMatrixf = wrapglLoadMatrixf;
+	qglMatrixMode = wrapglMatrixMode;
+	qglMultiTexCoord1f = wrapglMultiTexCoord1f;
+	qglMultiTexCoord2f = wrapglMultiTexCoord2f;
+	qglMultiTexCoord3f = wrapglMultiTexCoord3f;
+	qglMultiTexCoord4f = wrapglMultiTexCoord4f;
+	qglNormalPointer = wrapglNormalPointer;
+	qglPixelStorei = wrapglPixelStorei;
+	qglPointSize = wrapglPointSize;
+//	qglPolygonMode = wrapglPolygonMode;
+	qglPolygonOffset = wrapglPolygonOffset;
+//	qglPolygonStipple = wrapglPolygonStipple;
+	qglReadBuffer = wrapglReadBuffer;
+	qglReadPixels = wrapglReadPixels;
+	qglRenderbufferStorage = wrapglRenderbufferStorage;
+	qglScissor = wrapglScissor;
+	qglShaderSource = wrapglShaderSource;
+	qglStencilFunc = wrapglStencilFunc;
+	qglStencilFuncSeparate = wrapglStencilFuncSeparate;
+	qglStencilMask = wrapglStencilMask;
+	qglStencilOp = wrapglStencilOp;
+	qglStencilOpSeparate = wrapglStencilOpSeparate;
+	qglTexCoord1f = wrapglTexCoord1f;
+	qglTexCoord2f = wrapglTexCoord2f;
+	qglTexCoord3f = wrapglTexCoord3f;
+	qglTexCoord4f = wrapglTexCoord4f;
+	qglTexCoordPointer = wrapglTexCoordPointer;
+	qglTexEnvf = wrapglTexEnvf;
+	qglTexEnvfv = wrapglTexEnvfv;
+	qglTexEnvi = wrapglTexEnvi;
+	qglTexImage2D = wrapglTexImage2D;
+	qglTexImage3D = wrapglTexImage3D;
+	qglTexParameterf = wrapglTexParameterf;
+	qglTexParameterfv = wrapglTexParameterfv;
+	qglTexParameteri = wrapglTexParameteri;
+	qglTexSubImage2D = wrapglTexSubImage2D;
+	qglTexSubImage3D = wrapglTexSubImage3D;
+	qglUniform1f = wrapglUniform1f;
+	qglUniform1fv = wrapglUniform1fv;
+	qglUniform1i = wrapglUniform1i;
+	qglUniform1iv = wrapglUniform1iv;
+	qglUniform2f = wrapglUniform2f;
+	qglUniform2fv = wrapglUniform2fv;
+	qglUniform2i = wrapglUniform2i;
+	qglUniform2iv = wrapglUniform2iv;
+	qglUniform3f = wrapglUniform3f;
+	qglUniform3fv = wrapglUniform3fv;
+	qglUniform3i = wrapglUniform3i;
+	qglUniform3iv = wrapglUniform3iv;
+	qglUniform4f = wrapglUniform4f;
+	qglUniform4fv = wrapglUniform4fv;
+	qglUniform4i = wrapglUniform4i;
+	qglUniform4iv = wrapglUniform4iv;
+	qglUniformMatrix2fv = wrapglUniformMatrix2fv;
+	qglUniformMatrix3fv = wrapglUniformMatrix3fv;
+	qglUniformMatrix4fv = wrapglUniformMatrix4fv;
+	qglUseProgram = wrapglUseProgram;
+	qglValidateProgram = wrapglValidateProgram;
+	qglVertex2f = wrapglVertex2f;
+	qglVertex3f = wrapglVertex3f;
+	qglVertex4f = wrapglVertex4f;
+	qglVertexAttribPointer = wrapglVertexAttribPointer;
+	qglVertexPointer = wrapglVertexPointer;
+	qglViewport = wrapglViewport;
+	qglVertexAttrib1f = wrapglVertexAttrib1f;
+//	qglVertexAttrib1s = wrapglVertexAttrib1s;
+//	qglVertexAttrib1d = wrapglVertexAttrib1d;
+	qglVertexAttrib2f = wrapglVertexAttrib2f;
+//	qglVertexAttrib2s = wrapglVertexAttrib2s;
+//	qglVertexAttrib2d = wrapglVertexAttrib2d;
+	qglVertexAttrib3f = wrapglVertexAttrib3f;
+//	qglVertexAttrib3s = wrapglVertexAttrib3s;
+//	qglVertexAttrib3d = wrapglVertexAttrib3d;
+	qglVertexAttrib4f = wrapglVertexAttrib4f;
+//	qglVertexAttrib4s = wrapglVertexAttrib4s;
+//	qglVertexAttrib4d = wrapglVertexAttrib4d;
+//	qglVertexAttrib4Nub = wrapglVertexAttrib4Nub;
+	qglVertexAttrib1fv = wrapglVertexAttrib1fv;
+//	qglVertexAttrib1sv = wrapglVertexAttrib1sv;
+//	qglVertexAttrib1dv = wrapglVertexAttrib1dv;
+	qglVertexAttrib2fv = wrapglVertexAttrib2fv;
+//	qglVertexAttrib2sv = wrapglVertexAttrib2sv;
+//	qglVertexAttrib2dv = wrapglVertexAttrib2dv;
+	qglVertexAttrib3fv = wrapglVertexAttrib3fv;
+//	qglVertexAttrib3sv = wrapglVertexAttrib3sv;
+//	qglVertexAttrib3dv = wrapglVertexAttrib3dv;
+	qglVertexAttrib4fv = wrapglVertexAttrib4fv;
+//	qglVertexAttrib4sv = wrapglVertexAttrib4sv;
+//	qglVertexAttrib4dv = wrapglVertexAttrib4dv;
+//	qglVertexAttrib4iv = wrapglVertexAttrib4iv;
+//	qglVertexAttrib4bv = wrapglVertexAttrib4bv;
+//	qglVertexAttrib4ubv = wrapglVertexAttrib4ubv;
+//	qglVertexAttrib4usv = wrapglVertexAttrib4usv;
+//	qglVertexAttrib4uiv = wrapglVertexAttrib4uiv;
+//	qglVertexAttrib4Nbv = wrapglVertexAttrib4Nbv;
+//	qglVertexAttrib4Nsv = wrapglVertexAttrib4Nsv;
+//	qglVertexAttrib4Niv = wrapglVertexAttrib4Niv;
+//	qglVertexAttrib4Nubv = wrapglVertexAttrib4Nubv;
+//	qglVertexAttrib4Nusv = wrapglVertexAttrib4Nusv;
+//	qglVertexAttrib4Nuiv = wrapglVertexAttrib4Nuiv;
+//	qglGetVertexAttribdv = wrapglGetVertexAttribdv;
+	qglGetVertexAttribfv = wrapglGetVertexAttribfv;
+	qglGetVertexAttribiv = wrapglGetVertexAttribiv;
+	qglGetVertexAttribPointerv = wrapglGetVertexAttribPointerv;
+#endif
+
+	gl_renderer = (const char *)qglGetString(GL_RENDERER);
+	gl_vendor = (const char *)qglGetString(GL_VENDOR);
+	gl_version = (const char *)qglGetString(GL_VERSION);
+	gl_extensions = (const char *)qglGetString(GL_EXTENSIONS);
+
+	if (!gl_extensions)
+		gl_extensions = "";
+	if (!gl_platformextensions)
+		gl_platformextensions = "";
+
+	Con_Printf("GL_VENDOR: %s\n", gl_vendor);
+	Con_Printf("GL_RENDERER: %s\n", gl_renderer);
+	Con_Printf("GL_VERSION: %s\n", gl_version);
+	Con_DPrintf("GL_EXTENSIONS: %s\n", gl_extensions);
+	Con_DPrintf("%s_EXTENSIONS: %s\n", gl_platform, gl_platformextensions);
+
+	// LadyHavoc: report supported extensions
+	Con_DPrintf("\nQuakeC extensions for server and client: %s\nQuakeC extensions for menu: %s\n", vm_sv_extensions, vm_m_extensions );
+
+	// GLES devices in general do not like GL_BGRA, so use GL_RGBA
+	vid.forcetextype = TEXTYPE_RGBA;
+
+	vid.support.gl20shaders = true;
+	vid.support.amd_texture_texture4 = false;
+	vid.support.arb_depth_texture = SDL_GL_ExtensionSupported("GL_OES_depth_texture") != 0; // renderbuffer used anyway on gles2?
+	vid.support.arb_draw_buffers = false;
+	vid.support.arb_multitexture = false;
+	vid.support.arb_occlusion_query = false;
+	vid.support.arb_query_buffer_object = false;
+	vid.support.arb_shadow = false;
+	vid.support.arb_texture_compression = false; // different (vendor-specific) formats than on desktop OpenGL...
+	vid.support.arb_texture_cube_map = SDL_GL_ExtensionSupported("GL_OES_texture_cube_map") != 0;
+	if (!vid.support.arb_texture_cube_map) { 
+		Con_Printf("vid.support.arb_texture_cube_map fail try other ..");
+		vid.support.arb_texture_cube_map = SDL_GL_ExtensionSupported("GL_OES_depth_texture_cube_map") != 0;
+		
+	}
+	vid.support.arb_texture_env_combine = false;
+	vid.support.arb_texture_gather = false;
+	vid.support.arb_texture_non_power_of_two = strstr(gl_extensions, "GL_OES_texture_npot") != NULL;
+	vid.support.arb_vertex_buffer_object = true; // GLES2 core
+	vid.support.ati_separate_stencil = false;
+	vid.support.ext_blend_minmax = false;
+	vid.support.ext_blend_subtract = true; // GLES2 core
+	vid.support.ext_blend_func_separate = true; // GLES2 core
+	vid.support.ext_draw_range_elements = false;
+
+	/*	ELUAN:
+		Note: "In OS 2.1, the functions in GL_OES_framebuffer_object were not usable from the Java API.
+		Calling them just threw an exception. Android developer relations confirmed that they forgot to implement these. (yeah...)
+		It's apparently been fixed in 2.2, though I haven't tested."
+	*/
+	vid.support.ext_framebuffer_object = false;//true;
+
+	vid.support.ext_packed_depth_stencil = false;
+	vid.support.ext_stencil_two_side = false;
+	vid.support.ext_texture_3d = SDL_GL_ExtensionSupported("GL_OES_texture_3D") != 0;
+	vid.support.ext_texture_compression_s3tc = SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc") != 0;
+	vid.support.ext_texture_edge_clamp = true; // GLES2 core
+	vid.support.ext_texture_filter_anisotropic = false; // probably don't want to use it...
+	vid.support.ext_texture_srgb = false;
+	vid.support.arb_texture_float = SDL_GL_ExtensionSupported("GL_OES_texture_float") != 0;
+	vid.support.arb_half_float_pixel = SDL_GL_ExtensionSupported("GL_OES_texture_half_float") != 0;
+	vid.support.arb_half_float_vertex = SDL_GL_ExtensionSupported("GL_OES_vertex_half_float") != 0;
+
+	// NOTE: On some devices, a value of 512 gives better FPS than the maximum.
+	qglGetIntegerv(GL_MAX_TEXTURE_SIZE, (GLint*)&vid.maxtexturesize_2d);
+
+#ifdef GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT
+	if (vid.support.ext_texture_filter_anisotropic)
+		qglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, (GLint*)&vid.max_anisotropy);
+#endif
+
+//slef fix?
+	if (vid.support.arb_texture_cube_map)
+		qglGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, (GLint*)&vid.maxtexturesize_cubemap);
+
+#ifdef GL_MAX_3D_TEXTURE_SIZE
+	if (vid.support.ext_texture_3d)
+		qglGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, (GLint*)&vid.maxtexturesize_3d);
+#endif
+#ifdef GL_MAX_3D_TEXTURE_SIZE_OES
+	if (vid.support.ext_texture_3d)
+		qglGetIntegerv(GL_MAX_3D_TEXTURE_SIZE_OES, (GLint*)&vid.maxtexturesize_3d);
+#endif
+
+
+	Con_Printf("GL_MAX_CUBE_MAP_TEXTURE_SIZE = %i\n", vid.maxtexturesize_cubemap);
+	Con_Printf("GL_MAX_3D_TEXTURE_SIZE = %i\n", vid.maxtexturesize_3d);
+	{
+#define GL_ALPHA_BITS                           0x0D55
+#define GL_RED_BITS                             0x0D52
+#define GL_GREEN_BITS                           0x0D53
+#define GL_BLUE_BITS                            0x0D54
+#define GL_DEPTH_BITS                           0x0D56
+#define GL_STENCIL_BITS                         0x0D57
+		int fb_r = -1, fb_g = -1, fb_b = -1, fb_a = -1, fb_d = -1, fb_s = -1;
+		qglGetIntegerv(GL_RED_BITS    , &fb_r);
+		qglGetIntegerv(GL_GREEN_BITS  , &fb_g);
+		qglGetIntegerv(GL_BLUE_BITS   , &fb_b);
+		qglGetIntegerv(GL_ALPHA_BITS  , &fb_a);
+		qglGetIntegerv(GL_DEPTH_BITS  , &fb_d);
+		qglGetIntegerv(GL_STENCIL_BITS, &fb_s);
+		Con_Printf("Framebuffer depth is R%iG%iB%iA%iD%iS%i\n", fb_r, fb_g, fb_b, fb_a, fb_d, fb_s);
+	}
+
+	// verify that cubemap textures are really supported
+	if (vid.support.arb_texture_cube_map && vid.maxtexturesize_cubemap < 256)
+		vid.support.arb_texture_cube_map = false;
+
+	// verify that 3d textures are really supported
+	if (vid.support.ext_texture_3d && vid.maxtexturesize_3d < 32)
+	{
+		vid.support.ext_texture_3d = false;
+		Con_Printf("GL_OES_texture_3d reported bogus GL_MAX_3D_TEXTURE_SIZE, disabled\n");
+	}
+
+	vid.texunits = 4;
+	vid.teximageunits = 8;
+	vid.texarrayunits = 5;
+	//qglGetIntegerv(GL_MAX_TEXTURE_UNITS, (GLint*)&vid.texunits);
+	qglGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, (GLint*)&vid.teximageunits);CHECKGLERROR
+	//qglGetIntegerv(GL_MAX_TEXTURE_COORDS, (GLint*)&vid.texarrayunits);CHECKGLERROR
+	vid.texunits = bound(1, vid.texunits, MAX_TEXTUREUNITS);
+	vid.teximageunits = bound(1, vid.teximageunits, MAX_TEXTUREUNITS);
+	vid.texarrayunits = bound(1, vid.texarrayunits, MAX_TEXTUREUNITS);
+	Con_DPrintf("Using GLES2.0 rendering path - %i texture matrix, %i texture images, %i texcoords%s\n", vid.texunits, vid.teximageunits, vid.texarrayunits, vid.support.ext_framebuffer_object ? ", shadowmapping supported" : "");
+	vid.renderpath = RENDERPATH_GLES2;
+	vid.useinterleavedarrays = false;
+	vid.sRGBcapable2D = false;
+	vid.sRGBcapable3D = false;
+
+	// VorteX: set other info (maybe place them in VID_InitMode?)
+	Cvar_SetQuick(&gl_info_vendor, gl_vendor);
+	Cvar_SetQuick(&gl_info_renderer, gl_renderer);
+	Cvar_SetQuick(&gl_info_version, gl_version);
+	Cvar_SetQuick(&gl_info_platform, gl_platform ? gl_platform : "");
+	Cvar_SetQuick(&gl_info_driver, gl_driver);
+}
+#endif // USE_GLES2
+
 void *GL_GetProcAddress(const char *name)
 {
 	void *p = NULL;
 	p = SDL_GL_GetProcAddress(name);
 	return p;
-}
-
-qbool GL_ExtensionSupported(const char *name)
-{
-	return SDL_GL_ExtensionSupported(name);
 }
 
 // Baker r9005: DPI Awareness fix for Windows
@@ -1506,7 +2011,6 @@ void VID_Init (void)
 #ifdef DP_MOBILETOUCH
 	Cvar_SetValueQuick(&vid_touchscreen, 1);
 #endif
-	Cvar_RegisterVariable(&joy_sdl2_trigger_deadzone);
 
 #ifdef SDL_R_RESTART
 	R_RegisterModule("SDL", sdl_start, sdl_shutdown, sdl_newmap, NULL, NULL);
@@ -1518,6 +2022,21 @@ void VID_Init (void)
 	vid_sdl_initjoysticksystem = SDL_InitSubSystem(SDL_INIT_JOYSTICK) >= 0;
 	if (!vid_sdl_initjoysticksystem)
 		Con_Printf(CON_ERROR "Failed to init SDL joystick subsystem: %s\n", SDL_GetError());
+    
+#ifdef MACOSX    
+    // Baker: Mac retina displays .. SDL offers the full blown resolution
+    // I'm not sure it should.
+    SDL_DisplayMode dm;
+
+    if (SDL_GetDesktopDisplayMode(0, &dm) != 0)
+    {
+         //SDL_Log("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+    }
+
+    vid.desktop_width = dm.w;
+    vid.desktop_height = dm.h;
+#endif // MACOSX
+    
 	vid_isfullscreen = false;
 }
 
@@ -1550,21 +2069,22 @@ void VID_EnableJoystick(qbool enable)
 			SDL_JoystickClose(vid_sdljoystick);
 			vid_sdljoystick = NULL;
 		}
-		if (vid_sdlgamecontroller) {
-			SDL_GameControllerClose(vid_sdlgamecontroller);
-			vid_sdlgamecontroller = NULL;
-		}
 		if (sdlindex >= 0)
 		{
 			vid_sdljoystick = SDL_JoystickOpen(sdlindex);
 			if (vid_sdljoystick)
 			{
 				const char *joystickname = SDL_JoystickName(vid_sdljoystick);
-				if (SDL_IsGameController(vid_sdljoystickindex)) {
-					vid_sdlgamecontroller = SDL_GameControllerOpen(vid_sdljoystickindex);
-					Con_DPrintLinef ("Using SDL GameController mappings for Joystick %d", index);
+				if (String_Does_Contain_Caseless(joystickname, "accelerometer")) {
+					Cvar_SetValueQuick (&joy_enable, 0);
+					Con_PrintLinef ("Joystick " QUOTED_S " ignored, joy_enable set to 0)", joystickname); 
+					
+					sdlindex = -1;
+				} else {
+					Con_PrintLinef ("Joystick %d opened (SDL_Joystick %d is \"%s\" with %d axes, %d buttons, %d balls)", 
+					index, sdlindex, joystickname, 
+					(int)SDL_JoystickNumAxes(vid_sdljoystick), (int)SDL_JoystickNumButtons(vid_sdljoystick), (int)SDL_JoystickNumBalls(vid_sdljoystick));
 				}
-				Con_PrintLinef ("Joystick %d opened (SDL_Joystick %d is \"%s\" with %d axes, %d buttons, %d balls)", index, sdlindex, joystickname, (int)SDL_JoystickNumAxes(vid_sdljoystick), (int)SDL_JoystickNumButtons(vid_sdljoystick), (int)SDL_JoystickNumBalls(vid_sdljoystick));
 			}
 			else
 			{
@@ -1584,7 +2104,7 @@ void VID_EnableJoystick(qbool enable)
 // Baker r9511: SDL ensure icon
 #ifdef _WIN32
 	#ifdef _MSC_VER
-		#include <SDL_syswm.h> // To expose things like HWND to us.
+		#include <SDL2/SDL_syswm.h> // To expose things like HWND to us.
 	#else
 		#include <SDL_syswm.h> // To expose things like HWND to us.
 	#endif // _MSC_VER
@@ -1655,7 +2175,7 @@ static void AdjustWindowBounds(viddef_mode_t *mode, RECT *rect)
 	workWidth = workArea.right - workArea.left;
 	workHeight = workArea.bottom - workArea.top;
 
-	// SDL forces the window height to be <= screen height - 27px (on Win8.1 - probably intended for the title bar) 
+	// SDL forces the window height to be <= screen height - 27px (on Win8.1 - probably intended for the title bar)
 	// If the task bar is docked to the the left screen border and we move the window to negative y,
 	// there would be some part of the regular desktop visible on the bottom of the screen.
 	screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -1672,7 +2192,7 @@ static void AdjustWindowBounds(viddef_mode_t *mode, RECT *rect)
 		rect->top = workArea.top + titleBarPixels;
 		mode->height = workHeight - titleBarPixels;
 	}
-	else 
+	else
 	{
 		rect->left = workArea.left + max(0, (workWidth - width) / 2);
 		rect->top = workArea.top + max(0, (workHeight - height) / 2);
@@ -1707,28 +2227,33 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 
 // COMMANDLINEOPTION: SDL GL: -gl_driver <drivername> selects a GL driver library, default is whatever SDL recommends, useful only for 3dfxogl.dll/3dfxvgl.dll or fxmesa or similar, if you don't know what this is for, you don't need it
 	i = Sys_CheckParm("-gl_driver");
-	if (i && i < sys.argc - 1)
-		drivername = sys.argv[i + 1];
-	if (SDL_GL_LoadLibrary(drivername) < 0)
-	{
-		Con_Printf(CON_ERROR "Unable to load GL driver \"%s\": %s\n", drivername, SDL_GetError());
+	if (i && i < com_argc - 1)
+		drivername = com_argv[i + 1];
+	if (SDL_GL_LoadLibrary(drivername) < 0) {
+		Con_Printf("Unable to load GL driver \"%s\": %s\n", drivername, SDL_GetError());
 		return false;
 	}
 #endif
 
-#ifdef DP_MOBILETOUCH
-	// mobile platforms are always fullscreen, we'll get the resolution after opening the window
-	mode->fullscreen = true;
-	// hide the menu with SDL_WINDOW_BORDERLESS
-	windowflags |= SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
+
+#ifndef USE_GLES2
+	if ((qglGetString = (const GLubyte* (GLAPIENTRY *)(GLenum name))GL_GetProcAddress("glGetString")) == NULL)
+	{
+		VID_Shutdown();
+		Con_Print("Required OpenGL function glGetString not found\n");
+		return false;
+	}
 #endif
+
+	// Knghtbrd: should do platform-specific extension string function here
+
+	vid_mode_t *m = VID_GetDesktopMode();
 
 	vid_isfullscreen = false;
 	{
 		if (mode->fullscreen) {
 			if (vid_desktopfullscreen.integer)
 			{
-				vid_mode_t *m = VID_GetDesktopMode();
 				mode->width = m->width;
 				mode->height = m->height;
 				windowflags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -1738,34 +2263,36 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 			vid_isfullscreen = true;
 		}
 		else {
-			if (vid_borderless.integer)
-				windowflags |= SDL_WINDOW_BORDERLESS;
 #ifdef _WIN32
-			if (vid_ignore_taskbar.integer) {
-				xPos = SDL_WINDOWPOS_CENTERED;
-				yPos = SDL_WINDOWPOS_CENTERED;
-			}
-			else {
-				RECT rect;
-				AdjustWindowBounds(mode, &rect);
-				xPos = rect.left;
-				yPos = rect.top;
-			}
+			RECT rect;
+			AdjustWindowBounds(mode, &rect);
+			xPos = rect.left;
+			yPos = rect.top;
 #endif
 		}
 	}
 	//flags |= SDL_HWSURFACE;
 
-	if (vid_mouse_clickthrough.integer && !vid_isfullscreen)
-		SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
-
 	SDL_GL_SetAttribute (SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute (SDL_GL_RED_SIZE, 8);
-	SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 8);
-	SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 8);
-	SDL_GL_SetAttribute (SDL_GL_ALPHA_SIZE, 8);
-	SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 24);
-	SDL_GL_SetAttribute (SDL_GL_STENCIL_SIZE, 8);
+
+	//SDL_SetHint(SDL_HINT_ORIENTATIONS, "Portrait");
+
+	if (mode->bitsperpixel >= 32)
+	{
+		SDL_GL_SetAttribute (SDL_GL_RED_SIZE, 8);
+		SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 8);
+		SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 8);
+		SDL_GL_SetAttribute (SDL_GL_ALPHA_SIZE, 8);
+		SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 24);
+		SDL_GL_SetAttribute (SDL_GL_STENCIL_SIZE, 8);
+	}
+	else
+	{
+		SDL_GL_SetAttribute (SDL_GL_RED_SIZE, 5);
+		SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 5);
+		SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 5);
+		SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 16);
+	}
 	if (mode->stereobuffer)
 		SDL_GL_SetAttribute (SDL_GL_STEREO, 1);
 	if (mode->samples > 1)
@@ -1775,23 +2302,17 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 	}
 
 #ifdef USE_GLES2
-	SDL_GL_SetAttribute (SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	SDL_GL_SetAttribute (SDL_GL_CONTEXT_MAJOR_VERSION, 2);
 	SDL_GL_SetAttribute (SDL_GL_CONTEXT_MINOR_VERSION, 0);
-#else
-	SDL_GL_SetAttribute (SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute (SDL_GL_RETAINED_BACKING, 1);
 #endif
-
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, (gl_debug.integer > 0 ? SDL_GL_CONTEXT_DEBUG_FLAG : 0));
 
 	video_bpp = mode->bitsperpixel;
 	window_flags = windowflags;
 	window = SDL_CreateWindow(gamename, xPos, yPos, mode->width, mode->height, windowflags);
 	if (window == NULL)
 	{
-		Con_Printf (CON_ERROR "Failed to set video mode to %ix%i: %s\n", mode->width, mode->height, SDL_GetError());
+		Con_Printf (CON_ERROR"Failed to set video mode to %ix%i: %s\n", mode->width, mode->height, SDL_GetError());
 		VID_Shutdown();
 		return false;
 	}
@@ -1810,41 +2331,24 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 		return false;
 	}
 
-	SDL_GL_SetSwapInterval(bound(-1, vid_vsync.integer, 1));
+	SDL_GL_SetSwapInterval(vid_vsync.integer != 0);
 	vid_usingvsync = (vid_vsync.integer != 0);
 
 	gl_platform = "SDL";
+	gl_platformextensions = "";
 
-	GL_Setup();
-
-	// VorteX: set other info
-	Cvar_SetQuick(&gl_info_vendor, gl_vendor);
-	Cvar_SetQuick(&gl_info_renderer, gl_renderer);
-	Cvar_SetQuick(&gl_info_version, gl_version);
-	Cvar_SetQuick(&gl_info_platform, gl_platform ? gl_platform : "");
-	Cvar_SetQuick(&gl_info_driver, gl_driver);
-
-	// LadyHavoc: report supported extensions
-	Con_DPrintf("\nQuakeC extensions for server and client:");
-	for (i = 0; vm_sv_extensions[i]; i++)
-		Con_DPrintf(" %s", vm_sv_extensions[i]);
-	Con_DPrintf("\n");
-#ifdef CONFIG_MENU
-	Con_DPrintf("\nQuakeC extensions for menu:");
-	for (i = 0; vm_m_extensions[i]; i++)
-		Con_DPrintf(" %s", vm_m_extensions[i]);
-	Con_DPrintf("\n");
+#ifdef USE_GLES2
+	GLES_Init();
+#else
+	GL_Init();
 #endif
-
-	// clear to black (loading plaque will be seen over this)
-	GL_Clear(GL_COLOR_BUFFER_BIT, NULL, 1.0f, 0);
 
 	vid_hidden = false;
 	vid_activewindow = false;
-	vid_hasfocus = true; 
+	vid_hasfocus = true;
 	vid_usingmouse = false;
 	vid_usinghidecursor = false;
-		
+
 	return true;
 }
 
@@ -1858,8 +2362,8 @@ extern cvar_t gl_info_driver;
 qbool VID_InitMode(viddef_mode_t *mode)
 {
 	// GAME_STEELSTORM specific
-	steelstorm_showing_map = Cvar_FindVar(&cvars_all, "steelstorm_showing_map", ~0);
-	steelstorm_showing_mousecursor = Cvar_FindVar(&cvars_all, "steelstorm_showing_mousecursor", ~0);
+	steelstorm_showing_map = Cvar_FindVar("steelstorm_showing_map");
+	steelstorm_showing_mousecursor = Cvar_FindVar("steelstorm_showing_mousecursor");
 
 	if (!SDL_WasInit(SDL_INIT_VIDEO) && SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
 		Sys_Error ("Failed to init SDL video subsystem: %s", SDL_GetError());
@@ -1872,7 +2376,8 @@ qbool VID_InitMode(viddef_mode_t *mode)
 void VID_Shutdown (void)
 {
 	VID_EnableJoystick(false);
-	VID_SetMouse(false, false);
+	VID_SetMouse(false, false, false);
+	VID_RestoreSystemGamma();
 
 	SDL_DestroyWindow(window);
 	window = NULL;
@@ -1882,6 +2387,17 @@ void VID_Shutdown (void)
 	gl_driver[0] = 0;
 	gl_extensions = "";
 	gl_platform = "";
+	gl_platformextensions = "";
+}
+
+int VID_SetGamma (unsigned short *ramps, int rampsize)
+{
+	return !SDL_SetWindowGammaRamp (window, ramps, ramps + rampsize, ramps + rampsize*2);
+}
+
+int VID_GetGamma (unsigned short *ramps, int rampsize)
+{
+	return !SDL_GetWindowGammaRamp (window, ramps, ramps + rampsize, ramps + rampsize*2);
 }
 
 void VID_Finish (void)
@@ -1889,13 +2405,13 @@ void VID_Finish (void)
 	qbool vid_usevsync;
 	vid_activewindow = !vid_hidden && vid_hasfocus;
 
-	VID_UpdateGamma();
+	VID_UpdateGamma(false, 256);
 
 	if (!vid_hidden)
 	{
 		switch(vid.renderpath)
 		{
-		case RENDERPATH_GL32:
+		case RENDERPATH_GL20:
 		case RENDERPATH_GLES2:
 			CHECKGLERROR
 			if (r_speeds.integer == 2 || gl_finish.integer)

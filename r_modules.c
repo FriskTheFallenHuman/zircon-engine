@@ -1,5 +1,5 @@
 
-#include "quakedef.h"
+#include "darkplaces.h"
 
 #define MAXRENDERMODULES 20
 
@@ -19,7 +19,7 @@ rendermodule_t rendermodule[MAXRENDERMODULES];
 
 void R_Modules_Init(void)
 {
-	Cmd_AddCommand(CF_CLIENT, "r_restart", R_Modules_Restart_f, "restarts renderer");
+	Cmd_AddCommand("r_restart", R_Modules_Restart, "restarts renderer");
 }
 
 void R_RegisterModule(const char *name, void(*start)(void), void(*shutdown)(void), void(*newmap)(void), void(*devicelost)(void), void(*devicerestored)(void))
@@ -29,7 +29,7 @@ void R_RegisterModule(const char *name, void(*start)(void), void(*shutdown)(void
 	{
 		if (rendermodule[i].name == NULL)
 			break;
-		if (!strcmp(name, rendermodule[i].name))
+		if (String_Does_Match(name, rendermodule[i].name))
 		{
 			Con_Printf("R_RegisterModule: module \"%s\" registered twice\n", name);
 			return;
@@ -55,10 +55,9 @@ void R_Modules_Start(void)
 			continue;
 		if (rendermodule[i].active)
 		{
-			Con_Printf ("R_Modules_Start: module \"%s\" already active\n", rendermodule[i].name);
+			Con_Printf ("R_StartModules: module \"%s\" already active\n", rendermodule[i].name);
 			continue;
 		}
-		Con_DPrintf("Starting render module \"%s\"\n", rendermodule[i].name);
 		rendermodule[i].active = 1;
 		rendermodule[i].start();
 	}
@@ -74,17 +73,16 @@ void R_Modules_Shutdown(void)
 			continue;
 		if (!rendermodule[i].active)
 			continue;
-		Con_DPrintf("Stopping render module \"%s\"\n", rendermodule[i].name);
 		rendermodule[i].active = 0;
 		rendermodule[i].shutdown();
 	}
 }
 
-void R_Modules_Restart_f(cmd_state_t *cmd)
+void R_Modules_Restart(void)
 {
-	CL_StartVideo();
-	Con_Print("Restarting renderer\n");
-	SCR_BeginLoadingPlaque(false);
+	Host_StartVideo();
+	Con_Print("restarting renderer\n");
+	SCR_BeginLoadingPlaque(false); // SEPUS
 	R_Modules_Shutdown();
 	R_Modules_Start();
 }

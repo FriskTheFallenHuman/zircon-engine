@@ -124,34 +124,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //===========================================
 
-#include "vid.h"
-
-#include "r_textures.h"
-
-#include "crypto.h"
-#include "draw.h"
-#include "screen.h"
-#include "netconn.h"
-#include "protocol.h"
-#include "sbar.h"
-#include "sound.h"
-#include "model_shared.h"
-#include "world.h"
-#include "client.h"
-#include "render.h"
-#include "progs.h"
-#include "progsvm.h"
-#include "server.h"
-#include "phys.h"
-
-#include "input.h"
-#include "keys.h"
-#ifdef CONFIG_MENU
-	#include "menu.h"
-#endif
-#include "csprogs.h"
-#include "glquake.h"
-#include "palette.h"
 
 extern qbool noclip_anglehack;
 

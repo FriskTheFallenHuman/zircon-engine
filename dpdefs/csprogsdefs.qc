@@ -506,12 +506,12 @@ float(float framenum) getinputstate = #345;
 void(float sens) setsensitivityscale = #346;
 void(...) runstandardplayerphysics = #347; // this may or may not take a player ent
 string(float playernum, string keyname) getplayerkeyvalue = #348;
-float() isdemo = #349;
-float() isserver = #350;
-void(vector origin, vector forward, vector right, vector up) SetListener = #351;
+float() isdemo = #349; // Baker (grrrrrr): returns cls.demoplayback ... 
+float() isserver = #350; // Baker (grrrrrr): returns sv.active ...
+void(vector origin, vector forward, vector right, vector up) SetListener = #351; // fte: Sets the position of the view, as far as the audio subsystem is concerned
 void(string cmdname) registercommand = #352;
 float(entity ent) wasfreed = #353;
-string(string key) serverkey = #354;
+string(string key) serverkey = #354; // Baker: InfoString_GetValue
 
 // Use proper case; refer to the id1 Write* functions!
 float() ReadByte = #360;
@@ -598,7 +598,7 @@ float(float t) atan = #473;
 float(float c, float s) atan2 = #474;
 float(float a) tan = #475;
 float(string s) strippedstringlen = #476;
-float(string s) strlennocol = #476; // This is the correct name for the function, but not removing the strippedstringlen mapping.
+float(string s) strlennocol = #476; // This is the correct name for the function, but not removing the decolorizedstring mapping.
 string(string s) decolorizedstring = #477;
 string(string s) strdecolorize = #477; // This is the correct name for the function, but not removing the decolorizedstring mapping.
 string(float uselocaltime, string format, ...) strftime = #478;
@@ -945,13 +945,13 @@ vector	drawgetimagesize(string pic) = #318;
 #define SPA_TEXCOORDS0 4
 #define SPA_LIGHTMAP0_TEXCOORDS 5
 #define SPA_LIGHTMAP_COLOR 6
-// float (entity e, float s)						getsurfacenumpoints = #434;
-// vector (entity e, float s, float n)					getsurfacepoint = #435;
-// vector (entity e, float s)						getsurfacenormal = #436;
-// string (entity e, float s)						getsurfacetexture = #437;
-// float (entity e, vector p)						getsurfacenearpoint = #438;
-// vector (entity e, float s, vector p)					getsurfaceclippedpoint = #439;
-// vector(entity e, float s, float n, float a) getsurfacepointattribute = #486;
+float (entity e, float s)						getsurfacenumpoints = #434;
+vector (entity e, float s, float n)					getsurfacepoint = #435;
+vector (entity e, float s)						getsurfacenormal = #436;
+string (entity e, float s)						getsurfacetexture = #437;
+float (entity e, vector p)						getsurfacenearpoint = #438;
+vector (entity e, float s, vector p)					getsurfaceclippedpoint = #439;
+vector(entity e, float s, float n, float a) getsurfacepointattribute = #486;
 float(entity e, float s) getsurfacenumtriangles = #628;
 vector(entity e, float s, float n) getsurfacetriangle = #629;
 
@@ -963,13 +963,11 @@ float DEG2RAD = 0.01745329251994329576923690768488612713442871888541725456097191
 float RAD2DEG = 57.2957795130823208767981548141051703324054724665643215491602438612;
 float PI      = 3.1415926535897932384626433832795028841971693993751058209749445923;
 //builtin definitions:
-/* -Wdouble-declaration
 float(float s) asin = #471; // returns angle in radians for a given sin() value, the result is in the range -PI*0.5 to PI*0.5
 float(float c) acos = #472; // returns angle in radians for a given cos() value, the result is in the range 0 to PI
 float(float t) atan = #473; // returns angle in radians for a given tan() value, the result is in the range -PI*0.5 to PI*0.5
 float(float c, float s) atan2 = #474; // returns angle in radians for a given cos() and sin() value pair, the result is in the range -PI to PI (this is identical to vectoyaw except it returns radians rather than degrees)
 float(float a) tan = #475; // returns tangent value (which is simply sin(a)/cos(a)) for the given angle in radians, the result is in the range -infinity to +infinity
-*/
 //description:
 //useful math functions for analyzing vectors, note that these all use angles in radians (just like the cos/sin functions) not degrees unlike makevectors/vectoyaw/vectoangles, so be sure to do the appropriate conversions (multiply by DEG2RAD or RAD2DEG as needed).
 //note: atan2 can take unnormalized vectors (just like vectoyaw), and the function was included only for completeness (more often you want vectoyaw or vectoangles), atan2(v_x,v_y) * RAD2DEG gives the same result as vectoyaw(v)
@@ -1443,40 +1441,17 @@ void(float fh, entity e) writetofile = #606;
 float(string s) isfunction = #607;
 void(entity e, string s) parseentitydata = #608;
 
-//DP_QC_FINDCHAIN_TOFIELD
-//see: dpextensions.qc
-entity(vector org, float rad, .entity tofield) findradius_tofield = #22;
-entity(.string fld, string match, .entity tofield) findchain_tofield = #402;
-entity(.float fld, float match, .entity tofield) findchainflags_tofield = #450;
-entity(.float fld, float match, .entity tofield) findchainfloat_tofield = #403;
-
 //DP_COVERAGE
 //idea: divVerent
 //darkplaces implementation: divVerent
 //function definitions:
 void coverage() = #642;  // Reports a coverage event. The engine counts for each of the calls to this builtin whether it has been called.
 
-//DP_RM_CLIPGROUP
-//see: dpextensions.qc
-.float clipgroup;
+// future dp: search_packfile_begin #444 missing
 
-//DP_QC_FS_SEARCH_PACKFILE
-//idea: Mario
-//darkplaces implementation: Mario
-//builtin definitions:
-float(string pattern, float caseinsensitive, float quiet, string packfile) search_packfile_begin = #444;
-//description:
-//extension to search_begin (DP_QC_FS_SEARCH), performs a filename search with the specified pattern (for example "maps/*.bsp") and stores the results in a search slot (minimum of 128 supported by any engine with this extension), the other functions take this returned search slot number, be sure to search_free when done (they are also freed on progs reload).
-//only searches for files within the specified packfile, which is expected to match the results of whichpack().
+// future dp: entity(vector mins, vector maxs) findbox = #566  missing
 
-//DP_QC_FINDBOX
-//see: dpextensions.qc
-entity(vector mins, vector maxs) findbox = #566;
-entity(vector mins, vector maxs, .entity tofield) findbox_tofield = #566;
-
-//DP_QC_NUDGEOUTOFSOLID
-//see: dpextensions.qc
-float(entity ent) nudgeoutofsolid = #567;
+// future dp: float(entity ent) nudgeoutofsolid = #567  missing
 
 // assorted builtins
 const float		STAT_MOVEVARS_TICRATE           = 240;

@@ -2,9 +2,6 @@
 #ifndef R_TEXTURES_H
 #define R_TEXTURES_H
 
-#include "qtypes.h"
-#include "qdefs.h"
-
 // transparent
 #define TEXF_ALPHA 0x00000001
 // mipmapped
@@ -36,15 +33,12 @@
 // indicates the texture will be used as a render target (D3D hint)
 #define TEXF_RENDERTARGET 0x0010000
 // used for checking if textures mismatch
-#define TEXF_IMPORTANTBITS (TEXF_ALPHA | TEXF_MIPMAP | TEXF_RGBMULTIPLYBYALPHA | TEXF_CLAMP | TEXF_FORCENEAREST | TEXF_FORCELINEAR | TEXF_PICMIP | TEXF_COMPARE | TEXF_LOWPRECISION | TEXF_RENDERTARGET)
+#define TEXF_IMPORTANTBITS (TEXF_ALPHA | TEXF_MIPMAP | TEXF_RGBMULTIPLYBYALPHA | TEXF_CLAMP | TEXF_FORCENEAREST | TEXF_FORCELINEAR | TEXF_PICMIP | TEXF_COMPRESS | TEXF_COMPARE | TEXF_LOWPRECISION | TEXF_RENDERTARGET)
 // set as a flag to force the texture to be reloaded
 #define TEXF_FORCE_RELOAD 0x80000000
 
 typedef enum textype_e
 {
-	// placeholder for unused textures in r_rendertarget_t
-	TEXTYPE_UNUSED,
-
 	// 8bit paletted
 	TEXTYPE_PALETTE,
 	// 32bit RGBA
@@ -102,6 +96,7 @@ typedef enum textype_e
 	TEXTYPE_SHADOWMAP24_RAW,
 }
 textype_t;
+
 
 // contents of this structure are mostly private to gl_textures.c
 typedef struct rtexture_s
@@ -206,8 +201,7 @@ void R_FreeTexture(rtexture_t *rt);
 // update a portion of the image data of a texture, used by lightmap updates
 // and procedural textures such as video playback, actual uploads may be
 // delayed by gl_nopartialtextureupdates cvar until R_Mesh_TexBind uses it
-// combine has 3 values: 0 = immediately upload (glTexSubImage2D), 1 = combine with other updates (glTexSubImage2D on next draw), 2 = combine with other updates and never upload partial images (glTexImage2D on next draw)
-void R_UpdateTexture(rtexture_t *rt, const unsigned char *data, int x, int y, int z, int width, int height, int depth, int combine);
+void R_UpdateTexture(rtexture_t *rt, const unsigned char *data, int x, int y, int z, int width, int height, int depth);
 
 // returns the renderer dependent texture slot number (call this before each
 // use, as a texture might not have been precached)

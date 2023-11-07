@@ -4,9 +4,6 @@
 #ifndef LHNET_H
 #define LHNET_H
 
-#include <stddef.h>
-#include "com_list.h"
-
 typedef enum lhnetaddresstype_e
 {
 	LHNETADDRESSTYPE_NONE,
@@ -37,7 +34,7 @@ typedef struct lhnetsocket_s
 {
 	lhnetaddress_t address;
 	int inetsocket;
-	llist_t list;
+	struct lhnetsocket_s *next, *prev;
 }
 lhnetsocket_t;
 

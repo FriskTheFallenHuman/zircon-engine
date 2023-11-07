@@ -27,16 +27,19 @@
 #ifndef FS_H
 #define FS_H
 
-#include <stddef.h>
-#include <stdarg.h>
-#include "qtypes.h"
-#include "qdefs.h"
-#include "zone.h"
 
 // ------ Types ------ //
 
 typedef struct qfile_s qfile_t;
-typedef int64_t fs_offset_t;
+
+#ifdef _WIN32
+//typedef long fs_offset_t; // 32bit
+typedef __int64 fs_offset_t; ///< 64bit (lots of warnings, and read/write still don't take 64bit on win64)
+#else
+typedef long long fs_offset_t;
+#endif
+
+
 
 // ------ Variables ------ //
 
@@ -49,27 +52,32 @@ extern char fs_userdir [MAX_OSPATH];
 extern int fs_numgamedirs;
 extern char fs_gamedirs[MAX_GAMEDIRS][MAX_QPATH];
 
-typedef struct vfs_s
-{
-	char gamedir[MAX_OSPATH];
-	char basedir[MAX_OSPATH];
-	char userdir[MAX_OSPATH];
-	int numgamedirs;
-	char gamedirs[MAX_GAMEDIRS][MAX_QPATH];
-} vfs_t;
 
 // ------ Main functions ------ //
 
 // IMPORTANT: the file path is automatically prefixed by the current game directory for
 // each file created by FS_WriteFile, or opened in "write" or "append" mode by FS_OpenRealFile
 
-qbool FS_AddPack(const char *pakfile, qbool *already_loaded, qbool keep_plain_dirs, qbool dlcache); // already_loaded may be NULL if caller does not care
+typedef struct {
+	char	searchpathx[MAX_QPATH * 2];
+} loadinfo_s;
+
+#define NOLOADINFO_IN_NULL		NULL
+#define NOLOADINFO_OUT_NULL		NULL
+
+qbool FS_AddPack(const char *pakfile, qbool *already_loaded, qbool keep_plain_dirs); // already_loaded may be NULL if caller does not care
 const char *FS_WhichPack(const char *filename);
 void FS_CreatePath (char *path);
 int FS_SysOpenFD(const char *filepath, const char *mode, qbool nonblocking); // uses absolute path
 qfile_t* FS_SysOpen (const char* filepath, const char* mode, qbool nonblocking); // uses absolute path
 qfile_t* FS_OpenRealFile (const char* filepath, const char* mode, qbool quiet);
-qfile_t* FS_OpenVirtualFile (const char* filepath, qbool quiet);
+qfile_t* FS_OpenRealFile2 (const char* filepath, const char* mode, qbool quiet); // Baker 1004.1
+qfile_t* FS_OpenVirtualFile (const char* filepath, qbool quiet, const loadinfo_s *ploadinfo_in, loadinfo_s *ploadinfo_out);
+qfile_t *FS_OpenVirtualFileGameDirOnly (const char *filepath, qbool quiet);
+
+#define gamedironly_false	0	// false
+#define gamedironly_true	1	// true
+
 qfile_t* FS_FileFromData (const unsigned char *data, const size_t size, qbool quiet);
 int FS_Close (qfile_t* file);
 void FS_RemoveOnClose(qfile_t* file);
@@ -87,7 +95,6 @@ void FS_Purge (qfile_t* file);
 const char *FS_FileWithoutPath (const char *in);
 const char *FS_FileExtension (const char *in);
 int FS_CheckNastyPath (const char *path, qbool isgamedir);
-void FS_SanitizePath (char *path);
 
 extern const char *const fs_checkgamedir_missing; // "(missing)"
 const char *FS_CheckGameDir(const char *gamedir); // returns NULL if nasty, fs_checkgamedir_missing (exact pointer) if missing
@@ -103,8 +110,8 @@ extern int fs_all_gamedirs_count;
 
 qbool FS_ChangeGameDirs(int numgamedirs, char gamedirs[][MAX_QPATH], qbool complain, qbool failmissing);
 qbool FS_IsRegisteredQuakePack(const char *name);
+
 int FS_CRCFile(const char *filename, size_t *filesizepointer);
-void FS_UnloadPacks_dlcache(void);
 void FS_Rescan(void);
 
 typedef struct fssearch_s
@@ -116,10 +123,11 @@ typedef struct fssearch_s
 }
 fssearch_t;
 
-fssearch_t *FS_Search(const char *pattern, int caseinsensitive, int quiet, const char *packfile);
+fssearch_t *FS_Search (const char *pattern, int caseinsensitive, int quiet, int isgamedironly);
 void FS_FreeSearch(fssearch_t *search);
 
-unsigned char *FS_LoadFile (const char *path, mempool_t *pool, qbool quiet, fs_offset_t *filesizepointer);
+
+unsigned char *FS_LoadFile (const char *path, mempool_t *pool, qbool quiet, fs_offset_t *filesizepointer, const loadinfo_s *ploadinfo_in, loadinfo_s *ploadinfo_out);
 unsigned char *FS_SysLoadFile (const char *path, mempool_t *pool, qbool quiet, fs_offset_t *filesizepointer);
 qbool FS_WriteFileInBlocks (const char *filename, const void *const *data, const fs_offset_t *len, size_t count);
 qbool FS_WriteFile (const char *filename, const void *data, fs_offset_t len);
@@ -136,8 +144,10 @@ void FS_DefaultExtension (char *path, const char *extension, size_t size_path);
 int FS_FileType (const char *filename);		// the file can be into a package
 int FS_SysFileType (const char *filename);		// only look for files outside of packages
 
-qbool FS_FileExists (const char *filename);		// the file can be into a package
-qbool FS_SysFileExists (const char *filename);	// only look for files outside of packages
+//WARP_X_ (FS_FileExists2)
+qbool FS_FileExists (const char *filename);			// the file can be into a package
+qbool FS_SysFileExists (const char *filename);		// only look for files outside of packages
+qbool FS_FileExists2 (const char *filename, loadinfo_s *loadinfoy);
 
 unsigned char *FS_Deflate(const unsigned char *data, size_t size, size_t *deflated_size, int level, mempool_t *mempool);
 unsigned char *FS_Inflate(const unsigned char *data, size_t size, size_t *inflated_size, mempool_t *mempool);
@@ -148,5 +158,7 @@ void FS_Init_SelfPack(void);
 void FS_Init(void);
 void FS_Shutdown(void);
 void FS_Init_Commands(void);
+
+
 
 #endif
