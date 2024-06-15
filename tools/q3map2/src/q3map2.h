@@ -28,7 +28,7 @@
 #pragma once
 
 /* version */
-#define Q3MAP_VERSION   "2.5.17ry"
+#define Q3MAP_VERSION   "2.5.17ry_baker_2024_June_08"
 #define Q3MAP_MOTD      "Your map saw the pretty lights from q3map2's BFG"
 
 #include "globaldefs.h"

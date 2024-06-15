@@ -2118,6 +2118,55 @@ void LoadShaderInfo( void ){
 	sprintf( filename, "%s/shaderlist.txt", game->shaderPath );
 	count = g_vfs.refCount(filename);
 
+#if 1
+	/* load them all */
+	for (i = 0; i < count; i ++) {
+		/* load shader list */
+		char			filepattern[MAX_OS_PATH /*4096*/];
+		//sprintf( filename, "%s/shaderlist.txt", game->shaderPath );
+		//LoadScriptFile( filename, i );
+		int shaderEntryCount = 0;
+
+		WIN32_FIND_DATA	FindFileData;
+		sprintf (filepattern,"%s/*.shader", game->shaderPath); // scripts/*.shader
+
+		HANDLE			Find = FindFirstFile(filepattern, &FindFileData);
+		if (Find == INVALID_HANDLE_VALUE)
+		   continue;
+		do {
+			char thisshaderfile[MAX_QPATH /*64*/];
+
+			strcpy (thisshaderfile, FindFileData.cFileName);
+			StripExtension (thisshaderfile); // Remove .shader, the list doesn't expect it.
+
+			/* check for duplicate entries */
+			for (j = 0; j < numShaderFiles; j++ ) {
+				if (!strcmp(shaderFiles[j], thisshaderfile) )
+					break;
+			}
+
+			/* test limit */
+			if ( j >= MAX_SHADER_FILES ) {
+				Error ("MAX_SHADER_FILES (%d) reached, too many .shader files found!", (int) MAX_SHADER_FILES);
+			}
+
+			/* new shader file */
+			if ( j == numShaderFiles ) {
+				shaderEntryCount++;
+				shaderFiles[numShaderFiles] = static_cast<char*>(safe_malloc(MAX_OS_PATH));
+				strcpy (shaderFiles[numShaderFiles], thisshaderfile);
+				Sys_Printf("Added shader: %4d %s\n", j, shaderFiles[numShaderFiles]);
+				numShaderFiles++;
+			} else {
+				// Baker: Duplicate entry
+			}
+		} while (FindNextFile(Find, &FindFileData));
+
+		Sys_Printf("Found shader entries: %d\n", shaderEntryCount);
+
+	} // for each count
+
+#else
 	/* load them all */
 	for ( i = 0; i < count; i++ )
 	{
@@ -2129,10 +2178,10 @@ void LoadShaderInfo( void ){
 		while ( GetToken( qtrue ) )
 		{
 			/* check for duplicate entries */
-			for ( j = 0; j < numShaderFiles; j++ )
-				if ( !strcmp( shaderFiles[ j ], token ) ) {
+			for ( j = 0; j < numShaderFiles; j++ ) {
+				if ( !strcmp( shaderFiles[ j ], token ) )
 					break;
-				}
+			}
 
 			/* test limit */
 			if ( j >= MAX_SHADER_FILES ) {
@@ -2150,6 +2199,7 @@ void LoadShaderInfo( void ){
 
 		Sys_Printf("Found shader entries: %i\n", shaderEntryCount);
 	}
+#endif
 
 	/* parse the shader files */
 	for ( i = 0; i < numShaderFiles; i++ )
