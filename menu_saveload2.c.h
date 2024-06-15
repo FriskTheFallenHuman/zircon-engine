@@ -7,7 +7,7 @@
 #define SAVELOAD_SORTBY_AGE_3			3
 
 #define		local_count					g_saves_filename_noExt.numstrings
-#define		local_cursor				m_load2_load2cursor 
+#define		local_cursor				m_load2_load2cursor
 #define 	visiblerows 				m_load2_visiblerows
 #define 	startrow 					m_load2_startrow
 #define 	endrow 						m_load2_endrow
@@ -24,7 +24,7 @@ int m_load2_sort_is_dirty;
 float m_load2_click_time = 0;
 qbool m_load2_scroll_is_blocked;
 
-int m_load2_oldload_cursor;
+int m_load2_oldload_cursor; // r_textures_shutdown sets to -1, M_Menu_Load2_f sets to -1. gamedir change does nothing.
 int m_load2_load2cursor;
 int m_load2_visiblerows;
 int m_load2_startrow;
@@ -92,7 +92,7 @@ int saveload_sort (const void *pa, const void *pb)
 		da = g_saves_secondsold.strings[idx0];
 		db = g_saves_secondsold.strings[idx1];
 		break;
-	} // sw	
+	} // sw
 
 	int diff = strcasecmp(da, db);
 	//Con_PrintLinef ("Comparing %d " QUOTED_S " vs. %d " QUOTED_S, idx0, da, idx1, db);
@@ -109,7 +109,7 @@ int saveload_sort (const void *pa, const void *pb)
 //void M_Dump_f (cmd_state_t *cmd)
 //{
 ////	stringlist_condump (&g_saves_indexes_4byte);
-//	
+//
 //	stringlist_t *plist = &g_saves_indexes_4byte;
 //	for (int idx = 0; idx < plist->numstrings; idx++) {
 //		char *sxy = plist->strings[idx];
@@ -193,14 +193,14 @@ static int Add_SaveFile (char *sxy)
 	char *s_jpeg_string_zalloc = NULL;
 	char *age_zalloc = NULL;
 
-	// Fill menu	
+	// Fill menu
 	qfile_t	*f = FS_OpenRealFileReadBinary (sxy, &realpathname_zalloc);
 	if (!f) {
 		// Con_PrintLinef ("Could not FS_OpenRealFile %s", sxy);
 		is_ok = false;
 		goto errox;
 	}
-	
+
 	FS_CloseNULL_ (f); // We don't need it open
 
 	const char *t = text = (char *)FS_LoadFile (sxy, tempmempool, fs_quiet_FALSE, fs_size_ptr_null);
@@ -261,24 +261,24 @@ static int Add_SaveFile (char *sxy)
 			s_jpeg ++;
 
 		size_t jpeg_slen = (size_t)jpeg_slen_int;
-		s_jpeg_string_zalloc = (char *)z_memdup_z (s_jpeg, jpeg_slen);
+		s_jpeg_string_zalloc = (char *)Z_MemDup_Z (s_jpeg, jpeg_slen);
 		break; // exit loop
 	} // while
 
 
 	double sav_filetime_since1970 = File_Time(realpathname_zalloc);
-		
+
 	time_t		rawtime			= (time_t)(double)sav_filetime_since1970;
 	struct tm	*tmx			= localtime(&rawtime);
 
 	char		sfiledate[MAX_QPATH_128];
-	
+
 	age_zalloc = ageof_this_vs_now_alloc (sav_filetime_since1970, /*now*/ (double)time(NULL));
 
 	WARP_X_ (M_ScanSaves)
 
-	c_dpsnprintf6 (sfiledate, 
-		"%04d %3s %2d %2d:%02d %s", 
+	c_dpsnprintf6 (sfiledate,
+		"%04d %3s %2d %2d:%02d %s",
 		1900 + tmx->tm_year, // 	years since 1900
 		month_str (tmx->tm_mon), // months since January (0 to 11)
 		tmx->tm_mday,  // 1-31
@@ -286,7 +286,7 @@ static int Add_SaveFile (char *sxy)
 		tmx->tm_hour == 0 ? 12 :
 			tmx->tm_hour
 		, // 0-23
-		tmx->tm_min, 
+		tmx->tm_min,
 		tmx->tm_hour >= 12 ? "PM" : "AM"
 	);
 
@@ -298,7 +298,7 @@ static int Add_SaveFile (char *sxy)
 	} else
 		s_kills = "";
 
-	int idx[2]; 
+	int idx[2];
 	idx[0] = g_saves_indexes_4byte.numstrings;
 	stringlistappend_blob (&g_saves_indexes_4byte, (const byte *)&idx, sizeof(int) * 2 );
 
@@ -314,7 +314,7 @@ static int Add_SaveFile (char *sxy)
 	stringlistappend (&g_saves_mapnames_crop, va32("%-12.12s", mapname) );
 	stringlistappend (&g_saves_comment, s_kills);
 
-errox:	
+errox:
 
 	Mem_FreeNull_	(s_jpeg_string_zalloc);
 	Mem_FreeNull_	(age_zalloc);
@@ -363,7 +363,7 @@ void M_Menu_Load2_f (cmd_state_t *cmd)
 
 	local_sort_is_ascending = true; // Low high, this means alphabetical?
 	m_load2_sort_by = SAVELOAD_SORTBY_SAVENAME_0;
-	
+
 	m_load2_sort_is_dirty = true;
 	if (m_load2_sort_is_dirty) {
 		stringlistsort_custom	(&g_saves_indexes_4byte, fs_make_unique_false, saveload_sort);
@@ -384,46 +384,55 @@ void M_Menu_Load2_f (cmd_state_t *cmd)
 WARP_X_ (Get_SavesListGameDirOnly M_ScanSaves)
 WARP_X_ (LinkVideoTexture)
 
-#pragma message ("SAVE GAME TEXTURE MUST HANDLE VIDEO RESTART, GAMEDIR CHANGE")
+//#pragma message ("SAVE GAME TEXTURE MUST HANDLE VIDEO RESTART, GAMEDIR CHANGE")
+
+
+WARP_X_ (M_Menu_Load2_f)
+
+#include "cl_screen.h"
 
 typedef struct {
 	bgra4		*savif_bgra_pels;	// Allocated on create, freed on destroy.  Memcpy new screenshots into it.
+	char		supername[MAX_QPATH_128];
+	int			superw;
+	float		aspecthdivw; // 1200 / 600
+	int			superh;
+	int			aspectheight;
+	int			is_fixed_size;
 } saveo_t;
 
 saveo_t saveo;
 
-WARP_X_ (M_Menu_Load2_f)
-#pragma message ("Gamedir change, set old picture to -1")
-
-#include "cl_screen.h"
-
-
-static void SavegameTextureCreate (void)
+// DYNX: 0
+WARP_X_CALLERS_ (SavegameTextureChange)
+static void SavegameTextureChange_TextureCreate (void) // Called on change if no pixels
 {
 	if (saveo.savif_bgra_pels == NULL) {
-		saveo.savif_bgra_pels = (bgra4 *)Z_Malloc (RGBA_4 * SAVEGAME_PIC_WIDTH_512 * SAVEGAME_PIC_HEIGHT_320); 
+		saveo.savif_bgra_pels = (bgra4 *)Z_Malloc (RGBA_4 * SAVEGAME_PIC_WIDTH_512 * SAVEGAME_PIC_HEIGHT_320);
 	}
 
-	dynamic_baker_texture_t king = {0};
-	Dynamic_Baker_Texture2D_Prep (&king, q_is_dirty_true, SAVEGAME_PIC_NAME, saveo.savif_bgra_pels, SAVEGAME_PIC_WIDTH_512, SAVEGAME_PIC_HEIGHT_320);
+	dynamic_baker_texture_t bking = {0};
+	Dynamic_Baker_Texture2D_Prep (&bking, q_is_dirty_true, SAVEGAME_PIC_NAME, saveo.savif_bgra_pels, SAVEGAME_PIC_WIDTH_512, SAVEGAME_PIC_HEIGHT_320);
 }
 
+// DYNX: Change - very specific
+WARP_X_CALLERS_ (M_Load2_Draw)
 static void SavegameTextureChange (const char *s_jpeg_string_base64)
-{	
+{
+	extern int image_width, image_height;
+
 	if (saveo.savif_bgra_pels == NULL) {
-		SavegameTextureCreate ();
+		SavegameTextureChange_TextureCreate ();
 	}
 
 	// Baker: This either finds it in list (nothing is done) or creates a texture.
 	//bgra4 *screenshotpels = SCR_Screenshot_Get_JPEG_BGRA4_From_Save_File_Alloc (s_save);
 	bgra4 *screenshotpels = NULL;
-		
+
 	if (s_jpeg_string_base64 && s_jpeg_string_base64[0]) {
 		screenshotpels = Jpeg_Base64_BGRA_Decode_ZAlloc (s_jpeg_string_base64);
 	}
 
-	extern int image_width, image_height;
-	
 	if (screenshotpels == NULL) {
 		// Save does not have it
 		memset (saveo.savif_bgra_pels, /*black*/ 0, RGBA_4 * SAVEGAME_PIC_WIDTH_512 * SAVEGAME_PIC_HEIGHT_320);
@@ -445,17 +454,18 @@ static void SavegameTextureChange (const char *s_jpeg_string_base64)
 //Menu_Restart ();
 
 WARP_X_ (UnlinkVideoTexture)
-static void SavegameTexturePurge (void)
+WARP_X_CALLERS_ (M_Load2_Draw) // like SAVEGAME_PIC_NAME
+static void DynamicTexturePurge (ccs *dynamic_pic_name, bgra4 *image_pels, int width, int height) // Only called when there are no save games.
 {
-	// free the texture (this does not destroy the cachepic_t, which is eternal)
+	// free the texture (this does not destroy the cachepic_t, which is external)
 	// CPIFX: Baker: I think this is called to clear the buff free old pic
 	dynamic_baker_texture_t king = {0};
-	Dynamic_Baker_Texture2D_Prep (&king, q_is_dirty_false, SAVEGAME_PIC_NAME, saveo.savif_bgra_pels, SAVEGAME_PIC_WIDTH_512, SAVEGAME_PIC_HEIGHT_320);
-	Draw_FreePic	(SAVEGAME_PIC_NAME); // doesn't free the pic, runs R_SkinFrame_PurgeSkinFrame
-	king.pic->skinframe = NULL; // ? Q1SKY
-}
 
-//#define SAVE2_ROW_SIZE_8 8
+	#pragma message ("Note that Dynamic_Baker_Texture2D_Prep reloads the texture from the pels")
+	Dynamic_Baker_Texture2D_Prep (&king, q_is_dirty_false, dynamic_pic_name, image_pels, SAVEGAME_PIC_WIDTH_512, SAVEGAME_PIC_HEIGHT_320);
+	Draw_FreePic	(dynamic_pic_name); // doesn't free the pic, runs R_SkinFrame_PurgeSkinFrame
+	king.bpic->skinframe = NULL; // ? Q1SKY
+}
 
 static void M_Load2_Draw (void)
 {
@@ -476,22 +486,22 @@ static void M_Load2_Draw (void)
 	drawcur_y = 7 * 8; // 56
 
 	//visiblerows = (int)((menu_height - (2 * 8) - drawcur_y) / 8) - 8;
-	
+
 	int usable_height = menu_height /*640*/ - drawcur_y /*row_0_at_48*/;
 	visiblerows = (usable_height / 8) - 3; // Baker: Room for bottom
 	//OLD: (menu_height - (2 * 8) - drawcur_y) / 8) - 8;
 
 	// Baker: Do it this way because a short list may have more visible rows than the list count
-	// so using bound doesn't work. 
+	// so using bound doesn't work.
 	if (local_scroll_is_blocked == false) {
 		startrow = local_cursor - (visiblerows / 2);
 
-		if (startrow > local_count - visiblerows)	
+		if (startrow > local_count - visiblerows)
 			startrow = local_count - visiblerows;
-		if (startrow < 0)	
+		if (startrow < 0)
 			startrow = 0; // visiblerows can exceed local_count
 	}
-	
+
 	endrow = Smallest (startrow + visiblerows, local_count);
 
 	// The size of the screenshots are ...
@@ -509,10 +519,10 @@ static void M_Load2_Draw (void)
 	int screenshot_width_256	= 256  *0.75;
 	int screenshot_height_160	= 160  *0.75;
 
-	if (fs_userdir && fs_userdir[0]) {
+	if (/*fs_userdir &&*/ fs_userdir[0]) {
 		va_super (tmp, 1024, "home dir: %s", fs_userdir);
 		//va_super (tmp, 1024, "home: print the dir here", fs_userdir);
-		M_PrintBronzey	(6 * 8, vid_conheight.integer - 20 , tmp);		
+		M_PrintBronzey	(6 * 8, vid_conheight.integer - 20 , tmp);
 	}
 
 	cachepic_t *p0 = Draw_CachePic ("gfx/p_load"); // size of this is 104 x 24
@@ -537,19 +547,19 @@ static void M_Load2_Draw (void)
 			WARP_X_ (M_Dump_f)
 			int pidx = *((int *)&g_saves_indexes_4byte.strings[/*the index here*/ n][0]);
 
-			if (n == local_cursor) 
+			if (n == local_cursor)
 				drawsel_idx = (n - startrow) /*relative*/;
 
 			// This adds a hotspot to the menu item, it draws nothing ...
 			Hotspots_Add2	(menu_x + column_1 - 8/*(9 * 8)*/, menu_y + drawcur_y, row_width_red_376, 8, 1, hotspottype_button, n);
-			
-			// 12 12 
+
+			// 12 12
 			WARP_X_ (M_Dump_f)
 			M_ItemPrint		(column_1, drawcur_y, g_saves_filename_noExt_crop.strings[pidx], q_unghosted_true);
 			M_ItemPrint		(column_2, drawcur_y, g_saves_mapnames_crop.strings[pidx], q_unghosted_true);
 			M_ItemPrint		(column_3, drawcur_y, g_saves_comment.strings[pidx], q_unghosted_true);
 			M_ItemPrint		(column_4, drawcur_y, g_saves_filename_timestr.strings[pidx], q_unghosted_true);
-			
+
 			drawcur_y += 8;
 		} // for
 	} // endrow > startrow
@@ -572,10 +582,10 @@ drawcolumnheaders:
 	drawcur_y = title_row_0;
 	int headidx		= 0;  // Hotspot idx, we are going -1 and lower
 	//int draw_cur_h	= 8;
-	
+
 	#define DRAW_UNDERLINE_COLUMN \
 		DrawQ_Fill(menu_x + drawcur_x, menu_y + drawcur_y + 9, draw_cur_w, 1 /*draw_cur_h*/, VECTOR3_SEND(underline_color3),  \
-			q_alpha_1, DRAWFLAG_NORMAL_0) // Ender
+			alpha_1_0, DRAWFLAG_NORMAL_0) // Ender
 
 	#define HOTSPOT_DRAW_ADD \
 		Hotspots_Add2 (menu_x + drawcur_x, menu_y + drawcur_y, draw_cur_w, (8 * 1) + 1, /*count*/ 1,  hotspottype_listitem, --headidx); \
@@ -591,17 +601,17 @@ drawcolumnheaders:
 	if (local_sort_by == SAVELOAD_SORTBY_MAP_1) {DRAW_UNDERLINE_COLUMN;}
 		M_PrintBronzey(drawcur_x, drawcur_y, "Map");	HOTSPOT_DRAW_ADD;
 		//drawcur_x += (/*1 spaces*/ 1 * 8);  // SPACES
-	
+
 	draw_cur_w = 9 /*chars*/ * 8; // column width
 	if (local_sort_by == SAVELOAD_SORTBY_PROGRESS_2) {DRAW_UNDERLINE_COLUMN;}
 		M_PrintBronzey(drawcur_x, drawcur_y, "Progress");	HOTSPOT_DRAW_ADD;
 		//drawcur_x += (/*1 spaces*/ 1 * 8);
-	
+
 	draw_cur_w = 9 /*chars*/ * 8;
 	if (local_sort_by == SAVELOAD_SORTBY_AGE_3) {DRAW_UNDERLINE_COLUMN;}
 		M_PrintBronzey(drawcur_x, drawcur_y, "Age");	HOTSPOT_DRAW_ADD;
 		//drawcur_x += (/*1 spaces*/ 1 * 8);
-	
+
 #endif
 
 	PPX_DrawSel_End ();
@@ -617,20 +627,18 @@ drawcolumnheaders:
 #endif
 
 	#define va_32_int(x) va32 (STRINGIFY(x) " = %d", x)
-	
+
 	while (effective_cursor != m_load2_oldload_cursor) {
 		if (local_count == 0) {
 			// We have no picture
-			SavegameTexturePurge ();
+			DynamicTexturePurge (SAVEGAME_PIC_NAME, saveo.savif_bgra_pels, SAVEGAME_PIC_WIDTH_512, SAVEGAME_PIC_HEIGHT_320);
 			break;
 		}
-		
-		//const char *s_save = g_saves_filename_noExt.strings[effective_cursor];
-		//SavegameTextureChange (g_saves_jpeg_strings.strings[effective_cursor]);
+
 		int pidx = *((int *)&g_saves_indexes_4byte.strings[effective_cursor][0]);
 		SavegameTextureChange (g_saves_jpeg_strings.strings[pidx]);
 
-		m_load2_oldload_cursor = effective_cursor; 
+		m_load2_oldload_cursor = effective_cursor;
 		break;
 	} // while 1
 
@@ -649,21 +657,21 @@ draw_save_info_pane:
 
 		if (g_saves_jpeg_strings.strings[pidx][0] == 0) { // pIdx here
 			DrawQ_Fill (
-					menu_x + adjx + column_5 + line_thickness_2 + line_margin, 
-					menu_y + row_0_at_48 + line_thickness_2 + line_margin, 
-					screenshot_width_256 - lessor, screenshot_height_160 - lessor, 
-					q_rgba_solid_black_4_parms, 
-					DRAWFLAG_NORMAL_0 
+					menu_x + adjx + column_5 + line_thickness_2 + line_margin,
+					menu_y + row_0_at_48 + line_thickness_2 + line_margin,
+					screenshot_width_256 - lessor, screenshot_height_160 - lessor,
+					q_rgba_solid_black_4_parms,
+					DRAWFLAG_NORMAL_0
 				);
 
 			M_PrintBronzey (column_5 + 8 + (6 * 8) + adjx, row_0_at_48 + 24 + 24, "No preview");
 		} else {
 			p0 = Draw_CachePic_Flags (SAVEGAME_PIC_NAME, CACHEPICFLAG_NOTPERSISTENT);
 			DrawQ_Pic (
-				menu_x + adjx + column_5 + line_thickness_2 + line_margin, 
-				menu_y + row_0_at_48 + line_thickness_2 + line_margin, 
-				p0, 
-				screenshot_width_256 - lessor, screenshot_height_160 - lessor, 
+				menu_x + adjx + column_5 + line_thickness_2 + line_margin,
+				menu_y + row_0_at_48 + line_thickness_2 + line_margin,
+				p0,
+				screenshot_width_256 - lessor, screenshot_height_160 - lessor,
 				q_rgba_solid_white_4_parms,
 				DRAWFLAG_NORMAL_0
 			);
@@ -674,12 +682,12 @@ draw_save_info_pane:
 		int text_y = row_0_at_48 + (1 * 8);
 
 		DrawQ_Fill (
-				menu_x + adjx + text_x - 4, 
-				menu_y + text_y - 4, 
-				screenshot_width_256 - (4 * 2), 
-				4 + (1 * 8) + 4, 
-				q_rgba_alpha75_black_4_parms, 
-				DRAWFLAG_NORMAL_0 
+				menu_x + adjx + text_x - 4,
+				menu_y + text_y - 4,
+				screenshot_width_256 - (4 * 2),
+				4 + (1 * 8) + 4,
+				q_rgba_alpha75_black_4_parms,
+				DRAWFLAG_NORMAL_0
 			);
 
 		M_Print (text_x + adjx, text_y, g_saves_mapnames_crop.strings[pidx]); // pIdx here
@@ -689,12 +697,12 @@ draw_save_info_pane:
 
 		// Progress
 		DrawQ_Fill (
-			menu_x + adjx + text_x - 4, 
-			menu_y + text_y - 4, 
-			screenshot_width_256 - (4 * 2), 
-			4 + (2 * 8) + 4, 
-			q_rgba_alpha25_black_4_parms, 
-			DRAWFLAG_NORMAL_0 
+			menu_x + adjx + text_x - 4,
+			menu_y + text_y - 4,
+			screenshot_width_256 - (4 * 2),
+			4 + (2 * 8) + 4,
+			q_rgba_alpha25_black_4_parms,
+			DRAWFLAG_NORMAL_0
 		);
 
 		M_Print (text_x + adjx, text_y, g_saves_comment.strings[pidx]); // pIdx here
@@ -722,7 +730,7 @@ static void M_Load2_Key(cmd_state_t *cmd, int key, int ascii)
 		break;
 
 	case K_MOUSE1:
-		if (hotspotx_hover == not_found_neg1) 
+		if (hotspotx_hover == not_found_neg1)
 			break;
 
 #if 1 // DID WE CLICK A COLUMN HEADER THEN SET SORT AND GET OUT --- BLOCK
@@ -836,7 +844,7 @@ static void M_Load2_Key(cmd_state_t *cmd, int key, int ascii)
 
 	case K_MWHEELDOWN:
 		local_cursor += visiblerows / 4;
-		if (local_cursor >= local_count) 
+		if (local_cursor >= local_count)
 			local_cursor = local_count - 1;
 		break;
 
@@ -874,10 +882,10 @@ static void M_Load2_Key(cmd_state_t *cmd, int key, int ascii)
 				if (startx >= local_count) {
 					startx = 0;
 				}
-				
+
 				char *sx = g_saves_filename_noExt_crop.strings[startx];
 
-				if (String_Does_Start_With_Caseless (sx, sprefix)) {
+				if (String_Starts_With_Caseless (sx, sprefix)) {
 					local_cursor = startx;
 					break;
 				} // if
@@ -890,14 +898,14 @@ static void M_Load2_Key(cmd_state_t *cmd, int key, int ascii)
 
 }
 
-#undef	local_count	
+#undef	local_count
 #undef	local_cursor
 #undef 	visiblerows
 #undef 	startrow
 #undef 	endrow
 #undef  local_click_time
 #undef  local_sort_by
-#undef  local_is_sort_ascending 
+#undef  local_is_sort_ascending
 #undef	local_sort_is_dirty
 #undef  local_scroll_is_blocked
 

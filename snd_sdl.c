@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include <math.h>
 
-#if defined(_MSC_VER) && _MSC_VER < 1900
+#if defined(CODEBLOCKS_LINUX_IDE) || (defined(_MSC_VER) && _MSC_VER < 1900)
 	#include <SDL2/SDL.h>
 #else
 	#include <SDL.h>

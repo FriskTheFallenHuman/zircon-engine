@@ -795,6 +795,16 @@ COM_ParseToken_VM_Tokenize
 Parse a token out of a string
 ==============
 */
+// Baker: This has 2 uses.
+// LoadFont to parse out font sizes like "8 12 16"
+WARP_X_CALLERS_ (VM_loadfont, VM_tokenize/*, bsp?*/)
+// VM_tokenize is what versus tokenize console?
+
+//Splits up the given string into its different components (what constitutes a token separator
+//is not well defined and has been hacked about with over the years so have fun with that), returning
+//the number of tokens that were found. Call argv(0 through ret-1) to retrieve each individual token.
+//Take care to not use this recursively
+
 int COM_ParseToken_VM_Tokenize(const char **datapointer, qbool returnnewline)
 {
 	int len;
@@ -1005,7 +1015,7 @@ float Com_CalcRoll (const vec3_t angles, const vec3_t velocity, /*rollangle*/ co
 COM_Init
 ================
 */
-void COM_Init_Commands (void)
+void COM_InitOnce_Commands (void)
 {
 	int i, j, n;
 	char com_cmdline[MAX_INPUTLINE_16384];
@@ -1181,7 +1191,7 @@ char * dpstrcasestr(const char *s, const char *find)
 					return (NULL);
 			} while ((char)tolower((unsigned char)sc) != c);
 		} while (strncasecmp(s, find, len) != 0);
-		//} while (String_Does_Start_With_Caseless (s, find, len) != 0);
+		//} while (String_Starts_With_Caseless (s, find, len) != 0);
 		s--;
 	}
 	return ((char *)s);
@@ -1221,7 +1231,7 @@ char *va32 (const char *format, ...)
 {
 
 	static char 	buffers[CORE_STRINGS_VA_ROTATING_BUFFERS_COUNT_32][BUF_SIZE_1024];
-	static size_t 	sizeof_a_buffer 	= sizeof(buffers[0]);
+	//static size_t 	sizeof_a_buffer 	= sizeof(buffers[0]);
 	static size_t 	num_buffers			= sizeof(buffers) / sizeof(buffers[0]);
 	static size_t 	cycle = 0;
 
@@ -1230,7 +1240,7 @@ char *va32 (const char *format, ...)
 
 	va_start 		(args, format);
 
-	//int result = 
+	//int result =
 	dpvsnprintf (buffer_to_use, BUF_SIZE_1024, format, args);
 
 	va_end 			(args);
@@ -1690,7 +1700,7 @@ char **XPM_DecodeString(const char *in)
 		strlcpy(lines[line++], com_token, sizeof(lines[0]));
 		if (!COM_ParseToken_QuakeC(&in, false))
 			return NULL;
-		if (String_Does_Match(com_token, "}"))
+		if (String_Match(com_token, "}"))
 			break;
 		if (strcmp(com_token, ","))
 			return NULL;
@@ -1889,7 +1899,7 @@ unsigned char *string_zlib_compress_alloc (const char *s_text_to_compress, /*rep
 
     // STEP 1.
     // deflate a into b. (that is, compress a into b)
-    
+
     // zlib struct
     z_stream defstream;
     defstream.zalloc = Z_NULL;
@@ -1900,14 +1910,14 @@ unsigned char *string_zlib_compress_alloc (const char *s_text_to_compress, /*rep
     defstream.next_in = (unsigned char*)s_text_to_compress; // input char array
     defstream.avail_out = data_zipped_bufsize; //(unsigned int)sizeof(b); // size of output
     defstream.next_out = (unsigned char *)data_zipped_alloc; // output char array
-    
+
     // the actual compression work.
     deflateInit(&defstream, Z_BEST_COMPRESSION);
     deflate(&defstream, Z_FINISH);
     deflateEnd(&defstream);
 
-	
-     
+
+
     // This is one way of getting the size of the output
 	size_t outsize1 = strlen((char *)data_zipped_alloc) ;
 	size_t outsize2 = (unsigned int)(defstream.next_out - data_zipped_alloc);
@@ -1927,7 +1937,7 @@ char *string_zlib_decompress_alloc (unsigned char *data_binary_of_compressed_tex
 	size_t s_unzipped_bufsize = buffersize; // Like 16 MB
 	char *s_unzipped_alloc = (char *)calloc (1, s_unzipped_bufsize);//16384 * 1024, 1); // 16 MB .. largest save file I see is 320 KB
     // original string len = 36
-    
+
 
     z_stream infstream;
     infstream.zalloc = Z_NULL;
@@ -1938,12 +1948,12 @@ char *string_zlib_decompress_alloc (unsigned char *data_binary_of_compressed_tex
     infstream.next_in =  data_binary_of_compressed_text; // input char array
     infstream.avail_out = (unsigned int)s_unzipped_bufsize; // size of output
     infstream.next_out = (unsigned char *)s_unzipped_alloc; // output char array
-     
+
     // the actual DE-compression work.
     inflateInit(&infstream);
     inflate(&infstream, Z_NO_FLUSH);
     inflateEnd(&infstream);
-    // 
+    //
     //printf("Uncompressed size is: %lu\n", strlen(c));
     //printf("Uncompressed string is: %s\n", c);
     //
@@ -2052,7 +2062,7 @@ void BakerString_Destroy_And_Null_It (baker_string_t **pdst)
 }
 
 // Baker: No acquire buffer here.  No custom allocation.
-baker_string_t *BakerString_Create_Alloc (const char *s)
+baker_string_t *BakerString_Create_Malloc (const char *s)
 {
 	baker_string_t *dst_out = (baker_string_t *)calloc (1, sizeof(baker_string_t));
 	dst_out->string = strdup ("");
@@ -2060,17 +2070,31 @@ baker_string_t *BakerString_Create_Alloc (const char *s)
 	return dst_out; // Allocated
 }
 
-
-void *z_memdup_z (const void *src, size_t len)
+//MemDup_Size (font_mempool, mem, mem_length)
+void *Mem_DupZ (mempool_t *mempool, const void *src, size_t len)
 {
 	size_t bufsize_made = len + 1;
+	unsigned char *membuf = (unsigned char *) Mem_Alloc(mempool, bufsize_made);// Z_Malloc(bufsize_made);
+	//unsigned char *zbuf = (unsigned char *) Z_Malloc(bufsize_made);
+	memcpy (membuf, src, len);
+	membuf[len] =0 ;
+	return membuf;
+}
+
+
+
+void *Z_MemDup_Z (/*mempool_t *mempool, */const void *src, size_t len)
+{
+	size_t bufsize_made = len + 1;
+	//unsigned char *zbuf = (unsigned char *) Mem_Alloc(mempool, bufsize_made);// Z_Malloc(bufsize_made);
 	unsigned char *zbuf = (unsigned char *) Z_Malloc(bufsize_made);
 	memcpy (zbuf, src, len);
+	zbuf[len] =0 ;
 	return zbuf;
 }
 
 void *core_memdup_z (const void *src, size_t len, /*modify*/ size_t *bufsize_made_out)
-{	
+{
 	size_t bufsize_made = len + 1;
 
 	void *buf = calloc (1, bufsize_made); // Because we are a wrapper
@@ -2101,11 +2125,11 @@ void BakerString_Cat_No_Collide (/*modify*/ baker_string_t *dst, size_t s_len, c
 		// Baker: Nothing to do
 		return;
 	}
-		
+
 	size_t bufsize_current	= dst->bufsize;
 	size_t bufsize_needed	= new_len + ONE_CHAR_1; // +1 for null term
 
-	Sys_PrintToTerminal (va32 ("BCAT Length for bufsize_needed is %f" NEWLINE, (double)bufsize_needed ));
+	//Sys_PrintToTerminal (va32 ("BCAT Length for bufsize_needed is %f" NEWLINE, (double)bufsize_needed ));
 
 	if (bufsize_current >= bufsize_needed) { // Buffer size if big enough
 		// Cat to end
@@ -2122,10 +2146,10 @@ void BakerString_Cat_No_Collide (/*modify*/ baker_string_t *dst, size_t s_len, c
 		// Baker: The 128 is to reduce the frequency of reallocations in the event of many small concats
 		const char *s_new				= (const char *)realloc ((void *)dst->string, (bufsize_needed += /*evil*/ 128)); // UNTRACKED REALLOC
 
-		
 
-		dst->string = s_new; 
-		
+
+		dst->string = s_new;
+
 		const char *s_beyond			= &dst->string[dst->length]; // After updated
 			  char *s_null_term_point	= (unconstanting char *) &dst->string[new_len]; // M
 
@@ -2150,3 +2174,47 @@ double File_Time (const char *path_to_file)
 
 	return (double)st_buf.st_mtime;
 }
+
+char *Z_StrDupf (const char *fmt, ...)
+{
+	VA_EXPAND_ALLOC (text, text_slen, bufsiz, fmt);
+	char *out = Z_StrDup (text);
+	VA_EXPAND_ALLOC_FREE (text);
+	return out;
+}
+
+WARP_X_ (Z_StrDup_Realloc Z_StrDup_Len_Z)
+void Z_StrDupf_Realloc (char **ps, const char *fmt, ...)
+{
+	VA_EXPAND_ALLOC (text, text_slen, bufsiz, fmt);
+	if (*ps) {
+		Z_FreeNull_ (*ps);
+	}
+	(*ps) = Z_StrDup_Len_Z (text, text_slen);
+
+	VA_EXPAND_ALLOC_FREE (text);
+}
+
+WARP_X_ (Z_StrDup_Len_Z)
+void Z_StrDup_Len_Z_Realloc (char **ps, const char *s, int slen)
+{
+	if (*ps) {
+		Z_FreeNull_ (*ps);
+	}
+	(*ps) = Z_StrDup_Len_Z (s, slen);
+}
+
+
+// Null terminated copy
+char *_c_strlcpy_size_z (char *dst, size_t dst_sizeof, const char *src, size_t src_length)
+{
+	int copy_length = src_length > dst_sizeof ? (dst_sizeof - 1) : src_length;
+	memcpy	(dst, src, copy_length);
+	dst[copy_length] = 0;
+	return dst;
+}
+
+//#include "pak.c.h" // Works, don't do it
+
+#include "baker_mem_read.c.h"
+

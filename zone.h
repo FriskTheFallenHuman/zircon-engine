@@ -22,9 +22,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define ZONE_H
 
 #include <stddef.h>
+#ifdef _MSC_VER
+	// No!
+	// typedef double max_align_t;
+	// Work around incomplete C11 support in Microsoft's stddef.h
+	// This matches the Clang 14 header. Microsoft's double and long double are the same.
+#else
+	#include <stdalign.h> // Visual Studio 2008 hates this.
+#endif
 #include "qtypes.h"
 #include "qdefs.h"
 #include "com_list.h"
+
 
 extern qbool mem_bigendian;
 
@@ -61,7 +70,7 @@ typedef struct mempool_s
 	// chain of individual memory allocations
 	struct llist_s chain;
 	// POOLFLAG_*
-	int flags;
+	unsigned memflags; // Baker: POOLFLAG_TEMP .. this is lightly used
 	// total memory allocated in this pool (inside memheaders)
 	size_t totalsize;
 	// total memory allocated in this pool (actual malloc total)
@@ -82,9 +91,27 @@ typedef struct mempool_s
 }
 mempool_t;
 
-#define Mem_Alloc(pool,size) _Mem_Alloc(pool, NULL, size, 16, __FILE__, __LINE__)
-#define Mem_Memalign(pool,alignment,size) _Mem_Alloc(pool, NULL, size, alignment, __FILE__, __LINE__)
-#define Mem_Realloc(pool,data,size) _Mem_Alloc(pool, data, size, 16, __FILE__, __LINE__)
+// Baker: Mem_Memalign is unused in source
+//#define Mem_Memalign(pool,alignment,size) _Mem_Alloc(pool, NULL, size, alignment, __FILE__, __LINE__)
+
+#if 1 // June 2
+	#ifdef _WIN32 // _MSC_VER -- Baker: My mingw on Windows hates alignof also
+		#define ALIGNOF_16 16
+		#define Mem_Alloc(pool,size) _Mem_Alloc(pool, NULL, size, ALIGNOF_16, __FILE__, __LINE__)
+		#define Mem_AllocType(pool,type,size) (type *)_Mem_Alloc(pool, NULL, size, ALIGNOF_16, __FILE__, __LINE__)
+		#define Mem_Realloc(pool,data,size) _Mem_Alloc(pool, data, size, ALIGNOF_16, __FILE__, __LINE__)
+		#define Mem_ReallocType(pool,data,type,size) (type *)_Mem_Alloc(pool, data, size, ALIGNOF_16, __FILE__, __LINE__)
+	#else
+		#define Mem_Alloc(pool,size) _Mem_Alloc(pool, NULL, size, alignof(max_align_t), __FILE__, __LINE__)
+		#define Mem_AllocType(pool,type,size) (type *)_Mem_Alloc(pool, NULL, size, alignof(type), __FILE__, __LINE__)
+		#define Mem_Realloc(pool,data,size) _Mem_Alloc(pool, data, size, alignof(max_align_t), __FILE__, __LINE__)
+		#define Mem_ReallocType(pool,data,type,size) (type *)_Mem_Alloc(pool, data, size, alignof(type), __FILE__, __LINE__)
+	#endif
+#else
+	#define Mem_Alloc(pool,size) _Mem_Alloc(pool, NULL, size, 16, __FILE__, __LINE__)
+	#define Mem_Realloc(pool,data,size) _Mem_Alloc(pool, data, size, 16, __FILE__, __LINE__)
+#endif
+
 #define Mem_Free(mem) _Mem_Free(mem, __FILE__, __LINE__)
 #define Mem_strdup(pool, s) (char *)_Mem_strdup(pool, s, __FILE__, __LINE__)
 #define Mem_CheckSentinels(data) _Mem_CheckSentinels(data, __FILE__, __LINE__)
@@ -99,15 +126,22 @@ mempool_t;
 
 void *_Mem_Alloc(mempool_t *pool, void *data, size_t size, size_t alignment, const char *filename, int fileline);
 void _Mem_Free(void *data, const char *filename, int fileline);
-mempool_t *_Mem_AllocPool(const char *name, int flags, mempool_t *parent, const char *filename, int fileline);
+mempool_t *_Mem_AllocPool(const char *name, unsigned flags, mempool_t *parent, const char *filename, int fileline);
 void _Mem_FreePool(mempool_t **pool, const char *filename, int fileline);
 void _Mem_EmptyPool(mempool_t *pool, const char *filename, int fileline);
 void _Mem_CheckSentinels(void *data, const char *filename, int fileline);
 void _Mem_CheckSentinelsGlobal(const char *filename, int fileline);
 // if pool is NULL this searches ALL pools for the allocation
-qbool Mem_IsAllocated(mempool_t *pool, void *data);
+qbool Mem_IsAllocated(mempool_t *pool, const void *data);
 
 char *_Mem_strdup (mempool_t *pool, const char *s, const char *filename, int fileline);
+
+/// Returns the current size of an allocation
+// not a macro so that it doesn't allow the size to be changed.
+static inline size_t Mem_Size(void *data)
+{
+	return ((memheader_t *)((unsigned char *)data - sizeof(memheader_t)))->size;
+}
 
 typedef struct memexpandablearray_array_s
 {
@@ -140,7 +174,7 @@ extern mempool_t *tempmempool;
 
 void Memory_Init (void);
 void Memory_Shutdown (void);
-void Memory_Init_Commands (void);
+void Memory_InitOnce_Commands (void);
 
 extern mempool_t *zonemempool;
 
@@ -170,6 +204,12 @@ WARP_X_ (Z_Malloc)
 
 WARP_X_ (z_memdup_z)
 #define Mem_FreeNull_(v) \
+	if (v) { \
+		Mem_Free((void *)v); \
+		v = NULL; \
+	} // ender
+
+#define mfreenull_(v) \
 	if (v) { \
 		Mem_Free((void *)v); \
 		v = NULL; \

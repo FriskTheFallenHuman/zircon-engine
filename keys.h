@@ -40,7 +40,7 @@
 // when code is looping through the bindings
 // U+ABFF is probably the highest bindable codepoint,
 // see: https://github.com/DarkPlacesEngine/darkplaces/pull/68#issuecomment-1416802873
-#define MAX_KEY_BINDS 0xAC00
+#define MAX_KEY_BINDS_44032 0xAC00
 
 // how long is a "tinystr" to hold a keyboard key's
 // Unicode utf-8 presentation, plus final \x00
@@ -370,7 +370,7 @@ typedef enum keynum_e
 	K_MIDINOTE126,
 	K_MIDINOTE127,
 
-	MAX_KEYS = MAX_KEY_BINDS
+	MAX_KEYS_44032 = MAX_KEY_BINDS_44032 // 44032
 }
 keynum_t;
 
@@ -387,7 +387,20 @@ extern	keydest_e	key_dest;
 // console forced because there's nothing else active (fullscreen)
 #define KEY_CONSOLEACTIVE_FORCED_4 4	// Baker: Full screen
 extern	int			key_consoleactive;
-extern	char		*keybindings[MAX_BINDMAPS][MAX_KEYS];
+extern	char		*keybindings[MAX_BINDMAPS_8][MAX_KEYS_44032];
+
+extern unsigned char keydown[MAX_KEYS_44032]; // Baker: Share this.
+
+// key modifier states
+#define KM_NONE           (!keydown[K_CTRL] && !keydown[K_SHIFT] && !keydown[K_ALT])
+#define KM_CTRL_SHIFT_ALT ( keydown[K_CTRL] &&  keydown[K_SHIFT] &&  keydown[K_ALT])
+#define KM_CTRL_SHIFT     ( keydown[K_CTRL] &&  keydown[K_SHIFT] && !keydown[K_ALT])
+#define KM_CTRL_ALT       ( keydown[K_CTRL] && !keydown[K_SHIFT] &&  keydown[K_ALT])
+#define KM_SHIFT_ALT      (!keydown[K_CTRL] &&  keydown[K_SHIFT] &&  keydown[K_ALT])
+#define KM_CTRL           ( keydown[K_CTRL] && !keydown[K_SHIFT] && !keydown[K_ALT])
+#define KM_SHIFT          (!keydown[K_CTRL] &&  keydown[K_SHIFT] && !keydown[K_ALT])
+#define KM_ALT            (!keydown[K_CTRL] && !keydown[K_SHIFT] &&  keydown[K_ALT])
+
 
 extern signed char chat_mode; // 0 for say, 1 for say_team, -1 for command
 extern char chat_buffer[MAX_INPUTLINE_16384];
@@ -395,7 +408,7 @@ extern int	chat_bufferpos;
 
 int Key_ClearEditLine(qbool is_console);
 void Key_WriteBindings(qfile_t *f);
-void Key_Init(void);
+void Key_InitOnce(void);
 void Key_Shutdown(void);
 void Key_Init_Cvars(void);
 void Key_Event(int key, int ascii, qbool down);

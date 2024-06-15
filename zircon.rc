@@ -5,7 +5,8 @@
 #define APPLICATION_VERSION "1.1.1"
 
 1 ICON DISCARDABLE "Icon2-Windows-XP-48px.ico"
-2 ICON DISCARDABLE "Icon-Windows-XP-48px.ico"
+//2 ICON DISCARDABLE "Icon-Windows-XP-48px.ico"
+//2 RCDATA DISCARDABLE "bundle.pk3"
 
 
 1 VERSIONINFO

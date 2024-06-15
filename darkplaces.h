@@ -30,6 +30,8 @@ typedef unsigned char rgb3;
 typedef unsigned char ubpalette1;
 typedef unsigned int bgra4;
 
+typedef const char ccs;
+
 //WARP_X_ (CL_InitCommands infostring)
 extern const char *buildstring;
 extern const char *buildmajor;
@@ -81,6 +83,13 @@ extern int globs;
 #define fs_all_files_empty_string		""
 #define fs_make_unique_true				true
 #define fs_make_unique_false			false
+
+#define fs_quoted_true					true
+#define fs_quoted_false					false
+#define fs_quoted_auto_2				2
+#define fs_quote_remove_true			true
+#define fs_quote_remove_false			false
+
 #define fs_one_per_line_true			true
 #define fs_one_per_line_false			false
 #define fs_reply_already_loaded_null	NULL
@@ -115,8 +124,11 @@ extern int globs;
 #define q_is_forceloop_false			false
 #define q_is_aborted_download_false		false
 #define q_is_aborted_download_true		true
-#define q_alpha_1						1
 
+#define q_is_saveload_false				false
+#define q_is_saveload_true				true
+
+#define q_rgb3_white					1.0, 1.0, 1.0
 #define q_rgba_solid_white_4_parms		1.0, 1.0, 1.0, 1.0
 #define q_rgba_solid_gray50_4_parms		0.5, 0.5, 0.5, 1.0
 #define q_rgba_solid_black_4_parms		0.0, 0.0, 0.0, 1.0
@@ -137,6 +149,8 @@ extern int globs;
 #define q_vm_printfree_false			false
 #define q_is_console_true				true
 
+
+
 #define q_is_quakeworld_true			true
 #define q_is_quakeworld_false			false
 
@@ -145,6 +159,8 @@ extern int globs;
 
 #define q_was_a_space_false				false
 #define q_was_a_space_true				true
+
+#define count_1							1
 
 #define q_is_menu_fill_false			false
 #define q_is_menu_fill_true				true
@@ -161,6 +177,7 @@ extern int globs;
 #define q_is_fence_model_false			false // Quake .mdl with MF_FENCE 16384 set means color 255 is transparent
 #define q_is_sky_load_false				false
 
+
 #define q_mouse_relative_false			false
 #define q_mouse_hidecursor_false		false
 
@@ -172,8 +189,17 @@ extern int globs;
 
 #define scale_1_0						1.0
 #define alpha_1_0						1.0
+#define alpha_0_75						0.75
+#define alpha_0_5						0.5
+#define alpha_0_25						0.25
 
+#define	maxlen_0						0
+
+#define	ignorecolorcodes_true			true
+#define	ignorecolorcodes_false			false
+#define	OUTCOLOR_NULL					NULL
 #define	DATA_NULL						NULL
+#define	DATASIZE_0						0
 
 #define q_tx_complain_false				false
 #define q_tx_complain_true				true
@@ -186,8 +212,22 @@ extern int globs;
 #define q_tx_allowfixtrans_true			true
 #define q_tx_convertsrgb_false			false
 #define q_tx_miplevel_null				NULL
+#define q_tx_miplevel_neg1				-1
+#define q_tx_palette_NULL				NULL
 #define q_tx_warn_missing_true			true
 #define q_tx_warn_missing_false			false
+
+#define q_snd_entnum_neg1				-1
+#define q_snd_channel_0					0
+#define q_snd_attenuation_0				0		// No sound falloff, full loud everywhere
+#define q_snd_volume_read_arg_neg1		-1.0
+#define q_snd_forceloop_false			false
+#define q_snd_forceloop_true			true
+#define q_snd_startposition_0			0
+
+
+#define q_levelsound_true				true
+#define q_levelsound_false				false
 
 #define q_is_static_true				true
 #define q_is_static_false				false
@@ -197,12 +237,26 @@ extern int globs;
 
 #define q_reply_len_NULL				NULL
 
+#define q_skysurfaces_false				false		// GL_DepthMask
+#define q_skysurfaces_true				true		// GL_DepthMask
+#define q_debug_false					false		// GL_DepthMask
+#define q_debug_true					true		// GL_DepthMask
+#define q_depthonly_false				false		// GL_DepthMask
+#define q_depthonly_true				true		// GL_DepthMask
 #define q_write_depth_false				false		// GL_DepthMask
 #define q_write_depth_true				true		// GL_DepthMask
 #define q_prepass_false					false
+#define q_prepass_true					true
 #define q_is_ui_fog_ignore_false		false		// fog related, presumably to exclude fog from 
 													//   affecting certain elements
 
+#define q_is_ui_false					false
+#define q_is_ui_true					true
+
+#define q_wants_normals_true			true
+#define q_wants_normals_false			false
+#define q_wants_tangents_true			true
+#define q_wants_tangents_false			false
 
 #define q_text_maxlen_0					0
 #define q_outcolor_null					NULL
@@ -245,6 +299,7 @@ extern int globs;
 #define q_is_reliable_true				true
 #define q_is_reliable_false				false
 
+
 #define q_fitz_version_none_0			0
 #define q_fitz_version_1				1
 #define q_fitz_version_2				2
@@ -260,6 +315,8 @@ extern int globs;
 #define q_hitsuraces_true				true
 #define q_hitsuraces_false				false
 
+#define qp_parse_backslash_false		false
+
 #define q_is_jpeg_false					false
 #define q_is_jpeg_true					true
 #define q_is_png_false					false
@@ -267,6 +324,21 @@ extern int globs;
 
 #define q_enabled_true					true	// "unghosted" M_ItemPrint
 #define q_enabled_false					false	// "unghosted" M_ItemPrint
+
+#define q_tryreal_true					true	// Real what?
+#define q_tryreal_false					false	// "unghosted" M_ItemPrint
+
+#define q_levelsound_true				true	// Significance of this is what? SFXFLAG_LEVELSOUND is added to sfx
+#define q_levelsound_false				false
+
+#define STARTPOS_0						0
+#define ATTENUATION_0					0
+#define ENT_NONE_NEG1					-1
+#define ENT_CHANNEL_0					0
+#define SND_SPEED_NORMAL_1_0			1.0
+
+#define q_looping_true					true	// 
+#define q_looping_false					false	// 
 
 #include "common.h"
 #include "filematch.h"
@@ -286,6 +358,8 @@ extern cvar_t developer_extra;
 extern cvar_t developer_insane;
 extern cvar_t developer_loadingfile_fs;
 extern cvar_t developer_loading;
+extern cvar_t developer_spawnfunction_warnings;
+extern cvar_t developer_execstring;
 extern cvar_t developer_stuffcmd;
 extern cvar_t developer_keycode;
 extern cvar_t developer_zext;

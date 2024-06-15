@@ -49,8 +49,8 @@
 			<Add option="-Wsign-compare" />
 			<Add option="-msse3" />
 			<Add option="-DCORE_SDL" />
-			<Add option="-DCONFIG_VIDEO_CAPTURE" />
 			<Add option="-DCONFIG_MENU" />
+			<Add option="-DCONFIG_VIDEO_CAPTURE" />
 			<Add option="-D_FILE_OFFSET_BITS=64" />
 			<Add option="-D__KERNEL_STRICT_NAMES" />
 			<Add option="-DUSEODE" />
@@ -83,6 +83,10 @@
 			<Add library="SetupAPI" />
 			<Add directory="./xtra/SDK/SDL2-devel-2.28.5-mingw/SDL2-2.28.5/x86_64-w64-mingw32/lib" />
 		</Linker>
+		<ExtraCommands>
+			<Add after="#bundle_append.bat $(TARGET_OUTPUT_FILE)" />
+			<Mode after="always" />
+		</ExtraCommands>
 		<Unit filename="av_backend_libav.c">
 			<Option compilerVar="CC" />
 		</Unit>

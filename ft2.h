@@ -20,7 +20,7 @@
  *     Contains the non-FreeType2 version of characters.
  */
 
-typedef struct ft2_font_map_s ft2_font_map_t;
+typedef struct dp_ft2_font_map_s ft2_font_map_t;
 typedef struct ft2_attachment_s ft2_attachment_t;
 #ifdef _WIN64
 #define ft2_oldstyle_map ((ft2_font_map_t*)-1LL)
@@ -34,15 +34,17 @@ typedef struct ft2_kerning_s
 	ft2_kernvec kerning[256][256]; /* kerning[left char][right char] */
 } ft2_kerning_t;
 
-typedef struct ft2_font_s
+typedef struct dp_ft2_font_s
 {
 	char            name[64];
 	qbool        has_kerning;
 	// last requested size loaded using Font_SetSize
 	float		currentw;
 	float		currenth;
-	float           ascend;
-	float           descend;
+	short           ft_baker_ascend;
+	short           ft_baker_descend;
+	short			ft_baker_height;
+	float			ft_baker_descend_pct;
 	qbool        image_font; // only fallbacks are freetype fonts
 
 	// TODO: clean this up and do not expose everything.
@@ -62,7 +64,7 @@ typedef struct ft2_font_s
 	ft2_settings_t *settings;
 
 	// fallback mechanism
-	struct ft2_font_s *next;
+	struct dp_ft2_font_s *next;
 } ft2_font_t;
 
 void            Font_CloseLibrary(void);
@@ -76,7 +78,7 @@ void            Font_UnloadFont(ft2_font_t *font);
 int             Font_IndexForSize(ft2_font_t *font, float size, float *outw, float *outh);
 ft2_font_map_t *Font_MapForIndex(ft2_font_t *font, int index);
 //qbool			Font_LoadFont(const char *name, dp_font_t *dpfnt);
-qbool Font_LoadFont(const char *name, dp_font_t *dpfnt, const byte *data_in); // Baker
+qbool			Font_LoadFont(const char *name, dp_font_t *dpfnt, const byte *ft_data_in, fs_offset_t ft_datasize); // Baker
 qbool			Font_GetKerningForSize(ft2_font_t *font, float w, float h, Uchar left, Uchar right, float *outx, float *outy);
 qbool			Font_GetKerningForMap(ft2_font_t *font, int map_index, float w, float h, Uchar left, Uchar right, float *outx, float *outy);
 float           Font_VirtualToRealSize(float sz);

@@ -455,7 +455,7 @@ static void SCR_CaptureVideo_Avi_SoundFrame(const portable_sampleframe_t *paintb
 {
 	LOAD_FORMATSPECIFIC_AVI();
 	int x;
-	unsigned char bufstereo16le[PAINTBUFFER_SIZE * 4];
+	unsigned char bufstereo16le[PAINTBUFFER_SIZE_2048 * 4];
 	unsigned char *out_ptr;
 	size_t i;
 

@@ -57,7 +57,10 @@ cvar_t developer_extra = {CF_CLIENT | CF_SERVER, "developer_extra", "0", "prints
 cvar_t developer_insane = {CF_CLIENT | CF_SERVER, "developer_insane", "0", "prints huge streams of information about internal workings, entire contents of files being read/written, etc.  Not recommended!"};
 cvar_t developer_loadingfile_fs = {CF_CLIENT | CF_SERVER, "developer_loadingfile_fs","0", "prints name and size of every file loaded via the FS_LoadFile function (which is almost everything)"};
 cvar_t developer_loading = {CF_CLIENT | CF_SERVER, "developer_loading","0", "prints information about files as they are loaded or unloaded successfully"};
+cvar_t developer_spawnfunction_warnings = {CF_CLIENT | CF_SERVER, "developer_spawnfunction_warnings","-3", "whether to print no spawn function warnings 0 = never, 1 = always, -3 = yes, but not for non-Quake map formats [Zircon]"}; // Baker: -3 means yes except for Quake 3 maps because Quake 3 maps almost always have entities that no QC would have a spawn function for
 cvar_t developer_entityparsing = {CF_CLIENT, "developer_entityparsing", "0", "prints detailed network entities information each time a packet is received"};
+cvar_t developer_execstring = {CF_CLIENT | CF_SERVER | CF_ARCHIVE, "developer_execstring", "0", "prints detailed on command executing to debug console [Zircon]"};
+
 
 cvar_t timestamps = {CF_CLIENT | CF_SERVER | CF_ARCHIVE, "timestamps", "0", "prints timestamps on console messages"};
 cvar_t timeformat = {CF_CLIENT | CF_SERVER | CF_ARCHIVE, "timeformat", "[%Y-%m-%d %H:%M:%S] ", "time format to use on timestamped console messages"};
@@ -141,6 +144,10 @@ void Host_Error_Line (const char *error, ...)
 
 	CL_Disconnect();
 	cls.demonum = -1;
+	if (cls.levelshots_index_plus1) {
+		void levels_shot_decide_map_and_act (int after_this_idx0);
+		levels_shot_decide_map_and_act (UNPLUS1(cls.levelshots_index_plus1));
+	}
 
 	hosterror = false;
 
@@ -237,7 +244,7 @@ static void Host_SaveConfig_f(cmd_state_t *cmd)
 		c_strlcpy (vabuf, s_file);
 
 		// If does not end with .cfg, default it.
-		if (String_Does_End_With(vabuf, ".cfg") == false) {
+		if (String_Ends_With(vabuf, ".cfg") == false) {
 			c_strlcat (vabuf, ".cfg");
 		}
 	} // if argc > 1
@@ -259,7 +266,7 @@ void Host_WriteConfig_All_f (cmd_state_t *cmd)
 	c_strlcpy (vabuf, s_file);
 
 	// If does not end with .cfg, default it.
-	if (String_Does_End_With (vabuf, ".cfg") == 0) {
+	if (String_Ends_With (vabuf, ".cfg") == 0) {
 		c_strlcat (vabuf, ".cfg");
 	}
 	Con_PrintLinef ("Saving to %s", vabuf);
@@ -286,7 +293,7 @@ void Host_WriteConfig_All_Changed_f (cmd_state_t *cmd)
 	c_strlcpy (vabuf, s_file);
 
 	// If does not end with .cfg, default it.
-	if (String_Does_End_With (vabuf, ".cfg") == 0) {
+	if (String_Ends_With (vabuf, ".cfg") == 0) {
 		c_strlcat (vabuf, ".cfg");
 	}
 	Con_PrintLinef ("Saving to %s", vabuf);
@@ -301,7 +308,7 @@ void Host_WriteConfig_All_Changed_f (cmd_state_t *cmd)
 	FS_Close (f);
 }
 
-WARP_X_CALLERS_ (Host_Init, Host_LoadConfig_f)
+WARP_X_CALLERS_ (Host_InitOnce, Host_LoadConfig_f)
 static void Host_AddConfigText(cmd_state_t *cmd)
 {
 	// set up the default startmap_sp and startmap_dm aliases (mods can
@@ -354,11 +361,11 @@ static void Host_LoadConfig_f(cmd_state_t *cmd)
 
 /*
 =======================
-Host_InitLocal
+Host_InitOnceLocal
 ======================
 */
 extern cvar_t r_texture_jpeg_fastpicmip;
-static void Host_InitLocal (void)
+static void Host_InitOnceLocal (void)
 {
 	Cmd_AddCommand(CF_SHARED, "quit", Host_Quit_f, "quit the game");
 	Cmd_AddCommand(CF_SHARED, "version", Host_Version_f, "print engine version");
@@ -390,6 +397,8 @@ static void Host_InitLocal (void)
 	Cvar_RegisterVariable (&developer_loadingfile_fs);
 	Cvar_RegisterVariable (&developer_loading);
 	Cvar_RegisterVariable (&developer_entityparsing);
+	Cvar_RegisterVariable (&developer_execstring);
+	Cvar_RegisterVariable (&developer_spawnfunction_warnings);
 
 	Cvar_RegisterVariable (&timestamps);
 	Cvar_RegisterVariable (&timeformat);
@@ -404,7 +413,7 @@ qbool sys_nostdout = false;
 
 static qfile_t *locksession_fh = NULL;
 static qbool locksession_run = false;
-static void Host_InitSession(void)
+static void Host_InitOnce_Session(void)
 {
 	int i;
 	char *buf;
@@ -505,7 +514,7 @@ void LOC_LoadFile (void)
 	Con_PrintLinef  ("Language initialization: %s", sfile);
 
 	// Remove carriage returns if found
-	enlocal_sa = String_Replace_Alloc (enlocal_pure_sa, "\r", "");
+	enlocal_sa = String_Replace_Malloc (enlocal_pure_sa, "\r", "");
 
 	Mem_Free (enlocal_pure_sa); // done with that
 
@@ -528,7 +537,7 @@ void LOC_LoadFile (void)
 		if (!sthis_line[0])
 			continue; // it was all white space
 
-		if (String_Does_Start_With (sthis_line, "//"))
+		if (String_Starts_With (sthis_line, "//"))
 			continue; // comment
 
 		c_strlcpy (scopy_line, sthis_line);
@@ -541,7 +550,7 @@ void LOC_LoadFile (void)
 
 		Con_DPrintLinef ("args %d", rfake_argc);
 
-		if (rfake_argc == 3 && String_Does_Match_Caseless (rfake_argv[1], "=" ) ) {
+		if (rfake_argc == 3 && String_Match_Caseless (rfake_argv[1], "=" ) ) {
 			char sdecode_arg2[16384];
 			stringlistappend (&rerelease_loc, rfake_argv[0]);
 
@@ -577,7 +586,7 @@ const char *LOC_GetDecodeOld (const char *s_token)
 	int j;
 	for (j = 0; j < rerelease_loc.numstrings; j += 2) {
 		char *sthis = rerelease_loc.strings[j];
-		if (String_Does_Match (sthis, s_token)) {
+		if (String_Match (sthis, s_token)) {
 			return rerelease_loc.strings[j + 1]; //c_strlcpy (s_decode, rerelease_loc.strings[j + 1]);
 		}
 	} // for
@@ -594,7 +603,7 @@ int LOC_GetDecode (const char *s)
 
 	for (j = 0; j < rerelease_loc.numstrings; j += 2) {
 		char *sthis = rerelease_loc.strings[j];
-		if (String_Does_Start_With (s, sthis)) {
+		if (String_Starts_With (s, sthis)) {
 			int slen2 = strlen(sthis);
 			if (slen == slen2)
 				return j; // rerelease_loc.strings[j + 1]; //c_strlcpy (s_decode, rerelease_loc.strings[j + 1]);
@@ -631,7 +640,7 @@ const char *LOC_GetString (const char *stxt)
 			return "(error)";//stxt;
 		}
 
-		char *s_tokenx = rerelease_loc.strings[j + 0];
+		//char *s_tokenx = rerelease_loc.strings[j + 0];
 		char *s_decodx = rerelease_loc.strings[j + 1];
 
 		//Sys_PrintToTerminal2 (va3(QUOTED_S, s_tokenx));
@@ -683,7 +692,7 @@ skip:
 		//Sys_PrintToTerminal2 (va3(QUOTED_S, s_decodebuf));
 	} // while
 
-	if (cycles > 1 && String_Does_End_With(s_decodebuf, NEWLINE) == false) {
+	if (cycles > 1 && String_Ends_With(s_decodebuf, NEWLINE) == false) {
 		c_strlcat	(s_decodebuf, NEWLINE);
 	}
 
@@ -694,12 +703,12 @@ skip:
 
 /*
 ====================
-Host_Init
+Host_InitOnce
 ====================
 */
 float host_hoststartup_unique_num;
 
-static void Host_Init (void)
+static void Host_InitOnce (void)
 {
 	int i;
 	const char *os;
@@ -731,14 +740,12 @@ static void Host_Init (void)
 	// LadyHavoc: doesn't seem very temporary...
 	// LadyHavoc: made this a saved cvar
 // COMMANDLINEOPTION: Console: -developer enables warnings and other notices (RECOMMENDED for mod developers)
-	if (Sys_CheckParm("-developer"))
-	{
+	if (Sys_CheckParm("-developer")) {
 		developer.value = developer.integer = 1;
 		developer.string = "1";
 	}
 
-	if (Sys_CheckParm("-developer2") || Sys_CheckParm("-developer3"))
-	{
+	if (Sys_CheckParm("-developer2") || Sys_CheckParm("-developer3")) {
 		developer.value = developer.integer = 1;
 		developer.string = "1";
 		developer_extra.value = developer_extra.integer = 1;
@@ -751,8 +758,7 @@ static void Host_Init (void)
 		developer_memorydebug.string = "1";
 	}
 
-	if (Sys_CheckParm("-developer3"))
-	{
+	if (Sys_CheckParm("-developer3")) {
 		gl_paranoid.integer = 1;gl_paranoid.string = "1";
 		gl_printcheckerror.integer = 1;gl_printcheckerror.string = "1";
 	}
@@ -766,33 +772,33 @@ static void Host_Init (void)
 		cls.state = ca_dedicated;
 
 	// initialize console command/cvar/alias/command execution systems
-	Cmd_Init();
+	Cmd_InitOnce();
 
 	// initialize memory subsystem cvars/commands
-	Memory_Init_Commands();
+	Memory_InitOnce_Commands();
 
 	// initialize console and logging and its cvars/commands
-	Con_Init();
+	Con_InitOnce();
 
 	// initialize various cvars that could not be initialized earlier
-	u8_Init();
-	Curl_Init_Commands();
-	Sys_Init_Commands();
-	COM_Init_Commands();
+	u8_InitOnce();
+	Curl_InitOnce_Commands();
+	Sys_InitOnce_Commands();
+	COM_InitOnce_Commands();
 
 	// initialize filesystem (including fs_basedir, fs_gamedir, -game, scr_screenshot_name)
-	FS_Init();
+	FS_InitOnce();
 
 #if defined (_WIN32) && defined(CONFIG_MENU)
 	// SLASH DEDICATED (-dedicated)
 	if (cls.state == ca_dedicated)
-		Sys_Console_Init_WinQuake ();
+		Sys_Console_InitOnce_WinQuake ();
 #endif
 
 	// construct a version string for the corner of the console
 	os = DP_OS_NAME;
-	dpsnprintf (engineversion, sizeof (engineversion), "%s %s %s", gamename, os, buildstring);
-	Con_Printf ("%s\n", engineversion);
+	c_dpsnprintf3 (engineversion, "%s %s %s", gamename, os, buildstring);
+	Con_PrintLinef ("%s\n", engineversion);
 
 	// Baker r8002: Zircon console name
 	const char *sfmt = "%s " // ...
@@ -815,30 +821,30 @@ static void Host_Init (void)
 	//Con_PrintLinef ("%s", engineversion);
 
 	// initialize process nice level
-	Sys_InitProcessNice();
+	Sys_InitOnce_ProcessNice();
 
 	// initialize ixtable
-	Mathlib_Init();
+	Mathlib_InitOnce();
 
 	// register the cvars for session locking
-	Host_InitSession();
+	Host_InitOnce_Session();
 
-	// must be after FS_Init
-	Crypto_Init();
-	Crypto_Init_Commands();
+	// must be after FS_InitOnce
+	Crypto_InitOnce();
+	Crypto_InitOnce_Commands();
 
-	NetConn_Init();
-	Curl_Init();
-	PRVM_Init();
-	Mod_Init();
-	World_Init();
-	SV_Init();
-	Host_InitLocal();
+	NetConn_InitOnce();
+	Curl_InitOnce();
+	PRVM_InitOnce();
+	Mod_InitOnce();
+	World_InitOnce();
+	SV_InitOnce();
+	Host_InitOnceLocal();
 
-	Thread_Init();
-	TaskQueue_Init();
+	Thread_InitOnce();
+	TaskQueue_InitOnce();
 
-	CL_Init();
+	CL_InitOnce();
 
 	// save off current state of aliases, commands and cvars for later restore if FS_GameDir_f is called
 	// NOTE: menu commands are freed by Cmd_RestoreInitState
@@ -1021,11 +1027,35 @@ static double Host_Frame(double time)
 	// process console commands
 	Cbuf_Frame(host.cbuf);
 
+	if (cls.levelshots_index_plus1) {
+		// cl.levelshots_index_plus1
+		int delta = host.superframecount - cls.cl_first_world_frame_rendered;
+		
+		switch (delta) {
+		case 0:
+
+			break;
+
+		case 10:
+			WARP_X_ (R_LevelShot_Here_f)
+			Cbuf_AddTextLine (cmd_local, "levelshot_here");
+			// Queue levelshot and do next map name
+			break;
+
+		default:
+			// Waiting for 5 frames or something
+			break;
+			
+		}
+	}
+
 	R_TimeReport("---");
 
 	// if the accumulators haven't become positive yet, wait a while
 	sv_wait = - SV_Frame(time);
 	cl_wait = - CL_Frame(time);
+
+	
 
 	Mem_CheckSentinelsGlobal ();
 
@@ -1099,7 +1129,7 @@ void Host_Main(void)
 {
 	double time, oldtime, sleeptime;
 
-	Host_Init(); // Start!
+	Host_InitOnce(); // Start!
 
 	host.realtime = 0;
 	oldtime = Sys_DirtyTime();

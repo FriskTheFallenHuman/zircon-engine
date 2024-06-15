@@ -482,16 +482,16 @@ void M_GameOptions_Draw (void)
 
 	M_DrawTextBox (152, 32, 10, 1);
 	M_Print(160, 40, "begin game");
-	Hotspots_Add (menu_x + 48, menu_y + 40, (45 * 8) /*360*/, 8, 1, hotspottype_button);
+	Hotspots_Add (menu_x + 48, menu_y + 40, (45 * 8) /*360*/, 8, 1, hotspottype_button, q_force_scale_0);
 
 	M_Print(0, 56, "      Max players");
-	Hotspots_Add (menu_x + 48, menu_y + 56, (45 * 8) /*360*/, 8, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + 56, (45 * 8) /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 
 	M_Print(160, 56, va(vabuf, sizeof(vabuf), "%d", maxplayers) );
 
 	if (1) {
 		M_Print(0, 64, "        Game Type");
-		Hotspots_Add (menu_x + 48, menu_y + 64, (45 * 8) /*360*/, 8, 1, hotspottype_slider);
+		Hotspots_Add (menu_x + 48, menu_y + 64, (45 * 8) /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 
 		if (gamemode == GAME_BATTLEMECH) {
 			if (!deathmatch.integer)
@@ -512,7 +512,7 @@ void M_GameOptions_Draw (void)
 		}
 
 		M_Print(0, 72, "        Teamplay");
-		Hotspots_Add (menu_x + 48, menu_y + 72, (45 * 8) /*360*/, 8, 1, hotspottype_slider);
+		Hotspots_Add (menu_x + 48, menu_y + 72, (45 * 8) /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 
 		if (gamemode == GAME_ROGUE) {
 			const char *msg;
@@ -542,7 +542,7 @@ void M_GameOptions_Draw (void)
 		}
 
 		M_Print(0, 80, "            Skill");
-		Hotspots_Add (menu_x + 48, menu_y + 80, (45 * 8) /*360*/, 8, 1, hotspottype_slider);
+		Hotspots_Add (menu_x + 48, menu_y + 80, (45 * 8) /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 			if (skill.integer == 0)
 				M_Print(160, 80, "Easy difficulty");
 			else if (skill.integer == 1)
@@ -553,7 +553,7 @@ void M_GameOptions_Draw (void)
 				M_Print(160, 80, "Nightmare difficulty");
 
 		M_Print(0, 88, "       Frag Limit");
-		Hotspots_Add (menu_x + 48, menu_y + 88, (45 * 8) /*360*/, 8, 1, hotspottype_slider);
+		Hotspots_Add (menu_x + 48, menu_y + 88, (45 * 8) /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 		if (fraglimit.integer == 0)
 			M_Print(160, 88, "none");
 		else
@@ -561,7 +561,7 @@ void M_GameOptions_Draw (void)
 
 
 		M_Print(0, 96, "       Time Limit");
-		Hotspots_Add (menu_x + 48, menu_y + 96, (45 * 8) /*360*/, 8, 1, hotspottype_slider);
+		Hotspots_Add (menu_x + 48, menu_y + 96, (45 * 8) /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 		if (timelimit.integer == 0)
 			M_Print(160, 96, "none");
 		else
@@ -570,27 +570,27 @@ void M_GameOptions_Draw (void)
 
 	M_Print(0, 104, "       Public?");
 	M_Print(160, 104, (sv_public.integer == 0) ? "no" : "yes");
-	Hotspots_Add (menu_x + 48, menu_y + 104, (45 * 8) /*360*/, 8, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + 104, (45 * 8) /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 
 	M_Print(0, 112, "       dl rate");
 	M_Print(160, 112, va(vabuf, sizeof(vabuf), "%d", sv_maxrate.integer));
-	Hotspots_Add (menu_x + 48, menu_y + 112, (45 * 8) /*360*/, 8, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + 112, (45 * 8) /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 
 	M_Print(0, 128, "      Server name");
-	Hotspots_Add (menu_x + 48, menu_y + 128, (45 * 8) /*360*/, 8 + 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + 128, (45 * 8) /*360*/, 8 + 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 #define M_GAME_MAX_SERVER_NAME_24 24
 	M_DrawTextBox (152, 132 - 12, M_GAME_MAX_SERVER_NAME_24, 1);
 	M_Print (160, 140 - 12, hostname.string);
 
 	M_Print(0, 160, "         Episode");
 	M_Print(160, 160, gameoptions_levels->episodes[startepisode].description);
-	Hotspots_Add (menu_x + 48, menu_y + 160, (45 * 8) /*360*/, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + 160, (45 * 8) /*360*/, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 
 	M_Print(0, 168, "           Level");
 	M_Print(160, 168, gameoptions_levels->levels[gameoptions_levels->episodes[startepisode].firstLevel + startlevel].description);
 	M_Print(160, 176, gameoptions_levels->levels[gameoptions_levels->episodes[startepisode].firstLevel + startlevel].name);
 
-	Hotspots_Add (menu_x + 48, menu_y + 168, (45 * 8) /*360*/, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + 168, (45 * 8) /*360*/, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 
 // line cursor
 	if (local_cursor == 9) // server name

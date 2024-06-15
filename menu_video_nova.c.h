@@ -86,51 +86,51 @@ static void M_Video_Nova_Draw (void)
 
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
-	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	M_Print			(16, drawcur_y, "        New Resolution");
 	M_Print			(220, drawcur_y, va(vabuf, sizeof(vabuf), "%dx%d", menu_video_resolutions[menu_video_resolution].width, menu_video_resolutions[menu_video_resolution].height));
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
 	// Fullscreen
-	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	M_Print			(16, drawcur_y, "            Fullscreen");
 	M_DrawCheckbox	(220, drawcur_y, vid_fullscreen.integer);
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
 	// Vertical Sync
-	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	M_ItemPrint		(16, drawcur_y, "         Vertical Sync", q_enabled_true);
 	M_DrawCheckbox	(220, drawcur_y, vid_vsync.integer);
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
 	// Maximum fps
-	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	M_ItemPrint		(16, drawcur_y, "        Max Frames/Sec", q_enabled_true);
 	va(vabuf, sizeof(vabuf), "%d %s", cl_maxfps.integer, cl_maxfps.integer ? "" : " (no limit, choppy?)" );
 	DrawQ_String	(menu_x + 220, menu_y + drawcur_y, vabuf, q_text_maxlen_0, /*w*/ 8, 8, /*rgba*/ 1, 1, 1, 1, DRAWFLAG_NORMAL_0, q_outcolor_null, q_ignore_color_codes_true, FONT_MENU);
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
 	// Force Desktop Resolution
-	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	M_ItemPrint		(16, drawcur_y,  "          Always Force", q_enabled_true);
 	DrawQ_String	(menu_x + 16, menu_y + drawcur_y + 8,  "    Desktop Resolution", q_text_maxlen_0, /*w*/ 8, 8, /*rgba*/ 1, 1, 1, 1, DRAWFLAG_NORMAL_0, q_outcolor_null, q_ignore_color_codes_true, FONT_MENU);
 	M_DrawCheckbox	(220, drawcur_y, vid_desktopfullscreen.integer);
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
 	// "Apply" button
-	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_button);
+	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_button, q_force_scale_0);
 	M_PrintRed		(220, drawcur_y, "Apply");
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
 	// "Go Advanced" button
-	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_button);
+	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_button, q_force_scale_0);
 	M_Print			(220, drawcur_y, "Go Advanced");
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
 	// "Texture Filtering" button
-	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add	(menu_x + 48, menu_y + drawcur_y, 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	M_ItemPrint		(16, drawcur_y, "        Texture Filter", q_enabled_true);
-	
+
 	DrawQ_String	(menu_x + 220, menu_y + drawcur_y, TexFilterNameForNum(gl_texturemode_cvar.integer), q_text_maxlen_0, /*w*/ 8, 8, /*rgba*/ 1, 1, 1, 1, DRAWFLAG_NORMAL_0, q_outcolor_null, q_ignore_color_codes_true, FONT_MENU);
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
@@ -144,7 +144,7 @@ static void M_Video_Nova_Draw (void)
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
 
 	drawcur_y += MNU_VIDEO_ROW_SIZE_16;
-	if (fs_userdir && fs_userdir[0]) {
+	if (fs_userdir[0]) {
 		va_super (tmp, 1024, "home: %s", fs_userdir);
 		M_Print	(24, drawcur_y, tmp);
 		drawcur_y += MNU_VIDEO_ROW_SIZE_16;
@@ -186,7 +186,7 @@ static void M_Menu_VideoNova_AdjustSliders (int dir)
 			if (menu_video_resolutions[menu_video_resolution].width > vid.desktop_width)
 				continue;
 #endif // _WIN32 || MACOSX
-			if (menu_video_resolutions[menu_video_resolution].width >= vid_minwidth.integer && 
+			if (menu_video_resolutions[menu_video_resolution].width >= vid_minwidth.integer &&
 				menu_video_resolutions[menu_video_resolution].height >= vid_minheight.integer)
 				break;
 		} // for
@@ -196,7 +196,7 @@ static void M_Menu_VideoNova_AdjustSliders (int dir)
 		Cvar_SetValueQuick (&vid_fullscreen, !vid_fullscreen.integer);
 		break;
 
-	case VID_MENU_VSYNC_2: 
+	case VID_MENU_VSYNC_2:
 		Cvar_SetValueQuick (&vid_vsync, !vid_vsync.integer);
 		break;
 
@@ -211,12 +211,12 @@ static void M_Menu_VideoNova_AdjustSliders (int dir)
 				newval = 0;
 			else if (newval < 0)
 				newval = 5;
-			
+
 			Cvar_SetValueQuick (&gl_texturemode_cvar, newval);
 		}
 		break;
 
-	} // sw 
+	} // sw
 }
 
 
@@ -227,10 +227,10 @@ static void M_Video_Nova_Key (cmd_state_t *cmd, int key, int ascii)
 	int fpsidxdw = fps_rates_count  - 1;
 
 	switch (key) {
-	case K_MOUSE2: 
-		if (Hotspots_DidHit_Slider()) { 
-			local_cursor = hotspotx_hover; 
-			goto leftus; 
+	case K_MOUSE2:
+		if (Hotspots_DidHit_Slider()) {
+			local_cursor = hotspotx_hover;
+			goto leftus;
 		}
 		// fall thru
 	case K_ESCAPE:
@@ -368,7 +368,7 @@ void VID_ListModes_f(cmd_state_t *cmd)
 		Con_PrintLinef ("%03d: %d x %d ", j, mm->width, mm->height);
 
 	}
- 
+
 #if 1
     Con_PrintLinef ("Current mode:    vid.width vid.height vid.fullscreen " NEWLINE " ... %d x %d fs %d ", vid.width, vid.height, vid.fullscreen);
     Con_PrintLinef ("Current mode dot!:vid.width vid.height vid.fullscreen " NEWLINE " ... %d x %d fs %d ", vid.mode.width, vid.mode.height, vid.mode.fullscreen);

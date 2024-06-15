@@ -95,7 +95,7 @@ void Mod_Skeletal_BuildTransforms(const model_t * RESTRICT model, const frameble
 		{
 			// blend by transform each quaternion/translation into a dual-quaternion first, then blending
 			const short * RESTRICT firstpose7s = model->data_poses7s + 7 * (frameblend[0].subframe * model->num_bones + i);
-			float firstlerp = frameblend[0].lerp,
+			float firstlerp = frameblend[0].rlerp,
 				firsttx = firstpose7s[0], firstty = firstpose7s[1], firsttz = firstpose7s[2],
 				rx = firstpose7s[3] * firstlerp,
 				ry = firstpose7s[4] * firstlerp,
@@ -106,10 +106,10 @@ void Mod_Skeletal_BuildTransforms(const model_t * RESTRICT model, const frameble
 				dz = firsttx*ry - firstty*rx + firsttz*rw,
 				dw = -firsttx*rx - firstty*ry - firsttz*rz,
 				scale, sx, sy, sz, sw;
-			for (blends = 1;blends < MAX_FRAMEBLENDS && frameblend[blends].lerp > 0;blends++)
+			for (blends = 1;blends < MAX_FRAMEBLENDS_8 && frameblend[blends].rlerp > 0;blends++)
 			{
 				const short * RESTRICT blendpose7s = model->data_poses7s + 7 * (frameblend[blends].subframe * model->num_bones + i);
-				float blendlerp = frameblend[blends].lerp,
+				float blendlerp = frameblend[blends].rlerp,
 					blendtx = blendpose7s[0], blendty = blendpose7s[1], blendtz = blendpose7s[2],
 					qx = blendpose7s[3], qy = blendpose7s[4], qz = blendpose7s[5], qw = blendpose7s[6];
 				if (rx*qx + ry*qy + rz*qz + rw*qw < 0) blendlerp = -blendlerp;
@@ -279,10 +279,10 @@ static void Mod_MD3_AnimateVertices(const model_t * RESTRICT model, const frameb
 	int i, numblends, blendnum;
 	int numverts = model->surfmesh.num_vertices;
 	numblends = 0;
-	for (blendnum = 0;blendnum < MAX_FRAMEBLENDS;blendnum++)
+	for (blendnum = 0;blendnum < MAX_FRAMEBLENDS_8;blendnum++)
 	{
 		//VectorMA(translate, model->surfmesh.num_morphmdlframetranslate, frameblend[blendnum].lerp, translate);
-		if (frameblend[blendnum].lerp > 0)
+		if (frameblend[blendnum].rlerp > 0)
 			numblends = blendnum + 1;
 	}
 	// special case for the first blend because it avoids some adds and the need to memset the arrays first
@@ -291,7 +291,7 @@ static void Mod_MD3_AnimateVertices(const model_t * RESTRICT model, const frameb
 		const md3vertex_t *verts = model->surfmesh.data_morphmd3vertex + numverts * frameblend[blendnum].subframe;
 		if (vertex3f)
 		{
-			float scale = frameblend[blendnum].lerp * (1.0f / 64.0f);
+			float scale = frameblend[blendnum].rlerp * (1.0f / 64.0f);
 			if (blendnum == 0)
 			{
 				for (i = 0;i < numverts;i++)
@@ -318,7 +318,7 @@ static void Mod_MD3_AnimateVertices(const model_t * RESTRICT model, const frameb
 		// sine and cosine with a +64 bias to get cosine.
 		if (normal3f)
 		{
-			float lerp = frameblend[blendnum].lerp;
+			float lerp = frameblend[blendnum].rlerp;
 			if (blendnum == 0)
 			{
 				for (i = 0;i < numverts;i++)
@@ -341,7 +341,7 @@ static void Mod_MD3_AnimateVertices(const model_t * RESTRICT model, const frameb
 		if (svector3f)
 		{
 			const texvecvertex_t *texvecvert = model->surfmesh.data_morphtexvecvertex + numverts * frameblend[blendnum].subframe;
-			float f = frameblend[blendnum].lerp * (1.0f / 127.0f);
+			float f = frameblend[blendnum].rlerp * (1.0f / 127.0f);
 			if (blendnum == 0)
 			{
 				for (i = 0;i < numverts;i++, texvecvert++)
@@ -371,13 +371,12 @@ static void Mod_MDL_AnimateVertices(const model_t * RESTRICT model, const frameb
 	numblends = 0;
 	// blend the frame translates to avoid redundantly doing so on each vertex
 	// (a bit of a brain twister but it works)
-	for (blendnum = 0;blendnum < MAX_FRAMEBLENDS;blendnum++)
-	{
+	for (blendnum = 0;blendnum < MAX_FRAMEBLENDS_8;blendnum++) {
 		if (model->surfmesh.data_morphmd2framesize6f)
-			VectorMA(translate, frameblend[blendnum].lerp, model->surfmesh.data_morphmd2framesize6f + frameblend[blendnum].subframe * 6 + 3, translate);
+			VectorMA(translate, frameblend[blendnum].rlerp, model->surfmesh.data_morphmd2framesize6f + frameblend[blendnum].subframe * 6 + 3, translate);
 		else
-			VectorMA(translate, frameblend[blendnum].lerp, model->surfmesh.num_morphmdlframetranslate, translate);
-		if (frameblend[blendnum].lerp > 0)
+			VectorMA(translate, frameblend[blendnum].rlerp, model->surfmesh.num_morphmdlframetranslate, translate);
+		if (frameblend[blendnum].rlerp > 0)
 			numblends = blendnum + 1;
 	}
 	// special case for the first blend because it avoids some adds and the need to memset the arrays first
@@ -388,9 +387,9 @@ static void Mod_MDL_AnimateVertices(const model_t * RESTRICT model, const frameb
 		{
 			float scale[3];
 			if (model->surfmesh.data_morphmd2framesize6f)
-				VectorScale(model->surfmesh.data_morphmd2framesize6f + frameblend[blendnum].subframe * 6, frameblend[blendnum].lerp, scale);
+				VectorScale(model->surfmesh.data_morphmd2framesize6f + frameblend[blendnum].subframe * 6, frameblend[blendnum].rlerp, scale);
 			else
-				VectorScale(model->surfmesh.num_morphmdlframescale, frameblend[blendnum].lerp, scale);
+				VectorScale(model->surfmesh.num_morphmdlframescale, frameblend[blendnum].rlerp, scale);
 			if (blendnum == 0)
 			{
 				for (i = 0;i < numverts;i++)
@@ -414,21 +413,17 @@ static void Mod_MDL_AnimateVertices(const model_t * RESTRICT model, const frameb
 		// 162 unique values, this very crude quantization reduces the
 		// vertex normal to only one byte, which saves a lot of space but
 		// also makes lighting pretty coarse
-		if (normal3f)
-		{
-			float lerp = frameblend[blendnum].lerp;
-			if (blendnum == 0)
-			{
-				for (i = 0;i < numverts;i++)
-				{
+		if (normal3f) { // Baker: normal3f is an arg
+			float lerp = frameblend[blendnum].rlerp;
+			if (blendnum == 0) {
+				for (i = 0;i < numverts;i++) {
 					const float *vn = m_bytenormals[verts[i].lightnormalindex];
 					VectorScale(vn, lerp, normal3f + i*3);
 				}
 			}
 			else
 			{
-				for (i = 0;i < numverts;i++)
-				{
+				for (i = 0;i < numverts;i++) {
 					const float *vn = m_bytenormals[verts[i].lightnormalindex];
 					VectorMA(normal3f + i*3, lerp, vn, normal3f + i*3);
 				}
@@ -437,7 +432,7 @@ static void Mod_MDL_AnimateVertices(const model_t * RESTRICT model, const frameb
 		if (svector3f)
 		{
 			const texvecvertex_t *texvecvert = model->surfmesh.data_morphtexvecvertex + numverts * frameblend[blendnum].subframe;
-			float f = frameblend[blendnum].lerp * (1.0f / 127.0f);
+			float f = frameblend[blendnum].rlerp * (1.0f / 127.0f);
 			if (blendnum == 0)
 			{
 				for (i = 0;i < numverts;i++, texvecvert++)
@@ -460,6 +455,7 @@ static void Mod_MDL_AnimateVertices(const model_t * RESTRICT model, const frameb
 
 int Mod_Alias_GetTagMatrix(const model_t *model, const frameblend_t *frameblend, const skeleton_t *skeleton, int tagindex, matrix4x4_t *outmatrix)
 {
+	// Mod_Alias_GetTagMatrix TAGXPRIME
 	matrix4x4_t temp;
 	matrix4x4_t parentbonematrix;
 	matrix4x4_t tempbonematrix;
@@ -472,8 +468,7 @@ int Mod_Alias_GetTagMatrix(const model_t *model, const frameblend_t *frameblend,
 	const float *input;
 	float blendtag[12];
 	*outmatrix = identitymatrix;
-	if (skeleton && skeleton->relativetransforms)
-	{
+	if (skeleton && skeleton->relativetransforms) {
 		if (tagindex < 0 || tagindex >= skeleton->model->num_bones)
 			return 4;
 		*outmatrix = skeleton->relativetransforms[tagindex];
@@ -488,9 +483,9 @@ int Mod_Alias_GetTagMatrix(const model_t *model, const frameblend_t *frameblend,
 		if (tagindex < 0 || tagindex >= model->num_bones)
 			return 4;
 		Matrix4x4_Clear(&blendmatrix);
-		for (blendindex = 0;blendindex < MAX_FRAMEBLENDS && frameblend[blendindex].lerp > 0;blendindex++)
+		for (blendindex = 0;blendindex < MAX_FRAMEBLENDS_8 && frameblend[blendindex].rlerp > 0;blendindex++)
 		{
-			lerp = frameblend[blendindex].lerp;
+			lerp = frameblend[blendindex].rlerp;
 			Matrix4x4_FromBonePose7s(&bonematrix, model->num_posescale, model->data_poses7s + 7 * (frameblend[blendindex].subframe * model->num_bones + tagindex));
 			parenttagindex = tagindex;
 			while ((parenttagindex = model->data_bones[parenttagindex].parent) >= 0)
@@ -503,15 +498,14 @@ int Mod_Alias_GetTagMatrix(const model_t *model, const frameblend_t *frameblend,
 		}
 		*outmatrix = blendmatrix;
 	}
-	else if (model->num_tags)
-	{
+	else if (model->num_tags) {
 		if (tagindex < 0 || tagindex >= model->num_tags)
-			return 4;
+			return 4; // Baker: Why 4?  Answer any non-zero is error
 		for (k = 0;k < 12;k++)
 			blendtag[k] = 0;
-		for (blendindex = 0;blendindex < MAX_FRAMEBLENDS && frameblend[blendindex].lerp > 0;blendindex++)
+		for (blendindex = 0;blendindex < MAX_FRAMEBLENDS_8 && frameblend[blendindex].rlerp > 0;blendindex++)
 		{
-			lerp = frameblend[blendindex].lerp;
+			lerp = frameblend[blendindex].rlerp;
 			input = model->data_tags[frameblend[blendindex].subframe * model->num_tags + tagindex].matrixgl;
 			for (k = 0;k < 12;k++)
 				blendtag[k] += input[k] * lerp;
@@ -519,8 +513,10 @@ int Mod_Alias_GetTagMatrix(const model_t *model, const frameblend_t *frameblend,
 		Matrix4x4_FromArray12FloatGL(outmatrix, blendtag);
 	}
 
-	if (!mod_alias_supporttagscale.integer)
+	if (!mod_alias_supporttagscale.integer /*d: 1*/) {
+		// Baker: Not the norm, the default is 1
 		Matrix4x4_Normalize3(outmatrix, outmatrix);
+	}
 
 	return 0;
 }
@@ -551,9 +547,9 @@ int Mod_Alias_GetExtendedTagInfoForIndex(const model_t *model, unsigned int skin
 		*parentindex = model->data_bones[tagindex].parent;
 		*tagname = model->data_bones[tagindex].name;
 		Matrix4x4_Clear(&blendmatrix);
-		for (blendindex = 0;blendindex < MAX_FRAMEBLENDS && frameblend[blendindex].lerp > 0;blendindex++)
+		for (blendindex = 0;blendindex < MAX_FRAMEBLENDS_8 && frameblend[blendindex].rlerp > 0;blendindex++)
 		{
-			lerp = frameblend[blendindex].lerp;
+			lerp = frameblend[blendindex].rlerp;
 			Matrix4x4_FromBonePose7s(&bonematrix, model->num_posescale, model->data_poses7s + 7 * (frameblend[blendindex].subframe * model->num_bones + tagindex));
 			Matrix4x4_Accumulate(&blendmatrix, &bonematrix, lerp);
 		}
@@ -568,9 +564,9 @@ int Mod_Alias_GetExtendedTagInfoForIndex(const model_t *model, unsigned int skin
 		*tagname = model->data_tags[tagindex].name;
 		for (k = 0;k < 12;k++)
 			blendtag[k] = 0;
-		for (blendindex = 0;blendindex < MAX_FRAMEBLENDS && frameblend[blendindex].lerp > 0;blendindex++)
+		for (blendindex = 0;blendindex < MAX_FRAMEBLENDS_8 && frameblend[blendindex].rlerp > 0;blendindex++)
 		{
-			lerp = frameblend[blendindex].lerp;
+			lerp = frameblend[blendindex].rlerp;
 			input = model->data_tags[frameblend[blendindex].subframe * model->num_tags + tagindex].matrixgl;
 			for (k = 0;k < 12;k++)
 				blendtag[k] += input[k] * lerp;
@@ -589,11 +585,11 @@ int Mod_Alias_GetTagIndexForName(const model_t *model, unsigned int skin, const 
 		skin = 0;
 	if (model->num_bones)
 		for (i = 0;i < model->num_bones;i++)
-			if (String_Does_Match_Caseless(tagname, model->data_bones[i].name))
+			if (String_Match_Caseless(tagname, model->data_bones[i].name))
 				return i + 1;
-	if (model->num_tags)
+	if (model->num_tags) // TAGX
 		for (i = 0;i < model->num_tags;i++)
-			if (String_Does_Match_Caseless(tagname, model->data_tags[i].name))
+			if (String_Match_Caseless(tagname, model->data_tags[i].name))
 				return i + 1;
 	return 0;
 }
@@ -637,13 +633,14 @@ static qbool Mod_Alias_CalculateBoundingBox(void)
 	if (loadmodel->AnimateVertices)
 	{
 		float *vertex3f, *refvertex3f;
-		frameblend_t frameblend[MAX_FRAMEBLENDS];
+		frameblend_t frameblend[MAX_FRAMEBLENDS_8];
 		memset(frameblend, 0, sizeof(frameblend));
-		frameblend[0].lerp = 1;
+		frameblend[0].rlerp = 1;
 		vertex3f = (float *) Mem_Alloc(loadmodel->mempool, loadmodel->surfmesh.num_vertices * sizeof(float[3]) * 2);
 		refvertex3f = NULL;
 		for (frameblend[0].subframe = 0;frameblend[0].subframe < loadmodel->num_poses;frameblend[0].subframe++)
 		{
+			WARP_X_ (Mod_MDL_AnimateVertices) // Mod_Alias_CalculateBoundingBox
 			loadmodel->AnimateVertices(loadmodel, frameblend, NULL, vertex3f, NULL, NULL, NULL);
 			if (!refvertex3f)
 			{
@@ -727,11 +724,10 @@ static qbool Mod_Alias_CalculateBoundingBox(void)
 static void Mod_Alias_MorphMesh_CompileFrames(void)
 {
 	int i, j;
-	frameblend_t frameblend[MAX_FRAMEBLENDS];
-	unsigned char *datapointer;
+	frameblend_t frameblend[MAX_FRAMEBLENDS_8];
 	memset(frameblend, 0, sizeof(frameblend));
-	frameblend[0].lerp = 1;
-	datapointer = (unsigned char *)Mem_Alloc(loadmodel->mempool, loadmodel->surfmesh.num_vertices * (sizeof(float[3]) * 4 + loadmodel->surfmesh.num_morphframes * sizeof(texvecvertex_t)));
+	frameblend[0].rlerp = 1;
+	unsigned char *datapointer = (unsigned char *)Mem_Alloc(loadmodel->mempool, loadmodel->surfmesh.num_vertices * (sizeof(float[3]) * 4 + loadmodel->surfmesh.num_morphframes * sizeof(texvecvertex_t)));
 	loadmodel->surfmesh.data_vertex3f = (float *)datapointer;datapointer += loadmodel->surfmesh.num_vertices * sizeof(float[3]);
 	loadmodel->surfmesh.data_svector3f = (float *)datapointer;datapointer += loadmodel->surfmesh.num_vertices * sizeof(float[3]);
 	loadmodel->surfmesh.data_tvector3f = (float *)datapointer;datapointer += loadmodel->surfmesh.num_vertices * sizeof(float[3]);
@@ -761,7 +757,7 @@ static void Mod_MDLMD2MD3_TraceLine(model_t *model, const frameblend_t *frameble
 	float *vertex3f = vertex3fbuf;
 	float *freevertex3f = NULL;
 	// for static cases we can just call CollisionBIH which is much faster
-	if ((frameblend == NULL || (frameblend[0].subframe == 0 && frameblend[1].lerp == 0)) && (skeleton == NULL || skeleton->relativetransforms == NULL))
+	if ((frameblend == NULL || (frameblend[0].subframe == 0 && frameblend[1].rlerp == 0)) && (skeleton == NULL || skeleton->relativetransforms == NULL))
 	{
 		Mod_CollisionBIH_TraceLine(model, frameblend, skeleton, trace, start, end, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
 		return;
@@ -777,11 +773,11 @@ static void Mod_MDLMD2MD3_TraceLine(model_t *model, const frameblend_t *frameble
 	segmentmaxs[0] = max(start[0], end[0]) + 1;
 	segmentmaxs[1] = max(start[1], end[1]) + 1;
 	segmentmaxs[2] = max(start[2], end[2]) + 1;
-	if (frameblend == NULL || frameblend[0].subframe != 0 || frameblend[0].lerp != 0 || skeleton != NULL)
+	if (frameblend == NULL || frameblend[0].subframe != 0 || frameblend[0].rlerp != 0 || skeleton != NULL)
 	{
 		if (model->surfmesh.num_vertices > 1024)
 			vertex3f = freevertex3f = (float *)Mem_Alloc(tempmempool, model->surfmesh.num_vertices * sizeof(float[3]));
-		model->AnimateVertices(model, frameblend, skeleton, vertex3f, NULL, NULL, NULL);
+		model->AnimateVertices(model, frameblend, skeleton, vertex3f, NULL, NULL, NULL); // Mod_MDL_AnimateVertices - TRACELINE
 	}
 	else
 		vertex3f = model->surfmesh.data_vertex3f;
@@ -812,7 +808,7 @@ static void Mod_MDLMD2MD3_TraceBox(model_t *model, const frameblend_t *frameblen
 	}
 
 	// for static cases we can just call CollisionBIH which is much faster
-	if ((frameblend == NULL || (frameblend[0].subframe == 0 && frameblend[1].lerp == 0)) && (skeleton == NULL || skeleton->relativetransforms == NULL))
+	if ((frameblend == NULL || (frameblend[0].subframe == 0 && frameblend[1].rlerp == 0)) && (skeleton == NULL || skeleton->relativetransforms == NULL))
 	{
 		Mod_CollisionBIH_TraceBox(model, frameblend, skeleton, trace, start, boxmins, boxmaxs, end, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
 		return;
@@ -838,7 +834,7 @@ static void Mod_MDLMD2MD3_TraceBox(model_t *model, const frameblend_t *frameblen
 	VectorAdd(end, boxmaxs, boxendmaxs);
 	Collision_BrushForBox(&thisbrush_start, boxstartmins, boxstartmaxs, 0, 0, NULL);
 	Collision_BrushForBox(&thisbrush_end, boxendmins, boxendmaxs, 0, 0, NULL);
-	model->AnimateVertices(model, frameblend, skeleton, vertex3f, NULL, NULL, NULL);
+	model->AnimateVertices(model, frameblend, skeleton, vertex3f, NULL, NULL, NULL); // Mod_MDL_AnimateVertices TRACEBOX
 	for (i = 0, surface = model->data_surfaces;i < model->num_surfaces;i++, surface++)
 		Collision_TraceBrushTriangleMeshFloat(trace, &thisbrush_start.brush, &thisbrush_end.brush, surface->num_triangles, model->surfmesh.data_element3i + 3 * surface->num_firsttriangle, vertex3f, 0, NULL, SUPERCONTENTS_SOLID | (surface->texture->basematerialflags & MATERIALFLAGMASK_TRANSLUCENT ? 0 : SUPERCONTENTS_OPAQUE), 0, surface->texture, segmentmins, segmentmaxs);
 	if (vertex3f != vertex3fbuf)
@@ -861,9 +857,10 @@ static void Mod_ConvertAliasVerts (int inverts, trivertx_t *v, trivertx_t *out, 
 	}
 }
 
+WARP_X_CALLERS_ (Mod_IDP0_Load)
 static void Mod_MDL_LoadFrames (unsigned char *datapointer, int inverts, int *vertremap)
 {
-	int i, f, pose, groupframes;
+	int framenumx, f, pose, groupframes;
 	float interval;
 	daliasframetype_t *pframetype;
 	daliasframe_t *pinframe;
@@ -912,7 +909,7 @@ static void Mod_MDL_LoadFrames (unsigned char *datapointer, int inverts, int *ve
 		scene++;
 
 		// read frames
-		for (i = 0;i < groupframes;i++)
+		for (framenumx = 0; framenumx < groupframes; framenumx ++)
 		{
 			datapointer += sizeof(daliasframe_t);
 			Mod_ConvertAliasVerts(inverts, (trivertx_t *)datapointer, loadmodel->surfmesh.data_morphmdlvertex + pose * loadmodel->surfmesh.num_vertices, vertremap);
@@ -936,11 +933,11 @@ void Mod_BuildAliasSkinsFromSkinFiles(texture_t *skin, skinfile_t *skinfile, con
 		for (i = 0;skinfile;skinfile = skinfile->next, i++, skin += loadmodel->num_surfaces)
 		{
 			memset(skin, 0, sizeof(*skin));
-			// see if a mesh
-			for (skinfileitem = skinfile->items;skinfileitem;skinfileitem = skinfileitem->next)
+			// see if a mesh .. Baker: As opposed to some name we don't know.
+			for (skinfileitem = skinfile->items; skinfileitem; skinfileitem = skinfileitem->next)
 			{
 				// leave the skin unitialized (nodraw) if the replacement is "common/nodraw" or "textures/common/nodraw"
-				if (String_Does_Match(skinfileitem->name, meshname))
+				if (String_Match(skinfileitem->name, meshname))
 				{
 					Image_StripImageExtension(skinfileitem->replacement, stripbuf, sizeof(stripbuf));
 					if (developer_extra.integer)
@@ -954,7 +951,7 @@ void Mod_BuildAliasSkinsFromSkinFiles(texture_t *skin, skinfile_t *skinfile, con
 				// don't render unmentioned meshes
 				Mod_LoadCustomMaterial(loadmodel->mempool, skin, meshname, SUPERCONTENTS_SOLID, MATERIALFLAG_WALL, R_SkinFrame_LoadMissing());
 				if (developer_extra.integer)
-					Con_DPrintf ("--> skipping\n");
+					Con_DPrintLinef ("--> skipping");
 				skin->basematerialflags = skin->currentmaterialflags = MATERIALFLAG_NOSHADOW | MATERIALFLAG_NODRAW;
 			}
 		}
@@ -1044,7 +1041,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 	BOUNDI((int)loadmodel->synctype,0,2);
 	
 	i = LittleLong (pinmodel->aliasflags);
-#pragma message ("Baker: This is not quite the right way disable PRYDON CURSOR with model load")
+//#pragma message ("Baker: This is not quite the right way disable PRYDON CURSOR with model load")
 #if 1 // Baker r0087: Fence texture q1 mdl support
 	if (gamemode != GAME_PRYDON) {
 		if (Have_Flag (i /*pinmodel->flags*/, MF_FENCE) ) {
@@ -1061,7 +1058,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 	if (strstr(r_nolerp_list.string, loadmodel->model_name))
 		loadmodel->nolerp = true;
 
-	for (i = 0;i < 3;i++)
+	for (i = 0; i < 3; i ++)
 	{
 		loadmodel->surfmesh.num_morphmdlframescale[i] = LittleFloat (pinmodel->scale[i]);
 		loadmodel->surfmesh.num_morphmdlframetranslate[i] = LittleFloat (pinmodel->scale_origin[i]);
@@ -1069,7 +1066,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 
 	startskins = datapointer;
 	totalskins = 0;
-	for (i = 0;i < loadmodel->numskins;i++) {
+	for (i = 0; i < loadmodel->numskins; i ++) {
 		pinskintype = (daliasskintype_t *)datapointer;
 		datapointer += sizeof(daliasskintype_t);
 		if (LittleLong(pinskintype->type) == ALIAS_SKIN_SINGLE)
@@ -1096,7 +1093,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 
 	startframes = datapointer;
 	loadmodel->surfmesh.num_morphframes = 0;
-	for (i = 0;i < loadmodel->numframes;i++) {
+	for (i = 0; i < loadmodel->numframes; i ++) {
 		pinframetype = (daliasframetype_t *)datapointer;
 		datapointer += sizeof(daliasframetype_t);
 		if (LittleLong (pinframetype->type) == ALIAS_SINGLE)
@@ -1114,7 +1111,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 			datapointer += sizeof(daliasinterval_t) * groupframes;
 		}
 
-		for (j = 0;j < groupframes;j++)
+		for (j = 0;j < groupframes; j ++)
 		{
 			datapointer += sizeof(daliasframe_t);
 			datapointer += sizeof(trivertx_t) * numverts;
@@ -1131,7 +1128,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 
 	scales = 1.0 / skinwidth;
 	scalet = 1.0 / skinheight;
-	for (i = 0;i < numverts;i++) {
+	for (i = 0; i < numverts; i ++) {
 		vertonseam[i] = LittleLong(pinstverts[i].onseam);
 		vertst[i*2+0] = LittleLong(pinstverts[i].s) * scales;
 		vertst[i*2+1] = LittleLong(pinstverts[i].t) * scalet;
@@ -1143,13 +1140,15 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 	loadmodel->surfmesh.data_element3i = (int *)Mem_Alloc(loadmodel->mempool, sizeof(int[3]) * loadmodel->surfmesh.num_triangles);
 
 	// read the triangle elements
-	for (i = 0;i < loadmodel->surfmesh.num_triangles;i++)
-		for (j = 0;j < 3;j++)
+	for (i = 0; i < loadmodel->surfmesh.num_triangles; i ++)
+		for (j = 0; j < 3; j ++)
 			loadmodel->surfmesh.data_element3i[i*3+j] = LittleLong(pintriangles[i].vertindex[j]);
 	// validate (note numverts is used because this is the original data)
 	Mod_ValidateElements(loadmodel->surfmesh.data_element3i, NULL, loadmodel->surfmesh.num_triangles, 0, numverts, __FILE__, __LINE__);
 	// now butcher the elements according to vertonseam and tri->facesfront
 	// and then compact the vertex set to remove duplicates
+	
+	// BAKER: Checks each vertex to see if it is used
 	for (i = 0;i < loadmodel->surfmesh.num_triangles;i++)
 		if (!LittleLong(pintriangles[i].facesfront)) // backface
 			for (j = 0;j < 3;j++)
@@ -1157,13 +1156,17 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 					loadmodel->surfmesh.data_element3i[i*3+j] += numverts;
 	// count the usage
 	// (this uses vertremap to count usage to save some memory)
-	for (i = 0;i < numverts*2;i++)
+	for (i = 0; i < numverts*2; i ++)
 		vertremap[i] = 0;
-	for (i = 0;i < loadmodel->surfmesh.num_triangles*3;i++)
-		vertremap[loadmodel->surfmesh.data_element3i[i]]++;
+
+	// TAGALIASX MDL
+
+	// Baker: Counts vertex number of times it is used by a triangle.
+	for (i = 0; i < loadmodel->surfmesh.num_triangles * 3; i ++)
+		vertremap [loadmodel->surfmesh.data_element3i[i]]++;
 	// build remapping table and compact array
 	loadmodel->surfmesh.num_vertices = 0;
-	for (i = 0;i < numverts*2;i++) {
+	for (i = 0; i < numverts * 2; i ++) {
 		if (vertremap[i]) {
 			vertremap[i] = loadmodel->surfmesh.num_vertices;
 			vertst[loadmodel->surfmesh.num_vertices*2+0] = vertst[i*2+0];
@@ -1174,11 +1177,11 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 			vertremap[i] = -1; // not used at all
 	}
 	// remap the elements to the new vertex set
-	for (i = 0;i < loadmodel->surfmesh.num_triangles * 3;i++)
+	for (i = 0; i < loadmodel->surfmesh.num_triangles * 3; i ++)
 		loadmodel->surfmesh.data_element3i[i] = vertremap[loadmodel->surfmesh.data_element3i[i]];
 	// store the texture coordinates
 	loadmodel->surfmesh.data_texcoordtexture2f = (float *)Mem_Alloc(loadmodel->mempool, sizeof(float[2]) * loadmodel->surfmesh.num_vertices);
-	for (i = 0;i < loadmodel->surfmesh.num_vertices;i++) {
+	for (i = 0; i < loadmodel->surfmesh.num_vertices; i ++) {
 		loadmodel->surfmesh.data_texcoordtexture2f[i*2+0] = vertst[i*2+0];
 		loadmodel->surfmesh.data_texcoordtexture2f[i*2+1] = vertst[i*2+1];
 	}
@@ -1187,7 +1190,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 	if (loadmodel->surfmesh.num_vertices <= 65536)
 		loadmodel->surfmesh.data_element3s = (unsigned short *)Mem_Alloc(loadmodel->mempool, sizeof(unsigned short[3]) * loadmodel->surfmesh.num_triangles);
 	if (loadmodel->surfmesh.data_element3s)
-		for (i = 0;i < loadmodel->surfmesh.num_triangles*3;i++)
+		for (i = 0; i < loadmodel->surfmesh.num_triangles * 3; i ++)
 			loadmodel->surfmesh.data_element3s[i] = loadmodel->surfmesh.data_element3i[i];
 
 // load the frames
@@ -1209,7 +1212,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 		loadmodel->data_textures = (texture_t *)Mem_Alloc(loadmodel->mempool, loadmodel->num_surfaces * loadmodel->numskins * sizeof(texture_t));
 		Mod_BuildAliasSkinsFromSkinFiles(loadmodel->data_textures, skinfiles, "default", "");
 		Mod_FreeSkinFiles(skinfiles);
-		for (i = 0;i < loadmodel->numskins;i++) {
+		for (i = 0; i < loadmodel->numskins; i ++) {
 			loadmodel->skinscenes[i].firstframe = i;
 			loadmodel->skinscenes[i].framecount = 1;
 			loadmodel->skinscenes[i].loop = true;
@@ -1222,7 +1225,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 		loadmodel->data_textures = (texture_t *)Mem_Alloc(loadmodel->mempool, loadmodel->num_surfaces * totalskins * sizeof(texture_t));
 		totalskins = 0;
 		datapointer = startskins;
-		for (i = 0;i < loadmodel->numskins;i++) {
+		for (i = 0; i < loadmodel->numskins; i ++) {
 			pinskintype = (daliasskintype_t *)datapointer;
 			datapointer += sizeof(daliasskintype_t);
 
@@ -1251,7 +1254,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 			loadmodel->skinscenes[i].framerate = 1.0f / interval;
 			loadmodel->skinscenes[i].loop = true;
 
-			for (j = 0;j < groupskins;j++) {
+			for (j = 0; j < groupskins; j ++) {
 				if (groupskins > 1)
 					dpsnprintf (name, sizeof(name), "%s_%d_%d", loadmodel->model_name, i, j);
 				else
@@ -1285,8 +1288,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 		// check for skins that don't exist in the model, but do exist as external images
 		// (this was added because yummyluv kept pestering me about support for it)
 		// TODO: support shaders here?
-		for (;;)
-		{
+		for (;;) {
 			dpsnprintf(name, sizeof(name), "%s_%d", loadmodel->model_name, loadmodel->numskins);
 			tempskinframe = R_SkinFrame_LoadExternal(name, (r_mipskins.integer ? TEXF_MIPMAP : 0) | TEXF_ALPHA | TEXF_PICMIP | TEXF_COMPRESS, q_tx_fallback_notexture_false, q_tx_complain_false);
 			if (!tempskinframe)
@@ -1341,6 +1343,240 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
 		loadmodel->TracePoint = Mod_CollisionBIH_TracePoint_Mesh;
 		loadmodel->PointSuperContents = Mod_CollisionBIH_PointSuperContents_Mesh;
 	}
+
+	// Baker: Work through the animations here
+	// Somehow get the verts for a triangle
+	// Calculate the center
+	// Calculate the normal
+	// Add a tag?
+	// Which triangles?/*
+	//if (loadmodel->surfmesh.data_element3s)
+	//	for (i = 0; i < loadmodel->surfmesh.num_triangles * 3; i ++)
+	//		loadmodel->surfmesh.data_element3s[i] = loadmodel->surfmesh.data_element3i[i];*/
+	// We should output to a text file.
+
+	// TAGALIAS MDL COME HERE
+	//int			comma_items_count = String_Count_Char (s_singleton, ',') + 1;
+	va_super (tagsfilename,MAX_QPATH_128, "%s.md3tags", loadmodel->model_name);
+	fs_offset_t filesize;
+	char *s_lines_za = (char *)FS_LoadFile (tagsfilename, tempmempool, fs_quiet_true, &filesize);
+	//	// mdl tag file indicating triangles to tag
+	//	tagbackpack,184,taghead,100,taghand,184,tagbackpack2,273
+
+	//#define MYTAGS "tagbackpack,184,taghead,100,taghand,184,tagbackpack2,273"
+	while (s_lines_za) {
+		// Split it and read first line that doesn't start with // <---
+		#define MAX_MDL_TAGS_16 16
+		char mdl_tagnames[MAX_MDL_TAGS_16][64];
+		int  mdl_trianglenum[MAX_MDL_TAGS_16];
+		
+
+		char *s_tags_za = NULL;
+		stringlist_t list = {0};
+		stringlistappend_split_lines_cr_scrub (&list, s_lines_za);
+		for (int linenum = 0; linenum < list.numstrings; linenum ++) {
+			ccs *s_this_line = list.strings[linenum];
+			if (String_Starts_With (s_this_line, "//") || s_this_line[0] == 0)
+				continue; // Comment or empty line
+			s_tags_za = Z_StrDup (s_this_line);
+			break; // We only read 1 line
+		} // for
+		stringlistfreecontents (&list);
+		Mem_FreeNull_ (s_lines_za);
+
+		if (!s_tags_za) {
+			Con_PrintLinef ("No line with tags in " QUOTED_S, tagsfilename);
+			break;
+		}
+
+		int numcommaseparatedelements = String_Count_Char (s_tags_za, ',') + 1;
+		
+		if (Math_IsOdd(numcommaseparatedelements) || numcommaseparatedelements == 0) {
+			Con_PrintLinef ("Tags in " QUOTED_S " has %d comma separated items expected even number", tagsfilename, numcommaseparatedelements);
+			break;
+		}
+
+		int numtags_here = numcommaseparatedelements / 2;
+
+		if (numtags_here >= MAX_MDL_TAGS_16) {
+			Con_PrintLinef ("Number of Tags >= MAX_MDL_TAGS_16");
+			break;
+		}
+		
+		// Baker: Need this here
+		const msurface_t *surface = loadmodel->data_surfaces;
+
+		// Parse the tags
+		int isok = true;
+		for (int tagnum = 0; tagnum < numtags_here; tagnum ++) {
+			char *sname_malloc = String_Instance_Malloc_Base1 (s_tags_za, ',', tagnum*2 +1 + 0, NULL);
+			char *snumb_malloc = String_Instance_Malloc_Base1 (s_tags_za, ',', tagnum*2 +1 + 1, NULL);
+			int d = atoi(snumb_malloc);
+			//	// mdl tag file indicating triangles to tag
+			//	tagbackpack,184,taghead,100,taghand,184,tagbackpack2,273
+			//triangleindex < surface->num_triangles
+			if (in_range(0, d, surface->num_triangles - 1) == false) {
+				Con_PrintLinef ("Tag triangle index %d is out of range 0 to surface->num_triangles -1 which is %d",
+					d, surface->num_triangles - 1);
+				isok = false;
+			}
+
+			c_strlcpy (mdl_tagnames[tagnum], sname_malloc);
+			mdl_trianglenum[tagnum] = d;
+			freenull_ (sname_malloc);
+			freenull_ (snumb_malloc);
+		}
+
+		Mem_FreeNull_ (s_tags_za);
+
+		if (isok == false) {
+			break; // We already did error message
+		}
+
+		//#define TAGNAMEHERE "tagbackpack"
+		//int trianglewanted = 184; // I hope
+
+		loadmodel->num_tagframes = loadmodel->numframes;
+		loadmodel->num_tags = numtags_here;
+		loadmodel->data_tags = (aliastag_t *)Mem_Alloc(loadmodel->mempool, loadmodel->num_tagframes * 
+			loadmodel->num_tags * sizeof(aliastag_t));  // TAGALIASX - MDL
+
+		float *freevertex3f = NULL;
+		freevertex3f = (float *)Mem_Alloc(tempmempool, loadmodel->surfmesh.num_vertices * sizeof(float[3]));
+		
+		// Baker: Let's walk this sanely
+		for (int posenum = 0; posenum < loadmodel->num_tagframes /** loadmodel->num_tags*/; posenum ++) {
+			// REFRESH VERTS
+			frameblend_t frameblend[MAX_FRAMEBLENDS_8] = {0};
+			frameblend[0].subframe = posenum;
+			frameblend[1].subframe = posenum;
+			frameblend[0].rlerp = 0;
+			frameblend[1].rlerp = 1;
+
+			loadmodel->AnimateVertices(loadmodel, frameblend, NULL, freevertex3f, NULL, NULL, NULL); // Mod_MDL_AnimateVertices - TRACELINE
+
+			for (int tagnum = 0; tagnum < loadmodel->num_tags; tagnum ++) {
+				int idx = posenum * loadmodel->num_tags + tagnum;
+				char *sname = mdl_tagnames[tagnum];
+				int trianglewanted = mdl_trianglenum[tagnum];
+
+				c_strlcpy (loadmodel->data_tags[idx].name, sname);
+
+				int triangleindex;
+				const int *etri;
+				triangleindex = 0, etri = loadmodel->surfmesh.data_element3i + surface->num_firsttriangle * 3;
+				triangleindex += trianglewanted * 1, etri += (3 * trianglewanted);
+				//	// mdl tag file indicating triangles to tag
+				//	tagbackpack,184,taghead,100,taghand,184,tagbackpack2,273
+
+				vec3_t a, b, c;
+				vec3_t center;
+
+				VectorCopy(freevertex3f + 3*loadmodel->surfmesh.data_element3i[triangleindex*3+0], a);
+				VectorCopy(freevertex3f + 3*loadmodel->surfmesh.data_element3i[triangleindex*3+1], b);
+				VectorCopy(freevertex3f + 3*loadmodel->surfmesh.data_element3i[triangleindex*3+2], c);
+
+				center[0] = (a[0] + b[0] + c[0]) / 3.0;
+				center[1] = (a[1] + b[1] + c[1]) / 3.0;
+				center[2] = (a[2] + b[2] + c[2]) / 3.0;
+
+				loadmodel->data_tags[idx].matrixgl[9] = center[0];
+				loadmodel->data_tags[idx].matrixgl[10] = center[1];
+				loadmodel->data_tags[idx].matrixgl[11] = center[2];
+
+				// Baker: Identity for now ... 
+				//if (0) {
+				//	loadmodel->data_tags[idx].matrixgl[0] = 0; loadmodel->data_tags[idx].matrixgl[1] = 0; loadmodel->data_tags[idx].matrixgl[2] = 0;
+				//	loadmodel->data_tags[idx].matrixgl[3] = 0; loadmodel->data_tags[idx].matrixgl[4] = 1; loadmodel->data_tags[idx].matrixgl[5] = 0;
+				//	loadmodel->data_tags[idx].matrixgl[6] = 0; loadmodel->data_tags[idx].matrixgl[7] = 0; loadmodel->data_tags[idx].matrixgl[8] = 1;
+				//	WARP_X_ (Matrix4x4_CreateFromQuakeEntity)
+				//} 
+				//
+				//else {
+					// Normal and then GL rotate basically?
+					// CrossProduct (a, b, c);
+					//var dir = Vector3.Cross(b - a, c - a);
+					//var norm = Vector3.Normalize(dir);
+
+					vec3_t d1, d2, norm;
+					
+					VectorSubtract		(b, a, d1);
+					VectorSubtract		(c, a, d2);
+					CrossProduct		(d1, d2, norm);
+					VectorNormalize		(norm);
+
+
+					//d = DotProduct (normal, lightDir);
+					//matrix4x4_t m1, m2, m3, m4, m5, mx;
+					//Matrix4x4_CreateTranslate	(&m1, center[0], center[1], center[2]);
+					//Matrix4x4_CreateRotate		(&m2, norm[0], 1, 0, 0); // pitch
+					//Matrix4x4_CreateRotate		(&m3, norm[1], 0, 1, 0); // yaw
+					//Matrix4x4_CreateRotate		(&m4, norm[2], 0, 0, 1); // roll
+					vec3_t angles;
+					//vec3_t up = {0,0,0};
+					AnglesFromVectors (angles, norm, NULL, /*flippitch*/ false);
+					matrix4x4_t mx;
+					float mtest[4][3];
+					Matrix4x4_CreateIdentity	(&mx);
+					Matrix4x4_CreateTranslate	(&mx, center[0], center[1], center[2]);
+					//Matrix4x4_ConcatRotate		(&mx, norm[0], 1, 0, 0); // pitch
+					//Matrix4x4_ConcatRotate		(&mx, norm[1], 0, 1, 0); // yaw
+					//Matrix4x4_ConcatRotate		(&mx, norm[2], 0, 0, 1); // roll
+					Matrix4x4_ConcatRotate		(&mx, angles[0], 1, 0, 0); // pitch
+					Matrix4x4_ConcatRotate		(&mx, angles[1], 0, 1, 0); // yaw
+					Matrix4x4_ConcatRotate		(&mx, angles[2], 0, 0, 1); // roll
+					Matrix4x4_ToArray12FloatGL	(&mx, mtest);
+					float *f = (float *)mtest;
+					for (int y = 0; y < 12; y ++) {
+						loadmodel->data_tags[idx].matrixgl[y]=f[y];
+					}
+					
+
+					//float matrixgl[12];
+
+					//loadmodel->data_tags[idx].matrixgl[0] = norm[0]; loadmodel->data_tags[idx].matrixgl[1] = 0; loadmodel->data_tags[idx].matrixgl[2] = 0;
+					//loadmodel->data_tags[idx].matrixgl[3] = 0; loadmodel->data_tags[idx].matrixgl[4] = norm[1]; loadmodel->data_tags[idx].matrixgl[5] = 0;
+					//loadmodel->data_tags[idx].matrixgl[6] = 0; loadmodel->data_tags[idx].matrixgl[7] = 0; loadmodel->data_tags[idx].matrixgl[8] = norm[2];
+
+//				}
+
+				if (1 || developer_loading.integer) {
+					Con_PrintLinef ("model " QUOTED_S " frame #%d tag #%d triangle %d" QUOTED_S, 
+					loadmodel->model_name, 
+					posenum, // Frame number?  But why ...
+					tagnum, 
+					triangleindex,
+					loadmodel->data_tags[idx].name);
+
+					Con_PrintLinef ("a " VECTOR3_5d1F,  VECTOR3_SEND(a) );
+					Con_PrintLinef ("b " VECTOR3_5d1F,  VECTOR3_SEND(b) );
+					Con_PrintLinef ("c " VECTOR3_5d1F,  VECTOR3_SEND(c) );
+					Con_PrintLinef ("org " VECTOR3_5d1F, VECTOR3_SEND(center) );
+
+					Con_PrintLinef ("norm " VECTOR3_5d1F, 
+						VECTOR3_SEND(norm)
+					);
+
+					vec3_t vangles;
+					AnglesFromVectors (vangles, norm, NULL, /*flip pitch?*/ false);
+					Con_PrintLinef ("euler for norm " VECTOR3_5d1F, 
+						VECTOR3_SEND(vangles)
+					);
+
+					Con_PrintLinef ("tag origin " VECTOR3_5d1F " rot "  VECTOR9_5d1F, 
+						VECTOR3_SEND(&loadmodel->data_tags[idx].matrixgl[9]), 
+						VECTOR9_SEND(loadmodel->data_tags[idx].matrixgl /*rotmat*/)
+					);
+
+				}
+
+			} // for tagnum
+		} // for posenum
+
+		Mem_FreeNull_ (freevertex3f);
+		break;
+	} // while player tag model
+
 	return true;
 }
 
@@ -1618,7 +1854,7 @@ int Mod_IDP3_Load(model_t *mod, void *buffer, void *bufferend)
 	if (version != MD3VERSION)
 		Host_Error_Line ("%s has wrong version number (%d should be %d)", loadmodel->model_name, version, MD3VERSION);
 
-	skinfiles = Mod_LoadSkinFiles();
+	skinfiles = Mod_LoadSkinFiles(); // TAGX MD3
 	if (loadmodel->numskins < 1)
 		loadmodel->numskins = 1;
 
@@ -1647,13 +1883,12 @@ int Mod_IDP3_Load(model_t *mod, void *buffer, void *bufferend)
 
 	// make skinscenes for the skins (no groups)
 	loadmodel->skinscenes = (animscene_t *)Mem_Alloc(loadmodel->mempool, sizeof(animscene_t) * loadmodel->numskins);
-	for (i = 0;i < loadmodel->numskins;i++)
-	{
+	for (i = 0; i < loadmodel->numskins; i++) {
 		loadmodel->skinscenes[i].firstframe = i;
 		loadmodel->skinscenes[i].framecount = 1;
 		loadmodel->skinscenes[i].loop = true;
 		loadmodel->skinscenes[i].framerate = 10;
-	}
+	} // for
 
 	// load frameinfo
 	loadmodel->animscenes = (animscene_t *)Mem_Alloc(loadmodel->mempool, loadmodel->numframes * sizeof(animscene_t));
@@ -1666,18 +1901,44 @@ int Mod_IDP3_Load(model_t *mod, void *buffer, void *bufferend)
 		loadmodel->animscenes[i].loop = true;
 	}
 
+	// TAGX PRIME - TAGALIASX - MD3
 	// load tags
 	loadmodel->num_tagframes = loadmodel->numframes;
 	loadmodel->num_tags = LittleLong(pinmodel->num_tags);
-	loadmodel->data_tags = (aliastag_t *)Mem_Alloc(loadmodel->mempool, loadmodel->num_tagframes * loadmodel->num_tags * sizeof(aliastag_t));
-	for (i = 0, pintag = (md3tag_t *)((unsigned char *)pinmodel + LittleLong(pinmodel->lump_tags));i < loadmodel->num_tagframes * loadmodel->num_tags;i++, pintag++)
+	loadmodel->data_tags = (aliastag_t *)Mem_Alloc(loadmodel->mempool, loadmodel->num_tagframes * 
+		loadmodel->num_tags * sizeof(aliastag_t));  // TAGALIASX - MD3
+	// loadmodel->num_tagframes * loadmodel->num_tags
 	{
-		strlcpy(loadmodel->data_tags[i].name, pintag->name, sizeof(loadmodel->data_tags[i].name));
-		for (j = 0;j < 9;j++)
-			loadmodel->data_tags[i].matrixgl[j] = LittleFloat(pintag->rotationmatrix[j]);
-		for (j = 0;j < 3;j++)
-			loadmodel->data_tags[i].matrixgl[9+j] = LittleFloat(pintag->origin[j]);
-		//Con_PrintLinef ("model " QUOTED_S " frame #%d tag #%d " QUOTED_S, loadmodel->name, i / loadmodel->num_tags, i % loadmodel->num_tags, loadmodel->data_tags[i].name);
+	
+	int jj;
+	for (jj = 0, pintag = (md3tag_t *)((unsigned char *)pinmodel + LittleLong(pinmodel->lump_tags));
+		jj < loadmodel->num_tagframes * loadmodel->num_tags;
+		jj ++, pintag++) {
+		int posenum = jj / loadmodel->num_tags;
+		int tagnum = jj % loadmodel->num_tags;
+		// Baker: Wow!  Every frame gets the name again.
+		c_strlcpy (loadmodel->data_tags[jj].name, pintag->name);//, sizeof(loadmodel->data_tags[jj].name));
+		float org[3], rotmat[9];
+		for (j = 0;j < 9;j++) {
+			rotmat[j] = loadmodel->data_tags[jj].matrixgl[j] = LittleFloat(pintag->rotationmatrix[j]);
+		}
+		
+		for (j = 0;j < 3;j++) {
+			org[j] = loadmodel->data_tags[jj].matrixgl[9+j] = LittleFloat(pintag->origin[j]);
+		}
+		if (developer_loading.integer) {
+			Con_PrintLinef ("model " QUOTED_S " frame #%d tag #%d " QUOTED_S, 
+			loadmodel->model_name, 
+			posenum, // Frame number?  But why ...
+			tagnum, 
+			loadmodel->data_tags[jj].name);
+		
+			Con_PrintLinef ("tag origin " VECTOR3_5d1F " rot "  VECTOR9_5d1F, 
+				VECTOR3_SEND(org), 
+				VECTOR9_SEND(rotmat)
+			);
+		}
+	} // for
 	}
 
 	// load meshes
@@ -1708,8 +1969,7 @@ int Mod_IDP3_Load(model_t *mod, void *buffer, void *bufferend)
 	loadmodel->surfmesh.data_element3i = (int *)data;data += meshtriangles * sizeof(int[3]);
 	loadmodel->surfmesh.data_texcoordtexture2f = (float *)data;data += meshvertices * sizeof(float[2]);
 	loadmodel->surfmesh.data_morphmd3vertex = (md3vertex_t *)data;data += meshvertices * loadmodel->numframes * sizeof(md3vertex_t);
-	if (meshvertices <= 65536)
-	{
+	if (meshvertices <= 65536) {
 		loadmodel->surfmesh.data_element3s = (unsigned short *)data;data += meshtriangles * sizeof(unsigned short[3]);
 	}
 
@@ -1758,7 +2018,12 @@ int Mod_IDP3_Load(model_t *mod, void *buffer, void *bufferend)
 		Mod_BuildAliasSkinsFromSkinFiles(loadmodel->data_textures + i, skinfiles, pinmesh->name, LittleLong(pinmesh->num_shaders) >= 1 ? ((md3shader_t *)((unsigned char *) pinmesh + LittleLong(pinmesh->lump_shaders)))->name : "");
 
 		Mod_ValidateElements(loadmodel->surfmesh.data_element3i + surface->num_firsttriangle * 3, loadmodel->surfmesh.data_element3s + surface->num_firsttriangle * 3, surface->num_triangles, surface->num_firstvertex, surface->num_vertices, __FILE__, __LINE__);
+
+		if (developer_loading.integer) {
+			Con_PrintLinef ("Mesh %2d: %s", i, pinmesh->name);
+		}
 	}
+
 	Mod_Alias_MorphMesh_CompileFrames();
 	loadmodel->surfmesh.isanimated = Mod_Alias_CalculateBoundingBox();
 	Mod_FreeSkinFiles(skinfiles);
@@ -1768,8 +2033,7 @@ int Mod_IDP3_Load(model_t *mod, void *buffer, void *bufferend)
 
 	// Always make a BIH for the first frame, we can use it where possible.
 	Mod_MakeCollisionBIH(loadmodel, true, &loadmodel->collision_bih);
-	if (!loadmodel->surfmesh.isanimated)
-	{
+	if (!loadmodel->surfmesh.isanimated) {
 		loadmodel->TraceBox = Mod_CollisionBIH_TraceBox;
 		loadmodel->TraceBrush = Mod_CollisionBIH_TraceBrush;
 		loadmodel->TraceLine = Mod_CollisionBIH_TraceLine;
@@ -2607,11 +2871,11 @@ int Mod_PSKMODEL_Load(model_t *mod, void *buffer, void *bufferend)
 			Con_DPrintLinef ("%s: %s %x: %d * %d = %d", loadmodel->model_name, pchunk->id, version, recordsize, numrecords, recordsize * numrecords);
 		if (version != 0x1e83b9 && version != 0x1e9179 && version != 0x2e && version != 0x12f2bc && version != 0x12f2f0)
 			Con_PrintLinef ("%s: chunk %s has unknown version %x (0x1e83b9, 0x1e9179, 0x2e, 0x12f2bc, 0x12f2f0 are currently supported), trying to load anyway!", loadmodel->model_name, pchunk->id, version);
-		if (String_Does_Match(pchunk->id, "ACTRHEAD"))
+		if (String_Match(pchunk->id, "ACTRHEAD"))
 		{
 			// nothing to do
 		}
-		else if (String_Does_Match(pchunk->id, "PNTS0000"))
+		else if (String_Match(pchunk->id, "PNTS0000"))
 		{
 			pskpnts_t *p;
 			if (recordsize != sizeof(*p))
@@ -2627,7 +2891,7 @@ int Mod_PSKMODEL_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 			buffer = p;
 		}
-		else if (String_Does_Match(pchunk->id, "VTXW0000"))
+		else if (String_Match(pchunk->id, "VTXW0000"))
 		{
 			pskvtxw_t *p;
 			if (recordsize != sizeof(*p))
@@ -2648,7 +2912,7 @@ int Mod_PSKMODEL_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 			buffer = p;
 		}
-		else if (String_Does_Match(pchunk->id, "FACE0000"))
+		else if (String_Match(pchunk->id, "FACE0000"))
 		{
 			pskface_t *p;
 			if (recordsize != sizeof(*p))
@@ -2680,7 +2944,7 @@ int Mod_PSKMODEL_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 			buffer = p;
 		}
-		else if (String_Does_Match(pchunk->id, "MATT0000"))
+		else if (String_Match(pchunk->id, "MATT0000"))
 		{
 			pskmatt_t *p;
 			if (recordsize != sizeof(*p))
@@ -2694,7 +2958,7 @@ int Mod_PSKMODEL_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 			buffer = p;
 		}
-		else if (String_Does_Match(pchunk->id, "REFSKELT"))
+		else if (String_Match(pchunk->id, "REFSKELT"))
 		{
 			pskboneinfo_t *p;
 			if (recordsize != sizeof(*p))
@@ -2738,7 +3002,7 @@ int Mod_PSKMODEL_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 			buffer = p;
 		}
-		else if (String_Does_Match(pchunk->id, "RAWWEIGHTS"))
+		else if (String_Match(pchunk->id, "RAWWEIGHTS"))
 		{
 			pskrawweights_t *p;
 			if (recordsize != sizeof(*p))
@@ -2777,11 +3041,11 @@ int Mod_PSKMODEL_Load(model_t *mod, void *buffer, void *bufferend)
 			Con_DPrintf ("%s: %s %x: %d * %d = %d\n", animname, pchunk->id, version, recordsize, numrecords, recordsize * numrecords);
 		if (version != 0x1e83b9 && version != 0x1e9179 && version != 0x2e && version != 0x12f2bc && version != 0x12f2f0)
 			Con_Printf ("%s: chunk %s has unknown version %x (0x1e83b9, 0x1e9179, 0x2e, 0x12f2bc, 0x12f2f0 are currently supported), trying to load anyway!\n", animname, pchunk->id, version);
-		if (String_Does_Match(pchunk->id, "ANIMHEAD"))
+		if (String_Match(pchunk->id, "ANIMHEAD"))
 		{
 			// nothing to do
 		}
-		else if (String_Does_Match(pchunk->id, "BONENAMES"))
+		else if (String_Match(pchunk->id, "BONENAMES"))
 		{
 			pskboneinfo_t *p;
 			if (recordsize != sizeof(*p))
@@ -2834,7 +3098,7 @@ int Mod_PSKMODEL_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 			animbuffer = p;
 		}
-		else if (String_Does_Match(pchunk->id, "ANIMINFO"))
+		else if (String_Match(pchunk->id, "ANIMINFO"))
 		{
 			pskaniminfo_t *p;
 			if (recordsize != sizeof(*p))
@@ -2854,7 +3118,7 @@ int Mod_PSKMODEL_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 			animbuffer = p;
 		}
-		else if (String_Does_Match(pchunk->id, "ANIMKEYS"))
+		else if (String_Match(pchunk->id, "ANIMKEYS"))
 		{
 			pskanimkeys_t *p;
 			if (recordsize != sizeof(*p))

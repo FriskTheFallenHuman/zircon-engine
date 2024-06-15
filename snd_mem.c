@@ -115,13 +115,13 @@ qbool S_LoadSound (sfx_t *sfx, qbool complain)
 	{
 		dpsnprintf (namebuffer, sizeof(namebuffer), "sound/%s", sfx->name);
 		len = strlen(namebuffer);
-		if (len >= 4 && String_Does_Match_Caseless (namebuffer + len - 4, ".wav"))
+		if (len >= 4 && String_Match_Caseless (namebuffer + len - 4, ".wav"))
 		{
 			if (S_LoadWavFile (namebuffer, sfx))
 				goto loaded;
 			memcpy (namebuffer + len - 3, "ogg", 4);
 		}
-		if (len >= 4 && String_Does_Match_Caseless (namebuffer + len - 4, ".ogg"))
+		if (len >= 4 && String_Match_Caseless (namebuffer + len - 4, ".ogg"))
 		{
 			if (OGG_LoadVorbisFile (namebuffer, sfx))
 				goto loaded;
@@ -141,13 +141,13 @@ qbool S_LoadSound (sfx_t *sfx, qbool complain)
 	// request foo.wav: tries foo.wav, then foo.ogg
 	// request foo.ogg: tries foo.ogg only
 	// request foo.mod: tries foo.mod only
-	if (len >= 4 && String_Does_Match_Caseless (namebuffer + len - 4, ".wav"))
+	if (len >= 4 && String_Match_Caseless (namebuffer + len - 4, ".wav"))
 	{
 		if (S_LoadWavFile (namebuffer, sfx))
 			goto loaded;
 		memcpy (namebuffer + len - 3, "ogg", 4);
 	}
-	if (len >= 4 && String_Does_Match_Caseless (namebuffer + len - 4, ".ogg"))
+	if (len >= 4 && String_Match_Caseless (namebuffer + len - 4, ".ogg"))
 	{
 		if (OGG_LoadVorbisFile (namebuffer, sfx))
 			goto loaded;

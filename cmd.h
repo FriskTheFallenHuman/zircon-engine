@@ -44,6 +44,11 @@ The game starts with a Cbuf_AddTextLine ("exec quake.rc"); Cbuf_Execute ();
 struct cmd_state_s;
 
 // Command flags
+
+WARP_X_ (CL_SetupWorldModel, SV_SpawnServer)
+#define CL_RESETNEWMAP_0		0		// Baker: Informational.  Make sure is reset in CL_SetupWorldModel
+#define SV_RESETNEWMAP_0		0		// 
+
 #define CF_NONE 0
 #define CF_CLIENT               (1<<0)  // 1	cvar/command that only the client can change/execute
 #define CF_SERVER               (1<<1)  // 2	cvar/command that only the server can change/execute
@@ -225,10 +230,10 @@ not apropriate.
 
 */
 
-void Cmd_Init(void);
+void Cmd_InitOnce(void);
 void Cmd_Shutdown(void);
 
-// called by Host_Init, this marks cvars, commands and aliases with their init values
+// called by Host_InitOnce, this marks cvars, commands and aliases with their init values
 void Cmd_Host_Init_SaveInitState(void);
 // called by FS_GameDir_f, this restores cvars, commands and aliases to init values
 void Cmd_RestoreInitState(void);

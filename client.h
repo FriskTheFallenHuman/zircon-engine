@@ -307,11 +307,11 @@ dlight_t;
 // note: technically each framegroupblend can produce two of these, but that
 // never happens in practice because no one blends between more than 2
 // framegroups at once
-#define MAX_FRAMEBLENDS (MAX_FRAMEGROUPBLENDS * 2)
+#define MAX_FRAMEBLENDS_8 (MAX_FRAMEGROUPBLENDS_4 * 2)
 typedef struct frameblend_s
 {
 	int subframe;
-	float lerp;
+	float rlerp;
 }
 frameblend_t;
 
@@ -334,7 +334,7 @@ typedef struct entity_render_s
 	// transform matrix for world to model
 	matrix4x4_t inversematrix;
 	// opacity (alpha) of the model
-	float alpha;
+	float ralpha;
 	// size the model is shown
 	float scale;
 	// transparent sorting offset
@@ -361,7 +361,7 @@ typedef struct entity_render_s
 	float glowmod[3];
 
 	// interpolated animation - active framegroups and blend factors
-	framegroupblend_t framegroupblend[MAX_FRAMEGROUPBLENDS];
+	framegroupblend_t framegroupblend[MAX_FRAMEGROUPBLENDS_4];
 
 	// time of last model change (for shader animations)
 	double shadertime;
@@ -371,7 +371,8 @@ typedef struct entity_render_s
 	// calculated during R_AddModelEntities
 	vec3_t mins, maxs;
 	// subframe numbers (-1 if not used) and their blending scalers (0-1), if interpolation is not desired, use subframeblend[0].subframe
-	frameblend_t frameblend[MAX_FRAMEBLENDS];
+
+	frameblend_t frameblend[MAX_FRAMEBLENDS_8]; // Baker: ALIASX -- see subframe and lerp
 	// skeletal animation data (if skeleton.relativetransforms is not NULL, it overrides frameblend)
 	skeleton_t *skeleton;
 
@@ -586,7 +587,7 @@ typedef struct client_static_s { // cls.
 	// -1 = don't play demos
 	int demonum;
 	// list of demos in loop
-	char demos[MAX_DEMOS][MAX_DEMONAME];
+	char demos[MAX_DEMOS_8][MAX_DEMONAME_32];
 	// the actively playing demo (set by CL_PlayDemo)
 	char demoname[MAX_QPATH_128];
 
@@ -736,6 +737,13 @@ typedef struct client_static_s { // cls.
 	// graph scales
 	int r_speeds_graph_datamin[r_stat_count];
 	int r_speeds_graph_datamax[r_stat_count];
+
+	int			levelshots_index_plus1; // So that 0 can be used
+	unsigned int cl_first_world_frame_rendered; // host.superframecount
+
+	ccs *s_find_za;
+	ccs *s_replace_za;
+	ccs *s_effective_za;
 }
 client_static_t;
 
@@ -797,7 +805,7 @@ typedef struct client_state_s
 
 // information for local display
 	// health, etc
-	int stats[MAX_CL_STATS];
+	int stats[MAX_CL_STATS_256];
 	float *statsf; // points to stats[] array
 	// last known inventory bit flags, for blinking
 	int olditems;
@@ -955,9 +963,9 @@ typedef struct client_state_s
 	// for display on solo scoreboard
 	char worldmessage[40]; // map title (not related to filename)
 	// variants of map name
-	char worldbasename[MAX_QPATH_128]; // %s
-	char worldname[MAX_QPATH_128]; // maps/%s.bsp
-	char worldnamenoextension[MAX_QPATH_128]; // maps/%s
+	char worldbasename[MAX_QPATH_128]; // %s like "e1m1"
+	char worldname[MAX_QPATH_128]; // maps/%s.bsp  "maps/e1m1.bsp"
+	char worldnamenoextension[MAX_QPATH_128]; // maps/%s "maps/e1m1" .. used to add an extension light .rtlights .loc etc.
 	// cl_entitites[cl.viewentity] = player
 	int viewentity;
 	// the real player entity (normally same as viewentity,
@@ -1204,6 +1212,23 @@ typedef struct client_state_s
 
 	// used by underwater sound filter (snd_waterfx)
 	qbool view_underwater;
+
+	// Baker: autoscreenshot
+	// Baker: Q: How can we determine the first frame it rendered?
+	WARP_X_ (CL_Frame CL_UpdateScreen CL_UpdateScreen_SCR_DrawScreen VM_CL_R_RenderScene "renderscene" R_RenderView)
+	WARP_X_ (CL_Frame CL_UpdateScreen CL_UpdateScreen_SCR_DrawScreen R_RenderView)
+	WARP_X_ (host.superframecount)
+
+	// cls.world_start_realtime
+
+	char		levelshotsname[MAX_QPATH_128];
+	char		cdtrackname[MAX_QPATH_128];
+
+
+	//cshift_t	cshifts;	// color shifts for damage, powerups
+	//cshift_t	prev_cshifts[NUM_CSHIFTS];						// and content types
+
+	cshift_t v_cshift; // Baker
 }
 client_state_t;
 
@@ -1291,7 +1316,7 @@ void CL_Locs_FindLocationName(char *buffer, size_t buffersize, vec3_t point);
 double CL_Frame(double time);
 
 void CL_Shutdown (void);
-void CL_Init (void);
+void CL_InitOnce (void);
 
 void CL_StartVideo(void);
 

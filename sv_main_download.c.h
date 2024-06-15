@@ -353,7 +353,7 @@ static void SV_Download_f(cmd_state_t *cmd)
 	qbool is_csqc_progs_file; // so we need to check only once
 
 	int is_dpchunks = Cmd_Argc(cmd) >= 3 && 
-		String_Does_Match (Cmd_Argv(cmd, 2), "chunked"); // 
+		String_Match (Cmd_Argv(cmd, 2), "chunked"); // 
 
 	host_client->download_chunked = is_dpchunks ? true : false;
 
@@ -394,7 +394,7 @@ static void SV_Download_f(cmd_state_t *cmd)
 		host_client->download_started = false;
 	}
 
-	is_csqc_progs_file = (sv.csqc_progname[0] && String_Does_Match(s_download_file, sv.csqc_progname));
+	is_csqc_progs_file = (sv.csqc_progname[0] && String_Match(s_download_file, sv.csqc_progname));
 	
 	if (!sv_allowdownloads.integer && !is_csqc_progs_file) {
 		SV_ClientPrintf			("Downloads are disabled on this server" NEWLINE);
@@ -469,7 +469,7 @@ downloadx_sv_start_download:
 	// Baker: sv_allowdownloads_config defaults 0
 	if (!sv_allowdownloads_config.integer) {
 		// This is the norm
-		if (String_Does_Match_Caseless(extension, "cfg")) {
+		if (String_Match_Caseless(extension, "cfg")) {
 			SV_ClientPrintf		("Download rejected: file " QUOTED_S " is a .cfg file which is forbidden for security reasons\nYou must separately download or purchase the data archives for this game/mod to get this file" NEWLINE, host_client->download_name);
 			SV_ClientCommandsf	(NEWLINE "stopdownload" NEWLINE);
 			return;
@@ -479,7 +479,7 @@ downloadx_sv_start_download:
 	// Baker: sv_allowdownloads_dlcache defaults 0
 	if (!sv_allowdownloads_dlcache.integer) {
 		// This is the norm
-		if (String_Does_Start_With_Caseless_PRE (host_client->download_name, "dlcache/")) {
+		if (String_Starts_With_Caseless_PRE (host_client->download_name, "dlcache/")) {
 			SV_ClientPrintf		("Download rejected: file " QUOTED_S " is in the dlcache/ directory "
 									"which is forbidden for security reasons" NEWLINE
 									"You must separately download or purchase the data archives for this game/mod to get this file" NEWLINE, 
@@ -490,7 +490,7 @@ downloadx_sv_start_download:
 	}
 
 	if (!sv_allowdownloads_archive.integer) {
-		if (String_Does_Match_Caseless (extension, "pak") || String_Does_Match_Caseless(extension, "pk3") || String_Does_Match_Caseless(extension, "dpk")) {
+		if (String_Match_Caseless (extension, "pak") || String_Match_Caseless(extension, "pk3") || String_Match_Caseless(extension, "dpk")) {
 			SV_ClientPrintf		("Download rejected: file " QUOTED_S " is an archive" NEWLINE 
 								  "You must separately download or purchase the data archives for this game/mod to get this file" NEWLINE, 
 								  host_client->download_name);

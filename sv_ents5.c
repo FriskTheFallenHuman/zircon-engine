@@ -93,8 +93,8 @@ static int EntityState5_Priority(entityframe5_database_t *d, int stateindex)
 		s = d->states + stateindex;
 		if (s->sflags & RENDER_VIEWMODEL)
 			stateindex = d->viewentnum;
-		else if (s->tagentity)
-			stateindex = s->tagentity;
+		else if (s->tagxentity)
+			stateindex = s->tagxentity;
 		else
 			break;
 		if (d->maxedicts < stateindex)
@@ -140,7 +140,7 @@ static int EntityState5_DeltaBits(const entity_state_t *o, const entity_state_t 
 			bits |= E5_SCALE;
 		if (o->colormap != n->colormap)
 			bits |= E5_COLORMAP;
-		if (o->tagentity != n->tagentity || o->tagindex != n->tagindex)
+		if (o->tagxentity != n->tagxentity || o->tagindex != n->tagindex)
 			bits |= E5_ATTACHMENT;
 		if (o->light[0] != n->light[0] || o->light[1] != n->light[1] || o->light[2] != n->light[2] || o->light[3] != n->light[3] || o->lightstyle != n->lightstyle || o->lightpflags != n->lightpflags)
 			bits |= E5_LIGHT;
@@ -198,7 +198,7 @@ void EntityState5_WriteUpdate(int number, const entity_state_t *s, int changedbi
 
 		bits = changedbits;
 		if ((bits & E5_ORIGIN) && (!(s->sflags & RENDER_LOWPRECISION) || 
-			s->exteriormodelforclient || s->tagentity || s->viewmodelforclient 
+			s->exteriormodelforclient || s->tagxentity || s->viewmodelforclient 
 			|| (s->number >= 1 && s->number <= svs.maxclients) 
 			|| s->origin[0] <= -4096.0625 
 			|| s->origin[0] >= 4095.9375 
@@ -336,7 +336,7 @@ bits_final:
 				MSG_WriteByte(msg, s->colormap);
 			if (bits & E5_ATTACHMENT)
 			{
-				MSG_WriteShort(msg, s->tagentity);
+				MSG_WriteShort(msg, s->tagxentity);
 				MSG_WriteByte(msg, s->tagindex);
 			}
 			if (bits & E5_LIGHT)
@@ -393,14 +393,14 @@ bits_final:
 					if (s->framegroupblend[3].lerp > 0)
 					{
 						MSG_WriteByte(msg, 3);
-						MSG_WriteShort(msg, s->framegroupblend[0].frame);
-						MSG_WriteShort(msg, s->framegroupblend[1].frame);
-						MSG_WriteShort(msg, s->framegroupblend[2].frame);
-						MSG_WriteShort(msg, s->framegroupblend[3].frame);
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[0].start, anim_frameduration(model, s->framegroupblend[0].frame), 65.535) * 1000.0));
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[1].start, anim_frameduration(model, s->framegroupblend[1].frame), 65.535) * 1000.0));
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[2].start, anim_frameduration(model, s->framegroupblend[2].frame), 65.535) * 1000.0));
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[3].start, anim_frameduration(model, s->framegroupblend[3].frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, s->framegroupblend[0].fb_frame);
+						MSG_WriteShort(msg, s->framegroupblend[1].fb_frame);
+						MSG_WriteShort(msg, s->framegroupblend[2].fb_frame);
+						MSG_WriteShort(msg, s->framegroupblend[3].fb_frame);
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[0].start, anim_frameduration(model, s->framegroupblend[0].fb_frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[1].start, anim_frameduration(model, s->framegroupblend[1].fb_frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[2].start, anim_frameduration(model, s->framegroupblend[2].fb_frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[3].start, anim_frameduration(model, s->framegroupblend[3].fb_frame), 65.535) * 1000.0));
 						MSG_WriteByte(msg, s->framegroupblend[0].lerp * 255.0f);
 						MSG_WriteByte(msg, s->framegroupblend[1].lerp * 255.0f);
 						MSG_WriteByte(msg, s->framegroupblend[2].lerp * 255.0f);
@@ -409,12 +409,12 @@ bits_final:
 					else if (s->framegroupblend[2].lerp > 0)
 					{
 						MSG_WriteByte(msg, 2);
-						MSG_WriteShort(msg, s->framegroupblend[0].frame);
-						MSG_WriteShort(msg, s->framegroupblend[1].frame);
-						MSG_WriteShort(msg, s->framegroupblend[2].frame);
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[0].start, anim_frameduration(model, s->framegroupblend[0].frame), 65.535) * 1000.0));
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[1].start, anim_frameduration(model, s->framegroupblend[1].frame), 65.535) * 1000.0));
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[2].start, anim_frameduration(model, s->framegroupblend[2].frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, s->framegroupblend[0].fb_frame);
+						MSG_WriteShort(msg, s->framegroupblend[1].fb_frame);
+						MSG_WriteShort(msg, s->framegroupblend[2].fb_frame);
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[0].start, anim_frameduration(model, s->framegroupblend[0].fb_frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[1].start, anim_frameduration(model, s->framegroupblend[1].fb_frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[2].start, anim_frameduration(model, s->framegroupblend[2].fb_frame), 65.535) * 1000.0));
 						MSG_WriteByte(msg, s->framegroupblend[0].lerp * 255.0f);
 						MSG_WriteByte(msg, s->framegroupblend[1].lerp * 255.0f);
 						MSG_WriteByte(msg, s->framegroupblend[2].lerp * 255.0f);
@@ -422,18 +422,18 @@ bits_final:
 					else if (s->framegroupblend[1].lerp > 0)
 					{
 						MSG_WriteByte(msg, 1);
-						MSG_WriteShort(msg, s->framegroupblend[0].frame);
-						MSG_WriteShort(msg, s->framegroupblend[1].frame);
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[0].start, anim_frameduration(model, s->framegroupblend[0].frame), 65.535) * 1000.0));
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[1].start, anim_frameduration(model, s->framegroupblend[1].frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, s->framegroupblend[0].fb_frame);
+						MSG_WriteShort(msg, s->framegroupblend[1].fb_frame);
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[0].start, anim_frameduration(model, s->framegroupblend[0].fb_frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[1].start, anim_frameduration(model, s->framegroupblend[1].fb_frame), 65.535) * 1000.0));
 						MSG_WriteByte(msg, s->framegroupblend[0].lerp * 255.0f);
 						MSG_WriteByte(msg, s->framegroupblend[1].lerp * 255.0f);
 					}
 					else
 					{
 						MSG_WriteByte(msg, 0);
-						MSG_WriteShort(msg, s->framegroupblend[0].frame);
-						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[0].start, anim_frameduration(model, s->framegroupblend[0].frame), 65.535) * 1000.0));
+						MSG_WriteShort(msg, s->framegroupblend[0].fb_frame);
+						MSG_WriteShort(msg, (int)(anim_reducetime(sv.time - s->framegroupblend[0].start, anim_frameduration(model, s->framegroupblend[0].fb_frame), 65.535) * 1000.0));
 					}
 				}
 			}
@@ -557,7 +557,7 @@ qbool EntityFrame5_WriteFrame(sizebuf_t *msg, int maxsize, entityframe5_database
 		sv.protocol != PROTOCOL_DARKPLACES4 && 
 		sv.protocol != PROTOCOL_DARKPLACES5)
 	{
-		for (i = 0;i < MAX_CL_STATS && msg->cursize + 6 + 11 <= maxsize;i++) {
+		for (i = 0;i < MAX_CL_STATS_256 && msg->cursize + 6 + 11 <= maxsize;i++) {
 			if (host_client->statsdeltabits[i>>3] & (1<<(i&7))) {
 				host_client->statsdeltabits[i>>3] &= ~(1<<(i&7));
 				// add packetlog entry now that we have something for it
@@ -670,7 +670,7 @@ void EntityFrame5_LostFrame(entityframe5_database_t *d, int framenum)
 	int i, j, l, bits;
 	entityframe5_changestate_t *s;
 	entityframe5_packetlog_t *p;
-	static unsigned char statsdeltabits[(MAX_CL_STATS+7)/8];
+	static unsigned char statsdeltabits[(MAX_CL_STATS_256+7)/8];
 	static int deltabits[MAX_EDICTS_32768];
 	entityframe5_packetlog_t *packetlogs[ENTITYFRAME5_MAXPACKETLOGS];
 
@@ -692,7 +692,7 @@ void EntityFrame5_LostFrame(entityframe5_database_t *d, int framenum)
 			for (j = 0, s = p->states;j < p->numstates;j++, s++)
 				deltabits[s->number] |= s->bits;
 
-			for (l = 0;l < (MAX_CL_STATS+7)/8;l++)
+			for (l = 0;l < (MAX_CL_STATS_256+7)/8;l++)
 				statsdeltabits[l] |= p->statsdeltabits[l];
 
 			p->packetnumber = 0;
@@ -701,7 +701,7 @@ void EntityFrame5_LostFrame(entityframe5_database_t *d, int framenum)
 		{
 			for (j = 0, s = p->states;j < p->numstates;j++, s++)
 				deltabits[s->number] &= ~s->bits;
-			for (l = 0;l < (MAX_CL_STATS+7)/8;l++)
+			for (l = 0;l < (MAX_CL_STATS_256+7)/8;l++)
 				statsdeltabits[l] &= ~p->statsdeltabits[l];
 		}
 	}
@@ -720,7 +720,7 @@ void EntityFrame5_LostFrame(entityframe5_database_t *d, int framenum)
 		}
 	}
 
-	for (l = 0;l < (MAX_CL_STATS+7)/8;l++)
+	for (l = 0;l < (MAX_CL_STATS_256+7)/8;l++)
 		host_client->statsdeltabits[l] |= statsdeltabits[l];
 		// no need to mask out the already-set bits here, as we do not
 		// do that priorities stuff

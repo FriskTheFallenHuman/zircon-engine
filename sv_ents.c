@@ -48,7 +48,7 @@ int EntityState_DeltaBits(const entity_state_t *o, const entity_state_t *n)
 		bits |= E_GLOWCOLOR;
 	if (n->sflags != o->sflags)
 		bits |= E_FLAGS;
-	if (n->tagindex != o->tagindex || n->tagentity != o->tagentity)
+	if (n->tagindex != o->tagindex || n->tagxentity != o->tagxentity)
 		bits |= E_TAGATTACHMENT;
 	if (n->light[0] != o->light[0] || n->light[1] != o->light[1] || n->light[2] != o->light[2] || n->light[3] != o->light[3])
 		bits |= E_LIGHT;
@@ -100,7 +100,7 @@ void EntityState_WriteFields(const entity_state_t *ent, sizebuf_t *msg, unsigned
 		// LadyHavoc: have to write flags first, as they can modify protocol
 		if (bits & E_FLAGS)
 			MSG_WriteByte(msg, ent->sflags);
-		if (ent->sflags & RENDER_LOWPRECISION)
+		if (Have_Flag (ent->sflags,  RENDER_LOWPRECISION))
 		{
 			if (bits & E_ORIGIN1)
 				MSG_WriteCoord16i(msg, ent->origin[0]);
@@ -119,7 +119,10 @@ void EntityState_WriteFields(const entity_state_t *ent, sizebuf_t *msg, unsigned
 				MSG_WriteCoord32f(msg, ent->origin[2]);
 		}
 	}
-	if ((sv.protocol == PROTOCOL_DARKPLACES1 || sv.protocol == PROTOCOL_DARKPLACES2 || sv.protocol == PROTOCOL_DARKPLACES3 || sv.protocol == PROTOCOL_DARKPLACES4) && (ent->sflags & RENDER_LOWPRECISION))
+	if (isin4(sv.protocol, PROTOCOL_DARKPLACES1, 
+			PROTOCOL_DARKPLACES2, PROTOCOL_DARKPLACES3,
+			PROTOCOL_DARKPLACES4) && 
+		Have_Flag (ent->sflags, RENDER_LOWPRECISION))
 	{
 		if (bits & E_ANGLE1)
 			MSG_WriteAngle8i(msg, ent->angles[0]);
@@ -166,7 +169,7 @@ void EntityState_WriteFields(const entity_state_t *ent, sizebuf_t *msg, unsigned
 			MSG_WriteByte(msg, ent->sflags);
 	if (bits & E_TAGATTACHMENT)
 	{
-		MSG_WriteShort(msg, ent->tagentity);
+		MSG_WriteShort(msg, ent->tagxentity);
 		MSG_WriteByte(msg, ent->tagindex);
 	}
 	if (bits & E_LIGHT)
@@ -361,11 +364,19 @@ void SV_WriteEntitiesToClient(client_t *client, prvm_edict_t *clent, sizebuf_t *
 	sv.writeentitiestoclient_cliententitynumber = PRVM_EDICT_TO_PROG(clent); // LadyHavoc: for comparison purposes
 	camera = PRVM_EDICT_NUM( client->clientcamera );
 	VectorAdd(PRVM_serveredictvector(camera, origin), PRVM_serveredictvector(clent, view_ofs), eye);
+#if 1 // June 2
+#else
 	sv.writeentitiestoclient_pvsbytes = 0;
+#endif
 	// get the PVS values for the eye location, later FatPVS calls will merge
 	if (sv.worldmodel && sv.worldmodel->brush.FatPVS)
+#if 1 // June 2
+		sv.worldmodel->brush.FatPVS(sv.worldmodel, eye, 8, &sv.writeentitiestoclient_pvs, sv_mempool, false);
+	else
+		sv.writeentitiestoclient_pvs = NULL;
+#else
 		sv.writeentitiestoclient_pvsbytes = sv.worldmodel->brush.FatPVS(sv.worldmodel, eye, 8, sv.writeentitiestoclient_pvs, sizeof(sv.writeentitiestoclient_pvs), sv.writeentitiestoclient_pvsbytes != 0);
-
+#endif
 	// add the eye to a list for SV_CanSeeBox tests
 	VectorCopy(eye, sv.writeentitiestoclient_eyes[sv.writeentitiestoclient_numeyes]);
 	sv.writeentitiestoclient_numeyes++;
@@ -390,7 +401,11 @@ void SV_WriteEntitiesToClient(client_t *client, prvm_edict_t *clent, sizebuf_t *
 	// build PVS from the new eyes
 	if (sv.worldmodel && sv.worldmodel->brush.FatPVS)
 		for(i = 1; i < sv.writeentitiestoclient_numeyes; ++i)
+#if 1 // June 2
+			sv.worldmodel->brush.FatPVS(sv.worldmodel, sv.writeentitiestoclient_eyes[i], 8, &sv.writeentitiestoclient_pvs, sv_mempool, sv.writeentitiestoclient_pvs != NULL);
+#else
 			sv.writeentitiestoclient_pvsbytes = sv.worldmodel->brush.FatPVS(sv.worldmodel, sv.writeentitiestoclient_eyes[i], 8, sv.writeentitiestoclient_pvs, sizeof(sv.writeentitiestoclient_pvs), sv.writeentitiestoclient_pvsbytes != 0);
+#endif
 
 	sv.sententitiesmark++;
 
@@ -422,7 +437,7 @@ void SV_WriteEntitiesToClient(client_t *client, prvm_edict_t *clent, sizebuf_t *
 		}
 	}
 
-	if (sv_cullentities_stats.integer)
+	if (sv_cullentities_stats.integer /*d: 0*/)
 		Con_PrintLinef ("client " QUOTED_S " entities: %d total, %d visible, %d culled by: %d pvs %d trace", client->name, sv.writeentitiestoclient_stats_totalentities, sv.writeentitiestoclient_stats_visibleentities, sv.writeentitiestoclient_stats_culled_pvs + sv.writeentitiestoclient_stats_culled_trace, sv.writeentitiestoclient_stats_culled_pvs, sv.writeentitiestoclient_stats_culled_trace);
 
 	if (client->entitydatabase5)

@@ -69,10 +69,29 @@ int Screenshot_Jpeg_Prep_RenderBuffer_Is_Ok (int width, int height)
 	return true; // Ok!
 }
 
-char *Screenshot_To_Jpeg_String_Malloc_512_320 (void)
+byte *Screenshot_To_Jpeg_Blob_ZAlloc_512_320 (size_t *pblobsizeout) //
 {
-	int width = 512;
-	int height = 320;
+#pragma message ("TODO: Make Screenshot_To_Jpeg_String_Malloc_512_320 call this")
+	int width = SAVEGAME_PIC_WIDTH_512;
+	int height = SAVEGAME_PIC_HEIGHT_320;
+	WARP_X_ (SCR_ScreenShot_f  R_Envmap_f SCR_ScreenShot)
+
+	int is_ok = Screenshot_Jpeg_Prep_RenderBuffer_Is_Ok (width, height);
+	if (is_ok == false) {
+		return NULL;
+	}
+
+	int x = 0;
+	int y = vid.height - (r_refdef.view.y + r_refdef.view.height);
+
+	byte *data_allocz = Screenshot_Jpeg_Temppool_Alloc(x, y, width, height, pblobsizeout);
+	return data_allocz;
+}
+
+char *Screenshot_To_Jpeg_String_Malloc_512_320 (void) //
+{
+	int width = SAVEGAME_PIC_WIDTH_512;
+	int height = SAVEGAME_PIC_HEIGHT_320;
 	WARP_X_ (SCR_ScreenShot_f  R_Envmap_f SCR_ScreenShot)
 
 	int is_ok = Screenshot_Jpeg_Prep_RenderBuffer_Is_Ok (width, height);
@@ -91,6 +110,7 @@ char *Screenshot_To_Jpeg_String_Malloc_512_320 (void)
 	return s_base64_alloc; // free (s_base64_alloc);
 }
 
+
 WARP_X_ (Screenshot_To_Jpeg_String_Malloc_512_320)
 
 // Extracts a screenshot from a Zircon save.
@@ -106,7 +126,7 @@ char *SCR_Screenshot_Get_JPEG_String_From_Save_File_Alloc (const char *s_savegam
 		return NULL;
 	}
 
-	int is_ok = true;
+	//int is_ok = true;
 	const char *text = (const char *)filedata;
 
 	int jpeg_slen_int = -1;
@@ -114,7 +134,7 @@ char *SCR_Screenshot_Get_JPEG_String_From_Save_File_Alloc (const char *s_savegam
 
 	if (!s) {
 		Con_PrintLinef ("This save contains no sv.screenshot");
-		is_ok = false;
+		//is_ok = false;
 		goto cleanup;
 	}
 
@@ -135,7 +155,7 @@ char *SCR_Screenshot_Get_JPEG_String_From_Save_File_Alloc (const char *s_savegam
 	while (*s && ISWHITESPACE(*s))
 		s ++;
 
-	s_jpeg_string_alloc = (char *)z_memdup_z (s, (size_t)jpeg_slen_int);
+	s_jpeg_string_alloc = (char *)Z_MemDup_Z (s, (size_t)jpeg_slen_int);
 
 cleanup:
 	Mem_Free(filedata);
@@ -160,11 +180,12 @@ bgra4 *SCR_Screenshot_Get_JPEG_BGRA4_From_Save_File_Alloc (const char *s_savegam
 void SCR_jpegextract_from_savegame_f (cmd_state_t *cmd)
 {
 	if (Cmd_Argc(cmd) == 1) {
-		Con_PrintLinef ("Usage: %s [save file] or %s [save file] string  -- extracts screenshot and puts image on clipboard", Cmd_Argv(cmd, 0) );
+		Con_PrintLinef ("Usage: %s [save file] or %s [save file] string  -- extracts screenshot and puts image on clipboard",
+                  Cmd_Argv(cmd, 0) , Cmd_Argv(cmd, 0) );
 		return;
 	}
 
-	qbool is_string_output = Cmd_Argc(cmd) == 3 && String_Does_Match (Cmd_Argv(cmd, 2), "string");
+	qbool is_string_output = Cmd_Argc(cmd) == 3 && String_Match (Cmd_Argv(cmd, 2), "string");
 
 	const char *s_filename = Cmd_Argv(cmd, 1);
 	char savename[MAX_QPATH_128];
@@ -214,7 +235,7 @@ void SCR_jpegextract_from_savegame_f (cmd_state_t *cmd)
 void SCR_jpegdecodeclipstring_f (cmd_state_t *cmd)
 {
 	bgra4 *jpegpels = NULL;
-	char *s_base64allocz = Sys_GetClipboardData_Unlimited_Alloc();
+	char *s_base64allocz = Sys_GetClipboardData_Unlimited_ZAlloc();
 	if (!s_base64allocz || !*s_base64allocz) {
 		Con_PrintLinef ("No string on clipboard");
 		goto cleanup;
@@ -322,17 +343,17 @@ void SCR_ScreenShot_f (cmd_state_t *cmd)
 		const char *ext;
 		c_strlcpy(filename, Cmd_Argv(cmd, 1));
 		ext = FS_FileExtension(filename);
-		if (String_Does_Match_Caseless(ext, "jpg"))
+		if (String_Match_Caseless(ext, "jpg"))
 		{
 			jpeg = true;
 			png = false;
 		}
-		else if (String_Does_Match_Caseless(ext, "tga"))
+		else if (String_Match_Caseless(ext, "tga"))
 		{
 			jpeg = false;
 			png = false;
 		}
-		else if (String_Does_Match_Caseless(ext, "png"))
+		else if (String_Match_Caseless(ext, "png"))
 		{
 			jpeg = false;
 			png = true;
@@ -728,6 +749,123 @@ envmapinfo[12] =
 	{{ 90, 180, 0}, "nz", false, false,  true}
 };
 
+WARP_X_ (R_LevelShot_Maps_All_f)
+//int levelshots_next_map(void)
+//{
+//}
+
+WARP_X_CALLERS_ (R_LevelShot_Here_f)
+// Returns 1 for TGA, 2 for JPEG
+int has_levelshot (ccs *mapbasename_no_path_no_ext)
+{
+	ccs *map = mapbasename_no_path_no_ext;
+	va_super (levelshotname_tga, MAX_QPATHX2_256, "levelshots/%s.tga", map);
+	int result = FS_FileExists (levelshotname_tga);
+	if (!result) {
+		va_super (levelshotname_jpg, MAX_QPATHX2_256, "levelshots/%s.jpg", map);
+		result = FS_FileExists (levelshotname_jpg);
+		if (result)
+			return 2;
+		return 0;
+	}
+
+	return 1;
+}
+
+int getnextmap_levelshots_after (int trueidxafterthis)
+{ // We get a -1 or something.
+	int result = not_found_neg1;
+	for (int idx = trueidxafterthis + 1; idx < m_maplist_count; idx ++) {
+		maplist_s *mm = &m_maplist[idx];
+		int has_shot = has_levelshot ((ccs*)mm->s_name_after_maps_folder_a);
+		if (has_shot)
+			continue; // Don't need
+		result = idx;
+		break;
+	}
+	return result; // Returns idx0 or not_found_neg1
+}
+
+
+void levels_shot_decide_map_and_act (int after_this_idx0)
+{
+	int idx = getnextmap_levelshots_after(after_this_idx0);
+	cls.cl_first_world_frame_rendered = 0;
+	if (idx == not_found_neg1) {
+		cls.levelshots_index_plus1 = 0; // DONE!
+		Vid_SetWindowTitlef (gamename);
+		Con_PrintLinef ("Levelshots process completed!");
+	} else {
+
+		maplist_s *mm = &m_maplist[idx];
+
+		// WRITE A SCREENSHOT FAILED IMAGE FIRST
+		va_super (levelshots_mapname_jpg, MAX_QPATH_128, "levelshots/%s.jpg", mm->s_name_after_maps_folder_a);
+		fs_offset_t filesize;
+		ccs *s_file = "engine/screenshot_failed.jpg";
+		byte *jpeg_failed_za = FS_LoadFile(s_file, tempmempool, fs_quiet_FALSE, &filesize);
+		if (!jpeg_failed_za) {
+			Con_PrintLinef ("Couldn't open engine jpeg %s", s_file);
+		}
+		else {
+			size_t blobsize = filesize;
+			int isok = FS_WriteFile(levelshots_mapname_jpg, jpeg_failed_za, blobsize);
+			Vid_SetWindowTitlef ("Levelshotting: %s", levelshots_mapname_jpg);
+		}
+
+		Mem_FreeNull_ (jpeg_failed_za);
+
+		Cbuf_AddTextLinef (cmd_local, "map %s", mm->s_name_after_maps_folder_a);
+		cls.levelshots_index_plus1 = PLUS1(idx);
+	}
+
+}
+
+static void R_LevelShot_Here_f (cmd_state_t *cmd)
+{
+	size_t blobsize = 0;
+	byte *jpeg_data_zalloc = Screenshot_To_Jpeg_Blob_ZAlloc_512_320 (&blobsize);
+
+	if (!jpeg_data_zalloc) {
+		Con_PrintLinef (CON_WARN "Screenshot_To_Jpeg_String_Malloc_512_320 failed" NEWLINE);
+		return;
+	}
+
+	va_super (levelshots_mapname_jpg, MAX_QPATH_128, "levelshots/%s.jpg", cl.worldbasename);
+
+	int isok = FS_WriteFile(levelshots_mapname_jpg, jpeg_data_zalloc, blobsize);
+	if (isok == false)
+		Con_PrintLinef (CON_WARN "Error writing " QUOTED_S, levelshots_mapname_jpg);
+	else
+		Con_PrintLinef ("Wrote %s size %d bytes", levelshots_mapname_jpg, (int)blobsize);
+
+	Mem_FreeNull_ (jpeg_data_zalloc);
+
+	if (cls.levelshots_index_plus1)
+		levels_shot_decide_map_and_act (UNPLUS1(cls.levelshots_index_plus1));
+}
+
+static void R_LevelShot_Maps_All_f (cmd_state_t *cmd)
+{
+//extern maplist_s m_maplist[MAXMAPLIST_4096];
+//extern int m_maplist_count;
+
+	WARP_X_ (M_Menu_Maps_f)
+
+		// Fill it ...
+	GetMapList("", NULL, 0, /*is_menu_fill*/ true, /*autocompl*/ false, /*suppress*/ false);
+
+	if (m_maplist_count) {
+		levels_shot_decide_map_and_act (not_found_neg1);
+		Con_PrintLinef ("Started levelshots generating process ... " NEWLINE
+						"please be patient ..." NEWLINE
+						"Do not use menu or do console commands ...");
+	}
+	else Con_PrintLinef ("No gamedir maps to make level shots");
+}
+
+
+
 static void R_Envmap_f (cmd_state_t *cmd)
 {
 	int j, size;
@@ -740,7 +878,7 @@ static void R_Envmap_f (cmd_state_t *cmd)
 	int is_auto = false;
 
 
-	if (Cmd_Argc(cmd) == 2 && String_Does_Match_Caseless(Cmd_Argv(cmd, 1), "auto")) {
+	if (Cmd_Argc(cmd) == 2 && String_Match_Caseless(Cmd_Argv(cmd, 1), "auto")) {
 		is_auto = true;
 	}
 
@@ -880,7 +1018,7 @@ void SHOWLMP_decodeshow(void)
 		}
 	}
 	for (k = 0;k < cl.max_showlmps;k++)
-		if (cl.showlmps[k].isactive && String_Does_Match(cl.showlmps[k].label, lmplabel))
+		if (cl.showlmps[k].isactive && String_Match(cl.showlmps[k].label, lmplabel))
 			break;
 	if (k == cl.max_showlmps)
 		for (k = 0;k < cl.max_showlmps;k++)

@@ -154,6 +154,8 @@ void R_Shadow_RenderMode_End(void);
 void R_Shadow_ClearStencil(void);
 void R_Shadow_SetupEntityLight(const struct entity_render_s *ent);
 
+
+
 qbool R_Shadow_ScissorForBBox(const float *mins, const float *maxs);
 
 // these never change, they are used to create attenuation matrices

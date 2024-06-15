@@ -1,6 +1,6 @@
 #ifdef CORE_SDL
 
-#if defined(_MSC_VER) && _MSC_VER < 1900
+#if defined(CODEBLOCKS_LINUX_IDE) || (defined(_MSC_VER) && _MSC_VER < 1900)
 	#include <SDL2/SDL.h>
 	#include <SDL2/SDL_thread.h>
 #else
@@ -11,7 +11,7 @@
 #include "quakedef.h"
 #include "thread.h"
 
-int Thread_Init(void)
+int Thread_InitOnce(void)
 {
 #ifdef THREADDISABLE
 	Con_Printf ("Threading disabled in this build\n");

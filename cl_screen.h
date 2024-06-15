@@ -34,17 +34,13 @@ qbool R_Stereo_ColorMasking(void);
 // Baker: Take a screenshot and make it a JPEG base64 string
 // We use this to embed screenshots into the save game file.
 char *Screenshot_To_Jpeg_String_Malloc_512_320 (void);
+byte *Screenshot_To_Jpeg_Blob_ZAlloc_512_320 (size_t *pblobsizeout);
 
 extern int old_vid_kickme; // Baker: 360p scaling
 
 
 WARP_X_ (SCR_gifclip_f)
 
-typedef struct {
-	byte	*buf_alloc;
-	int		cursor;
-	size_t	filesize;
-} bakerbuf_t;
 
 typedef struct gd_Palette {
     int size;

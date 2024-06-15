@@ -110,7 +110,7 @@ void		CL_Video_Shutdown (void);
 // old interface
 extern int cl_videoplaying;
 
-void CL_DrawVideo_SCR_DrawScreen( void );
+void CL_DrawVideo_SCR_DrawScreen (void);
 void CL_PlayVideo_Start (char *filename, const char *subtitlesfile, const char *soundname);
 void CL_VideoStop(int stop_reason);
 

@@ -52,14 +52,13 @@ void Collision_Init (void)
 
 static void Collision_PrintBrushAsQHull(colbrushf_t *brush, const char *name)
 {
-	int i;
-	Con_Printf ("3 %s\n%d\n", name, brush->numpoints);
-	for (i = 0;i < brush->numpoints;i++)
-		Con_Printf ("%f %f %f\n", brush->points[i].v[0], brush->points[i].v[1], brush->points[i].v[2]);
+	Con_DPrintLinef ("3 %s brush->numpoints = %d", name, brush->numpoints);
+	for (int j = 0; j < brush->numpoints; j ++)
+		Con_DPrintLinef ("%3d: %f %f %f", j, brush->points[j].v[0], brush->points[j].v[1], brush->points[j].v[2]);
 	// FIXME: optimize!
-	Con_Printf ("4\n%d\n", brush->numplanes);
-	for (i = 0;i < brush->numplanes;i++)
-		Con_Printf ("%f %f %f %f\n", brush->planes[i].normal[0], brush->planes[i].normal[1], brush->planes[i].normal[2], brush->planes[i].dist);
+	Con_DPrintLinef ("4 brush->numplanes = %d", brush->numplanes);
+	for (int j = 0; j < brush->numplanes; j ++)
+		Con_DPrintLinef ("%3d: %f %f %f %f", j, brush->planes[j].normal[0], brush->planes[j].normal[1], brush->planes[j].normal[2], brush->planes[j].dist);
 }
 
 static void Collision_ValidateBrush(colbrushf_t *brush)
@@ -69,7 +68,7 @@ static void Collision_ValidateBrush(colbrushf_t *brush)
 	printbrush = false;
 	if (!brush->numpoints)
 	{
-		Con_Print("Collision_ValidateBrush: brush with no points!\n");
+		Con_DPrintLinef ("Collision_ValidateBrush: brush with no points!");
 		printbrush = true;
 	}
 #if 0
@@ -86,7 +85,7 @@ static void Collision_ValidateBrush(colbrushf_t *brush)
 		pointswithinsufficientplanes = 0;
 		for (k = 0;k < brush->numplanes;k++)
 			if (DotProduct(brush->planes[k].normal, brush->planes[k].normal) < 0.0001f)
-				Con_Printf ("Collision_ValidateBrush: plane #%d (%f %f %f %f) is degenerate\n", k, brush->planes[k].normal[0], brush->planes[k].normal[1], brush->planes[k].normal[2], brush->planes[k].dist);
+				Con_PrintLinef ("Collision_ValidateBrush: plane #%d (%f %f %f %f) is degenerate", k, brush->planes[k].normal[0], brush->planes[k].normal[1], brush->planes[k].normal[2], brush->planes[k].dist);
 		for (j = 0;j < brush->numpoints;j++)
 		{
 			pointonplanes = 0;
@@ -95,7 +94,7 @@ static void Collision_ValidateBrush(colbrushf_t *brush)
 				d = DotProduct(brush->points[j].v, brush->planes[k].normal) - brush->planes[k].dist;
 				if (d > COLLISION_PLANE_DIST_EPSILON)
 				{
-					Con_Printf ("Collision_ValidateBrush: point #%d (%f %f %f) infront of plane #%d (%f %f %f %f)\n", j, brush->points[j].v[0], brush->points[j].v[1], brush->points[j].v[2], k, brush->planes[k].normal[0], brush->planes[k].normal[1], brush->planes[k].normal[2], brush->planes[k].dist);
+					Con_DPrintLinef ("Collision_ValidateBrush: point #%d (%f %f %f) infront of plane #%d (%f %f %f %f)", j, brush->points[j].v[0], brush->points[j].v[1], brush->points[j].v[2], k, brush->planes[k].normal[0], brush->planes[k].normal[1], brush->planes[k].normal[2], brush->planes[k].dist);
 					printbrush = true;
 				}
 				if (fabs(d) > COLLISION_PLANE_DIST_EPSILON)
@@ -108,17 +107,17 @@ static void Collision_ValidateBrush(colbrushf_t *brush)
 		}
 		if (pointswithinsufficientplanes)
 		{
-			Con_Print("Collision_ValidateBrush: some points have insufficient planes, every point must be on at least 3 planes to form a corner.\n");
+			Con_DPrintLinef ("Collision_ValidateBrush: some points have insufficient planes, every point must be on at least 3 planes to form a corner.");
 			printbrush = true;
 		}
 		if (pointsoffplanes == 0) // all points are on all planes
 		{
-			Con_Print("Collision_ValidateBrush: all points lie on all planes (degenerate, no brush volume!)\n");
+			Con_DPrintLinef ("Collision_ValidateBrush: all points lie on all planes (degenerate, no brush volume!)");
 			printbrush = true;
 		}
 	}
 	if (printbrush)
-		Collision_PrintBrushAsQHull(brush, "unnamed");
+		Collision_PrintBrushAsQHull (brush, "unnamed brush");
 }
 
 static float nearestplanedist_float(const float *normal, const colpointf_t *points, int numpoints)
@@ -160,7 +159,8 @@ static void Collision_CalcEdgeDirsForPolygonBrushFloat(colbrushf_t *brush)
 		VectorSubtract(brush->points[i].v, brush->points[j].v, brush->edgedirs[j].v);
 }
 
-colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalplanes, const colplanef_t *originalplanes, int supercontents, int q3surfaceflags, const texture_t *texture, int hasaabbplanes)
+colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalplanes, const colplanef_t *originalplanes, int supercontents, 
+										  int q3surfaceflags, const texture_t *texture, int hasaabbplanes)
 {
 	// TODO: planesbuf could be replaced by a remapping table
 	int j, k, w, xyzflags;
@@ -173,7 +173,7 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 	colplanef_t planesbuf[256];
 	int elementsbuf[1024];
 	int polypointbuf[256];
-	int pmaxpoints = 64;
+	int pmaxpoints_64 = 64; // Baker: This is never changed, effective a constant
 	int pnumpoints;
 	double p[2][3*64];
 #if 0
@@ -187,9 +187,8 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 #endif
 
 	// check if there are too many planes and skip the brush
-	if (numoriginalplanes >= maxplanesbuf)
-	{
-		Con_DPrint("Collision_NewBrushFromPlanes: failed to build collision brush: too many planes for buffer\n");
+	if (numoriginalplanes >= maxplanesbuf) {
+		Con_PrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many planes for buffer");
 		return NULL;
 	}
 
@@ -217,7 +216,7 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 		PolygonD_QuadForPlane(p[w], originalplanes[j].normal[0], originalplanes[j].normal[1], originalplanes[j].normal[2], originalplanes[j].dist, maxdist);
 		pnumpoints = 4;
 		// clip it by all other planes
-		for (k = 0;k < numoriginalplanes && pnumpoints >= 3 && pnumpoints <= pmaxpoints;k++)
+		for (k = 0;k < numoriginalplanes && pnumpoints >= 3 && pnumpoints <= pmaxpoints_64;k++)
 		{
 			// skip the plane this polygon
 			// (nothing happens if it is processed, this is just an optimization)
@@ -225,7 +224,7 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 			{
 				// we want to keep the inside of the brush plane so we flip
 				// the cutting plane
-				PolygonD_Divide(pnumpoints, p[w], -originalplanes[k].normal[0], -originalplanes[k].normal[1], -originalplanes[k].normal[2], -originalplanes[k].dist, COLLISION_PLANE_DIST_EPSILON, pmaxpoints, p[!w], &pnumpoints, 0, NULL, NULL, NULL);
+				PolygonD_Divide(pnumpoints, p[w], -originalplanes[k].normal[0], -originalplanes[k].normal[1], -originalplanes[k].normal[2], -originalplanes[k].dist, COLLISION_PLANE_DIST_EPSILON, pmaxpoints_64, p[!w], &pnumpoints, 0, NULL, NULL, NULL);
 				w = !w;
 			}
 		}
@@ -247,23 +246,20 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 			if (m < 3)
 				break;
 		}
-		if (k < pnumpoints)
-		{
-			Con_DPrintf ("Collision_NewBrushFromPlanes: warning: polygon point does not lie on at least 3 planes\n");
+		if (k < pnumpoints) {
+			Con_PrintLinef ("Collision_NewBrushFromPlanes: warning: polygon point does not lie on at least 3 planes");
 			//return NULL;
 		}
 
 		// check if there are too many polygon vertices for buffer
-		if (pnumpoints > pmaxpoints)
-		{
-			Con_DPrint("Collision_NewBrushFromPlanes: failed to build collision brush: too many points for buffer\n");
+		if (pnumpoints > pmaxpoints_64) {
+			Con_PrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many points for buffer");
 			return NULL;
 		}
 
 		// check if there are too many triangle elements for buffer
-		if (numelementsbuf + (pnumpoints - 2) * 3 > maxelementsbuf)
-		{
-			Con_DPrint("Collision_NewBrushFromPlanes: failed to build collision brush: too many triangle elements for buffer\n");
+		if (numelementsbuf + (pnumpoints - 2) * 3 > maxelementsbuf) {
+			Con_PrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many triangle elements for buffer");
 			return NULL;
 		}
 
@@ -286,7 +282,7 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 				// check if there are too many and skip the brush
 				if (numpointsbuf >= maxpointsbuf)
 				{
-					Con_DPrint("Collision_NewBrushFromPlanes: failed to build collision brush: too many points for buffer\n");
+					Con_PrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many points for buffer");
 					return NULL;
 				}
 				// add the new one
@@ -334,9 +330,8 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 			if (m == numedgedirsbuf)
 			{
 				// check if there are too many and skip the brush
-				if (numedgedirsbuf >= maxedgedirsbuf)
-				{
-					Con_DPrint("Collision_NewBrushFromPlanes: failed to build collision brush: too many edgedirs for buffer\n");
+				if (numedgedirsbuf >= maxedgedirsbuf) {
+					Con_PrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many edgedirs for buffer");
 					return NULL;
 				}
 				// add the new one
@@ -351,22 +346,21 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 	}
 
 	// if nothing is left, there's nothing to allocate
-	if (numplanesbuf < 4)
-	{
-		Con_DPrintf ("Collision_NewBrushFromPlanes: failed to build collision brush: %d triangles, %d planes (input was %d planes), %d vertices\n", numelementsbuf / 3, numplanesbuf, numoriginalplanes, numpointsbuf);
+	if (numplanesbuf < 4) {
+		Con_PrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: %d triangles, %d planes (input was %d planes), %d vertices", numelementsbuf / 3, numplanesbuf, numoriginalplanes, numpointsbuf);
 		return NULL;
 	}
 
 	// if no triangles or points could be constructed, then this routine failed but the brush is not discarded
 	if (numelementsbuf < 12 || numpointsbuf < 4)
-		Con_DPrintf ("Collision_NewBrushFromPlanes: unable to rebuild triangles/points for collision brush: %d triangles, %d planes (input was %d planes), %d vertices\n", numelementsbuf / 3, numplanesbuf, numoriginalplanes, numpointsbuf);
+		Con_PrintLinef ("Collision_NewBrushFromPlanes: unable to rebuild triangles/points for collision brush: %d triangles, %d planes (input was %d planes), %d vertices", numelementsbuf / 3, numplanesbuf, numoriginalplanes, numpointsbuf);
 
 	// validate plane distances
 	for (j = 0;j < numplanesbuf;j++)
 	{
 		float d = furthestplanedist_float(planesbuf[j].normal, pointsbuf, numpointsbuf);
 		if (fabs(planesbuf[j].dist - d) > COLLISION_PLANE_DIST_EPSILON)
-			Con_DPrintf ("plane %f %f %f %f mismatches dist %f\n", planesbuf[j].normal[0], planesbuf[j].normal[1], planesbuf[j].normal[2], planesbuf[j].dist, d);
+			Con_DPrintLinef ("plane %f %f %f %f mismatches dist %f", planesbuf[j].normal[0], planesbuf[j].normal[1], planesbuf[j].normal[2], planesbuf[j].dist, d);
 	}
 
 	// allocate the brush and copy to it
@@ -447,7 +441,6 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 }
 
 
-
 void Collision_CalcPlanesForTriangleBrushFloat(colbrushf_t *brush)
 {
 	float edge0[3], edge1[3], edge2[3];
@@ -477,7 +470,7 @@ void Collision_CalcPlanesForTriangleBrushFloat(colbrushf_t *brush)
 	VectorCopy(edge1, brush->edgedirs[1].v);
 	VectorCopy(edge2, brush->edgedirs[2].v);
 	// now select an algorithm to generate the side planes
-	if (collision_triangle_bevelsides.integer)
+	if (collision_triangle_bevelsides.integer /*d: 0*/)
 	{
 		// use 45 degree slopes at the edges of the triangle to make a sinking trace error turn into "riding up" the slope rather than getting stuck
 		CrossProduct(edge0, brush->planes->normal, brush->planes[2].normal);
@@ -493,7 +486,7 @@ void Collision_CalcPlanesForTriangleBrushFloat(colbrushf_t *brush)
 		VectorNormalize(brush->planes[3].normal);
 		VectorNormalize(brush->planes[4].normal);
 	}
-	else if (collision_triangle_axialsides.integer)
+	else if (collision_triangle_axialsides.integer /*d:1*/)
 	{
 		float projectionnormal[3], projectionedge0[3], projectionedge1[3], projectionedge2[3];
 		int i, best;

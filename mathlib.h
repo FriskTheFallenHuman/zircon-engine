@@ -49,6 +49,10 @@ extern vec3_t vec3_origin;
 #endif
 
 #define bound(min,num,max) ((num) >= (min) ? ((num) < (max) ? (num) : (max)) : (min))
+#define vclamp(var,min,max) (var) = bound(min, var, max)
+#define vclamp_lo(var,lo) if ((var) < (lo)) var = (lo)
+#define vclamp_hi(var,hi) if ((var) > (hi)) var = (hi)
+
 
 #ifndef min
 	#define min(A,B) ((A) < (B) ? (A) : (B))
@@ -117,6 +121,7 @@ unsigned int CeilPowerOf2(unsigned int value);
 #define VectorSubtract(a,b,c) ((c)[0]=(a)[0]-(b)[0],(c)[1]=(a)[1]-(b)[1],(c)[2]=(a)[2]-(b)[2])
 #define VectorAdd(a,b,c) ((c)[0]=(a)[0]+(b)[0],(c)[1]=(a)[1]+(b)[1],(c)[2]=(a)[2]+(b)[2])
 #define VectorCopy(a,b) ((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2])
+#define VectorCopyDestSrc(a,b) ((a)[0]=(b)[0],(a)[1]=(b)[1],(a)[2]=(b)[2])
 #define VectorMultiply(a,b,c) ((c)[0]=(a)[0]*(b)[0],(c)[1]=(a)[1]*(b)[1],(c)[2]=(a)[2]*(b)[2])
 #define CrossProduct(a,b,c) ((c)[0]=(a)[1]*(b)[2]-(a)[2]*(b)[1],(c)[1]=(a)[2]*(b)[0]-(a)[0]*(b)[2],(c)[2]=(a)[0]*(b)[1]-(a)[1]*(b)[0])
 #define VectorNormalize(v) {float ilength = (float)DotProduct((v),(v));if (ilength) ilength = 1.0f / sqrt(ilength);(v)[0] *= ilength;(v)[1] *= ilength;(v)[2] *= ilength;}
@@ -317,7 +322,7 @@ float Math_crandomf(randomseed_t *r);
 float Math_randomrangef(randomseed_t *r, float minf, float maxf);
 int Math_randomrangei(randomseed_t *r, int mini, int maxi);
 
-void Mathlib_Init(void);
+void Mathlib_InitOnce(void);
 
 #endif // ! MATHLIB_H
 

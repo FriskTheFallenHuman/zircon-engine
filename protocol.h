@@ -523,12 +523,12 @@ typedef struct usercmd_s
 #endif
 } usercmd_t;
 
-#define MAX_FRAMEGROUPBLENDS 4
+#define MAX_FRAMEGROUPBLENDS_4 4
 typedef struct framegroupblend_s
 {
 	// animation number and blend factor
 	// (for most models this is the frame number)
-	int frame;
+	int fb_frame;
 	float lerp;
 	// time frame began playing (for framegroup animations)
 	double start;
@@ -567,7 +567,7 @@ typedef struct entity_state_s
 	unsigned short number; // entity number this state is for
 	unsigned short modelindex;
 	unsigned short frame;
-	unsigned short tagentity;
+	unsigned short tagxentity;
 	unsigned short specialvisibilityradius; // ! larger if it has effects/light
 	unsigned short viewmodelforclient; // !
 	unsigned short exteriormodelforclient; // ! not shown if first person viewing from this entity, shown in all other cases
@@ -965,7 +965,7 @@ typedef struct entityframe5_packetlog_s
 	int packetnumber;
 	int numstates;
 	entityframe5_changestate_t states[ENTITYFRAME5_MAXSTATES];
-	unsigned char statsdeltabits[(MAX_CL_STATS+7)/8];
+	unsigned char statsdeltabits[(MAX_CL_STATS_256+7)/8];
 }
 entityframe5_packetlog_t;
 

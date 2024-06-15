@@ -30,6 +30,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TYPE_GAME 2
 #define TYPE_BOTH 3
 
+#define Draw_MenuString_XYScale(x,y,scale,s) \
+		DrawQ_String (x, y, s, maxlen_0, scale, scale, \
+			q_rgb3_white, alpha_1_0, DRAWFLAG_NORMAL_0, OUTCOLOR_NULL, q_ignore_color_codes_true, FONT_MENU)// Ender
+
+#define Draw_MenuString_XYScaleMax(x,y,scale,s,maxlen) \
+		DrawQ_String (x, y, s, maxlen, scale, scale, \
+			q_rgb3_white, alpha_1_0, DRAWFLAG_NORMAL_0, OUTCOLOR_NULL, q_ignore_color_codes_true, FONT_MENU)// Ender
+
 static const char *menu_current_working_directory;
 
 static cvar_t forceqmenu = {CF_CLIENT, "forceqmenu", "0", "enables the quake menu instead of the quakec menu.dat (if present)"};
@@ -52,7 +60,8 @@ static int NehGameType;
 void menu_state_set_nova (int ee);
 static qbool m_missingdata = false;
 
-int menu_state_reenter = 0; // To renter at maps menu
+// switch (menu_state_reenter) <-- see this
+int menu_state_reenter;
 
 
 extern cvar_t gl_picmip;
@@ -62,6 +71,9 @@ extern cvar_t gl_texture_anisotropy;
 extern cvar_t r_textshadow;
 extern cvar_t r_hdr_scenebrightness;
 
+void M_Menu_ZDev_f (cmd_state_t *cmd);
+void M_Menu_ZForm_f (cmd_state_t *cmd);
+void M_Menu_ZLines_f (cmd_state_t *cmd);
 
 static int menuplyr_width, menuplyr_height, menuplyr_top, menuplyr_bottom, menuplyr_load;
 static unsigned char *menuplyr_pixels;
@@ -71,7 +83,11 @@ enum m_state_e m_state;
 char m_return_reason[128];
 
 static void M_ZDev_Key(cmd_state_t *cmd, int key, int ascii);
+static void M_ZForm_Key(cmd_state_t *cmd, int key, int ascii, int is_down);
+
+
 static void M_ZDev_Draw (void);
+static void M_ZForm_Draw (void);
 
 void M_Menu_Main_f(cmd_state_t *cmd);
 	void M_Menu_SinglePlayer_f(cmd_state_t *cmd);
@@ -251,7 +267,7 @@ void Commit_To_Cname (void)
 			slen = msg - token - 1; // -1 to remove trail
 			if (slen >= (int)sizeof(player->name))
 				slen = (int)sizeof(player->name);
-			if (String_Does_Start_With_Caseless_PRE  (token, "\"\\s\\")) { // ---> "\s\  <----
+			if (String_Starts_With_Caseless_PRE  (token, "\"\\s\\")) { // ---> "\s\  <----
 				player->is_specator = true;
 				memcpy (&player->name[0], token + 4, slen);
 			}
@@ -304,7 +320,7 @@ void Commit_To_Cname (void)
 			slen = msg - token - 1; // -1 to remove trail
 			if (slen >= (int)sizeof(player->name))
 				slen = (int)sizeof(player->name);
-			if (String_Does_Start_With_Caseless_PRE  (token, "\"\\s\\")) { // ---> "\s\  <----
+			if (String_Starts_With_Caseless_PRE  (token, "\"\\s\\")) { // ---> "\s\  <----
 				player->is_specator = true;
 				memcpy (&player->name[0], token + 4, slen);
 			}
@@ -540,10 +556,13 @@ static void M_Print(float cx, float cy, const char *str)
 	DrawQ_String(menu_x + cx, menu_y + cy, str, 0, 8, 8, 1, 1, 1, 1, 0, NULL, true, FONT_MENU);
 }
 
+#if 0
 static void M_Print16(float cx, float cy, const char *str)
 {
 	DrawQ_String(menu_x + cx, menu_y + cy, str, 0, 16, 16, 1, 1, 1, 1, 0, NULL, true, FONT_MENU);
 }
+#endif
+
 //
 //static void M_PrintBronzey16(float cx, float cy, const char *str)
 //{
@@ -600,12 +619,10 @@ typedef enum {
 } hotspottype_e;
 
 
-typedef struct {
-		float	left, top, width, height;
-} crectf_s;
 
+typedef void (*fire_fn_t)(int idx);
 typedef struct {
-	crectf_s 		r;			// Rect collision .left .top .width .height
+	frect 		r;			// Rect collision .left .top .width .height
 	int				idx;		// Our number (cursor).
 
 // Scrolling lists use trueidx for the index of an item drawn.
@@ -616,7 +633,14 @@ typedef struct {
 // for a list item.
 	int				trueidx;	// Set to not_found_neg1 (-1) for non-list elements.
 	hotspottype_e	hotspottype;
+
+	fire_fn_t		fire_fn;
+	int				fire_idx;
+
 } hotspotx_s;
+
+
+
 
 hotspotx_s hotspotxs[128];
 int hotspotx_count;
@@ -674,12 +698,12 @@ int Hotspots_GetIdx (int hidx)
 	return not_found_neg1;
 }
 
-
-hotspotx_s *Hotspots_Add (float left, float top, float width, float height, int count_, hotspottype_e hotspottype)
+#define q_force_scale_0 0
+hotspotx_s *Hotspots_Add (float left, float top, float width, float height, int count_, hotspottype_e hotspottype, float force_scale)
 {
 	// convert to screen pixels
-	float xmag = vid.width / vid_conwidth.value; // 1300 / 240
-	float ymag = vid.height / vid_conheight.value;
+	float xmag = force_scale ? force_scale : (vid.width / vid_conwidth.value); // 1300 / 240
+	float ymag = force_scale ? force_scale : (vid.height / vid_conheight.value);
 	left = left * xmag;
 	top = top * ymag;
 	width = width * xmag;
@@ -696,6 +720,8 @@ hotspotx_s *Hotspots_Add (float left, float top, float width, float height, int 
 		h->idx			= idx;
 		h->trueidx 		= not_found_neg1;
 		h->hotspottype	= hotspottype;
+		h->fire_fn		= NULL;
+		h->fire_idx		= 0;
 		RECT_SET (h->r, left, top, width, nheight);
 		// Con_PrintLinef ("Hotspot %d = %d, %d %d x %d", hotspot_menu_item[idx].idx, hotspot_menu_item[idx].rect.left, hotspot_menu_item[idx].rect.top, hotspot_menu_item[idx].rect.width, hotspot_menu_item[idx].rect.height);
 		top += nheight;
@@ -710,9 +736,18 @@ hotspotx_s *Hotspots_Add (float left, float top, float width, float height, int 
 // Only maps list and server calls this
 void Hotspots_Add2 (float left, float top, float width, float height, int count_, hotspottype_e hotspottype, int trueidx)
 {
-	hotspotx_s *h = Hotspots_Add (left, top, width, height, count_, hotspottype);
+	hotspotx_s *h = Hotspots_Add (left, top, width, height, count_, hotspottype, q_force_scale_0);
 	h->trueidx = trueidx;
 }
+
+void Hotspots_Add3 (float left, float top, float width, float height, int count_, hotspottype_e hotspottype, int trueidx, fire_fn_t fire_fn, int fire_idx)
+{
+	hotspotx_s *h	= Hotspots_Add (left, top, width, height, count_, hotspottype, /*q_force_scale*/ 1);
+	h->trueidx		= trueidx;
+	h->fire_fn		= fire_fn;
+	h->fire_idx		= fire_idx;
+}
+
 
 // Called at the start of most M_ Draw frames (almost).
 // Why does M_Main not call it?
@@ -728,9 +763,26 @@ int g_draw_frame_cursor;
 static void PPX_DrawSel_End (void)
 {
 	if (drawsel_idx!= not_found_neg1) { // PPX SEL
-		crectf_s r	 = hotspotxs[drawsel_idx].r;
+		frect r	 = hotspotxs[drawsel_idx].r;
 		float xmag	= vid.width / vid_conwidth.value; // 1300 / 240
 		float ymag	= vid.height / vid_conheight.value;
+
+		float left		= r.left	/ xmag;
+		float top		= r.top		/ ymag;
+		float width		= r.width	/ xmag;
+		float height	= r.height	/ ymag;
+
+		float redx = 0.5 + 0.2 * sin(host.realtime * M_PI);
+		DrawQ_Fill (left, top, width, height, /*rgb*/ redx, 0, 0, /*a*/ 0.5, DRAWFLAG_ADDITIVE);
+	} // if
+}
+
+static void PPX_DrawSel_End_Full (void)
+{
+	if (drawsel_idx != not_found_neg1) { // PPX SEL
+		frect r	 = hotspotxs[drawsel_idx].r;
+		float xmag	= 1;//vid.width;// / vid_conwidth.value; // 1300 / 240
+		float ymag	= 1;//vid.height;// / vid_conheight.value;
 
 		float left		= r.left	/ xmag;
 		float top		= r.top		/ ymag;
@@ -745,7 +797,6 @@ static void PPX_DrawSel_End (void)
 //
 // SYNC
 //
-#pragma message ("Baker: Are we hardened enough against p0 == NULL and doing p0->width?")
 
 static void M_DrawPic(float cx, float cy, const char *picname, int count, int _colsize, int _rowsize)
 {
@@ -754,7 +805,7 @@ static void M_DrawPic(float cx, float cy, const char *picname, int count, int _c
 	if (count) {
 		int width  = (_colsize == USE_IMAGE_SIZE_NEG1) ? Draw_GetPicWidth(pico) : _colsize * count;
 		int height = (_rowsize == USE_IMAGE_SIZE_NEG1) ? Draw_GetPicHeight(pico) : _rowsize * count;
-		Hotspots_Add (menu_x + cx, menu_y + cy, width, height, count, hotspottype_button);
+		Hotspots_Add (menu_x + cx, menu_y + cy, width, height, count, hotspottype_button, q_force_scale_0);
 	}
 }
 
@@ -813,9 +864,11 @@ static void M_DrawTextBox(float x, float y, float width, float height)
 M_ToggleMenu
 ================
 */
-static void M_ToggleMenu(int mode)
+static void M_ToggleMenu(int mode /*wants on = 1, off = 0*/)
 {
 	m_entersound = true;
+	//Consel_MouseReset ("menu?"); Not needed done elsewhere many places for menu MR_ToggleMenu
+
 	if ((key_dest != key_menu && key_dest != key_menu_grabbed) || m_state != m_main)
 	{
 		if (mode == 0) {
@@ -826,19 +879,26 @@ static void M_ToggleMenu(int mode)
 	#pragma message ("Baker: Until the key release issue can never-ever happen, make opening the menu do it")
 			Key_ReleaseAll ();
 #endif
+			
 			switch (menu_state_reenter) {
 			default:
 				menu_state_reenter = 0;
 				M_Menu_Main_f (cmd_local);
 				break;
-			case 1: // maps
+			case m_maps_26: // maps
 				M_Menu_Maps_f (cmd_local); // Will set menu_state_reenter 0
 				break;
-			case 2: // Darkplaces slist
+			case m_slist_27: // Darkplaces slist
 				M_Menu_ServerList_f (cmd_local); // Will set menu_state_reenter 0
 				break;
-			case 3: // qw slist
+			case m_slist_qw_28: // qw slist
 				M_Menu_ServerList_f (cmd_local); // Will set menu_state_reenter 0
+				break;
+			case m_zdev_29:
+				M_Menu_ZDev_f (cmd_local); // Will set menu_state_reenter 0
+				break;
+			case m_zform_30:
+				M_Menu_ZForm_f (cmd_local); // Will set menu_state_reenter 0
 				break;
 			} // sw
 		} // mode
@@ -1050,7 +1110,7 @@ WARP_X_ (M_Draw)
 void M_KeyEvent (int key, int ascii, qbool downevent)
 {
 	cmd_state_t *cmd = cmd_local;
-	if (!downevent)
+	if (!downevent && m_state != m_zform_30)
 		return;
 
 	switch (m_state) {
@@ -1080,10 +1140,11 @@ void M_KeyEvent (int key, int ascii, qbool downevent)
 	case m_quit: 					M_Quit_Key(cmd, key, ascii); 				return;
 	case m_lanconfig: 				M_LanConfig_Key(cmd, key, ascii); 			return;
 	case m_gameoptions: 			M_GameOptions_Key(cmd, key, ascii); 		return;
-	case m_slist: 					M_ServerList_Key(cmd, key, ascii); 			return;
+	case m_slist_27: 				M_ServerList_Key(cmd, key, ascii); 			return;
 	case m_modlist:					M_ModList_Key(cmd, key, ascii); 			return;
-	case m_maps:					M_Maps_Key (cmd, key, ascii);				return;
-	case m_zdev:					M_ZDev_Key (cmd, key, ascii);				return;
+	case m_maps_26:					M_Maps_Key (cmd, key, ascii);				return;
+	case m_zdev_29:					M_ZDev_Key (cmd, key, ascii);				return;
+	case m_zform_30:				M_ZForm_Key (cmd, key, ascii, downevent);		return;
 	} // sw
 
 }
@@ -1103,7 +1164,7 @@ void M_Draw (void)
 
 	// Hover is 1 frame behind, drawn first
 	if (hotspotx_count && hotspotx_hover != not_found_neg1) {
-		crectf_s r = hotspotxs[hotspotx_hover].r;
+		frect r = hotspotxs[hotspotx_hover].r;
 		float xmag		= vid.width / vid_conwidth.value; // 1300 / 240
 		float ymag		= vid.height / vid_conheight.value;
 
@@ -1112,7 +1173,7 @@ void M_Draw (void)
 		float width		= r.width / xmag;
 		float height	= r.height / ymag;
 
-		if (isin4 (m_state, m_maps, m_modlist, m_keys, m_slist)) {
+		if (isin4 (m_state, m_maps_26, m_modlist, m_keys, m_slist_27)) {
 			DrawQ_Fill(left, top, width, height, /*bronzey*/ 0.5, 0.25, 0.1, 0.75, DRAWFLAG_NORMAL_0);
 		} else {
 			DrawQ_Fill(left, top, width, height, /*bronzey*/ 0.5, 0.25, 0.1, 0.37, DRAWFLAG_NORMAL_0);
@@ -1146,11 +1207,12 @@ void M_Draw (void)
 	case m_quit:					M_Quit_Draw ();						break;
 	case m_lanconfig:				M_LanConfig_Draw ();				break;
 	case m_gameoptions:				M_GameOptions_Draw ();				break;
-	case m_slist:					M_ServerList_Draw ();				break;
+	case m_slist_27:				M_ServerList_Draw ();				break;
 	case m_modlist:					M_ModList_Draw ();					break;
-	case m_maps:					M_Maps_Draw ();						break;
-	case m_zdev:					M_ZDev_Draw ();						break;
-	}
+	case m_maps_26:					M_Maps_Draw ();						break;
+	case m_zdev_29:					M_ZDev_Draw ();						break;
+	case m_zform_30:				M_ZForm_Draw ();					break;
+	} // sw
 
 	if (m_entersound) {
 		S_LocalSound ("sound/misc/menu2.wav");
@@ -1170,12 +1232,50 @@ static int M_GetServerListEntryCategory(const serverlist_entry_t *entry)
 	return 0;
 }
 
+hotspotx_s *Did_Get_Header_Idx (void)
+{
+	hotspotx_s *h = &hotspotxs[hotspotx_hover];
+	return h;
+}
+
+qbool IsDoubleClick_Set_Time (double *pclicktime)
+{
+	double new_click_time	= host.realtime; // Sys_DirtyTime();
+	double click_delta_time = (*pclicktime) ? (new_click_time - (*pclicktime) ) : 0;
+	int is_double_click		= click_delta_time && (click_delta_time < DOUBLE_CLICK_0_5);
+
+	*pclicktime = new_click_time;
+
+	return is_double_click;
+}
+
+qbool IsDoubleClick_Set_Cursor (double *pclicktime, int *pcursor, int start_row, int hotspotx_hover)
+{
+	int new_cursor			= hotspotx_hover + start_row;
+	int is_new_cursor		= new_cursor != (*pcursor);
+
+	(*pcursor)				= new_cursor;
+
+	if (is_new_cursor)
+		return false; // GET OUT!  SET FOCUS TO ITEM
+
+	double new_click_time	= host.realtime; // Sys_DirtyTime();
+	double click_delta_time = (*pclicktime) ? (new_click_time - (*pclicktime) ) : 0;
+	int is_double_click		= click_delta_time && (click_delta_time < DOUBLE_CLICK_0_5);
+
+	*pclicktime = new_click_time;
+
+	return is_double_click;
+}
+
+
 #include "menu_main.c.h"
 #include "menu_main_zirc.c.h"
 	#include "menu_single_player.c.h"
 		#include "menu_saveload2.c.h"
 		#include "menu_saveload.c.h"
 		#include "menu_zdev.c.h"
+		#include "menu_zform.c.h"
 
 	#include "menu_multiplayer.c.h"
 		#include "menu_lan.c.h"
@@ -1203,15 +1303,17 @@ qbool menu_is_csqc; // Is menu csqc in effect, if so .. defer to it.
 #endif
 
 // Baker r1402: Reset menu cursor on gamedir change
+WARP_X_CALLERS_ (FS_GameDir_f)
 void Menu_Resets(void)
 {
+#pragma message ("M_Shutdown would be better place or even M_Init?")
 	m_main_cursor =
 		options_cursor =
 		options_cursorx =
 		m_singleplayer_cursor =
 		load_cursor =
 		m_multiplayer_cursor =
-		m_maplist_cursor					=
+		m_maplist_cursor =
 		options_colorcontrol_cursor =
 		options_effects_cursor =
 		options_graphics_cursor =
@@ -1221,6 +1323,8 @@ void Menu_Resets(void)
 		video2_cursor = 0;
 		setup_cursor = 0;
 	lanConfig_cursor = -1;
+
+	m_maplist_count = 0;
 }
 
 
@@ -1248,6 +1352,7 @@ static void M_Init(void)
 {
 	menuplyr_load = true;
 	menuplyr_pixels = NULL;
+	
 
 	menu_current_working_directory = Sys_Getcwd_SBuf();
 
@@ -1289,6 +1394,7 @@ static void M_Init(void)
 
 	Cmd_AddCommand(CF_CLIENT, "menu_credits", M_Menu_Credits_f, "open the credits menu");
 
-	Cmd_AddCommand(CF_CLIENT, "zdev", M_Menu_ZDev_f, "open the loadgame menu");
+	//Cmd_AddCommand(CF_CLIENT, "zdev", M_Menu_ZDev_f, "test menu");
+	Cmd_AddCommand(CF_CLIENT, "devinfo", M_Menu_ZForm_f, "Developer information interface");
 }
 

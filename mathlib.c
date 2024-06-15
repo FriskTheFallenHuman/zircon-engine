@@ -830,7 +830,7 @@ float RadiusFromBoundsAndOrigin (const vec3_t mins, const vec3_t maxs, const vec
 }
 
 static void Math_RandomSeed_UnitTests(void);
-void Mathlib_Init(void)
+void Mathlib_InitOnce(void)
 {
 	int a;
 

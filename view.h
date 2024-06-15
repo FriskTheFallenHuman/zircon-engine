@@ -5,7 +5,7 @@
 #include "matrixlib.h"
 struct cmd_state_s;
 
-void V_Init (void);
+void V_InitOnce (void); // View
 void V_UpdateBlends (void);
 void V_ParseDamage (void);
 void V_DriftPitch(void);

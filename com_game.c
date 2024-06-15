@@ -154,7 +154,7 @@ void COM_ChangeGameTypeForGameDirs(void)
 	{
 		for (i = 0;i < (int)(sizeof (gamemode_info) / sizeof (gamemode_info[0]));i++)
 		{
-			if (gamemode_info[i].group == com_startupgamegroup && (gamemode_info[i].gamedirname2 && gamemode_info[i].gamedirname2[0]) && String_Does_Match_Caseless(fs_gamedirs[0], gamemode_info[i].gamedirname2))
+			if (gamemode_info[i].group == com_startupgamegroup && (gamemode_info[i].gamedirname2 && gamemode_info[i].gamedirname2[0]) && String_Match_Caseless(fs_gamedirs[0], gamemode_info[i].gamedirname2))
 			{
 				index = i;
 				break;
@@ -190,7 +190,6 @@ static void COM_SetGameType(int index)
 		gamedirname1 = mod_list_folder_name;  // "pac" modlist.txt
 		gamenetworkfiltername = mod_list_server_filter_name; // "Packard_Man"
 		gamescreenshotname = gameuserdirname = mod_list_server_filter_name; // "Packard_Man"
-		int j = 5;
 	}
 
 	if (gamemode == com_startupgamemode)

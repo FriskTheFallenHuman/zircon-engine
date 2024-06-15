@@ -15,13 +15,104 @@ int		m_maplist_visiblerows;
 int		m_maplist_startrow;
 int		m_maplist_endrow;
 
+#if 1
+
+saveo_t mapeo;
+int mapeo_oldmaplistcursor = -1;
+
+
+// DYNX: 0
+
+
+// DYNX: Change - very specific
+WARP_X_CALLERS_ (M_Load2_Draw)
+WARP_X_CALLERS_ (SavegameTextureChange)
+#define saveo NOT_FOOL
+// Q: WHY NOT DELETE CURRENT CURRENT TEXTURE (HOW)
+// AND CREATE A NEW ONE ...
+// Answer: We still need same name.
+//ccs *supername,
+// , int superw, int superh
+static void MAPX_TextureChange (saveo_t *super, ccs *q3mapname_or_null)
+{
+	extern int image_width, image_height;
+
+	if (q3mapname_or_null == NULL) {
+		Mem_FreeNull_ (super->savif_bgra_pels);
+		return;
+	}
+
+	// Baker: This either finds it in list (nothing is done) or creates a texture.
+	va_super (levelshots_map_tga, MAX_QPATHX2_256, "levelshots/%s.tga", q3mapname_or_null);
+
+	Mem_FreeNull_ (super->savif_bgra_pels);
+
+	bgra4 *screenshotpels_za = (bgra4 *)loadimagepixelsbgra (
+		levelshots_map_tga,
+		q_tx_complain_false,
+		q_tx_allowfixtrans_false,
+		q_tx_convertsrgb_false,
+		q_tx_miplevel_null
+	);
+
+	// TRANSFER
+	if (screenshotpels_za == NULL) {
+		return; // We already freed, just get out.  Make sure to not render.
+	}
+
+	super->superw = image_width;
+	super->superh = image_height;
+	super->aspecthdivw = image_height / (float)image_width;
+	super->aspectheight = 320.0 * super->aspecthdivw;
+
+//	if (image_width != image_height)
+//		int k = 4;
+
+	WARP_X_ (DrawQ_SuperPic_Video)
+
+	dynamic_baker_texture_t king = {0};
+	super->savif_bgra_pels = screenshotpels_za; // ACQUIRED
+	Dynamic_Baker_Texture2D_Prep (&king, q_is_dirty_true, super->supername,
+		super->savif_bgra_pels, super->superw, super->superh);
+
+}
+
+//WARP_X_ (UnlinkVideoTexture)
+//WARP_X_CALLERS_ (M_Load2_Draw) // like SAVEGAME_PIC_NAME
+//static void DynamicTexturePurge (ccs *dynamic_pic_name, bgra4 *image_pels, int width, int height) // Only called when there are no save games.
+//{
+//	// free the texture (this does not destroy the cachepic_t, which is external)
+//	// CPIFX: Baker: I think this is called to clear the buff free old pic
+//	dynamic_baker_texture_t king = {0};
+//	Dynamic_Baker_Texture2D_Prep (&king, q_is_dirty_false, SAVEGAME_PIC_NAME, image_pels, SAVEGAME_PIC_WIDTH_512, SAVEGAME_PIC_HEIGHT_320);
+//	Draw_FreePic	(SAVEGAME_PIC_NAME); // doesn't free the pic, runs R_SkinFrame_PurgeSkinFrame
+//	king.bpic->skinframe = NULL; // ? Q1SKY
+//}
+//
+
+#endif
+
+WARP_X_ (M_Menu_ServerList_f)
+
+// maps/levelshots/whatever.png ...
 void M_Menu_Maps_f(cmd_state_t *cmd)
 {
 	KeyDest_Set (key_menu);
-	menu_state_set_nova (m_maps);
+	menu_state_set_nova (m_maps_26);
 	m_entersound = true;
 
-	GetMapList("", NULL, 0, /*is_menu_fill*/ true, /*autocompl*/ false, /*suppress*/ false);
+	if (m_maplist_count == 0)
+		GetMapList("", NULL, 0, /*is_menu_fill*/ true, /*autocompl*/ false, /*suppress*/ false);
+
+#define LEVELSHOTS_PIC_NAME		"levelshotspic"
+
+	if (!mapeo.supername[0]) {
+		c_strlcpy (mapeo.supername, "levelshotspic");
+		mapeo.superw = SAVEGAME_PIC_WIDTH_512;
+		mapeo.superh = SAVEGAME_PIC_HEIGHT_320;
+		mapeo.is_fixed_size = false;
+	}
+	//mapeo_oldmaplistcursor = -1;//
 
 	startrow = not_found_neg1, endrow = not_found_neg1;
 
@@ -53,15 +144,15 @@ static void M_Maps_Draw (void)
 
 	drawcur_y = 8 * 6;
 	visiblerows = (int)((menu_height - (2 * 8) - drawcur_y) / 8) - 8;
-	
+
 	// Baker: Do it this way because a short list may have more visible rows than the list count
-	// so using bound doesn't work. 
+	// so using bound doesn't work.
 	if (local_scroll_is_blocked == false) {
 		startrow = local_cursor - (visiblerows / 2);
 
-		if (startrow > local_count - visiblerows)	
+		if (startrow > local_count - visiblerows)
 			startrow = local_count - visiblerows;
-		if (startrow < 0)	
+		if (startrow < 0)
 			startrow = 0; // visiblerows can exceed local_count
 	}
 
@@ -75,7 +166,7 @@ static void M_Maps_Draw (void)
 			if (!in_range_beyond (0, n, local_count))
 				continue;
 
-			if (n == local_cursor) 
+			if (n == local_cursor)
 				drawsel_idx = (n - startrow) /*relative*/;
 
 			maplist_s *mx = &m_maplist[n];
@@ -84,7 +175,8 @@ static void M_Maps_Draw (void)
 			M_ItemPrint		((8 +  0) * 10, drawcur_y, (const char *)mx->s_name_trunc_16_a, true);
 			M_ItemPrint		((8 + 18) * 10, drawcur_y, (const char *)mx->s_bsp_code, true);
 			M_ItemPrint2	((8 + 21) * 10, drawcur_y, (const char *)mx->s_map_title_trunc_28_a, true);
-			
+
+
 			drawcur_y +=8;
 		} // for
 
@@ -104,9 +196,40 @@ static void M_Maps_Draw (void)
 	}
 
 	PPX_DrawSel_End ();
+
+// NEW:
+	int effective_cursor = local_cursor;
+
+	if (effective_cursor != mapeo_oldmaplistcursor && local_count != 0) {
+		maplist_s *mx = &m_maplist[local_cursor];
+		ccs *q3mapname = (ccs *)mx->s_name_after_maps_folder_a;
+
+		MAPX_TextureChange (&mapeo, q3mapname);
+
+		mapeo_oldmaplistcursor = effective_cursor;
+	} // while 1
+
+	if (mapeo.savif_bgra_pels) {
+		int col6 = menu_x + (8 + 21) * 10 + 28 * 8 + 8;
+		int remain = vid_conwidth.integer - col6;
+		int w = remain - 2;
+		int height = mapeo.aspecthdivw == 1 ? w * 3/4 : w * mapeo.aspecthdivw;
+
+		p0 = Draw_CachePic_Flags (mapeo.supername, CACHEPICFLAG_NOTPERSISTENT);
+		DrawQ_Pic (
+			vid_conwidth.integer - remain - 2,
+			(vid_conheight.integer - height) / 2,
+			p0,
+			w /*remain*/ ,
+			height /*mapeo.aspectheight*/,
+			q_rgba_solid_white_4_parms,
+			DRAWFLAG_NORMAL_0
+		);
+
+	}
 }
 
-#pragma message ("Check out what happens if no servers founds or no maps found and end up pgup hit")
+
 static void M_Maps_Key(cmd_state_t *cmd, int key, int ascii)
 {
 	int lcase_ascii;
@@ -120,7 +243,7 @@ static void M_Maps_Key(cmd_state_t *cmd, int key, int ascii)
 		break;
 
 	case K_MOUSE1:
-		if (hotspotx_hover == not_found_neg1) 
+		if (hotspotx_hover == not_found_neg1)
 			break;
 
 		local_cursor = hotspotx_hover + startrow; // fall thru
@@ -158,14 +281,14 @@ static void M_Maps_Key(cmd_state_t *cmd, int key, int ascii)
 			maplist_s *mx = &m_maplist[local_cursor];
 
 			va_super (tmp, 1024, "map %s // %s", mx->s_name_after_maps_folder_a, mx->s_map_title_trunc_28_a);
-			
+
 			Cbuf_AddTextLine (cmd, tmp);
 
 			// Baker r0072: Add maps menu map to command history for recall.
 			Key_History_Push_String (tmp);
 
 			// Maps is re-entrant
-			menu_state_reenter = 1;
+			menu_state_reenter = m_maps_26;
 			KeyDest_Set (key_game); // key_dest = key_game;
 			menu_state_set_nova (m_none);
 		}
@@ -173,6 +296,8 @@ static void M_Maps_Key(cmd_state_t *cmd, int key, int ascii)
 		break;
 
 	case K_SPACE:
+		Con_PrintLinef ("Refreshing maps menu list ...");
+		GetMapList("", NULL, 0, /*is_menu_fill*/ true, /*autocompl*/ false, /*suppress*/ false);
 		break;
 
 	case K_HOME:
@@ -205,7 +330,7 @@ static void M_Maps_Key(cmd_state_t *cmd, int key, int ascii)
 
 	case K_MWHEELDOWN:
 		local_cursor += visiblerows / 4;
-		if (local_cursor >= local_count) 
+		if (local_cursor >= local_count)
 			local_cursor = local_count - 1;
 		break;
 
@@ -246,7 +371,7 @@ static void M_Maps_Key(cmd_state_t *cmd, int key, int ascii)
 
 				maplist_s *mx = &m_maplist[startx];
 
-				if (String_Does_Start_With_Caseless ((char *)mx->s_name_after_maps_folder_a, sprefix)) {
+				if (String_Starts_With_Caseless ((char *)mx->s_name_after_maps_folder_a, sprefix)) {
 					local_cursor = startx;
 					break;
 				} // if
@@ -259,7 +384,7 @@ static void M_Maps_Key(cmd_state_t *cmd, int key, int ascii)
 
 }
 
-#undef	local_count	
+#undef	local_count
 #undef	local_cursor
 #undef 	visiblerows
 #undef 	startrow

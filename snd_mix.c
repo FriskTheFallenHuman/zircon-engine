@@ -23,12 +23,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern cvar_t snd_softclip;
 
-static portable_sampleframe_t paintbuffer[PAINTBUFFER_SIZE];
+static portable_sampleframe_t paintbuffer[PAINTBUFFER_SIZE_2048];
 
 extern speakerlayout_t snd_speakerlayout; // for querying the listeners
 
 #ifdef CONFIG_VIDEO_CAPTURE
-static portable_sampleframe_t paintbuffer_unswapped[PAINTBUFFER_SIZE];
+static portable_sampleframe_t paintbuffer_unswapped[PAINTBUFFER_SIZE_2048];
 
 static void S_CaptureAVISound(const portable_sampleframe_t *sampleframes, size_t length)
 {
@@ -415,14 +415,14 @@ void S_MixToBuffer(void *stream, unsigned int bufferframes)
 	while (bufferframes)
 	{
 		// limit to the size of the paint buffer
-		totalmixframes = min(bufferframes, PAINTBUFFER_SIZE);
+		totalmixframes = min(bufferframes, PAINTBUFFER_SIZE_2048);
 
 		// clear the paint buffer
 		memset(paintbuffer, 0, totalmixframes * sizeof(paintbuffer[0]));
 
 		// paint in the channels.
 		// channels with zero volumes still advance in time but don't paint.
-		ch = channels; // cppcheck complains here but it is wrong, channels is a channel_t[MAX_CHANNELS] and not an int
+		ch = channels; // cppcheck complains here but it is wrong, channels is a channel_t[MAX_CHANNELS_8196] and not an int
 		for (channelindex = 0;channelindex < (int)total_channels;channelindex++, ch++)
 		{
 			sfx = ch->sfx;

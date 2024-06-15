@@ -1038,7 +1038,7 @@ static CompressedImageCacheItem *CompressedImageCache_Find(const char *imagename
 	while(i)
 	{
 		if (i->maxsize == maxsize)
-			if (String_Does_Match(i->imagename, imagename))
+			if (String_Match(i->imagename, imagename))
 				return i;
 		i = i->next;
 	}

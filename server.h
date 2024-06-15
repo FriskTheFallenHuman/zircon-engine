@@ -170,8 +170,12 @@ typedef struct server_s
 	sizebuf_t *writeentitiestoclient_msg;
 	vec3_t writeentitiestoclient_eyes[MAX_CLIENTNETWORKEYES];
 	int writeentitiestoclient_numeyes;
+#if 1 // June 2
+	unsigned char *writeentitiestoclient_pvs;
+#else
 	int writeentitiestoclient_pvsbytes;
-	unsigned char writeentitiestoclient_pvs[MAX_MAP_LEAFS/8];
+	unsigned char writeentitiestoclient_pvs[MAX_MAP_LEAFS_65536/8];
+#endif
 	const entity_state_t *writeentitiestoclient_sendstates[MAX_EDICTS_32768];
 	unsigned short writeentitiestoclient_csqcsendstates[MAX_EDICTS_32768];
 
@@ -307,8 +311,8 @@ typedef struct client_s
 	entityframe5_database_t *entitydatabase5;
 
 	// delta compression of stats
-	unsigned char statsdeltabits[(MAX_CL_STATS+7)/8];
-	int stats[MAX_CL_STATS];
+	unsigned char statsdeltabits[(MAX_CL_STATS_256+7)/8];
+	int stats[MAX_CL_STATS_256];
 
 	unsigned char unreliablemsg_data[NET_MAXMESSAGE_65536];
 	sizebuf_t unreliablemsg;
@@ -346,25 +350,25 @@ typedef struct client_s
 //=============================================================================
 
 // edict->movetype values
-#define	MOVETYPE_NONE			0		///< never moves
-#define	MOVETYPE_ANGLENOCLIP	1
-#define	MOVETYPE_ANGLECLIP		2
-#define	MOVETYPE_WALK			3		///< gravity
-#define	MOVETYPE_STEP			4		///< gravity, special edge handling
-#define	MOVETYPE_FLY			5
-#define	MOVETYPE_TOSS			6		///< gravity
-#define	MOVETYPE_PUSH			7		///< no clip to world, push and crush
-#define	MOVETYPE_NOCLIP			8
-#define	MOVETYPE_FLYMISSILE_9	9		///< extra size to monsters
-#define	MOVETYPE_BOUNCE			10
+#define	MOVETYPE_NONE_0				0		///< never moves
+#define	MOVETYPE_ANGLENOCLIP_1		1
+#define	MOVETYPE_ANGLECLIP_2		2
+#define	MOVETYPE_WALK_3				3		///< gravity
+#define	MOVETYPE_STEP_4				4		///< gravity, special edge handling
+#define	MOVETYPE_FLY_5				5
+#define	MOVETYPE_TOSS_6				6		///< gravity
+#define	MOVETYPE_PUSH_7				7		///< no clip to world, push and crush
+#define	MOVETYPE_NOCLIP_8			8
+#define	MOVETYPE_FLYMISSILE_9		9		///< extra size to monsters
+#define	MOVETYPE_BOUNCE_10			10
 #define	MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11	11		// 2021 rerelease gibs // AURA 9.1
-#define MOVETYPE_BOUNCEMISSILE	11		///< bounce w/o gravity
-#define MOVETYPE_FOLLOW			12		///< track movement of aiment
-#define MOVETYPE_FAKEPUSH		13		///< tenebrae's push that doesn't push
-#define MOVETYPE_PHYSICS		32		///< indicates this object is physics controlled
-#define MOVETYPE_FLY_WORLDONLY	33		///< like MOVETYPE_FLY, but uses MOVE_WORLDONLY for all its traces; objects of this movetype better be SOLID_NOT_0 or SOLID_TRIGGER_1 please, or else...
-#define MOVETYPE_USER_FIRST		128		///< user defined movetypes
-#define MOVETYPE_USER_LAST		191
+#define MOVETYPE_BOUNCEMISSILE_11	11		///< bounce w/o gravity
+#define MOVETYPE_FOLLOW_12			12		///< track movement of aiment
+#define MOVETYPE_FAKEPUSH_13		13		///< tenebrae's push that doesn't push
+#define MOVETYPE_PHYSICS_32			32		///< indicates this object is physics controlled
+#define MOVETYPE_FLY_WORLDONLY_33	33		///< like MOVETYPE_FLY_5, but uses MOVE_WORLDONLY for all its traces; objects of this movetype better be SOLID_NOT_0 or SOLID_TRIGGER_1 please, or else...
+#define MOVETYPE_USER_FIRST			128		///< user defined movetypes
+#define MOVETYPE_USER_LAST			191
 
 // edict->solid values
 #define	SOLID_NOT_0				0		///< no interaction with other objects
@@ -537,6 +541,10 @@ extern cvar_t teamplay;
 extern cvar_t temp1;
 extern cvar_t timelimit;
 
+#if 0
+extern cvar_t sv_gameplayfix_hemebond_pushmove;
+#endif
+
 extern mempool_t *sv_mempool;
 
 /// persistant server info
@@ -570,7 +578,7 @@ extern client_t *host_client;
 
 //===========================================================
 
-void SV_Init (void);
+void SV_InitOnce (void);
 double SV_Frame(double time);
 void SV_Shutdown(void);
 
@@ -594,6 +602,11 @@ void SV_ReadClientMessage(void);
 // 0 = fail if not precached,
 // 1 = warn if not found and precache if possible
 // 2 = precache
+
+#define PRECACHE_MODE_0				0	// fail if not precached Baker: 0 means we are not precaching
+#define PRECACHE_MODE_1				1	// warn if not found and precache if possible
+#define PRECACHE_MODEL_CMD_MODE_2	2	// precache_model
+
 int SV_ModelIndex(const char *s, int precachemode);
 int SV_SoundIndex(const char *s, int precachemode);
 
@@ -714,6 +727,12 @@ void SV_Begin_f_Zircon_Warp_Initialize (void);
 extern cvar_t sv_allow_zircon_move;
 extern cvar_t sv_players_walk_thru_players;
 extern cvar_t sv_save_screenshots;
+extern cvar_t halflifebsp, sv_mapformat_is_quake2,  sv_mapformat_is_quake3;
+
+
+void VMX_SV_precache_model (prvm_prog_t *prog, const char *s_model);
+void VMX_SV_setmodel (prvm_prog_t *prog, prvm_edict_t *e, const char *s_model);
+void SV_Spawn_Model_At (ccs *s_classname, ccs *s_modelname, ccs *s_origin, ccs *s_angles, ccs *s_frame, ccs *s_scale);
 
 #define	SAVEGAME_VERSION_5	5
 int SV_Loadgame_Intermap_Do_Ents (const char *s_load_game_contents);

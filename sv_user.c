@@ -97,7 +97,7 @@ void SV_Spawn_f(cmd_state_t *cmd)
 	prvm_prog_t *prog = SVVM_prog;
 	int i;
 	client_t *client;
-	int stats[MAX_CL_STATS];
+	int stats[MAX_CL_STATS_256];
 
 	if (!host_client->prespawned) {
 		Con_PrintLinef ("Spawn not valid -- not yet prespawned");
@@ -315,11 +315,11 @@ void SV_SetIdealPitch (void)
 	for (j=1 ; j<i ; j++)
 	{
 		step = z[j] - z[j-1];
-		if (step > -ON_EPSILON && step < ON_EPSILON)
+		if (step > -ON_EPSILON_0_1F && step < ON_EPSILON_0_1F)
 			continue;
 
 		// mixed changes
-		if (dir && ( step-dir > ON_EPSILON || step-dir < -ON_EPSILON ) )
+		if (dir && ( step-dir > ON_EPSILON_0_1F || step-dir < -ON_EPSILON_0_1F ) )
 			return;
 
 		steps++;
@@ -596,7 +596,7 @@ static void SV_AirMove (void)
 	for (i=0 ; i<3 ; i++)
 		wishvel[i] = forward[i]*fmove + right[i]*smove;
 
-	if ((int)PRVM_serveredictfloat(host_client->edict, movetype) != MOVETYPE_WALK)
+	if ((int)PRVM_serveredictfloat(host_client->edict, movetype) != MOVETYPE_WALK_3)
 		wishvel[2] += usercmd.clx_upmove;
 
 	VectorCopy (wishvel, wishdir);
@@ -608,7 +608,7 @@ static void SV_AirMove (void)
 		wishspeed = sv_maxspeed.value;
 	}
 
-	if (PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NOCLIP)
+	if (PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NOCLIP_8)
 	{
 		// noclip
 		VectorCopy (wishvel, PRVM_serveredictvector(host_client->edict, velocity));
@@ -654,7 +654,7 @@ void SV_PlayerPhysics (void)
 		return;
 	}
 
-	if (PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NONE)
+	if (PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NONE_0)
 		return;
 
 	onground = ((int)PRVM_serveredictfloat(host_client->edict, flags) & FL_ONGROUND) != 0;
@@ -687,7 +687,7 @@ void SV_PlayerPhysics (void)
 	}
 
 	// walk
-	if ((PRVM_serveredictfloat(host_client->edict, waterlevel) >= 2) && (PRVM_serveredictfloat(host_client->edict, movetype) != MOVETYPE_NOCLIP))
+	if ((PRVM_serveredictfloat(host_client->edict, waterlevel) >= 2) && (PRVM_serveredictfloat(host_client->edict, movetype) != MOVETYPE_NOCLIP_8))
 	{
 		SV_WaterMove ();
 		SV_CheckVelocity(host_client->edict);
@@ -695,7 +695,7 @@ void SV_PlayerPhysics (void)
 	}
 
 	// Baker r0085: FitzQuake noclipping
-	if ((PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NOCLIP) && sv_altnoclipmove.integer) {
+	if ((PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NOCLIP_8) && sv_altnoclipmove.integer) {
 		SV_NoClip_Move ();
 		SV_CheckVelocity(host_client->edict);
 		return;
@@ -918,7 +918,7 @@ static void SV_ReadClientMessage_ExecuteClientMoves (vec_t *zircon_move_final_po
 		sv_clmovement_inputtimeout.value /*0.1*/ > 0 && 
 		host_client->clmovement_disabletimeout <= host.realtime && 
 		(PRVM_serveredictfloat(host_client->edict, disableclientprediction) == -1 || 
-		(PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_WALK && 
+		(PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_WALK_3 && 
 		(!PRVM_serveredictfloat(host_client->edict, disableclientprediction)))))
 	{
 		// process the moves in order and ignore old ones
@@ -1001,7 +1001,7 @@ static void SV_ReadClientMessage_ExecuteClientMoves (vec_t *zircon_move_final_po
 				SV_Physics_ClientMove(); // PREDICTED MOVE
 				sv.frametime = oldframetime2;
 				PRVM_serverglobalfloat(frametime) = oldframetime;
-				host_client->clmovement_inputtimeout = min(0.1, sv_clmovement_inputtimeout.value);
+				host_client->clmovement_inputtimeout = min(0.1, sv_clmovement_inputtimeout.value /*d:0.1*/);
 			}
 		}
 	}
@@ -1245,9 +1245,9 @@ baker_loop_exits_here:
 			} // for p
 			if (q)
 				*q = 0;
-			if (String_Does_Start_With_PRE(s, "spawn"/*, 5*/) ||
-				String_Does_Start_With_PRE(s, "begin"/*, 5*/) ||
-				String_Does_Start_With_PRE(s, "prespawn"/*, 8*/) )
+			if (String_Starts_With_PRE(s, "spawn"/*, 5*/) ||
+				String_Starts_With_PRE(s, "begin"/*, 5*/) ||
+				String_Starts_With_PRE(s, "prespawn"/*, 8*/) )
 				Cmd_ExecuteString (cmd_serverfromclient, s, src_client, /*lock mutex*/ true);
 			else if (PRVM_serverfunction(SV_ParseClientCommand))
 			{

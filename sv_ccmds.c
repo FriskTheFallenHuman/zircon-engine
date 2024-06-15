@@ -61,13 +61,13 @@ static void SV_Map_f(cmd_state_t *cmd)
 	char level[MAX_QPATH_128];
 
 	// Baker r1202: "map" command with no params says map name
-	if (isin3(Cmd_Argc(cmd),1, 2, 3) == false) {
+	if (isin4(Cmd_Argc(cmd),1, 2, 3,4) == false) {
 		Con_PrintLinef ("map <levelname> : start a new game (kicks off all players)");
 		return;
 	}
 
 	if (Cmd_Argc(cmd) < 2) {
-		// Baker: If we are on a map, print the name of the map
+		// Baker: If we are on a map, print the name of the map5
 
 		if (cls.state == ca_connected && cls.signon == SIGNONS_4) {
 			Con_PrintLinef ("map is %s" NEWLINE, cl.worldbasename);
@@ -76,6 +76,16 @@ static void SV_Map_f(cmd_state_t *cmd)
 				Con_PrintLinef (S_FMT_LEFT_PAD_20 " %s", "supportwateralpha?", cl.worldmodel->brush.supportwateralpha ? "Yes" : "No");
 				Con_PrintLinef (S_FMT_LEFT_PAD_20 " %s", "vis data?", cl.worldmodel->brush.num_pvsclusters != 0 ? "Yes" : "No");
 
+				//if (developer.integer) {
+					// Con_PrintLinef (S_FMT_LEFT_PAD_20 " %d", "num brushes", cl.worldmodel->brush.num_brushes);
+					Con_PrintLinef (S_FMT_LEFT_PAD_20 " %d", "num triangles", cl.worldmodel->surfmesh.num_triangles);
+					Con_PrintLinef (S_FMT_LEFT_PAD_20 " %d", "num vertices", cl.worldmodel->surfmesh.num_vertices);
+					Con_PrintLinef (S_FMT_LEFT_PAD_20 " " VECTOR3_5d1F, "normalmins", VECTOR3_SEND(cl.worldmodel->normalmins));
+					Con_PrintLinef (S_FMT_LEFT_PAD_20 " " VECTOR3_5d1F, "normalmaxs", VECTOR3_SEND(cl.worldmodel->normalmaxs));
+					vec3_t size3;
+					VectorSubtract (cl.worldmodel->normalmaxs, cl.worldmodel->normalmins, size3);
+					Con_PrintLinef (S_FMT_LEFT_PAD_20 " " VECTOR3_5d1F, "size", VECTOR3_SEND(size3));
+				//}
 
 				Con_PrintLinef (NEWLINE "Keys" NEWLINE);
 
@@ -94,6 +104,14 @@ static void SV_Map_f(cmd_state_t *cmd)
 
 		return;
 	}
+
+	// 0   1    2      3
+	// map e1m1 sfind sreplace
+	if (Cmd_Argc(cmd) == 4) {
+		Z_StrDup_Realloc_ (cls.s_find_za, Cmd_Argv(cmd, 2));
+		Z_StrDup_Realloc_ (cls.s_replace_za, Cmd_Argv(cmd, 3));
+	}
+
 
 	if (Cmd_Argc(cmd) == 3) {
 		c_strlcpy (startspot, Cmd_Argv(cmd, 2));
@@ -330,6 +348,10 @@ static void SV_Restart_f (cmd_state_t *cmd)
 	float level_totaltimeatlastexit = 0;
 	float level_surplustime = 0;
 
+#if 1 // Baker: Where/how do other engines do this?
+	r_refdef.viewblend[0] = r_refdef.viewblend[1] = r_refdef.viewblend[2] = r_refdef.viewblend[3] = 0;  
+#endif
+
 	if (Cmd_Argc(cmd) != 1) {
 		Con_PrintLinef ("restart : restart current level");
 		return;
@@ -404,9 +426,9 @@ static void SV_DisableCheats_c(cvar_t *var)
 				 PRVM_serveredictfloat(svs.clients[i].edict, flags) = newflags;
 			}
 
-			if (isin2 (PRVM_serveredictfloat(svs.clients[i].edict, movetype), MOVETYPE_NOCLIP, MOVETYPE_FLY)) {
+			if (isin2 (PRVM_serveredictfloat(svs.clients[i].edict, movetype), MOVETYPE_NOCLIP_8, MOVETYPE_FLY_5)) {
 				noclip_anglehack = false;
-				PRVM_serveredictfloat(svs.clients[i].edict, movetype) = MOVETYPE_WALK;
+				PRVM_serveredictfloat(svs.clients[i].edict, movetype) = MOVETYPE_WALK_3;
 			}
 		} // for
 	} // if
@@ -449,19 +471,19 @@ static void SV_Noclip_f(cmd_state_t *cmd)
 	prvm_prog_t *prog = SVVM_prog;
 
 	int wants_on = 0;
-	int was_on = PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NOCLIP;
+	int was_on = PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NOCLIP_8;
 	if (Cmd_Argc (cmd) > 1)	{ wants_on = atof(Cmd_Argv (cmd, 1)) != 0; }
 	else					{ wants_on = !was_on; }
 
 	if (wants_on) {
 		noclip_anglehack = true;
-		PRVM_serveredictfloat(host_client->edict, movetype) = MOVETYPE_NOCLIP;
+		PRVM_serveredictfloat(host_client->edict, movetype) = MOVETYPE_NOCLIP_8;
 		SV_ClientPrint("noclip ON" NEWLINE);
 	}
 	else
 	{
 		noclip_anglehack = false;
-		PRVM_serveredictfloat(host_client->edict, movetype) = MOVETYPE_WALK;
+		PRVM_serveredictfloat(host_client->edict, movetype) = MOVETYPE_WALK_3;
 		SV_ClientPrint("noclip OFF" NEWLINE);
 	}
 }
@@ -604,15 +626,15 @@ static void SV_Fly_f(cmd_state_t *cmd)
 	prvm_prog_t *prog = SVVM_prog;
 
 	int wants_on = 0;
-	int was_on = PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_FLY;
+	int was_on = PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_FLY_5;
 	if (Cmd_Argc (cmd) > 1)	{ wants_on = atof(Cmd_Argv (cmd, 1)) != 0; }
 	else					{ wants_on = !was_on; }
 
 	if (wants_on) {
-		PRVM_serveredictfloat(host_client->edict, movetype) = MOVETYPE_FLY;
+		PRVM_serveredictfloat(host_client->edict, movetype) = MOVETYPE_FLY_5;
 		SV_ClientPrint("flymode ON\n");
 	} else {
-		PRVM_serveredictfloat(host_client->edict, movetype) = MOVETYPE_WALK;
+		PRVM_serveredictfloat(host_client->edict, movetype) = MOVETYPE_WALK_3;
 		SV_ClientPrint("flymode OFF\n");
 	}
 }
@@ -1049,9 +1071,9 @@ static void SV_Status_f(cmd_state_t *cmd)
 	// status 1
 	// status 2
 	if (Cmd_Argc(cmd) == 2) {
-		if (String_Does_Match(Cmd_Argv(cmd, 1), "1"))
+		if (String_Match(Cmd_Argv(cmd, 1), "1"))
 			in = 1;
-		else if (String_Does_Match(Cmd_Argv(cmd, 1), "2"))
+		else if (String_Match(Cmd_Argv(cmd, 1), "2"))
 			in = 2;
 	}
 
@@ -1152,7 +1174,7 @@ void SV_Name(int clientnum)
 {
 	prvm_prog_t *prog = SVVM_prog;
 	PRVM_serveredictstring(host_client->edict, netname) = PRVM_SetEngineString(prog, host_client->name);
-	if (String_Does_NOT_Match(host_client->old_name, host_client->name))
+	if (String_NOT_Match(host_client->old_name, host_client->name))
 	{
 		// Baker: CON_WHITE because name may have color
 		if (host_client->begun)
@@ -1172,7 +1194,7 @@ SV_Name_f
 ======================
 */
 static void SV_Name_f(cmd_state_t *cmd)
-{
+{ // CROSSX
 	int i, j;
 	qbool valid_colors;
 	const char *newNameSource;
@@ -1191,7 +1213,7 @@ static void SV_Name_f(cmd_state_t *cmd)
 	if (cmd->source == src_local)
 		return;
 
-	if (host.realtime < host_client->nametime && String_Does_NOT_Match (newName, host_client->name)) {
+	if (host.realtime < host_client->nametime && String_NOT_Match (newName, host_client->name)) {
 		SV_ClientPrintf ("You can't change name more than once every %.1f seconds!" NEWLINE, max(0.0f, sv_namechangetimer.value));
 		return;
 	}
@@ -1201,6 +1223,7 @@ static void SV_Name_f(cmd_state_t *cmd)
 	// point the string back at updateclient->name to keep it safe
 	c_strlcpy (host_client->name, newName);
 
+	// Baker: carriage returns and new lines not allowed.
 	for (i = 0, j = 0;host_client->name[i];i++)
 		if (host_client->name[i] != '\r' && host_client->name[i] != '\n')
 			host_client->name[j++] = host_client->name[i];
@@ -1353,7 +1376,7 @@ static void SV_Kick_f(cmd_state_t *cmd)
 
 	save = host_client;
 
-	if (Cmd_Argc(cmd) > 2 && String_Does_Start_With(Cmd_Argv(cmd, 1), "#") )
+	if (Cmd_Argc(cmd) > 2 && String_Starts_With(Cmd_Argv(cmd, 1), "#") )
 	{
 		i = (int)(atof(Cmd_Argv(cmd, 2)) - 1);
 		if (i < 0 || i >= svs.maxclients || !(host_client = svs.clients + i)->active)
@@ -1366,7 +1389,7 @@ static void SV_Kick_f(cmd_state_t *cmd)
 		{
 			if (!host_client->active)
 				continue;
-			if (String_Does_Match_Caseless(host_client->name, Cmd_Argv(cmd, 1)) )
+			if (String_Match_Caseless(host_client->name, Cmd_Argv(cmd, 1)) )
 				break;
 		}
 	}
@@ -1569,7 +1592,7 @@ static prvm_edict_t	*FindViewthing(prvm_prog_t *prog)
 	for (i=0 ; i<prog->num_edicts ; i++)
 	{
 		e = PRVM_EDICT_NUM(i);
-		if (String_Does_Match (PRVM_GetString(prog, PRVM_serveredictstring(e, classname)), "viewthing"))
+		if (String_Match (PRVM_GetString(prog, PRVM_serveredictstring(e, classname)), "viewthing"))
 			return e;
 	}
 	Con_Print("No viewthing on map\n");
@@ -1722,14 +1745,36 @@ static void SV_SendCvar_f(cmd_state_t *cmd)
 	host_client = old;
 }
 
+void SV_Spawn_Model_At (ccs *s_classname, ccs *s_modelname, ccs *s_origin, ccs *s_angles, ccs *s_frame, ccs *s_scale)
+{
+	// Baker: Spawn entity.
+	prvm_prog_t *prog = SVVM_prog;
+	prvm_edict_t *ed = PRVM_ED_Alloc (SVVM_prog);
+	
+	//const char *s_classname = "func_illusionary"; // Cmd_Argv(cmd, 1)
 
+	PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "classname"), s_classname, qp_parse_backslash_false);
+	PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "scale"), s_scale, qp_parse_backslash_false);
+	PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "frame"), s_frame, qp_parse_backslash_false);
+	PRVM_ED_ParseEpair(prog, ed, PRVM_ED_FindField(prog, "origin"), s_origin, /*parse backslash*/ false);
+	PRVM_ED_ParseEpair(prog, ed, PRVM_ED_FindField(prog, "angles"), s_angles, /*parse backslash*/ false);
+
+
+	VMX_SV_precache_model	(prog, s_modelname);
+	VMX_SV_setmodel			(prog, ed, s_modelname);
+	// Baker: The origin should be set.
+
+	// Make it appear in the world
+	SV_LinkEdict (ed); // Hmmm.
+	//PRVM_ED_Free(prog, ed); // Kills it
+}
 // Cmd_AddCommand(CF_CHEAT | CF_SERVER_FROM_CLIENT, "modelview", SV_ModelView_f, "Shows a model to look at with [model][scale][z_adjust]");
 static void SV_ShowModel_f (cmd_state_t *cmd)
 {
 	void (*print)(const char *, ...) = (cmd->source == src_client ? SV_ClientPrintf : Con_Printf);
 
 	prvm_prog_t *prog = SVVM_prog;
-	prvm_edict_t *ed;
+	//prvm_edict_t *ed;
 //	mdef_t *key;
 //	int i;
 	qbool haveorigin;
@@ -1752,21 +1797,22 @@ static void SV_ShowModel_f (cmd_state_t *cmd)
 	const char *s_zadjust		= Cmd_Argc(cmd) < 4 ? "0" : Cmd_Argv(cmd, 3);
 	const char *s_scale			= Cmd_Argc(cmd) < 5 ? "1" : Cmd_Argv(cmd, 4);
 
-	// Baker: Spawn entity.
-	ed = PRVM_ED_Alloc (SVVM_prog);
+	////// Baker: Spawn entity.
+	////ed = PRVM_ED_Alloc (SVVM_prog);
 
-	const char *s_classname = "func_illusionary"; // Cmd_Argv(cmd, 1)
-	PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "classname"), s_classname, /*parse backslash*/ false);
-	PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "scale"), s_scale, /*parse backslash*/ false);
-	PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "frame"), s_frame, /*parse backslash*/ false);
+	////const char *s_classname = "func_illusionary"; // Cmd_Argv(cmd, 1)
+	////PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "classname"), s_classname, /*parse backslash*/ false);
+	////PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "scale"), s_scale, /*parse backslash*/ false);
+	////PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "frame"), s_frame, /*parse backslash*/ false);
+
+	char s_origin_buffer[128];
+	char s_angles_buffer[128];
 
 	// Spawn where the player is aiming. We need a view matrix first.
 	if (cmd->source == src_client) {
 		vec3_t org;// temp; //, temp, dest;
 		matrix4x4_t view;
 		//trace_t trace;
-		char s_origin_buffer[128];
-		char s_angles_buffer[128];
 
 		SV_GetEntityMatrix(prog, host_client->edict, &view, true);
 
@@ -1785,8 +1831,8 @@ static void SV_ShowModel_f (cmd_state_t *cmd)
 		c_dpsnprintf3 (s_origin_buffer, "%g %g %g", spot[0], spot[1], spot[2] + z_adjust);
 		c_dpsnprintf3 (s_angles_buffer, "%g %g %g", cl.viewangles[0], -cl.viewangles[1], cl.viewangles[2]);
 
-		PRVM_ED_ParseEpair(prog, ed, PRVM_ED_FindField(prog, "origin"), s_origin_buffer, /*parse backslash*/ false);
-		PRVM_ED_ParseEpair(prog, ed, PRVM_ED_FindField(prog, "angles"), s_angles_buffer, /*parse backslash*/ false);
+		////PRVM_ED_ParseEpair(prog, ed, PRVM_ED_FindField(prog, "origin"), s_origin_buffer, /*parse backslash*/ false);
+		////PRVM_ED_ParseEpair(prog, ed, PRVM_ED_FindField(prog, "angles"), s_angles_buffer, /*parse backslash*/ false);
 
 		haveorigin = true;
 	}
@@ -1797,24 +1843,26 @@ static void SV_ShowModel_f (cmd_state_t *cmd)
 		haveorigin = false;
 	}
 
-	if (!haveorigin) {
+	if (haveorigin == false) {
 		print ("Missing origin" NEWLINE);
-		PRVM_ED_Free(prog, ed);
+		//PRVM_ED_Free(prog, ed);
 		return;
 	}
 
-	// precache_model
-	WARP_X_ (VMX_SV_precache_model, VMX_SV_setmodel)
-	void VMX_SV_precache_model (prvm_prog_t *prog, const char *s_model);
-	void VMX_SV_setmodel (prvm_prog_t *prog, prvm_edict_t *e, const char *s_model);
+	SV_Spawn_Model_At ("func_illusionary", s_modelname, s_origin_buffer, s_angles_buffer, s_frame, s_scale);
 
-	VMX_SV_precache_model	(prog, s_modelname);
-	VMX_SV_setmodel			(prog, ed, s_modelname);
-	// Baker: The origin should be set.
+	////// precache_model
+	////WARP_X_ (VMX_SV_precache_model, VMX_SV_setmodel)
+	////void VMX_SV_precache_model (prvm_prog_t *prog, const char *s_model);
+	////void VMX_SV_setmodel (prvm_prog_t *prog, prvm_edict_t *e, const char *s_model);
+
+	////VMX_SV_precache_model	(prog, s_modelname);
+	////VMX_SV_setmodel			(prog, ed, s_modelname);
+	////// Baker: The origin should be set.
 
 
 	// Make it appear in the world
-	SV_LinkEdict (ed);
+	////SV_LinkEdict (ed);
 
 	if (cmd->source == src_client)
 		Con_Printf ("%s spawned a model " QUOTED_S NEWLINE, host_client->name, s_modelname);
@@ -1880,7 +1928,7 @@ static void SV_Ent_Create_f(cmd_state_t *cmd)
 		 * This is mostly for dedicated server console, but if the
 		 * player gave a custom origin, we can ignore the traceline.
 		 */
-		if (String_Does_Match(Cmd_Argv(cmd, i), "origin"))
+		if (String_Match(Cmd_Argv(cmd, i), "origin"))
 			haveorigin = true;
 
 		if (i + 1 < Cmd_Argc(cmd))
@@ -1998,7 +2046,7 @@ static void SV_Ent_Remove_All_f(cmd_state_t *cmd)
 
 	for (i = 0, rmcount = 0, ed = PRVM_EDICT_NUM(i); i < prog->num_edicts; i++, ed = PRVM_NEXT_EDICT(ed))
 	{
-		if (!ed->free && String_Does_Match(PRVM_GetString(prog, PRVM_serveredictstring(ed, classname)), Cmd_Argv(cmd, 1)))
+		if (!ed->free && String_Match(PRVM_GetString(prog, PRVM_serveredictstring(ed, classname)), Cmd_Argv(cmd, 1)))
 		{
 			if (!i)
 			{
@@ -2027,6 +2075,7 @@ void SV_InitOperatorCommands(void)
 	Cvar_RegisterVariable(&sv_status_show_qcstatus);
 	Cvar_RegisterVariable(&sv_namechangetimer);
 
+	
 	Cmd_AddCommand(CF_SERVER | CF_SERVER_FROM_CLIENT, "status", SV_Status_f, "print server status information");
 	Cmd_AddCommand(CF_SHARED | CF_CLIENTCLOSECONSOLE, "map", SV_Map_f, "kick everyone off the server and start a new level"); // Baker r1003: close console for map/load/etc.
 	Cmd_AddCommand(CF_SHARED | CF_CLIENTCLOSECONSOLE, "restart", SV_Restart_f, "restart current level"); // Baker r1003: close console for map/load/etc.

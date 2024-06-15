@@ -106,7 +106,7 @@ void Mod_Skeletal_AnimateVertices_SSE(const model_t * RESTRICT model, const fram
 		{
 			float m[12];
 			const short * RESTRICT firstpose7s = model->data_poses7s + 7 * (frameblend[0].subframe * model->num_bones + i);
-			float firstlerp = frameblend[0].lerp,
+			float firstlerp = frameblend[0].rlerp,
 				firsttx = firstpose7s[0], firstty = firstpose7s[1], firsttz = firstpose7s[2],
 				rx = firstpose7s[3] * firstlerp,
 				ry = firstpose7s[4] * firstlerp,
@@ -117,10 +117,10 @@ void Mod_Skeletal_AnimateVertices_SSE(const model_t * RESTRICT model, const fram
 				dz = firsttx*ry - firstty*rx + firsttz*rw,
 				dw = -firsttx*rx - firstty*ry - firsttz*rz,
 				scale, sx, sy, sz, sw;
-			for (blends = 1;blends < MAX_FRAMEBLENDS && frameblend[blends].lerp > 0;blends++)
+			for (blends = 1;blends < MAX_FRAMEBLENDS_8 && frameblend[blends].rlerp > 0;blends++)
 			{
 				const short * RESTRICT blendpose7s = model->data_poses7s + 7 * (frameblend[blends].subframe * model->num_bones + i);
-				float blendlerp = frameblend[blends].lerp,
+				float blendlerp = frameblend[blends].rlerp,
 					blendtx = blendpose7s[0], blendty = blendpose7s[1], blendtz = blendpose7s[2],
 					qx = blendpose7s[3], qy = blendpose7s[4], qz = blendpose7s[5], qw = blendpose7s[6];
 				if (rx*qx + ry*qy + rz*qz + rw*qw < 0) blendlerp = -blendlerp;

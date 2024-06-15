@@ -74,7 +74,7 @@ void QW_CL_SendChunkDownloadReq(void)
 			char temp[2048];
 			const char *s_version_key = InfoString_GetValue(cl.qw_serverinfo, "*version", temp, sizeof(temp));
 
-			if (String_Does_Contain (s_version_key, "MVDSV")) {
+			if (String_Contains (s_version_key, "MVDSV")) {
 				QW_CL_SendClientCommandf(q_is_reliable_true, "nextdl %d %d %d", chunk_wanted, cls.qw_downloadpercent, chunked_download_number_key);
 				if (developer_qw.integer) Con_PrintLinef ("Sending reliable MVDSV nextdl");
 			} else {
@@ -145,7 +145,7 @@ void QW_CL_FinishDownload(void)
 			Con_DPrintLinef ("Download took %.1f seconds", Sys_DirtyTime() - cls.qw_downloadspeedtime );
 
 			// rename the temp file to its final name
-			if (String_Does_NOT_Match(cls.qw_downloadtempname, cls.qw_downloadname))
+			if (String_NOT_Match(cls.qw_downloadtempname, cls.qw_downloadname))
 				if (rename(cls.qw_downloadtempname, cls.qw_downloadname))
 					Con_PrintLinef ("Failed to rename %s to %s.", cls.qw_downloadtempname, cls.qw_downloadname);
 		} else {

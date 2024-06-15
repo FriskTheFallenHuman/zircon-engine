@@ -287,7 +287,7 @@ static void VM_M_getserverliststat(prvm_prog_t *prog)
 		PRVM_G_FLOAT ( OFS_RETURN ) = serverlist_sortflags;
 		return;
 	default:
-		VM_Warning(prog, "VM_M_getserverliststat: bad type %d!\n", type );
+		VM_Warningf(prog, "VM_M_getserverliststat: bad type %d!\n", type );
 	}
 }
 
@@ -331,7 +331,7 @@ static void VM_M_setserverlistmaskstring(prvm_prog_t *prog)
 		mask = &serverlist_ormasks[masknr - 512 ];
 	else
 	{
-		VM_Warning(prog, "VM_M_setserverlistmaskstring: invalid mask number %d\n", masknr );
+		VM_Warningf(prog, "VM_M_setserverlistmaskstring: invalid mask number %d\n", masknr );
 		return;
 	}
 
@@ -360,7 +360,7 @@ static void VM_M_setserverlistmaskstring(prvm_prog_t *prog)
 			strlcpy( mask->info.game, str, sizeof(mask->info.game)  );
 			break;
 		default:
-			VM_Warning(prog, "VM_M_setserverlistmaskstring: Bad field number %d passed!\n", field );
+			VM_Warningf(prog, "VM_M_setserverlistmaskstring: Bad field number %d passed!\n", field );
 			return;
 	}
 
@@ -393,7 +393,7 @@ static void VM_M_setserverlistmasknumber(prvm_prog_t *prog)
 		mask = &serverlist_ormasks[masknr - 512 ];
 	else
 	{
-		VM_Warning(prog, "VM_M_setserverlistmasknumber: invalid mask number %d\n", masknr );
+		VM_Warningf(prog, "VM_M_setserverlistmasknumber: invalid mask number %d\n", masknr );
 		return;
 	}
 
@@ -429,7 +429,7 @@ static void VM_M_setserverlistmasknumber(prvm_prog_t *prog)
 			mask->info.isfavorite = number != 0;
 			break;
 		default:
-			VM_Warning(prog, "VM_M_setserverlistmasknumber: Bad field number %d passed!\n", field );
+			VM_Warningf(prog, "VM_M_setserverlistmasknumber: Bad field number %d passed!\n", field );
 			return;
 	}
 
@@ -626,37 +626,37 @@ static void VM_M_getserverlistindexforkey(prvm_prog_t *prog)
 	key = PRVM_G_STRING( OFS_PARM0 );
 	VM_CheckEmptyString( prog, key );
 
-	if ( String_Does_Match( key, "cname" ) )
+	if ( String_Match( key, "cname" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_CNAME;
-	else if ( String_Does_Match( key, "ping" ) )
+	else if ( String_Match( key, "ping" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_PING;
-	else if ( String_Does_Match( key, "game" ) )
+	else if ( String_Match( key, "game" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_GAME;
-	else if ( String_Does_Match( key, "mod" ) )
+	else if ( String_Match( key, "mod" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_MOD;
-	else if ( String_Does_Match( key, "map" ) )
+	else if ( String_Match( key, "map" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_MAP;
-	else if ( String_Does_Match( key, "name" ) )
+	else if ( String_Match( key, "name" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_NAME;
-	else if ( String_Does_Match( key, "qcstatus" ) )
+	else if ( String_Match( key, "qcstatus" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_QCSTATUS;
-	else if ( String_Does_Match( key, "players" ) )
+	else if ( String_Match( key, "players" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_PLAYERS;
-	else if ( String_Does_Match( key, "maxplayers" ) )
+	else if ( String_Match( key, "maxplayers" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_MAXPLAYERS;
-	else if ( String_Does_Match( key, "numplayers" ) )
+	else if ( String_Match( key, "numplayers" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_NUMPLAYERS;
-	else if ( String_Does_Match( key, "numbots" ) )
+	else if ( String_Match( key, "numbots" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_NUMBOTS;
-	else if ( String_Does_Match( key, "numhumans" ) )
+	else if ( String_Match( key, "numhumans" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_NUMHUMANS;
-	else if ( String_Does_Match( key, "freeslots" ) )
+	else if ( String_Match( key, "freeslots" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_FREESLOTS;
-	else if ( String_Does_Match( key, "protocol" ) )
+	else if ( String_Match( key, "protocol" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_PROTOCOL;
-	else if ( String_Does_Match( key, "category" ) )
+	else if ( String_Match( key, "category" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_CATEGORY;
-	else if ( String_Does_Match( key, "isfavorite" ) )
+	else if ( String_Match( key, "isfavorite" ) )
 		PRVM_G_FLOAT( OFS_RETURN ) = SLIF_ISFAVORITE;
 	else
 		PRVM_G_FLOAT( OFS_RETURN ) = -1;

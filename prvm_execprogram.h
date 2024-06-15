@@ -378,7 +378,11 @@ int i;
 				else
 				{
 					PRE_ERROR();
-					VM_Warning(prog, "Attempted division of %f by zero" NEWLINE, OPA->_float);
+					if (developer.value) {
+						VM_Warningf(prog, "Attempted division of %f by zero" NEWLINE, OPA->_float);
+					} else {
+						Con_DPrintLinef (CON_WARN "Attempted division of %f by zero", OPA->_float);
+					}
 					OPC->_float = 0.0f;
 				}
 				DISPATCH_OPCODE();
@@ -428,7 +432,7 @@ int i;
 				OPC->_float = (OPA->vector[0] == OPB->vector[0]) && (OPA->vector[1] == OPB->vector[1]) && (OPA->vector[2] == OPB->vector[2]);
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_EQ_S):
-				OPC->_float = String_Does_Match(PRVM_GetString(prog, OPA->string),PRVM_GetString(prog, OPB->string));
+				OPC->_float = String_Match(PRVM_GetString(prog, OPA->string),PRVM_GetString(prog, OPB->string));
 				DISPATCH_OPCODE();
 			HANDLE_OPCODE(OP_EQ_E):
 				OPC->_float = OPA->_int == OPB->_int;
@@ -489,7 +493,7 @@ int i;
 					if ((prvm_uint_t)OPB->_int < cached_entityfields && !cached_allowworldwrites)
 					{
 						PRE_ERROR();
-						VM_Warning(prog, "Attempted assignment to NULL entity field .%s (%d) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
+						VM_Warningf(prog, "Attempted assignment to NULL entity field .%s (%d) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
 					}
 				}
 				ptr = (prvm_eval_t *)(cached_edictsfields + OPB->_int);
@@ -507,7 +511,7 @@ int i;
 					if ((prvm_uint_t)OPB->_int < cached_entityfields && !cached_allowworldwrites)
 					{
 						PRE_ERROR();
-						VM_Warning(prog, "Attempted assignment to NULL entity field .%s (%d) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
+						VM_Warningf(prog, "Attempted assignment to NULL entity field .%s (%d) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
 					}
 				}
 				// refresh the garbage collection on the string - this guards
@@ -531,7 +535,7 @@ int i;
 					if ((prvm_uint_t)OPB->_int < cached_entityfields && !cached_allowworldwrites)
 					{
 						PRE_ERROR();
-						VM_Warning(prog, "Attempted assignment to NULL entity field .%s (%d) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
+						VM_Warningf(prog, "Attempted assignment to NULL entity field .%s (%d) in %s\n", PRVM_GetString(prog, PRVM_ED_FieldAtOfs(prog, OPB->_int)->s_name), (int)OPB->_int, prog->name);
 					}
 				}
 				ptr = (prvm_eval_t *)(cached_edictsfields + OPB->_int);

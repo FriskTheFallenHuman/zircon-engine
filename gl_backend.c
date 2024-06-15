@@ -1454,6 +1454,11 @@ void GL_Scissor (int x, int y, int width, int height)
 	}
 }
 
+qbool GL_IsIn_Scissor (void)
+{
+	return gl_state.scissortest;
+}
+
 void GL_ScissorTest(int state)
 {
 	if (gl_state.scissortest != state)
@@ -1571,7 +1576,7 @@ static qbool GL_Backend_CompileShader(int programobject, GLenum shadertypeenum, 
 	qglGetShaderiv(shaderobject, GL_COMPILE_STATUS, &shadercompiled);CHECKGLERROR
 	qglGetShaderInfoLog(shaderobject, sizeof(compilelog), NULL, compilelog);CHECKGLERROR
 	if (compilelog[0] ) {
-		int is_all_clear = String_Does_Match_Caseless (compilelog, "No errors."); // Baker r0089:  Some Intel Graphics do this.
+		int is_all_clear = String_Match_Caseless (compilelog, "No errors."); // Baker r0089:  Some Intel Graphics do this.
 		int shall_error = is_all_clear == false && (strstr(compilelog, "error") || strstr(compilelog, "ERROR") || strstr(compilelog, "Error"));
 		int shall_warn = is_all_clear == false && developer.integer && (strstr(compilelog, "WARNING") || strstr(compilelog, "warning") || strstr(compilelog, "Warning") );
 		if (developer_extra.integer || shall_error || shall_warn) {
@@ -1678,12 +1683,12 @@ void R_Mesh_Draw(int firstvertex, int numvertices, int firsttriangle, int numtri
 	size_t bufferoffset3i;
 	int bufferobject3s;
 	size_t bufferoffset3s;
-	if (numvertices < 3 || numtriangles < 1)
-	{
+	if (numvertices < 3 || numtriangles < 1) {
 		if (numvertices < 0 || numtriangles < 0 || developer_extra.integer)
-			Con_DPrintf ("R_Mesh_Draw(%d, %d, %d, %d, %8p, %8p, %8x, %8p, %8p, %8x);\n", firstvertex, numvertices, firsttriangle, numtriangles, (void *)element3i, (void *)element3i_indexbuffer, (int)element3i_bufferoffset, (void *)element3s, (void *)element3s_indexbuffer, (int)element3s_bufferoffset);
+			Con_DPrintLinef ("R_Mesh_Draw(%d, %d, %d, %d, %8p, %8p, %8x, %8p, %8p, %8x);", firstvertex, numvertices, firsttriangle, numtriangles, (void *)element3i, (void *)element3i_indexbuffer, (int)element3i_bufferoffset, (void *)element3s, (void *)element3s_indexbuffer, (int)element3s_bufferoffset);
 		return;
 	}
+
 	// adjust the pointers for firsttriangle
 	if (element3i)
 		element3i += firsttriangle * 3;
@@ -1711,7 +1716,7 @@ void R_Mesh_Draw(int firstvertex, int numvertices, int firsttriangle, int numtri
 	r_refdef.stats[r_stat_draws]++;
 	r_refdef.stats[r_stat_draws_vertices] += numvertices;
 	r_refdef.stats[r_stat_draws_elements] += numelements;
-	if (gl_paranoid.integer)
+	if (gl_paranoid.integer /*d:0*/)
 	{
 		unsigned int i;
 		if (element3i)
@@ -1720,7 +1725,7 @@ void R_Mesh_Draw(int firstvertex, int numvertices, int firsttriangle, int numtri
 			{
 				if (element3i[i] < firstvertex || element3i[i] >= firstvertex + numvertices)
 				{
-					Con_Printf ("R_Mesh_Draw: invalid vertex index %d (outside range %d - %d) in element3i array\n", element3i[i], firstvertex, firstvertex + numvertices);
+					Con_PrintLinef ("R_Mesh_Draw: invalid vertex index %d (outside range %d - %d) in element3i array", element3i[i], firstvertex, firstvertex + numvertices);
 					return;
 				}
 			}
@@ -1737,7 +1742,7 @@ void R_Mesh_Draw(int firstvertex, int numvertices, int firsttriangle, int numtri
 			}
 		}
 	}
-	if (r_render.integer || r_refdef.draw2dstage)
+	if (r_render.integer /*d:1*/ || r_refdef.draw2dstage)
 	{
 		switch(vid.renderpath)
 		{
@@ -1903,7 +1908,44 @@ void GL_Mesh_ListVBOs(qbool printeach)
 	uniformmem   = (int)(bufferstat[R_BUFFERDATA_UNIFORM][0][1] + bufferstat[R_BUFFERDATA_UNIFORM][1][1]);
 	totalcount = index16count + index32count + vertexcount + uniformcount;
 	totalmem = index16mem + index32mem + vertexmem + uniformmem;
-	Con_Printf ("%d 16bit indexbuffers totalling %d bytes (%.3f MB)\n%d 32bit indexbuffers totalling %d bytes (%.3f MB)\n%d vertexbuffers totalling %d bytes (%.3f MB)\n%d uniformbuffers totalling %d bytes (%.3f MB)\ncombined %d buffers totalling %d bytes (%.3fMB)\n", index16count, index16mem, index16mem / 10248576.0, index32count, index32mem, index32mem / 10248576.0, vertexcount, vertexmem, vertexmem / 10248576.0, uniformcount, uniformmem, uniformmem / 10248576.0, totalcount, totalmem, totalmem / 10248576.0);
+
+#define ONE_MEGABYTEF_10248576_0 10248576.0
+
+#if 1
+	Con_PrintLinef ("%d 16bit indexbuffers totalling %s bytes (%.3f MB)",
+		index16count, String_Num_To_Thousands_Sbuf(index16mem), index16mem / ONE_MEGABYTEF_10248576_0);
+	Con_PrintLinef ("%d 32bit indexbuffers totalling %s bytes (%.3f MB)",
+		index32count, String_Num_To_Thousands_Sbuf(index32mem), index32mem / ONE_MEGABYTEF_10248576_0);
+	Con_PrintLinef ("%d vertexbuffers totalling %s bytes (%.3f MB)",
+			vertexcount, String_Num_To_Thousands_Sbuf(vertexmem), vertexmem / ONE_MEGABYTEF_10248576_0);
+	Con_PrintLinef ("%d uniformbuffers totalling %s bytes (%.3f MB)",
+		uniformcount, String_Num_To_Thousands_Sbuf(uniformmem), uniformmem / ONE_MEGABYTEF_10248576_0);
+	Con_PrintLinef ("combined %d buffers totalling %s bytes (%.3fMB)", 
+		totalcount, String_Num_To_Thousands_Sbuf(totalmem), totalmem / ONE_MEGABYTEF_10248576_0);
+
+	//Con_PrintLinef ("%d 16bit indexbuffers totalling %d bytes (%.3f MB)",
+	//	index16count, index16mem, index16mem / ONE_MEGABYTEF_10248576_0);
+	//Con_PrintLinef ("%d 32bit indexbuffers totalling %d bytes (%.3f MB)",
+	//	index32count, index32mem, index32mem / ONE_MEGABYTEF_10248576_0);
+	//Con_PrintLinef ("%d vertexbuffers totalling %d bytes (%.3f MB)",
+	//		vertexcount, vertexmem, vertexmem / ONE_MEGABYTEF_10248576_0);
+	//Con_PrintLinef ("%d uniformbuffers totalling %d bytes (%.3f MB)",
+	//	uniformcount, uniformmem, uniformmem / ONE_MEGABYTEF_10248576_0);
+	//Con_PrintLinef ("combined %d buffers totalling %d bytes (%.3fMB)", 
+	//	totalcount, totalmem, totalmem / ONE_MEGABYTEF_10248576_0);
+#else
+	Con_PrintLinef ("%d 16bit indexbuffers totalling %d bytes (%.3f MB)" NEWLINE
+		"%d 32bit indexbuffers totalling %d bytes (%.3f MB)" NEWLINE
+		"%d vertexbuffers totalling %d bytes (%.3f MB)" NEWLINE
+		"%d uniformbuffers totalling %d bytes (%.3f MB)" NEWLINE
+		"combined %d buffers totalling %d bytes (%.3fMB)", 
+		index16count, index16mem, index16mem / ONE_MEGABYTEF_10248576_0, 
+		index32count, index32mem, index32mem / ONE_MEGABYTEF_10248576_0, 
+		vertexcount, vertexmem, vertexmem / ONE_MEGABYTEF_10248576_0, 
+		uniformcount, uniformmem, uniformmem / ONE_MEGABYTEF_10248576_0, 
+		totalcount, totalmem, totalmem / ONE_MEGABYTEF_10248576_0
+	);
+#endif
 }
 
 

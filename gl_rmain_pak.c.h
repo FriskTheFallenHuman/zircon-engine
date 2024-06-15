@@ -150,7 +150,7 @@ char *ShaderText_Alloc (shader_t *myshader, const char *s_shadername, char *s_re
 		const char *s0 = text;
 		while (COM_ParseToken_QuakeC(&text, false)) {
 			c_strlcpy (namebuf64, com_token);
-			int is_one_we_want = String_Does_Match (s_shadername, namebuf64);
+			int is_one_we_want = String_Match (s_shadername, namebuf64);
 			if (is_one_we_want) {
 				const char *s_file = search->filenames[fileindex];
 				if (s_return_shader) {
@@ -158,23 +158,23 @@ char *ShaderText_Alloc (shader_t *myshader, const char *s_shadername, char *s_re
 				}
 				if (is_print) Con_PrintLinef (CON_BRONZE "Found shader" CON_WHITE " in %s", s_file);
 			}
-			if (!COM_ParseToken_QuakeC(&text, false) || String_Does_NOT_Match(com_token, "{")) {
+			if (!COM_ParseToken_QuakeC(&text, false) || String_NOT_Match(com_token, "{")) {
 				if (is_print) Con_PrintLinef ("%s parsing error - expected \"{\", found " QUOTED_S, search->filenames[fileindex], com_token);
 				break;
 			}
 			// Parsed a "{"
 			bracket_depth ++;
 			while (COM_ParseToken_QuakeC(&text, false)) {
-				if (String_Does_Match_Caseless(com_token, "}")) {
+				if (String_Match_Caseless(com_token, "}")) {
 					bracket_depth --;
 					if (bracket_depth <= 0)
 						break;
-				} else if (String_Does_Match_Caseless(com_token, "{")) {
+				} else if (String_Match_Caseless(com_token, "{")) {
 					bracket_depth ++;
 				}
 			} // While
 			if (is_one_we_want) {
-				
+
 
 				is_done = true;
 				//const char *s00 = s0;
@@ -234,9 +234,9 @@ void Pak_Accum_Texture_Dependencies (stringlist_t *ptexture_dependency_list, con
 
 	for (int fileindex = 0; fileindex < search->numfilenames; fileindex ++) {
 		char *s_this_file = search->filenames[fileindex];
-		int is_ok = String_Does_End_With_Caseless (s_this_file, ".tga") ||
-					String_Does_End_With_Caseless (s_this_file, ".png") ||
-					String_Does_End_With_Caseless (s_this_file, ".jpg");
+		int is_ok = String_Ends_With_Caseless (s_this_file, ".tga") ||
+					String_Ends_With_Caseless (s_this_file, ".png") ||
+					String_Ends_With_Caseless (s_this_file, ".jpg");
 
 		if (is_ok == false)
 			continue; // unrecognized file format, we only do images we can load.
@@ -274,7 +274,7 @@ void Dependencies_For_This_Model (model_t *m, stringlist_t *ptexture_dependency_
 	for (j = 0, t = m->data_textures; j < m->num_textures; j++, t++) {
 		char *s_this_texture = t->name;
 		if (s_this_texture[0] == 0) continue;
-		if (String_Does_Contain_Caseless(s_this_texture, "NO TEXTURE FOUND"))	continue;
+		if (String_Contains_Caseless(s_this_texture, "NO TEXTURE FOUND"))	continue;
 
 		shader_t *myshader = Mod_LookupQ3Shader(s_this_texture);
 		//Con_PrintLinef ("%4d: %s", j, t->name);
@@ -287,9 +287,10 @@ void Dependencies_For_This_Model (model_t *m, stringlist_t *ptexture_dependency_
 
 		stringlistappend (pshader_name_list, s_this_texture); //
 
-		if (String_Does_Start_With (s_this_texture, "textures/common/")) {
+		if (String_Starts_With (s_this_texture, "textures/common/")) {
 			if (is_print_stuff)
-				Con_PrintLinef (CON_BRONZE "Common texture found and  " QUOTED_S, s_this_texture, is_exclude_textures_common ? "EXCLUDING" : "ADDING!");
+				Con_PrintLinef (CON_BRONZE "Common texture found and  %s " QUOTED_S, 
+				s_this_texture, is_exclude_textures_common ? "EXCLUDING" : "ADDING!");
 
 			if (is_exclude_textures_common)
 				continue; // Do not add, we are exluding those
@@ -321,7 +322,7 @@ void Dependencies_For_This_Model (model_t *m, stringlist_t *ptexture_dependency_
 				for (int framenum = 0; framenum < layer->sh_numframes; framenum ++) {
 					const char *s_layer_texture = layer->sh_ptexturename[framenum];
 					if (s_layer_texture == NULL) continue;
-					if (String_Does_Start_With (s_layer_texture, "$")) {
+					if (String_Starts_With (s_layer_texture, "$")) {
 						if (is_print_stuff)
 							Con_PrintLinef ("Ignoring texture named " QUOTED_S, s_layer_texture);
 						continue;
@@ -408,19 +409,19 @@ static void ShaderParseText_Proc (const char *s, stringlist_t *pshader_name_list
 	while (COM_ParseToken_QuakeC(&text, false)) {
 		c_strlcpy (namebuf64, com_token);
 		stringlistappend (pshader_name_list, namebuf64);
-		int is_one_we_want = true; // String_Does_Match (s_shadername, namebuf64);
-		if (!COM_ParseToken_QuakeC(&text, false) || String_Does_NOT_Match(com_token, "{")) {
+		int is_one_we_want = true; // String_Match (s_shadername, namebuf64);
+		if (!COM_ParseToken_QuakeC(&text, false) || String_NOT_Match(com_token, "{")) {
 			if (is_print) Con_PrintLinef ("parsing error - expected \"{\", found " QUOTED_S, com_token);
 			break;
 		}
 		// Parsed a "{"
 		bracket_depth ++;
 		while (COM_ParseToken_QuakeC(&text, false)) {
-			if (String_Does_Match_Caseless(com_token, "}")) {
+			if (String_Match_Caseless(com_token, "}")) {
 				bracket_depth --;
 				if (bracket_depth <= 0)
 					break;
-			} else if (String_Does_Match_Caseless(com_token, "{")) {
+			} else if (String_Match_Caseless(com_token, "{")) {
 				bracket_depth ++;
 			}
 		} // While
@@ -453,7 +454,7 @@ static void ShaderParseText_Proc (const char *s, stringlist_t *pshader_name_list
 // shadertextparse
 static void R_ShaderTextParse_f (cmd_state_t *cmd)
 {
-	/*cleanupok*/ char *s_alloc = Sys_GetClipboardData_Unlimited_Alloc(); // zallocs
+	/*cleanupok*/ char *s_alloc = Sys_GetClipboardData_Unlimited_ZAlloc(); // zallocs
 	if (s_alloc == NULL) {
 		Con_PrintLinef ("Couldn't get clipboard text");
 		return;
@@ -483,7 +484,7 @@ static void R_ShaderTextParse_f (cmd_state_t *cmd)
 static void R_Pak_This_Map_f (cmd_state_t *cmd)
 {
 	int is_connected = (cls.state == ca_connected && cls.signon == SIGNONS_4 && cl.worldmodel);
-	int is_overwrite = Cmd_Argc (cmd) >= 3 && String_Does_Match_Caseless ("overwrite", Cmd_Argv(cmd, 2));
+	int is_overwrite = Cmd_Argc (cmd) >= 3 && String_Match_Caseless ("overwrite", Cmd_Argv(cmd, 2));
 	int is_test = Cmd_Argc (cmd) == 1;
 
 	if (!is_connected) {
@@ -501,12 +502,12 @@ static void R_Pak_This_Map_f (cmd_state_t *cmd)
 
 	// Light protection against user accidentially typing something stupid
 	if (is_test == false &&
-		(String_Does_Match_Caseless (s_folder_dest_write, "maps") ||
-		String_Does_Match_Caseless (s_folder_dest_write, "scripts") ||
-		String_Does_Match_Caseless (s_folder_dest_write, "models") ||
-		String_Does_Match_Caseless (s_folder_dest_write, "progs") ||
-		String_Does_Match_Caseless (s_folder_dest_write, "textures") ||
-		String_Does_Match_Caseless (s_folder_dest_write, "sound"))) {
+		(String_Match_Caseless (s_folder_dest_write, "maps") ||
+		String_Match_Caseless (s_folder_dest_write, "scripts") ||
+		String_Match_Caseless (s_folder_dest_write, "models") ||
+		String_Match_Caseless (s_folder_dest_write, "progs") ||
+		String_Match_Caseless (s_folder_dest_write, "textures") ||
+		String_Match_Caseless (s_folder_dest_write, "sound"))) {
 
 		Con_PrintLinef ("This command outputs files into a folder");
 		Con_PrintLinef ("Try a different folder than one named" QUOTED_S, s_folder_dest_write);
@@ -514,7 +515,7 @@ static void R_Pak_This_Map_f (cmd_state_t *cmd)
 		return;
 	}
 
-	if (is_test == false) Con_PrintLinef ("folder is ", s_folder_dest_write);
+	if (is_test == false) Con_PrintLinef ("folder is %s", s_folder_dest_write);
 
 	stringlist_t texture_dependency_list = {0};
 	stringlist_t texture_shader_dependency_list = {0};

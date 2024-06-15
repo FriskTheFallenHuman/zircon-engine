@@ -272,7 +272,7 @@ static clvideo_t *OpenVideo( clvideo_t *video, const char *filename, const char 
 	video->ownertag = owner;
 
 	// Baker: Require "video" folder.
-	if (false == String_Does_Start_With_PRE(name, CL_VIDEO_SLASH_PREFIX)) 
+	if (false == String_Starts_With_PRE(name, CL_VIDEO_SLASH_PREFIX)) 
 		return NULL;
 	video->cpif = Draw_CachePic_Flags(name, CACHEPICFLAG_NOTPERSISTENT | CACHEPICFLAG_QUIET);
 
@@ -307,7 +307,7 @@ clvideo_t *CL_Cin_OpenVideo (const char *filename, const char *name, int owner, 
 {
 	clvideo_t *video;
 	// sanity check
-	if ( !name || !*name || String_Does_NOT_Start_With_PRE(name, CL_VIDEO_SLASH_PREFIX)) {
+	if ( !name || !*name || String_NOT_Start_With_PRE(name, CL_VIDEO_SLASH_PREFIX)) {
 		Con_DPrintLinef ( "CL_Cin_OpenVideo: Bad video texture name " QUOTED_S, name );
 		return NULL;
 	}
@@ -347,7 +347,7 @@ clvideo_t *CL_GetVideoByName(const char *name)
 {
 	int i;
 	for (i = 0; i < cl_num_videos; i ++ )
-		if (cl_videos[ i ].state != CLVIDEO_UNUSED_0 && String_Does_Match (cl_videos[i].name, name) )
+		if (cl_videos[ i ].state != CLVIDEO_UNUSED_0 && String_Match (cl_videos[i].name, name) )
 			break;
 
 	if (i != cl_num_videos)
@@ -743,8 +743,8 @@ void CL_PlayVideo_Start (char *filename, const char *subtitlesfile, const char *
 	CL_RestartVideo	 (cl_videos);
 	
 	// Baker: honor the -nosound command line parameter :(
-#pragma message ("How does this react and conprint if can't find the sound")
-	if (0 == Sys_CheckParm("-nosound"))
+	// #pragma message ("How does this react and conprint if can't find the sound")
+	if (false == Sys_CheckParm("-nosound"))
 		//S_Play_Common (cmd_local, /*vol*/ 1.0f, /*attenuation*/ 1.0f);
 		#pragma message ("Baker: Sound channel '9' seems to work but is it 'right' to do this?")
 		if (S_LocalSoundEx (soundname, /*channel*/ 9, /*volume*/ 1.0f)) {
@@ -806,7 +806,7 @@ static void CL_PlayVideo_f(cmd_state_t *cmd)
 	c_dpsnprintf1 (s_soundname, "video/%s.ogg", Cmd_Argv(cmd, 1));
 
 	char name[MAX_QPATH_128];
-	int has_extension_already = extension[0] || String_Does_End_With (Cmd_Argv(cmd, 1), "_fps");
+	int has_extension_already = extension[0] || String_Ends_With (Cmd_Argv(cmd, 1), "_fps");
 	c_dpsnprintf2 (name, "video/%s%s", Cmd_Argv(cmd, 1), has_extension_already ? "" : ".dpv");
 
 	// Baker: Extra param indicates a custom subtitles file

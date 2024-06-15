@@ -327,14 +327,14 @@ int Sys_CheckParm (const char *parm)
 	for (j = 1 ; j < sys.argc ; j++) {
 		if (!sys.argv[j])
 			continue;               // NEXTSTEP sometimes clears appkit vars.
-		if (String_Does_Match (parm, sys.argv[j]))
+		if (String_Match (parm, sys.argv[j]))
 			return j;
 	}
 
 	return 0;
 }
 
-void Sys_Init_Commands (void)
+void Sys_InitOnce_Commands (void)
 {
 	Cvar_RegisterVariable(&sys_debugsleep);
 	Cvar_RegisterVariable(&sys_usenoclockbutbenchmark);
@@ -646,7 +646,7 @@ qbool Sys_HaveSSE2(void)
 #include <sys/resource.h>
 #include <errno.h>
 
-void Sys_InitProcessNice (void)
+void Sys_InitOnce_ProcessNice (void)
 {
 	struct rlimit lim;
 	sys.nicepossible = false;
@@ -695,7 +695,7 @@ void Sys_MakeProcessMean (void)
 	sys.isnice = false;
 }
 #else
-void Sys_InitProcessNice (void)
+void Sys_InitOnce_ProcessNice (void)
 {
 }
 void Sys_MakeProcessNice (void)

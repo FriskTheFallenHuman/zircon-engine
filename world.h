@@ -97,7 +97,7 @@ void World_ClearLink(link_t *l);
 void World_RemoveLink(link_t *l);
 void World_InsertLinkBefore(link_t *l, link_t *before, int entitynumber);
 
-void World_Init(void);
+void World_InitOnce(void);
 void World_Shutdown(void);
 
 /// called after the world model has been loaded, before linking any entities

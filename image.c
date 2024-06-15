@@ -920,7 +920,7 @@ void Image_StripImageExtension (const char *in, char *out, size_t size_out)
 		return;
 
 	ext = FS_FileExtension(in);
-	if (ext && (String_Does_Match(ext, "tga") || String_Does_Match(ext, "pcx") || String_Does_Match(ext, "lmp") || String_Does_Match(ext, "png") || String_Does_Match(ext, "jpg") || String_Does_Match(ext, "wal")))
+	if (ext && (String_Match(ext, "tga") || String_Match(ext, "pcx") || String_Match(ext, "lmp") || String_Match(ext, "png") || String_Match(ext, "jpg") || String_Match(ext, "wal")))
 		FS_StripExtension(in, out, size_out);
 	else
 		strlcpy(out, in, size_out);
@@ -1043,7 +1043,7 @@ imageformat_t imageformats_other[] =
 };
 
 int fixtransparentpixels(unsigned char *data, int w, int h);
-unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool allowFixtrans, qbool convertsRGB, int *miplevel)
+unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool allowFixtrans, qbool convertsRGB, int *miplevel) // LoadTGA_BGRA
 {
 	fs_offset_t filesize;
 	imageformat_t *firstformat, *format;
@@ -1062,7 +1062,7 @@ unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool 
 			*c = '#';
 	path[0] = 0;
 	name[0] = 0;
-	strlcpy(afterpath, basename, sizeof(afterpath));
+	strlcpy (afterpath, basename, sizeof(afterpath));
 	if (strchr(basename, '/'))
 	{
 		int i;
@@ -1075,9 +1075,9 @@ unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool 
 		firstformat = imageformats_tenebrae;
 	else if (gamemode == GAME_DELUXEQUAKE)
 		firstformat = imageformats_dq;
-	else if (String_Does_Match_Caseless(path, "textures"))
+	else if (String_Match_Caseless(path, "textures"))
 		firstformat = imageformats_textures;
-	else if (String_Does_Match_Caseless(path, "gfx") || String_Does_Match_Caseless(path, "locale")) // locale/ is used in GAME_BLOODOMNICIDE
+	else if (String_Match_Caseless(path, "gfx") || String_Match_Caseless(path, "locale")) // locale/ is used in GAME_BLOODOMNICIDE
 		firstformat = imageformats_gfx;
 	else if (!path[0])
 		firstformat = imageformats_nopath;
@@ -1150,7 +1150,7 @@ unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool 
 				Con_DPrintf ("Error loading image %s (file loaded but decode failed)\n", name);
 		}
 	}
-	if (String_Does_Match_Caseless(path, "gfx"))
+	if (String_Match_Caseless(path, "gfx"))
 	{
 		unsigned char *lmpdata;
 		if ((lmpdata = W_GetLumpName(afterpath, &filesize)))
@@ -1159,7 +1159,7 @@ unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool 
 				Con_PrintLinef ("loading gfx.wad lump " QUOTED_S, afterpath);
 
 			mymiplevel = miplevel ? *miplevel : 0;
-			if (String_Does_Match(afterpath, "conchars"))
+			if (String_Match(afterpath, "conchars"))
 			{
 				// conchars is a raw image and with color 0 as transparent instead of 255
 				data = LoadConChars_BGRA(lmpdata, filesize, &mymiplevel);
@@ -1201,7 +1201,7 @@ qbool Image_GetStockPicSize(const char *filename, int *returnwidth, int *returnh
 	unsigned char *data;
 	fs_offset_t filesize;
 	char lmppath[MAX_QPATH_128];
-	if (String_Does_Match_Caseless(filename, "gfx/conchars"))
+	if (String_Match_Caseless(filename, "gfx/conchars"))
 	{
 		*returnwidth = 128;
 		*returnheight = 128;
@@ -1889,19 +1889,18 @@ static unsigned char *Image_GenerateDitherPattern(void)
 // also used in R_SkinFrame code
 unsigned char *Image_GenerateNoTexture(void)
 {
+	extern mempool_t *texturemempool;
 	int x, y;
-	unsigned char *data = (unsigned char *)Mem_Alloc(tempmempool, 16 * 16 * 4);
+	unsigned char *data = (unsigned char *)Mem_Alloc(texturemempool/*tempmempool*/, 16 * 16 * RGBA_4); // Baker
 	image_width = 16;
 	image_height = 16;
 	// this makes a light grey/dark grey checkerboard texture
-	for (y = 0; y < 16; y++)
-	{
-		for (x = 0; x < 16; x++)
-		{
-			data[(y * 16 + x) * 4 + 0] =
-			data[(y * 16 + x) * 4 + 1] =
-			data[(y * 16 + x) * 4 + 2] = (y < 8) ^ (x < 8) ? 128 : 64;
-			data[(y * 16 + x) * 4 + 3] = 255;
+	for (y = 0; y < 16; y++) {
+		for (x = 0; x < 16; x++) {
+			data[(y * 16 + x) * RGBA_4 + 0] =
+			data[(y * 16 + x) * RGBA_4 + 1] =
+			data[(y * 16 + x) * RGBA_4 + 2] = (y < 8) ^ (x < 8) ? 128 : 64;
+			data[(y * 16 + x) * RGBA_4 + 3] = 255;
 		}
 	}
 	return data;
@@ -2084,7 +2083,7 @@ unsigned char *Image_GetEmbeddedPicBGRA(const char *name)
 	const embeddedpic_t *p;
 	for (p = embeddedpics; p->name; p++)
 	{
-		if (String_Does_Match(name, p->name))
+		if (String_Match(name, p->name))
 		{
 			int i;
 			unsigned char *data = (unsigned char *)Mem_Alloc(tempmempool, p->width * p->height * 4);
@@ -2098,11 +2097,11 @@ unsigned char *Image_GetEmbeddedPicBGRA(const char *name)
 			return data;
 		}
 	}
-	if (String_Does_Match(name, "white") || String_Does_Match(name, "#white") || String_Does_Match(name, "*white") || String_Does_Match(name, "$whiteimage"))
+	if (String_Match(name, "white") || String_Match(name, "#white") || String_Match(name, "*white") || String_Match(name, "$whiteimage"))
 		return Image_GenerateWhite();
-	if (String_Does_Match(name, "gfx/conchars"))
+	if (String_Match(name, "gfx/conchars"))
 		return Image_GenerateConChars();
-	if (String_Does_Match(name, "gfx/colorcontrol/ditherpattern"))
+	if (String_Match(name, "gfx/colorcontrol/ditherpattern"))
 		return Image_GenerateDitherPattern();
 	return NULL;
 }

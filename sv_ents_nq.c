@@ -5,7 +5,7 @@ WARP_X_ (SV_WriteEntitiesToClient EntityFrameQuake_ReadEntity)
 void EntityFrameQuake_WriteFrame_FitzQuake (const entity_state_t *s, entity_state_t *pbaseline, sizebuf_t *pbuf)
 {
 	prvm_prog_t *prog = SVVM_prog;
-	int is_rmq	= isin1(sv.protocol, PROTOCOL_FITZQUAKE999);
+	//int is_rmq	= isin1(sv.protocol, PROTOCOL_FITZQUAKE999);
 
 	int fitz_bits = 0;
 

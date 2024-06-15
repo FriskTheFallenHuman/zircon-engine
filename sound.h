@@ -59,7 +59,7 @@ extern struct cvar_s snd_mutewhenidle;
 // Functions
 // ====================================================================
 
-void S_Init (void);
+void S_InitOnce (void);
 void S_Terminate (void);
 
 void S_Startup (void);
@@ -73,6 +73,8 @@ sfx_t *S_PrecacheSound (const char *sample, qbool complain, qbool levelsound);
 float S_SoundLength(const char *name);
 void S_ClearUsed (void);
 void S_PurgeUnused (void);
+void S_PurgeALL (void);
+
 qbool S_IsSoundPrecached (const sfx_t *sfx);
 sfx_t *S_FindName(const char *name);
 

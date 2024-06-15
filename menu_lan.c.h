@@ -1,7 +1,6 @@
 // menu_lan.c.h
 
 // Baker:
-#pragma message ("It seems we missed lan config menu?")
 
 //=============================================================================
 /* LAN CONFIG MENU */
@@ -73,24 +72,24 @@ static void M_LanConfig_Draw (void)
 	M_Print(basex, lanConfig_cursor_table[0], "Port");
 	M_DrawTextBox (basex+8*8, lanConfig_cursor_table[0]-8, sizeof(lanConfig_portname), 1);
 	M_Print(basex+9*8, lanConfig_cursor_table[0], lanConfig_portname);
-	Hotspots_Add (menu_x + basex - 8, menu_y + lanConfig_cursor_table[0], (45 * 8) /*360*/, 8, 1, hotspottype_button);
+	Hotspots_Add (menu_x + basex - 8, menu_y + lanConfig_cursor_table[0], (45 * 8) /*360*/, 8, 1, hotspottype_button, q_force_scale_0);
 
 	if (JoiningGame) {
 		M_Print(basex, lanConfig_cursor_table[1], "Search for DarkPlaces games...");
-		Hotspots_Add (menu_x + basex - 8, menu_y + lanConfig_cursor_table[1], (45 * 8) /*360*/, 8, 1, hotspottype_button);
+		Hotspots_Add (menu_x + basex - 8, menu_y + lanConfig_cursor_table[1], (45 * 8) /*360*/, 8, 1, hotspottype_button, q_force_scale_0);
 
 		M_Print(basex, lanConfig_cursor_table[2], "Search for QuakeWorld games...");
-		Hotspots_Add (menu_x + basex - 8 , menu_y + lanConfig_cursor_table[2], (45 * 8) /*360*/, 8, 1, hotspottype_button);
+		Hotspots_Add (menu_x + basex - 8 , menu_y + lanConfig_cursor_table[2], (45 * 8) /*360*/, 8, 1, hotspottype_button, q_force_scale_0);
 
 		M_Print(basex, lanConfig_cursor_table[3]-16, "Join game at:");
-		Hotspots_Add (menu_x + basex - 8, menu_y + lanConfig_cursor_table[3], (45 * 8) /*360*/, 8, 1, hotspottype_button);
+		Hotspots_Add (menu_x + basex - 8, menu_y + lanConfig_cursor_table[3], (45 * 8) /*360*/, 8, 1, hotspottype_button, q_force_scale_0);
 		M_DrawTextBox (basex+8, lanConfig_cursor_table[3]-8, sizeof(lanConfig_joinname), 1);
 		M_Print(basex+16, lanConfig_cursor_table[3], lanConfig_joinname);
 	}
 	else
 	{
 		M_DrawTextBox (basex, lanConfig_cursor_table[1]-8, 2, 1);
-		Hotspots_Add (menu_x + basex - 8, menu_y + lanConfig_cursor_table[1], (45 * 8) /*360*/, 8, 1, hotspottype_button);
+		Hotspots_Add (menu_x + basex - 8, menu_y + lanConfig_cursor_table[1], (45 * 8) /*360*/, 8, 1, hotspottype_button, q_force_scale_0);
 		M_Print(basex+8, lanConfig_cursor_table[1], "OK");
 	}
 

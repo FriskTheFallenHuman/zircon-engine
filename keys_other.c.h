@@ -67,7 +67,7 @@ Key_StringToKeynum (const char *str)
 		return tolower(str[0]);
 
 	for (kn = keynames; kn->name; kn++) {
-		if (String_Does_Match_Caseless (str, kn->name))
+		if (String_Match_Caseless (str, kn->name))
 			return kn->keynum;
 	}
 
@@ -116,9 +116,9 @@ Key_SetBinding (int keynum, int bindmap, const char *binding)
 	char *newbinding;
 	size_t l;
 
-	if (keynum == -1 || keynum >= MAX_KEYS)
+	if (keynum == -1 || keynum >= MAX_KEYS_44032)
 		return false;
-	if ((bindmap < 0) || (bindmap >= MAX_BINDMAPS))
+	if ((bindmap < 0) || (bindmap >= MAX_BINDMAPS_8))
 		return false;
 
 // free old bindings
@@ -147,9 +147,9 @@ void Key_GetBindMap(int *fg, int *bg)
 
 qbool Key_SetBindMap(int fg, int bg)
 {
-	if (fg >= MAX_BINDMAPS)
+	if (fg >= MAX_BINDMAPS_8)
 		return false;
-	if (bg >= MAX_BINDMAPS)
+	if (bg >= MAX_BINDMAPS_8)
 		return false;
 	if (fg >= 0)
 		key_bmap = fg;
@@ -170,7 +170,7 @@ Key_In_Unbind_f(cmd_state_t *cmd)
 	}
 
 	m = strtol(Cmd_Argv(cmd, 1), &errchar, 0);
-	if ((m < 0) || (m >= MAX_BINDMAPS) || (errchar && *errchar)) {
+	if ((m < 0) || (m >= MAX_BINDMAPS_8) || (errchar && *errchar)) {
 		Con_PrintLinef ("%s isn't a valid bindmap", Cmd_Argv(cmd, 1));
 		return;
 	}
@@ -200,13 +200,13 @@ Key_In_Bind_f(cmd_state_t *cmd)
 	}
 
 	m = strtol(Cmd_Argv(cmd, 1), &errchar, 0);
-	if ((m < 0) || (m >= MAX_BINDMAPS) || (errchar && *errchar)) {
+	if ((m < 0) || (m >= MAX_BINDMAPS_8) || (errchar && *errchar)) {
 		Con_PrintLinef ("%s isn't a valid bindmap", Cmd_Argv(cmd, 1));
 		return;
 	}
 
 	b = Key_StringToKeynum (Cmd_Argv(cmd, 2));
-	if (b == -1 || b >= MAX_KEYS) {
+	if (b == -1 || b >= MAX_KEYS_44032) {
 		Con_PrintLinef (QUOTED_S " isn't a valid key", Cmd_Argv(cmd, 2));
 		return;
 	}
@@ -244,13 +244,13 @@ Key_In_Bindmap_f(cmd_state_t *cmd)
 	}
 
 	m1 = strtol(Cmd_Argv(cmd, 1), &errchar, 0);
-	if ((m1 < 0) || (m1 >= MAX_BINDMAPS) || (errchar && *errchar)) {
+	if ((m1 < 0) || (m1 >= MAX_BINDMAPS_8) || (errchar && *errchar)) {
 		Con_PrintLinef ("%s isn't a valid bindmap", Cmd_Argv(cmd, 1));
 		return;
 	}
 
 	m2 = strtol(Cmd_Argv(cmd, 2), &errchar, 0);
-	if ((m2 < 0) || (m2 >= MAX_BINDMAPS) || (errchar && *errchar)) {
+	if ((m2 < 0) || (m2 >= MAX_BINDMAPS_8) || (errchar && *errchar)) {
 		Con_PrintLinef ("%s isn't a valid bindmap", Cmd_Argv(cmd, 2));
 		return;
 	}
@@ -284,7 +284,7 @@ Key_Unbindall_f(cmd_state_t *cmd)
 {
 	int         i, j;
 
-	for (j = 0; j < MAX_BINDMAPS; j++)
+	for (j = 0; j < MAX_BINDMAPS_8; j++)
 		for (i = 0; i < (int)(sizeof(keybindings[0])/sizeof(keybindings[0][0])); i++)
 			if (keybindings[j][i])
 				Key_SetBinding (i, j, "");
@@ -321,7 +321,7 @@ Key_In_BindList_f(cmd_state_t *cmd)
 	if (Cmd_Argc(cmd) >= 2)
 	{
 		m = strtol(Cmd_Argv(cmd, 1), &errchar, 0);
-		if ((m < 0) || (m >= MAX_BINDMAPS) || (errchar && *errchar)) {
+		if ((m < 0) || (m >= MAX_BINDMAPS_8) || (errchar && *errchar)) {
 			Con_PrintLinef ("%s isn't a valid bindmap", Cmd_Argv(cmd, 1));
 			return;
 		}
@@ -329,7 +329,7 @@ Key_In_BindList_f(cmd_state_t *cmd)
 	}
 	else
 	{
-		for (m = 0; m < MAX_BINDMAPS; m++)
+		for (m = 0; m < MAX_BINDMAPS_8; m++)
 			Key_PrintBindList(m);
 	}
 }
@@ -353,7 +353,7 @@ Key_Bind_f(cmd_state_t *cmd)
 		return;
 	}
 	b = Key_StringToKeynum (Cmd_Argv(cmd, 1));
-	if (b == -1 || b >= MAX_KEYS) {
+	if (b == -1 || b >= MAX_KEYS_44032) {
 		Con_PrintLinef (QUOTED_S " isn't a valid key", Cmd_Argv(cmd, 1));
 		return;
 	}
@@ -393,7 +393,7 @@ Key_WriteBindings (qfile_t *f)
 	// Override default binds
 	FS_Printf(f, "unbindall" NEWLINE);
 
-	for (j = 0; j < MAX_BINDMAPS; j++)
+	for (j = 0; j < MAX_BINDMAPS_8; j++)
 	{
 		for (i = 0; i < (int)(sizeof(keybindings[0])/sizeof(keybindings[0][0])); i++)
 		{
@@ -414,9 +414,9 @@ Key_WriteBindings (qfile_t *f)
 const char *Key_GetBind (int key, int bindmap)
 {
 	const char *bind;
-	if (key < 0 || key >= MAX_KEYS)
+	if (key < 0 || key >= MAX_KEYS_44032)
 		return NULL;
-	if (bindmap >= MAX_BINDMAPS)
+	if (bindmap >= MAX_BINDMAPS_8)
 		return NULL;
 	if (bindmap >= 0)
 	{
@@ -440,17 +440,17 @@ void Key_FindKeysForCommand (const char *command, int *keys, int numkeys, int bi
 	for (j = 0;j < numkeys;j++)
 		keys[j] = -1;
 
-	if (bindmap >= MAX_BINDMAPS)
+	if (bindmap >= MAX_BINDMAPS_8)
 		return;
 
 	count = 0;
 
-	for (j = 0; j < MAX_KEYS; ++j)
+	for (j = 0; j < MAX_KEYS_44032; ++j)
 	{
 		b = Key_GetBind(j, bindmap);
 		if (!b)
 			continue;
-		if (String_Does_Match (b, command) )
+		if (String_Match (b, command) )
 		{
 			keys[count++] = j;
 			if (count == numkeys)
@@ -473,7 +473,7 @@ void VID_Alt_Enter_f (void) // Baker: ALT-ENTER
 	if (developer.value) {
 		if (!scr_loading && cls.signon == SIGNONS_4 && cls.world_frames && cls.world_start_realtime) {
 			// Baker: Not working so far ...
-			double dirtytime = Sys_DirtyTime ();
+			double dirtytime = host.realtime;// Sys_DirtyTime ();
 			double delta_time = dirtytime - cls.world_start_realtime;
 			if (delta_time > 1 /*seconds ALT-ENTER*/) {
 				goto ok_to_restart;
@@ -516,8 +516,8 @@ Called by the system between frames for both key up and key down events
 Should NOT be called during an interrupt!
 ===================
 */
-static char tbl_keyascii[MAX_KEYS];
-static keydest_e tbl_keydest[MAX_KEYS];
+static char tbl_keyascii[MAX_KEYS_44032];
+static keydest_e tbl_keydest[MAX_KEYS_44032];
 
 typedef struct eventqueueitem_s
 {
@@ -573,7 +573,7 @@ void Key_Event (int key, int ascii, qbool down)
 	keydest_e keydest = key_dest;
 	char vabuf[1024];
 
-	if (key < 0 || key >= MAX_KEYS)
+	if (key < 0 || key >= MAX_KEYS_44032)
 		return;
 
 	if (developer_keycode.integer)
@@ -676,7 +676,7 @@ void Key_Event (int key, int ascii, qbool down)
 		}
 
 		extern int cl_videoplaying;
-		#pragma message ("When we get cin_open working .. make sure this is ok")
+		//#pragma message ("When we get cin_open working .. make sure this is ok")
 		if (cl_videoplaying) { // K_ESCAPE .. Baker: We want it to stop the video
 			CL_VideoStop (REASON_USER_ESCAPE_2);
 			return; // And do nothing else, including do not toggle menu
@@ -756,7 +756,7 @@ void Key_Event (int key, int ascii, qbool down)
 		return;
 	}
 
-#if 1
+#if CONFIG_MENU
 	if (key_consoleactive && isin1(key, K_MOUSE1)) {
 		int mouse_action_happened = Consel_Key_Event_Check_Did_Action (down);
 		if (mouse_action_happened == TREAT_MOUSEUP_2) {
@@ -783,7 +783,7 @@ void Key_Event (int key, int ascii, qbool down)
 #endif
 		return;
 	}
-#endif
+#endif // CONFIG_MENU
 
 
 
@@ -797,7 +797,7 @@ void Key_Event (int key, int ascii, qbool down)
 		// (special exemption for german keyboard layouts)
 		if (con_closeontoggleconsole.integer &&
 			bind &&
-			String_Does_Start_With (bind, "toggleconsole") &&
+			String_Starts_With (bind, "toggleconsole") &&
 			Have_Flag (key_consoleactive, KEY_CONSOLEACTIVE_USER_1) &&
 			(con_closeontoggleconsole.integer >= ((ascii != STRING_COLOR_TAG) ? 2 : 3) || key_linepos == 1))
 		{
@@ -817,7 +817,7 @@ void Key_Event (int key, int ascii, qbool down)
 	{
 		if (down && con_closeontoggleconsole.integer &&
 			bind &&
-			String_Does_Start_With(bind, "toggleconsole") &&
+			String_Starts_With(bind, "toggleconsole") &&
 			ascii != STRING_COLOR_TAG)
 		{
 			Cbuf_AddTextLine (cmd, "toggleconsole");  // Deferred to next frame so we're not sending the text event to the console.
@@ -907,7 +907,7 @@ void Key_ReleaseAll(void)
 	// clear the event queue first
 	eventqueue_idx = 0;
 	// then send all down events (possibly into the event queue)
-	for (key = 0; key < MAX_KEYS; ++key) {
+	for (key = 0; key < MAX_KEYS_44032; ++key) {
 		// Baker: What if keydown[key] > 1?
 		if (keydown[key])
 			Key_Event(/*scancode*/ key, /*ascii*/ 0, /*isdown*/ false);
@@ -961,7 +961,7 @@ void Key_Shutdown (void)
 	Key_History_Shutdown();
 }
 
-void Key_Init (void)
+void Key_InitOnce (void)
 {
 	Key_History_Init();
 	key_linepos = Key_ClearEditLine(true);

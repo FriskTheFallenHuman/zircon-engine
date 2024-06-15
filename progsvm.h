@@ -794,9 +794,9 @@ typedef struct prvm_prog_s
 
 typedef enum prvm_progindex_e
 {
-	PRVM_PROG_SERVER_0,
-	PRVM_PROG_CLIENT_1,
-	PRVM_PROG_MENU_2,
+	PRVM_PROG_SERVER_0,	// SVVM_prog
+	PRVM_PROG_CLIENT_1,	// CLVM_prog
+	PRVM_PROG_MENU_2,	// MVM_prog
 	PRVM_PROG_MAX_3
 }
 prvm_progindex_t;
@@ -841,7 +841,7 @@ void VM_Cmd_Init(prvm_prog_t *prog);
 void VM_Cmd_Reset(prvm_prog_t *prog);
 //============================================================================
 
-void PRVM_Init (void);
+void PRVM_InitOnce (void);
 
 #ifdef PROFILING
 void SVVM_ExecuteProgram (prvm_prog_t *prog, func_t fnum, const char *errormessage);
@@ -894,7 +894,8 @@ void PRVM_ED_ClearEdict(prvm_prog_t *prog, prvm_edict_t *e);
 void PRVM_PrintFunctionStatements(prvm_prog_t *prog, const char *name);
 void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, const char *wildcard_fieldname, const char *s_fieldname_partial, const char *s_fieldvalue_partial); // Baker r7101: edicts with criteria
 void PRVM_ED_Write(prvm_prog_t *prog, struct qfile_s *f, prvm_edict_t *ed);
-const char *PRVM_ED_ParseEdict(prvm_prog_t *prog, const char *data, prvm_edict_t *ent);
+//const char *PRVM_ED_ParseEdict(prvm_prog_t *prog, const char *data, prvm_edict_t *ent);
+const char *PRVM_ED_ParseEdict(prvm_prog_t *prog, const char *data, prvm_edict_t *ent, qbool is_saveload); // ITK #1
 
 void PRVM_ED_WriteGlobals(prvm_prog_t *prog, struct qfile_s *f);
 void PRVM_ED_ParseGlobals(prvm_prog_t *prog, const char *data);
@@ -975,7 +976,7 @@ void PRVM_StackTrace(prvm_prog_t *prog);
 void PRVM_Breakpoint(prvm_prog_t *prog, int stack_index, const char *text);
 void PRVM_Watchpoint(prvm_prog_t *prog, int stack_index, const char *text, etype_t type, prvm_eval_t *o, prvm_eval_t *n);
 
-void VM_Warning(prvm_prog_t *prog, const char *fmt, ...) DP_FUNC_PRINTF(2);
+void VM_Warningf(prvm_prog_t *prog, const char *fmt, ...) DP_FUNC_PRINTF(2);
 void VM_WarningLinef (prvm_prog_t *prog, const char *fmt, ...) DP_FUNC_PRINTF(2);
 
 void VM_GenerateFrameGroupBlend(prvm_prog_t *prog, struct framegroupblend_s *framegroupblend, const prvm_edict_t *ed);
@@ -984,5 +985,21 @@ void VM_UpdateEdictSkeleton(prvm_prog_t *prog, prvm_edict_t *ed, const struct mo
 void VM_RemoveEdictSkeleton(prvm_prog_t *prog, prvm_edict_t *ed);
 
 void PRVM_ExplicitCoverageEvent(prvm_prog_t *prog, mfunction_t *func, int statement);
+
+
+// Baker: feed_fn_t Returns "shall stop" of true or false
+
+typedef qbool (*feed_fn_t)(int idx, ccs *key, ccs *value, ccs *a, ccs *b, ccs *c, int64_t n0, int64_t n1, int64_t n2); // printfn_t
+typedef qbool (*feed2_fn_t)(prvm_prog_t *prog, int idx, ccs *key, ccs *value, ccs *a, ccs *b, ccs *c, int64_t n0, int64_t n1, int64_t n2); // printfn_t
+
+char *PRVM_Entities_Query_EdictNum_ZAlloc (prvm_prog_t *prog, int edict_num, ccs *fieldname);
+
+void PRVM_Globals_Query (prvm_prog_t *prog, feed_fn_t myfeed_shall_stop);
+
+void PRVM_Fields_Query (prvm_prog_t *prog, feed_fn_t myfeed_shall_stop);
+
+// s_fieldname NULL returns first field.
+void PRVM_Entities_Query_Fieldname (prvm_prog_t *prog, feed2_fn_t myfeed_shall_stop, ccs *s_fieldname_or_null);
+
 
 #endif // ! PROGSVM_H

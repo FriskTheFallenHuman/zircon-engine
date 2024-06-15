@@ -3,6 +3,229 @@
 Zircon is DarkPlaces with a mouse-driven menu, ALT-ENTER fullscreen/windowed switch,
 cut/copy/paste in console and enhancements mostly focusing on user-interface.
 
+r_waterwarp 2 is busted.  Anything else.  Why?
+
+// Zircon Beta Release 59
+
+1. r_lockpvs resets on a new map.  If set to 1, it would cause a crash on a map change or restart.
+
+2. "modeldecompile" of an alias model no longer inverts the Y-axis
+
+1. "modeldecompile" - optional frame #
+
+
+
+3. csqc_beampolygons 0
+
+4. r_waterwarp 2 busted
+
+5.  r_transparentdepthmasking 1
+
+6. (TREES)
+
+TODO: wickedstart savegame/loadgame.  I don't see a clear path, need to examine more.
+
+// Zircon Beta Release 58
+
+1. PVS Fix from DarkPlaces Beta, which is intended to fix invisible monsters and/or monsters
+   ignoring the player on very massive maps.
+
+2. v_viewheight can add or subtract from viewheight.  For testing.  Quake default viewheight is 22.
+   To get Half-Life viewheight of 28, set "v_viewheight 6" which will raise the viewheight by 6.
+
+   This is for testing/experimentation.  The right way to set the viewheight is QuakeC in
+   PutClientInServer ... set self.view_ofs = [0 0 22]; // 22 is Quake, 28 is Half-Life
+
+3. Many small adjustments from DarkPlaces Beta regarding viewblends and framebuffer drawing.
+
+// Zircon Beta Release 57
+
+1. OBJ supports MD3 tagnames for model attachments:
+   tagname propellor_rear 102.8 0.7 20.6  (tagname <name> <xoffset> <yoffset> <zoffset>)
+
+2. Noclipping no longer touches triggers.   "noclip" movement does not fire touch functions.
+	The old behavior is available with sv_altnoclip 0.
+
+3. Shift + Up arrow/Down arrow scrolls console 1 line at a time (Shift + Pageup/Pagedown no longer do)
+
+4. "devinfo" loads CSQC entities without a classname (before it ignored them and could say there
+   were no CSQC entities if none of them had a classname.)
+
+5. Purgeall command.  This allows reloading a model by "purgeall" and restarting a map.
+
+6. poon-wood.bsp fix (signed underflow on load Mod_Q3BSP_LoadLeafs for mins maxs) ... note that
+   I noticed what appears to be a shader parsing error somewhere in poon-wood.shader where leafs_01
+   never gets parsed due to some unknown parse issue that occurred earlier in the shader file.  I moved
+   leafs_01 to the top and worked right.
+
+   https://github.com/DarkPlacesEngine/darkplaces/commit/43f63d6ac7120d5cd17300d801856a94e740e9c0
+
+7. Made "addstat" (SV QuakeC) adding stat 0 (health) a developer print as Quake 1.5 does this.
+   And it didn't warn in DarkPlaces Classic and is not likely a problem in this case.
+
+8. Implemented DarkPlaces Beta bitshifting fix for "getstati" optional parameters.
+   darkplacesextensions.qc with the engine source has the lightly documented extra parms in
+   the prototype in an fteqcc compatible way.
+
+9. Addstat fix to support EV_VECTOR (part 1).  SV_UpdateQCStats (fte: dpcompat_stats)
+
+   FTE checks for EV_VECTOR on send and fills as such ...
+		case ev_vector:
+			statsf[qcstats[i].statnum+0] = eval->_vector[0];
+			statsf[qcstats[i].statnum+1] = eval->_vector[1];
+			statsf[qcstats[i].statnum+2] = eval->_vector[2];
+			break;
+
+
+   Part 1 achieves hiding the message in Quake 1.5 (which affects nothing, it didn't work even in
+   DarkPlaces Classic).  Future: Part 2 will actually complete the implementation and make it work.
+
+  (Need to create viable test subject for verification, without verification there is no way to 
+  assure it works).
+
+10. Collision_ValidateBrush: brush with no points! and similar brush collision messages 
+   that sometimes print for a rare Quake 3 map are now developer prints.  The user can't
+   do anything about them and those prints are annoying.
+
+11. "developer_spawnfunction_warnings 3" to fine tune when "no spawn function for"
+   print messages like original Quake, Quakespasm and derived engines.  DarkPlaces Classic
+   would developer print these, Zircon does Quake behavior.  However, sometimes it would
+   be nice to shut those up, particularly for Quake 3 maps with lots of weird entities.
+
+
+
+12. Sprite unaligned struct access during loading fix from DarkPlaces Beta.
+
+13. TODO: cl_particles.c - no changes that have an effect yet, modified a bit to possibly
+    incorporate some changes with "Quake particles", need to examine in more detail first.
+
+14. TODO: See about incorporating sys_shared.c changes in DarkPlaces Beta including crash
+    report
+
+15. TODO: See about incorporating fatpvs changes in DarkPlaces Beta
+	https://github.com/DarkPlacesEngine/darkplaces/commit/541436b5a8750272755940c7b5c5c3bb469043a8
+
+
+// Zircon Beta Release 56
+
+1. Shift + Page Up/Page Down scroll the console by one line at a time to allowing scrolling up
+   to a smaller degree than PGUP / PGDN in console.
+
+2. "objmodelsplit" which can separate out a single group in an .obj model
+    objmodelsplit models/vehicles/helicopter.obj 5 // splits out group 5 into a separate obj model
+	objmodelsplit models/vehicles/helicopter.obj -5 // removes group 5 and writes a separate obj model
+	The new obj model has _out appended to it .. so models/vehicles/helicopter_out.obj
+	Note that obj is a text file format and the created obj model has statistics in comments at the
+	top like # of verts/#triangles/etc.
+
+
+// Zircon Beta Release 55
+
+1. SV_Shutdown nows sets prog->loaded to false to allow cvar deletion for progs that are not running.
+   Not all the way to perfect yet ... getting close.
+
+2. Some persistent data uses changed to correct mempool so "memstats" does not report a leak since there
+   is not one. Previously some permanent allocations used "tempmempool", which is incorrect.
+   Also switched some missing texture allocations to use the texture memory pool.
+
+3. "objmodeladjust" command supports more complicated obj models.
+
+4. Reset world lights on gamedir change including clearing r_shadowmapname (realtime lights recently loaded map data)
+
+5. Purge models and sounds on gamedir change Mod_PurgeALL / S_PurgeALL
+
+// Zircon Beta Release 54
+
+1. View blends ... they now fully reset on death/restart/gamedir change.  This fixes an issue that 
+   jakub1 reported with Tomb of Thunder.
+
+2. Division by zero turned to a developer print, unless developer 1 set.  Many single player
+   Quake mods have division by zero occur regularly and other engines including classic DarkPlaces print
+   nothing.  "developer 1" when testing a mod will print the messages.
+
+3. Brush empty submodel is now a developer print, other engines do not print this warning and it takes
+   away from the single player experience.  "developer 1" to see those.
+
+// Zircon Beta Release 53
+
+1. "jpegsplit" does png in addition to tga, updates the window titlebar with progress as it goes.
+
+2. "devinfo" enhancements that display more information.
+
+3. Adjusted the vid_samples range from 1 to 32.  But it doesn't work because DarkPlaces uses GLSL pixel shaders
+   so vid_samples "works" (SDL2 gets and sets the multisample request) but multisample antialiasing does not
+   work with pixel shaders, where GLSL (OpenGL shading language) tells every single pixel how to render.
+
+4. "levelshot_maps_all".  Adjusted screenshot timer to wait until 10 frames are rendered to give a better 
+   chance that all the lightmaps have been uploaded before taking a screenshot.
+
+5. In progress .. get cdtrack to restart on vid_restart.
+
+6. "devinfo" the TabSelect control on the left scrolls in case of "too many to display". 
+
+7. "devinfo" displays cdtrack, skybox in "Map" section.  For BSP Entities, removes unsightly carriage return
+   characters (char 13) which render in Quake as a brown special character.
+
+// Zircon Beta Release 52
+
+1. Changed some timers in Zircon-specific function to use host.realtime instead of calling the 
+   real time system function Sys_DirtyTime ().  Code I wrote, infrequently called that function
+   to get the "realtime" for detecting double-click and such.  I don't expect any behavior
+   differences -- but wanted to "fix" this oversight and make sure multiple clicks in a single
+   frame still count as double-clicks.
+
+2. "levelshot_maps_all" will make screenshots for all maps in the current game directory.
+
+3. "levelshot_here" will make a screenshot for the map you are on at the place you are at.
+
+
+// Zircon Beta Release 51
+
+1. Maps menu will display Q3 level screenshots "levelshots/mapname.tga".
+
+2. Maps menu no longer refreshes after entering every time.  Press SPACE to refresh the list.
+   Refreshing the map menu can be slow since DarkPlaces digs into each map finding the map title
+   which means it parses the entities.  With a lot of maps, this can be slow.
+
+
+
+// Zircon Beta Release 50
+
+Linux compile -- after make sdl-release ... need to do: cat bundle/engine.zip >> zircon_beta_linux_sdl
+To concatenate the engine bundle (contains form1.txt, icons and a column sizing cursor for SDL2).
+
+1. "devinfo" - first use of new user-interface capabilities, a first step towards making
+   more information available to the developer faster.
+
+2. Solidified cvar reset after gamedir change.  It passes all the tests set up to catch issues.
+
+3. SMEJ2 "solid cobwebs / waterfalls" resolved.  If a quake.rc does not have a default.cfg,
+   Zircon will handle that situation by adding "default.cfg" to the command buffer as DarkPlaces
+   is designed to use that to trigger certain engine startup settings.
+
+4. Codeblocks IDE project file for Linux that worked with Zircon Beta #49.  Used Xonotic 0.8.6 CodeBlocks 
+   project file as a starting
+
+   Probably mostly supports Zircon Beta #50 compile, but the UI elements require an external pk3 
+   that contains a cursor and some icons that is built during the compile and this is not implemented 
+   in the CodeBlocks project file, so the UI elements will be missing at run-time.
+
+5. Rewired TrueType font support to allow for loading a font from memory and the inclusion
+   the open source friendly Google Roboto font.
+
+6. Italian keyboard has a "+" key, now checking that for CTRL + "+" for console text sizing.
+
+7. Clear menu reentrant on gamedir change if it is the maps menu (servers -- well QW)
+
+8. Added an inactive implementation of a hemebond gameplay fix idea for testing.
+
+9. Cvar vid_mouse_show_coords.  Defaults 0.
+
+10. Added an engine .pak to the build process.
+
+11. Large reduction of the number of pragma message developer messages.  Most of those thoughts
+   or notes that remain active are now at the end of this file.
+
 // Zircon Beta Release 49
 
 1. Fixed a CSQC canvas issue with csqc_full_width_height
@@ -1296,6 +1519,62 @@ Unfixed or Unverified Bugs ...
 
 9511. Fixed vid_sdl.h so Windows get a titlebar icon consistently.  Sometimes it was there, sometimes not.
 
+//
+// Developer notes (loose notes of items of interest)
+//
+
 Self note: Ubuntu WSL -> cd /mnt/c/zircs/_zirc_qualker
 
+TODOS:
+CLAMP down on use of vid_width and vid_height cvars by internally foobaring the name a little.
+ Player setup screen color change does not work.  Inherited issue from DarkPlaces Beta.
+ Would like scrollbars in the scrolling menus.
+ Would like to use a different autoscroll for most scrolling menus.
+ Why is Quake Remastered Dimension of the Machine seem choppy at times?
+ Some sort of ability for cl_cmd and sv_cmd to provide more information on the commands
+ for example, if cl_cmd is supported, say the usage of cl_cmd quad2d
+ DarkPlaces Beta - lit sprites do not work correctly.
+ SIV load does not read custom sv_progs progs.dat ... can we get it to do that (or does it do this already?)
+   We want SIV load to support alternate progs.dat capability so we have option of having
+   custom progs in some maps
+ DarkPlaces Beta - build with static libraries.
+ DarkPlaces Beta - set basedir to current working directory if not specified
+ Windows make -HOME work   
+ Prydon cursor crash/speedup done in slightly incorrect way.  Fix?  (Yet does anything even use it?)
+ Last time I checked, troubles loading AD Sepulcher?  Why is this not working when it worked in the past?
+ When built with gcc compiler, "normal Quake" engines either can't connect or the DarkPlaces server
+   does not show up in supporting server browser queries.  Find out nature of mistake.
+ We build gcc with SDL 2.28 - upgrade to latest version?
+ We hide the frames per second display
+  (cl_maxfps.value && showfps_framerate > cl_maxfps.value * 2) .. is more appropriate way?
+  DarkPlaces appears to try to interpolate monsters new in scene with their base frame.  How to fix?
+    We could mark "no interpolation for 1 frame".
+Implement Darkplaces Beta multi-monitor support?
+Mac build
+Upgrade the make file using current DarkPlaces Beta as a template?
+ 
+QUESTIONS:
+ Does video streaming for gif/jpeg work ok with odd widths like 303 which aren't a multiple of 4.
+ Sometimes after running Quakespasm, Zircon video mode settings are a bit strange.  Why is that?
+ We are using sound channel 9 and sending null.wav to stop sound?  Is there a better way?
+ It is said that .bsp that are actually .md3 (replacement models) bypass the requirement of having
+  an info_player_start and show up in the "maps list"
+ UTF8 safety and string functions / autocomplete.
+ Are we using the DarkPlaces Beta SDL method for saying no to Windows scaling?
+ 
+Did we do LAN config menu?
+ revive prvm_menu_gamecommands
 
+write png needs written for lodepng
+
+Get warpzones working in CSQC!
+
+Zircon Galaxy + intermap can do invalid references to player.  Best way to clear ?
+
+// Zircon Beta Release 50
+
+engine pak - anything in this will supercede all, even files laying around
+
+NOTE: r_refdef.scene.worldmodel does not get cleared on disconnect nor gamedir change
+
+SMEJ - default.cfg add that if GAME_NORMAL and not found in quake.rc? (DONE, but maybe not run default.cfg?)

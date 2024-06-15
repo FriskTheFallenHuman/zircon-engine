@@ -61,7 +61,7 @@ void VID_Finish (void)
 {
 }
 
-void VID_Init(void)
+void VID_InitOnce(void)
 {
 #ifndef _WIN32
 	InitSig(); // trap evil signals
@@ -106,6 +106,10 @@ qbool GL_ExtensionSupported(const char *name)
 }
 
 void VID_ListModes_f(cmd_state_t *cmd)
+{
+}
+
+void Vid_SetWindowTitlef (const char *fmt, ...)
 {
 }
 

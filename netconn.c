@@ -150,11 +150,11 @@ cvar_t sv_netport = {CF_SERVER, "port", "26000", "server port for players to con
 cvar_t net_address = {CF_CLIENT | CF_SERVER, "net_address", "", "network address to open ipv4 ports on (if empty, use default interfaces)"};
 cvar_t net_address_ipv6 = {CF_CLIENT | CF_SERVER, "net_address_ipv6", "", "network address to open ipv6 ports on (if empty, use default interfaces)"};
 
-char cl_net_extresponse[NET_EXTRESPONSE_MAX][1400];
+char cl_net_extresponse[NET_EXTRESPONSE_MAX_16][1400];
 int cl_net_extresponse_count = 0;
 int cl_net_extresponse_last = 0;
 
-char sv_net_extresponse[NET_EXTRESPONSE_MAX][1400];
+char sv_net_extresponse[NET_EXTRESPONSE_MAX_16][1400];
 int sv_net_extresponse_count = 0;
 int sv_net_extresponse_last = 0;
 
@@ -458,7 +458,7 @@ static void ServerList_ViewList_Insert( serverlist_entry_t *entry )
 		}
 		if (Crypto_RetrieveHostKey(&addr, 0, NULL, 0, idfp, sizeof(idfp), NULL, NULL)) {
 			for(i = 0; i < nFavorites_idfp; ++i) {
-				if (String_Does_Match(idfp, favorites_idfp[i])) {
+				if (String_Match(idfp, favorites_idfp[i])) {
 					entry->info.isfavorite = true;
 					break;
 				}
@@ -1610,7 +1610,7 @@ static int NetConn_ClientParsePacket_ServerList_ProcessReply(const char *address
 	// search the cache for this server and update it
 	for (n = 0;n < serverlist_cachecount;n++) {
 		entry = &serverlist_cache[ n ];
-		if (String_Does_Match(addressstring, entry->info.cname))
+		if (String_Match(addressstring, entry->info.cname))
 			break;
 	}
 
@@ -1684,7 +1684,7 @@ static void NetConn_ClientParsePacket_ServerList_UpdateCache(int n)
 
 	dpsnprintf(entry->line2, sizeof(serverlist_cache[n].line2), "^7%-21.21s %-19.19s ^%c%-17.17s^7 %-20.20s",
 		 info->cname,
-		String_Does_Start_With_Caseless (info->game, "DarkPlaces-") ? &info->game[11] : info->game,
+		String_Starts_With_Caseless (info->game, "DarkPlaces-") ? &info->game[11] : info->game,
 			(
 			 info->gameversion != gameversion.integer
 			 &&
@@ -1723,7 +1723,7 @@ static qbool NetConn_ClientParsePacket_ServerList_PrepareQuery( int protocol, co
 		return false;
 	//	also ignore	it	if	we	have already queried	it	(other master server	response)
 	for( n =	0 ; n	< serverlist_cachecount	; n++	)
-		if ( String_Does_Match( ipstring, serverlist_cache[ n ].info.cname ) )
+		if ( String_Match( ipstring, serverlist_cache[ n ].info.cname ) )
 			break;
 
 	if ( n < serverlist_cachecount ) {
@@ -2177,9 +2177,9 @@ not_hitting2:
 		if (!strncmp(mystring, "extResponse ", 12)) {
 			// Baker: VM_CL_getextresponse #624 FTE_CSQC_SERVERBROWSER
 			++cl_net_extresponse_count;
-			if (cl_net_extresponse_count > NET_EXTRESPONSE_MAX)
-				cl_net_extresponse_count = NET_EXTRESPONSE_MAX;
-			cl_net_extresponse_last = (cl_net_extresponse_last + 1) % NET_EXTRESPONSE_MAX;
+			if (cl_net_extresponse_count > NET_EXTRESPONSE_MAX_16)
+				cl_net_extresponse_count = NET_EXTRESPONSE_MAX_16;
+			cl_net_extresponse_last = (cl_net_extresponse_last + 1) % NET_EXTRESPONSE_MAX_16;
 			dpsnprintf(cl_net_extresponse[cl_net_extresponse_last], sizeof(cl_net_extresponse[cl_net_extresponse_last]), "" QUOTED_S " %s", addressstring2, mystring + 12);
 			return true;
 		}
@@ -2932,7 +2932,7 @@ static qbool plaintext_matching(lhnetaddress_t *peeraddress, const char *passwor
 		return false;
 	}
 
-	return String_Does_Match(password, hash);
+	return String_Match(password, hash);
 }
 
 /// returns a string describing the user level, or NULL for auth failure
@@ -3008,12 +3008,12 @@ check:
 				}
 				else if (strchr(com_token, ' ')) // multi-arg expression? must match in whole
 				{
-					if (String_Does_Match(com_token, s))
+					if (String_Match(com_token, s))
 						goto match;
 				}
 				else // single-arg expression? must match the beginning of the command
 				{
-					if (String_Does_Match(com_token, s))
+					if (String_Match(com_token, s))
 						goto match;
 					if (!memcmp(va(vabuf, sizeof(vabuf), "%s ", com_token), s, strlen(com_token) + 1))
 						goto match;
@@ -3207,7 +3207,7 @@ static int NetConn_ServerParsePacket(lhnetsocket_t *mysocket, unsigned char *dat
 					// validate the challenge
 					for (i = 0;i < MAX_CHALLENGES;i++)
 						if (challenges[i].time > 0)
-							if (!LHNETADDRESS_Compare(peeraddress, &challenges[i].address) && String_Does_Match(challenges[i].string, s))
+							if (!LHNETADDRESS_Compare(peeraddress, &challenges[i].address) && String_Match(challenges[i].string, s))
 								break;
 					// if the challenge is not recognized, drop the packet
 					if (i == MAX_CHALLENGES)
@@ -3429,9 +3429,9 @@ static int NetConn_ServerParsePacket(lhnetsocket_t *mysocket, unsigned char *dat
 		if (!strncmp(string, "extResponse ", 12))
 		{
 			++sv_net_extresponse_count;
-			if (sv_net_extresponse_count > NET_EXTRESPONSE_MAX)
-				sv_net_extresponse_count = NET_EXTRESPONSE_MAX;
-			sv_net_extresponse_last = (sv_net_extresponse_last + 1) % NET_EXTRESPONSE_MAX;
+			if (sv_net_extresponse_count > NET_EXTRESPONSE_MAX_16)
+				sv_net_extresponse_count = NET_EXTRESPONSE_MAX_16;
+			sv_net_extresponse_last = (sv_net_extresponse_last + 1) % NET_EXTRESPONSE_MAX_16;
 			dpsnprintf(sv_net_extresponse[sv_net_extresponse_last], sizeof(sv_net_extresponse[sv_net_extresponse_last]), "'%s' %s", addressstring2, string + 12);
 			return true;
 		}
@@ -3494,7 +3494,7 @@ static int NetConn_ServerParsePacket(lhnetsocket_t *mysocket, unsigned char *dat
 
 			protocolname = MSG_ReadString(&sv_message, sv_readstring, sizeof(sv_readstring));
 			protocolnumber = MSG_ReadByte(&sv_message);
-			if (String_Does_NOT_Match(protocolname, "QUAKE") || protocolnumber != NET_PROTOCOL_VERSION_3)
+			if (String_NOT_Match(protocolname, "QUAKE") || protocolnumber != NET_PROTOCOL_VERSION_3)
 			{
 				if (developer_extra.integer)
 					Con_DPrintf ("Datagram_ParseConnectionless: sending CCREP_REJECT_x82 \"Incompatible version.\" to %s.\n", addressstring2);
@@ -3606,7 +3606,7 @@ static int NetConn_ServerParsePacket(lhnetsocket_t *mysocket, unsigned char *dat
 			if (NetConn_PreventFlood(peeraddress, sv.getstatusfloodaddresses, sizeof(sv.getstatusfloodaddresses) / sizeof(sv.getstatusfloodaddresses[0]), net_getstatusfloodblockingtimeout.value, false))
 				break;
 
-			if (sv.active && String_Does_Match(MSG_ReadString(&sv_message, sv_readstring, sizeof(sv_readstring)), "QUAKE")) {
+			if (sv.active && String_Match(MSG_ReadString(&sv_message, sv_readstring, sizeof(sv_readstring)), "QUAKE")) {
 				int numclients;
 				char myaddressstring[128];
 				if (developer_extra.integer)
@@ -3882,11 +3882,11 @@ void NetConn_QueryMasters(qbool querydp, qbool queryqw)
 				{
 					if (sv_qwmasters[masternum].string && LHNETADDRESS_FromString(&masteraddress, sv_qwmasters[masternum].string, QWMASTER_PORT) && LHNETADDRESS_GetAddressType(&masteraddress) == LHNETADDRESS_GetAddressType(LHNET_AddressFromSocket(cl_sockets[i])))
 					{
-						if (m_state != m_slist)
+						if (m_state != m_slist_27)
 						{
 							char lookupstring[128];
 							LHNETADDRESS_ToString(&masteraddress, lookupstring, sizeof(lookupstring), true);
-							Con_Printf ("Querying master %s (resolved from %s)\n", lookupstring, sv_qwmasters[masternum].string);
+							Con_PrintLinef ("Querying master %s (resolved from %s)", lookupstring, sv_qwmasters[masternum].string);
 						}
 						masterquerycount++;
 						NetConn_Write(cl_sockets[i], request, (int)strlen(request) + 1, &masteraddress);
@@ -3983,7 +3983,7 @@ void Net_Stats_f(cmd_state_t *cmd)
 // use this.  The server list in the menu does not call this.
 void Net_Refresh_f(cmd_state_t *cmd)
 {
-	if (m_state != m_slist) {
+	if (m_state != m_slist_27) {
 		Con_PrintLinef ("Sending new requests to master servers");
 		ServerList_QueryList(qsv_resetcache_false, qsv_querydp_true, qsv_queryqw_false, qsv_consoleoutput_true);
 		Con_PrintLinef ("Listening for replies...");
@@ -3996,7 +3996,7 @@ void Net_Slist_Both_f(cmd_state_t *cmd)
 	ServerList_ResetMasks(); last_nav_cname[0] = 0;
 	serverlist_sortbyfield = SLIF_PING;
 	serverlist_sortflags = 0;
-    if (m_state != m_slist) {
+    if (m_state != m_slist_27) {
 		Con_PrintLinef ("Sending requests to master servers");
 		ServerList_QueryList(qsv_resetcache_true, qsv_querydp_true, qsv_queryqw_true, qsv_consoleoutput_true);
 		Con_PrintLinef ("Listening for replies...");
@@ -4010,7 +4010,7 @@ void Net_Slist_f(cmd_state_t *cmd)
 	ServerList_ResetMasks(); last_nav_cname[0] = 0;
 	serverlist_sortbyfield = SLIF_PING;
 	serverlist_sortflags = 0;
-    if (m_state != m_slist) {
+    if (m_state != m_slist_27) {
 		Con_PrintLinef ("Sending requests to master servers");
 		ServerList_QueryList(qsv_resetcache_true, qsv_querydp_true, qsv_queryqw_false, qsv_consoleoutput_true);
 		Con_PrintLinef ("Listening for replies...");
@@ -4024,18 +4024,18 @@ void Net_SlistQW_f(cmd_state_t *cmd)
 	ServerList_ResetMasks(); last_nav_cname[0] = 0;
 	serverlist_sortbyfield = SLIF_PING;
 	serverlist_sortflags = 0;
-    if (m_state != m_slist) {
+    if (m_state != m_slist_27) {
 		Con_PrintLinef ("Sending requests to master servers");
 		ServerList_QueryList(qsv_resetcache_true, qsv_querydp_false, qsv_queryqw_true, qsv_consoleoutput_true);
 		serverlist_consoleoutput = true;
-		Con_PrintLinef("Listening for replies...");
+		Con_PrintLinef ("Listening for replies...");
 	} else
 		ServerList_QueryList(qsv_resetcache_true, qsv_querydp_false, qsv_queryqw_true, qsv_consoleoutput_false);
 }
 #endif // CONFIG_MENU
 
 void SList_Tiebreaker_Changed_c (cvar_t *var);
-void NetConn_Init(void)
+void NetConn_InitOnce(void)
 {
 	int i;
 	lhnetaddress_t tempaddress;

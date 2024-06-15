@@ -418,7 +418,7 @@ static void CL_StopDownload_DP(int size, int crc)
 			// save to disk only if we don't already have it
 			// (this is mainly for playing back demos)
 			existingcrc = FS_CRCFile(cls.qw_downloadname, &existingsize);
-			if (existingsize || IS_NEXUIZ_DERIVED(gamemode) || String_Does_Match(cls.qw_downloadname, csqc_progname.string))
+			if (existingsize || IS_NEXUIZ_DERIVED(gamemode) || String_Match(cls.qw_downloadname, csqc_progname.string))
 				// let csprogs ALWAYS go to dlcache, to prevent "viral csprogs"; also, never put files outside dlcache for Nexuiz/Xonotic
 			{
 				if ((int)existingsize != size || existingcrc != crc) {
@@ -430,7 +430,7 @@ static void CL_StopDownload_DP(int size, int crc)
 						Con_PrintLinef ("Downloaded " QUOTED_S " (%d bytes, %d CRC)", name, size, crc);
 downloadx_cl_finish_2_write_file:
 						FS_WriteFile(name, cls.qw_downloadmemory, cls.qw_downloadmemorycursize);
-						if (String_Does_Match(cls.qw_downloadname, csqc_progname.string))
+						if (String_Match(cls.qw_downloadname, csqc_progname.string))
 						{
 							if (cls.caughtcsprogsdata)
 								Mem_Free(cls.caughtcsprogsdata);
@@ -564,12 +564,12 @@ downloadx_cl_start_download_1: // Prepare to receive a file
 
 	cls.qw_download_deflate = false;
 	if (Cmd_Argc(cmd) >= 4) {
-		if (String_Does_Match(Cmd_Argv(cmd, 3), "deflate"))
+		if (String_Match(Cmd_Argv(cmd, 3), "deflate"))
 			cls.qw_download_deflate = true;
 		// check further encodings here
 	}
 
-	if (Cmd_Argc(cmd) >= 4 && String_Does_Match(Cmd_Argv(cmd, 3), "chunked")) {
+	if (Cmd_Argc(cmd) >= 4 && String_Match(Cmd_Argv(cmd, 3), "chunked")) {
 		CL_DPChunks_CL_BeginDownload_Start (size);
 	}
 

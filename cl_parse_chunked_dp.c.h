@@ -63,7 +63,7 @@ WARP_X_ (CL_DPChunks_CL_SendChunkDownloadReq )
 
 
 WARP_X_CALLERS_ (CL_DownloadBegin_DP_f)
-//	if (Cmd_Argc(cmd) >= 4 && String_Does_Match(Cmd_Argv(cmd, 4), "chunked"))
+//	if (Cmd_Argc(cmd) >= 4 && String_Match(Cmd_Argv(cmd, 4), "chunked"))
 //		CL_DPChunks_CL_BeginDownload_Start (size);
 
 

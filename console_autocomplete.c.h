@@ -41,9 +41,9 @@ int GetSkyList_Count (const char *s_prefix)
 			// We are using _rt .. what about the other crazy supported suffixes like "pz"
 			// Nah .. we are doing Quake skyboxes only
 			int slen = (int)strlen (sxy); // We know strlen >= 3
-			if (String_Does_End_With (sxy, "_rt")) {
+			if (String_Ends_With (sxy, "_rt")) {
 				sxy[slen - 3] = 0;
-			} else if (String_Does_End_With (sxy, "rt")) {
+			} else if (String_Ends_With (sxy, "rt")) {
 				sxy[slen - 2] = 0;
 			} else {
 				// No trail of _rt or rt
@@ -80,7 +80,7 @@ int GetTexMode_Count (const char *s_prefix)
 
 	for (int idx = 0; idx < array_count; idx++) {
 		const char *sxy =  slist[idx];
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 			continue;
 
 		SPARTIAL_EVAL_
@@ -188,7 +188,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 		int map_format_code = 0;
 		int is_playable = false;
 		desc[0] = 0;
-		int is_obj_map = String_Does_End_With (s_this_filename, ".obj");
+		int is_obj_map = String_Ends_With (s_this_filename, ".obj");
 		
 		c_strlcpy (s_map_title, CON_RED "ERROR: open failed" CON_WHITE);
 		
@@ -200,7 +200,8 @@ qbool GetMapList (const char *s_partial, char *completedname,
 
 			memset(buf, 0, 1024);
 			FS_Read(f, buf, 1024);
-#pragma message ("Baker: It is said that .bsp that are .md3 or such bypass requirement of info_player_start")
+			//#pragma message ("Baker: It is said that .bsp that are .md3 
+			//or such bypass requirement of info_player_start")
 			if (is_obj_map) {
 					c_strlcpy (desc, "OBJ"); 
 					map_format_code = 7;
@@ -270,8 +271,8 @@ qbool GetMapList (const char *s_partial, char *completedname,
 				// if there are entities to parse, a missing message key just
 				// means there is no title, so clear the message string now
 				s_map_title[0] = 0;
-				is_playable = String_Does_Contain (entities, "info_player_start") || 
-					String_Does_Contain (entities, "info_player_deathmatch");
+				is_playable = String_Contains (entities, "info_player_start") || 
+					String_Contains (entities, "info_player_deathmatch");
 
 				data = entities;
 				for (;;) {
@@ -293,7 +294,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 						break;
 					if (developer_extra.integer)
 						Con_DPrintLinef ("key: %s %s", keyname, com_token);
-					if (String_Does_Match(keyname, "message")) {
+					if (String_Match(keyname, "message")) {
 						// get the map title
 						c_strlcpy (s_map_title, com_token);
 						break;
@@ -432,10 +433,10 @@ int GetVideoList_Count (const char *s_prefix)
 		for (int idx = 0; idx < plist->numstrings; idx++) {
 			char *sxy = plist->strings[idx];
 
-			if (false == String_Does_End_With (sxy, "_fps"))
+			if (false == String_Ends_With (sxy, "_fps"))
 				continue;
 
-			if (false == String_Does_Start_With (sxy, s_prefix))
+			if (false == String_Starts_With (sxy, s_prefix))
 				continue;
 
 			// Baker: The autocomplete doesn't want the full name just the partial
@@ -478,15 +479,15 @@ int GetVideoList_Count (const char *s_prefix)
 	return num_matches;
 }
 
-int GetFileList_Count (const char *s_folder_or_null, const char *s_prefix, const char *s_dot_extension, int is_strip_extension)
+int GetFileList_Count (const char *s_folder_with_slash_or_null, const char *s_prefix, const char *s_dot_extension, int is_strip_extension)
 {
 	fssearch_t	*t;
 	char		s_pattern[1024];
 	int			num_matches = 0;
 	int			j;
 
-	if (s_folder_or_null)
-		c_dpsnprintf3 (s_pattern, "%s%s*%s", s_folder_or_null, s_prefix, s_dot_extension);
+	if (s_folder_with_slash_or_null)
+		c_dpsnprintf3 (s_pattern, "%s%s*%s", s_folder_with_slash_or_null, s_prefix, s_dot_extension);
 	else
 		c_dpsnprintf2 (s_pattern, "%s*%s", s_prefix, s_dot_extension);
 
@@ -501,8 +502,8 @@ int GetFileList_Count (const char *s_folder_or_null, const char *s_prefix, const
 			if (is_strip_extension)
 				File_URL_Edit_Remove_Extension (sxy);
 
-			if (s_folder_or_null)
-				sxy += strlen (s_folder_or_null);
+			if (s_folder_with_slash_or_null)
+				sxy += strlen (s_folder_with_slash_or_null);
 
 			SPARTIAL_EVAL_
 
@@ -543,7 +544,7 @@ int GetModList_Count(const char *s_prefix)
 		if (String_Is_Dot(s_this) || String_Is_DotDot(s_this))
 			continue; // ignore "." and ".." as filenames
 
-		if (String_Does_Start_With_Caseless (s_this, s_prefix) == false)
+		if (String_Starts_With_Caseless (s_this, s_prefix) == false)
 			continue; // Not prefix match
 
 		if (String_Isin2 (s_this, "bin32", "bin64"))
@@ -581,8 +582,8 @@ int GetCommad_Count (const char *s_prefix, const char *s_singleton)
 
 
 	for (int idx = 0; idx < comma_items_count; idx ++) {
-		char *sxy =  String_Instance_Alloc_Base1 (s_singleton, ',' , idx + 1, NULL);
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false) {
+		char *sxy =  String_Instance_Malloc_Base1 (s_singleton, ',' , idx + 1, NULL);
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false) {
 			goto continuey; // For free
 		}
 
@@ -608,7 +609,7 @@ int GetAny1_Count (const char *s_prefix, const char *s_singleton)
 
 	for (int idx = 0; idx < array_count; idx ++) {
 		const char *sxy =  slist[idx];
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 			continue;
 
 		SPARTIAL_EVAL_
@@ -630,7 +631,7 @@ int GetAny1_Count (const char *s_prefix, const char *s_singleton)
 //
 //	for (int idx = 0; idx < array_count; idx ++) {
 //		const char *sxy =  slist[idx];
-//		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+//		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 //			continue;
 //
 //		SPARTIAL_EVAL_
@@ -656,7 +657,7 @@ int GetEdictsCmd_Count (const char *s_prefix)
 
 	for (int idx = 0; idx < array_count; idx ++) {
 		const char *sxy =  slist[idx];
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 			continue;
 
 		SPARTIAL_EVAL_
@@ -706,7 +707,7 @@ int GetREditLightsEdit_Count (const char *s_prefix)
 
 	for (int idx = 0; idx < array_count; idx++) {
 		const char *sxy =  slist[idx];
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 			continue;
 
 		SPARTIAL_EVAL_
@@ -831,7 +832,7 @@ int GetShaderList_Count (const char *s_prefix)
 
 	// We cannot do comparisons here as this list is NOT SORTED
 	for (int j = 0; j < m->num_textures; j ++, tx ++) {
-		if (String_Does_Start_With_Caseless (tx->name, s_prefix) == false)
+		if (String_Starts_With_Caseless (tx->name, s_prefix) == false)
 			continue;
 
 		stringlistappend (&matchedSet, tx->name);
@@ -845,7 +846,7 @@ int GetShaderList_Count (const char *s_prefix)
 	for (int idx = 0; idx < matchedSet.numstrings; idx ++) {
 		char *sxy = matchedSet.strings[idx];
 
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 			continue;
 
 		SPARTIAL_EVAL_
@@ -873,7 +874,7 @@ int GetTexWorld_Count (const char *s_prefix)
 
 	// We cannot do comparisons here as this list is NOT SORTED
 	for (int j = 0; j < m->num_textures; j ++, tx ++) {
-		if (String_Does_Start_With_Caseless (tx->name, s_prefix) == false)
+		if (String_Starts_With_Caseless (tx->name, s_prefix) == false)
 			continue;
 
 		stringlistappend (&matchedSet, tx->name);
@@ -887,7 +888,7 @@ int GetTexWorld_Count (const char *s_prefix)
 	for (int idx = 0; idx < matchedSet.numstrings; idx ++) {
 		char *sxy = matchedSet.strings[idx];
 
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 			continue;
 
 		SPARTIAL_EVAL_
@@ -902,7 +903,7 @@ int GetTexWorld_Count (const char *s_prefix)
 
 
 // "folder" "dir" "ls" -- this completes in a weird way
-#pragma message ("Baker: This folder path completion autocomplete needs cleanup")
+#pragma message ("Baker: KEEP ME - GetFolderList_Count - This folder path completion autocomplete needs cleanup")
 int GetFolderList_Count (const char *s_prefix)
 {
 	autocomplete_t *ac = &_g_autocomplete;
@@ -929,7 +930,7 @@ int GetFolderList_Count (const char *s_prefix)
 
 	// What is dir?
 	c_strlcpy  (s_prefix_copy, s_prefix);
-	if (String_Does_End_With (s_prefix_copy, "/") == false)
+	if (String_Ends_With (s_prefix_copy, "/") == false)
 		File_URL_Edit_Reduce_To_Parent_Path_Trailing_Slash (s_prefix_copy);
 	c_strlcpy  (s_prefix_filename_only, safterpath);
 
@@ -941,7 +942,7 @@ int GetFolderList_Count (const char *s_prefix)
 	if (s_prefix_copy[0])
 		c_strlcat  (gamepathos, s_prefix_copy);
 
-	if (s_prefix_copy[0] && String_Does_End_With (gamepathos,  "/")==false) {
+	if (s_prefix_copy[0] && String_Ends_With (gamepathos,  "/")==false) {
 		c_strlcat  (gamepathos, "/");		// Directory to list
 		c_strlcat  (s_prefix_copy, "/");
 	}
@@ -960,7 +961,7 @@ int GetFolderList_Count (const char *s_prefix)
 		if (String_Is_Dot(s_this) || String_Is_DotDot(s_this))
 			continue; // ignore "." and ".." as filenames
 
-		if (String_Does_Start_With_Caseless (s_this, s_prefix_filename_only) == false)
+		if (String_Starts_With_Caseless (s_this, s_prefix_filename_only) == false)
 			continue;
 
 		// Preserve the result to a variable
@@ -979,7 +980,7 @@ int GetFolderList_Count (const char *s_prefix)
 	if (num_matches == 1) {
 		// If only one match, we indicate the intention to help 
 		// the autocompletion "enter the folder"
-		if (String_Does_Match (s_prefix, ac->s_match_alphalast_a)) {
+		if (String_Match (s_prefix, ac->s_match_alphalast_a)) {
 			// Completely replace search results
 			freenull_ (ac->s_match_after_a)
 			freenull_ (ac->s_match_alphalast_a);
@@ -1066,7 +1067,7 @@ int GetShowModelList_Count (const char *s_prefix)
 
 	// What is dir?
 	c_strlcpy  (s_prefix_copy, s_prefix);
-	if (String_Does_End_With (s_prefix_copy, "/") == false)
+	if (String_Ends_With (s_prefix_copy, "/") == false)
 		File_URL_Edit_Reduce_To_Parent_Path_Trailing_Slash (s_prefix_copy);
 	c_strlcpy  (s_prefix_filename_only, safterpath);
 
@@ -1078,7 +1079,7 @@ int GetShowModelList_Count (const char *s_prefix)
 	if (s_prefix_copy[0])
 		c_strlcat  (gamepathos, s_prefix_copy);
 
-	if (s_prefix_copy[0] && String_Does_End_With (gamepathos,  "/")==false) {
+	if (s_prefix_copy[0] && String_Ends_With (gamepathos,  "/")==false) {
 		c_strlcat  (gamepathos, "/");		// Directory to list
 		c_strlcat  (s_prefix_copy, "/");
 	}
@@ -1104,14 +1105,14 @@ int GetShowModelList_Count (const char *s_prefix)
 		if (String_Is_Dot(s_this) || String_Is_DotDot(s_this))
 			continue; // ignore "." and ".." as filenames
 
-		if (String_Does_Start_With_Caseless (s_this, s_prefix_filename_only) == false)
+		if (String_Starts_With_Caseless (s_this, s_prefix_filename_only) == false)
 			continue;
 
-		if (String_Does_End_With_Caseless (s_this, ".mdl") || 
-			String_Does_End_With_Caseless (s_this, ".md3") || 
-			String_Does_End_With_Caseless (s_this, ".spr") || 
-			String_Does_End_With_Caseless (s_this, ".obj") || 
-			String_Does_Contain (s_this, ".") == false)
+		if (String_Ends_With_Caseless (s_this, ".mdl") || 
+			String_Ends_With_Caseless (s_this, ".md3") || 
+			String_Ends_With_Caseless (s_this, ".spr") || 
+			String_Ends_With_Caseless (s_this, ".obj") || 
+			String_Contains (s_this, ".") == false)
 		{
 			// Stay
 		} else {
@@ -1132,10 +1133,10 @@ int GetShowModelList_Count (const char *s_prefix)
 	} // for
 
 	// Baker: Don't offer a trailing slash if there is a dot in it, probably a .mdl or other file
-	if (num_matches == 1 && String_Does_Contain(ac->s_match_alphalast_a, ".") == false) {
+	if (num_matches == 1 && String_Contains(ac->s_match_alphalast_a, ".") == false) {
 		// If only one match, we indicate the intention to help 
 		// the autocompletion "enter the folder"
-		if (String_Does_Match (s_prefix, ac->s_match_alphalast_a)) {
+		if (String_Match (s_prefix, ac->s_match_alphalast_a)) {
 			// Completely replace search results
 			freenull_ (ac->s_match_after_a)
 			freenull_ (ac->s_match_alphalast_a);
@@ -1204,7 +1205,7 @@ int GetGameCommands_Count (const char *s_prefix, const char *s_gamecommands_stri
 
 	for (int idx = 0; idx < matchedSet.numstrings; idx ++) {
 		char *sxy = matchedSet.strings[idx];
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 			continue;
 
 		SPARTIAL_EVAL_

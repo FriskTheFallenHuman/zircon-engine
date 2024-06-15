@@ -1,5 +1,55 @@
 // ___warps.c.h -- current business -- and business is good!
 
+// We want to do a struct array.  What is best way to do this?
+// Problem: ?  Pointers should be fine.
+WARP_X_ (stringlist_t)
+
+// WAVE 1 - Edicts
+// WAVE 2 - Edicts with tree
+//typedef struct listview_item_s {
+//	int	maxsize;
+//	/// maxstrings changes as needed, causing reallocation of strings[] array
+//	int maxstrings;
+//	int numstrings;
+//	char **strings;
+//} list_item_t;
+//
+//typedef struct listview_item_s {
+//	int	maxsize;
+//	/// maxstrings changes as needed, causing reallocation of strings[] array
+//	int maxstrings;
+//	int numstrings;
+//	char **strings;
+//} list_column_t;
+//
+//typedef struct listview_s {
+//	int	maxsize;
+//	/// maxstrings changes as needed, causing reallocation of strings[] array
+//	int maxstrings;
+//	int numstrings;
+//	char **strings;
+//
+//	struct {
+//		int		first_visible_row;
+//		int		num_visible_rows;
+//	} viso;
+//} list_view_t;
+//
+//		particle_t *oldparticles = cl.particles;
+//		cl.max_particles = min(cl.max_particles * 2, MAX_PARTICLES);
+//		cl.particles = (particle_t *) Mem_Alloc(cls.levelmempool, cl.max_particles * sizeof(particle_t));
+//		memcpy(cl.particles, oldparticles, cl.num_particles * sizeof(particle_t));
+//		Mem_Free(oldparticles);
+//
+
+
+// If we were to sort these, we need to sort the indexes.
+// By a proxy.
+
+
+///
+
+
 SIV checklist:
 
 sv_intermap_siv_list --

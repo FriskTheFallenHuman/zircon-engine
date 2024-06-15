@@ -58,11 +58,44 @@ typedef struct particletype_s
 }
 particletype_t;
 
+#if 0
 typedef enum ptype_e
 {
-	pt_dead, pt_alphastatic, pt_static, pt_spark, pt_beam, pt_rain, pt_raindecal, pt_snow, pt_bubble, pt_blood, pt_smoke, pt_decal, pt_entityparticle, pt_total
+	pt_dead,
+	pt_alphastatic,
+	pt_static,
+	pt_spark,
+	pt_beam,
+	pt_rain,
+	pt_raindecal,
+	pt_snow,
+	pt_bubble,
+	pt_blood,
+	pt_smoke,
+	pt_decal,
+	pt_entityparticle,
+	pt_explode,   // used for Quake-style explosion particle colour ramping
+	pt_explode2,  // used for Quake-style explosion particle colour ramping
+	pt_total
 }
-ptype_t;
+#else
+typedef enum  {
+	pt_dead, 
+	pt_alphastatic, 
+	pt_static, 
+	pt_spark, 
+	pt_beam, 
+	pt_rain, 
+	pt_raindecal, 
+	pt_snow, 
+	pt_bubble, 
+	pt_blood, 
+	pt_smoke, 
+	pt_decal, 
+	pt_entityparticle, 
+	pt_total
+} ptype_e;
+#endif
 
 typedef struct particle_s
 {

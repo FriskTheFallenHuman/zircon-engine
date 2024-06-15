@@ -77,7 +77,7 @@ protocolversion_t Protocol_EnumForName(const char *s)
 {
 	int i;
 	for (i = 0; protocolversioninfo[i].name; i++)
-		if (String_Does_Match_Caseless(s, protocolversioninfo[i].name))
+		if (String_Match_Caseless(s, protocolversioninfo[i].name))
 			return protocolversioninfo[i].version;
 	return PROTOCOL_UNKNOWN_0;
 }
@@ -127,7 +127,7 @@ void Protocol_UpdateClientStats(const int *stats)
 {
 	int i;
 	// update the stats array and set deltabits for any changed stats
-	for (i = 0;i < MAX_CL_STATS;i++) {
+	for (i = 0;i < MAX_CL_STATS_256;i++) {
 		if (host_client->stats[i] != stats[i]) {
 			host_client->statsdeltabits[i >> 3] |= 1 << (i & 7);
 			host_client->stats[i] = stats[i];

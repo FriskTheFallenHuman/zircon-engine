@@ -146,7 +146,7 @@ void Undo_Set_Point (undo_master_s *u, const char *text, int cursor, int cursor_
 		undo_entry_s *e = &u->undo_entries[0];
 
 		// Text didn't change, dup so get out ...
-		if (String_Does_Match (e->text, text)) {
+		if (String_Match (e->text, text)) {
 			e->cursor = cursor;
 			e->cursor_length = cursor_length;
 

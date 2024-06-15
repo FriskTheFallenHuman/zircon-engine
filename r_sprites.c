@@ -382,13 +382,13 @@ static void R_Model_Sprite_Draw_TransparentCallback(const entity_render_t *ent, 
 	}
 
 	// LadyHavoc: interpolated sprite rendering
-	for (i = 0;i < MAX_FRAMEBLENDS;i++)
+	for (i = 0;i < MAX_FRAMEBLENDS_8;i++)
 	{
-		if (ent->frameblend[i].lerp >= 0.01f)
+		if (ent->frameblend[i].rlerp >= 0.01f)
 		{
 			mspriteframe_t *frame;
 			texture_t *texture;
-			RSurf_ActiveCustomEntity(&identitymatrix, &identitymatrix, ent->crflags, 0, ent->colormod[0], ent->colormod[1], ent->colormod[2], ent->alpha * ent->frameblend[i].lerp, 4, vertex3f, spritetexcoord2f, NULL, NULL, NULL, NULL, 2, polygonelement3i, polygonelement3s, false, false);
+			RSurf_ActiveCustomEntity(&identitymatrix, &identitymatrix, ent->crflags, 0, ent->colormod[0], ent->colormod[1], ent->colormod[2], ent->ralpha * ent->frameblend[i].rlerp, 4, vertex3f, spritetexcoord2f, NULL, NULL, NULL, NULL, 2, polygonelement3i, polygonelement3s, false, false);
 			frame = model->sprite.sprdata_frames + ent->frameblend[i].subframe;
 			texture = R_GetCurrentTexture(model->data_textures + ent->frameblend[i].subframe);
 		

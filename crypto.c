@@ -586,12 +586,12 @@ typedef struct crypto_storedhostkey_s
 	qbool issigned;
 }
 crypto_storedhostkey_t;
-static crypto_storedhostkey_t *crypto_storedhostkey_hashtable[CRYPTO_HOSTKEY_HASHSIZE];
+static crypto_storedhostkey_t *crypto_storedhostkey_hashtable[CRYPTO_HOSTKEY_HASHSIZE_8192];
 
 static void Crypto_InitHostKeys(void)
 {
 	int i;
-	for(i = 0; i < CRYPTO_HOSTKEY_HASHSIZE; ++i)
+	for(i = 0; i < CRYPTO_HOSTKEY_HASHSIZE_8192; ++i)
 		crypto_storedhostkey_hashtable[i] = NULL;
 }
 
@@ -599,7 +599,7 @@ static void Crypto_ClearHostKeys(void)
 {
 	int i;
 	crypto_storedhostkey_t *hk, *hkn;
-	for(i = 0; i < CRYPTO_HOSTKEY_HASHSIZE; ++i)
+	for(i = 0; i < CRYPTO_HOSTKEY_HASHSIZE_8192; ++i)
 	{
 		for(hk = crypto_storedhostkey_hashtable[i]; hk; hk = hkn)
 		{
@@ -618,7 +618,7 @@ static qbool Crypto_ClearHostKey(lhnetaddress_t *peeraddress)
 	qbool found = false;
 
 	LHNETADDRESS_ToString(peeraddress, buf, sizeof(buf), 1);
-	hashindex = CRC_Block((const unsigned char *) buf, strlen(buf)) % CRYPTO_HOSTKEY_HASHSIZE;
+	hashindex = CRC_Block((const unsigned char *) buf, strlen(buf)) % CRYPTO_HOSTKEY_HASHSIZE_8192;
 	for(hkp = &crypto_storedhostkey_hashtable[hashindex]; *hkp && LHNETADDRESS_Compare(&((*hkp)->addr), peeraddress); hkp = &((*hkp)->next));
 
 	if (*hkp)
@@ -701,7 +701,7 @@ static void Crypto_StoreHostKey(lhnetaddress_t *peeraddress, const char *keystri
 		return;
 
 	LHNETADDRESS_ToString(peeraddress, buf, sizeof(buf), 1);
-	hashindex = CRC_Block((const unsigned char *) buf, strlen(buf)) % CRYPTO_HOSTKEY_HASHSIZE;
+	hashindex = CRC_Block((const unsigned char *) buf, strlen(buf)) % CRYPTO_HOSTKEY_HASHSIZE_8192;
 	for(hk = crypto_storedhostkey_hashtable[hashindex]; hk && LHNETADDRESS_Compare(&hk->addr, peeraddress); hk = hk->next);
 
 	if (hk)
@@ -741,7 +741,7 @@ qbool Crypto_RetrieveHostKey(lhnetaddress_t *peeraddress, int *keyid, char *keyf
 		return false;
 
 	LHNETADDRESS_ToString(peeraddress, buf, sizeof(buf), 1);
-	hashindex = CRC_Block((const unsigned char *) buf, strlen(buf)) % CRYPTO_HOSTKEY_HASHSIZE;
+	hashindex = CRC_Block((const unsigned char *) buf, strlen(buf)) % CRYPTO_HOSTKEY_HASHSIZE_8192;
 	for(hk = crypto_storedhostkey_hashtable[hashindex]; hk && LHNETADDRESS_Compare(&hk->addr, peeraddress); hk = hk->next);
 
 	if (!hk)
@@ -1069,7 +1069,7 @@ void Crypto_Shutdown(void)
 	Mem_FreePool(&cryptomempool);
 }
 
-void Crypto_Init(void)
+void Crypto_InitOnce(void)
 {
 	cryptomempool = Mem_AllocPool("crypto", 0, NULL);
 
@@ -1411,7 +1411,7 @@ static void Crypto_HostKeys_f(cmd_state_t *cmd)
 		Con_Print("libd0_blind_id DLL not found, this command is inactive.\n");
 		return;
 	}
-	for(i = 0; i < CRYPTO_HOSTKEY_HASHSIZE; ++i)
+	for(i = 0; i < CRYPTO_HOSTKEY_HASHSIZE_8192; ++i)
 	{
 		for(hk = crypto_storedhostkey_hashtable[i]; hk; hk = hk->next)
 		{
@@ -1446,7 +1446,7 @@ static void Crypto_HostKey_Clear_f(cmd_state_t *cmd)
 	}
 }
 
-void Crypto_Init_Commands(void)
+void Crypto_InitOnce_Commands(void)
 {
 	if (d0_blind_id_dll)
 	{
@@ -1750,7 +1750,7 @@ static int Crypto_ServerParsePacket_Internal(const char *data_in, size_t len_in,
 		// validate the challenge
 		for (i = 0;i < MAX_CHALLENGES;i++)
 			if (challenges[i].time > 0)
-				if (!LHNETADDRESS_Compare(peeraddress, &challenges[i].address) && String_Does_Match(challenges[i].string, s))
+				if (!LHNETADDRESS_Compare(peeraddress, &challenges[i].address) && String_Match(challenges[i].string, s))
 					break;
 		// if the challenge is not recognized, drop the packet
 		if (i == MAX_CHALLENGES) // challenge mismatch is silent
@@ -1773,7 +1773,7 @@ static int Crypto_ServerParsePacket_Internal(const char *data_in, size_t len_in,
 		GetUntilNul(&data_in, &len_in);
 		if (!data_in)
 			return Crypto_SoftServerError(data_out, len_out, "missing appended data in d0pk");
-		if (String_Does_Match(cnt, "0"))
+		if (String_Match(cnt, "0"))
 		{
 			int i;
 			if (!(s = InfoString_GetValue(string + 4, "challenge", infostringvalue, sizeof(infostringvalue))))
@@ -1781,7 +1781,7 @@ static int Crypto_ServerParsePacket_Internal(const char *data_in, size_t len_in,
 			// validate the challenge
 			for (i = 0;i < MAX_CHALLENGES;i++)
 				if (challenges[i].time > 0)
-					if (!LHNETADDRESS_Compare(peeraddress, &challenges[i].address) && String_Does_Match(challenges[i].string, s))
+					if (!LHNETADDRESS_Compare(peeraddress, &challenges[i].address) && String_Match(challenges[i].string, s))
 						break;
 			// if the challenge is not recognized, drop the packet
 			if (i == MAX_CHALLENGES)
@@ -1819,7 +1819,7 @@ static int Crypto_ServerParsePacket_Internal(const char *data_in, size_t len_in,
 				for(i = 0; i < MAX_PUBKEYS; ++i)
 				{
 					if (pubkeys[i])
-						if (String_Does_Match(p, pubkeys_fp64[i]))
+						if (String_Match(p, pubkeys_fp64[i]))
 							if (pubkeys_havepriv[i])
 								serverid = i;
 				}
@@ -1833,7 +1833,7 @@ static int Crypto_ServerParsePacket_Internal(const char *data_in, size_t len_in,
 				for(i = 0; i < MAX_PUBKEYS; ++i)
 				{
 					if (pubkeys[i])
-						if (String_Does_Match(p, pubkeys_fp64[i]))
+						if (String_Match(p, pubkeys_fp64[i]))
 							clientid = i;
 				}
 				if (clientid < 0)
@@ -1916,7 +1916,7 @@ static int Crypto_ServerParsePacket_Internal(const char *data_in, size_t len_in,
 				return Crypto_ServerError(data_out, len_out, "Missing client and server key", NULL);
 			}
 		}
-		else if (String_Does_Match(cnt, "2"))
+		else if (String_Match(cnt, "2"))
 		{
 			size_t fpbuflen;
 			crypto = Crypto_ServerFindInstance(peeraddress, false);
@@ -1959,7 +1959,7 @@ static int Crypto_ServerParsePacket_Internal(const char *data_in, size_t len_in,
 			*len_out = data_out_p - data_out;
 			return CRYPTO_DISCARD;
 		}
-		else if (String_Does_Match(cnt, "4"))
+		else if (String_Match(cnt, "4"))
 		{
 			crypto = Crypto_ServerFindInstance(peeraddress, false);
 			if (!crypto)
@@ -1980,7 +1980,7 @@ static int Crypto_ServerParsePacket_Internal(const char *data_in, size_t len_in,
 			*len_out = data_out_p - data_out;
 			return CRYPTO_DISCARD;
 		}
-		else if (String_Does_Match(cnt, "6"))
+		else if (String_Match(cnt, "6"))
 		{
 			static char msgbuf[32];
 			size_t msgbuflen = sizeof(msgbuf);
@@ -2050,7 +2050,7 @@ int Crypto_ServerParsePacket(const char *data_in, size_t len_in, char *data_out,
 			do_time = true;
 			cnt = InfoString_GetValue(data_in + 4, "cnt", infostringvalue, sizeof(infostringvalue));
 			if (cnt)
-				if (String_Does_Match(cnt, "0"))
+				if (String_Match(cnt, "0"))
 					do_reject = true;
 		}
 	if (do_time)
@@ -2294,7 +2294,7 @@ int Crypto_ClientParsePacket(const char *data_in, size_t len_in, char *data_out,
 			for(i = 0; i < MAX_PUBKEYS; ++i)
 			{
 				if (pubkeys[i])
-				if (String_Does_Match(p, pubkeys_fp64[i]))
+				if (String_Match(p, pubkeys_fp64[i]))
 				{
 					if (pubkeys_havepriv[i])
 						clientid = i;
@@ -2431,7 +2431,7 @@ int Crypto_ClientParsePacket(const char *data_in, size_t len_in, char *data_out,
 		if (!data_in)
 			return Crypto_ClientError(data_out, len_out, "d0pk\\ message without attachment");
 
-		if (String_Does_Match(cnt, "1"))
+		if (String_Match(cnt, "1"))
 		{
 			if (id >= 0)
 				if (CDATA->cdata_id != id)
@@ -2476,7 +2476,7 @@ int Crypto_ClientParsePacket(const char *data_in, size_t len_in, char *data_out,
 			*len_out = data_out_p - data_out;
 			return CRYPTO_DISCARD;
 		}
-		else if (String_Does_Match(cnt, "3"))
+		else if (String_Match(cnt, "3"))
 		{
 			static char msgbuf[32];
 			size_t msgbuflen = sizeof(msgbuf);
@@ -2558,7 +2558,7 @@ int Crypto_ClientParsePacket(const char *data_in, size_t len_in, char *data_out,
 				return CRYPTO_REPLACE;
 			}
 		}
-		else if (String_Does_Match(cnt, "5"))
+		else if (String_Match(cnt, "5"))
 		{
 			size_t fpbuflen;
 			unsigned char dhkey[DHKEY_SIZE];

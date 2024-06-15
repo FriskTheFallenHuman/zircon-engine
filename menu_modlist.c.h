@@ -46,8 +46,8 @@ static void ModList_RebuildList(void)
 		if (strchr(list.strings[i], '.')) continue;
 
 		// reject any dirs that are part of the base game
-		if (gamedirname1 && String_Does_Match_Caseless(gamedirname1, list.strings[i])) continue;
-		//if (gamedirname2 && String_Does_Match_Caseless(gamedirname2, list.strings[i])) continue;
+		if (gamedirname1 && String_Match_Caseless(gamedirname1, list.strings[i])) continue;
+		//if (gamedirname2 && String_Match_Caseless(gamedirname2, list.strings[i])) continue;
 
 		// check if we can get a description of the gamedir (from modinfo.txt),
 		// or if the directory is valid but has no description (fs_checkgamedir_missing)
@@ -60,7 +60,7 @@ static void ModList_RebuildList(void)
 		modlist[modlist_count].loaded = false;
 		if (fs_numgamedirs)
 			for (j = 0; j < fs_numgamedirs; j++)
-				if (String_Does_Match_Caseless(fs_gamedirs[j], modlist[modlist_count].dir))
+				if (String_Match_Caseless(fs_gamedirs[j], modlist[modlist_count].dir))
 				{
 					modlist[modlist_count].loaded = true;
 					modlist[modlist_count].enabled = j;
@@ -178,7 +178,7 @@ static void M_ModList_Draw (void)
 	if (endrow > startrow) {
 		for (n = startrow; n < endrow; n++) {
 			DrawQ_Pic(menu_x + 40, menu_y + drawcur_y, NULL, 360, 8, n == local_cursor ? redx : 0, 0, 0, 0.5, 0);
-			Hotspots_Add (menu_x + 40, menu_y + drawcur_y, 360 /*(55 * 8)*/ /*360*/, 8, 1, hotspottype_slider);
+			Hotspots_Add (menu_x + 40, menu_y + drawcur_y, 360 /*(55 * 8)*/ /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 			M_ItemPrint(80, drawcur_y, modlist[n].dir, true);
 			M_DrawCheckbox(48, drawcur_y, modlist[n].loaded);
 			drawcur_y +=8;

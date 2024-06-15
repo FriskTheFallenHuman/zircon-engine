@@ -62,7 +62,7 @@ void CL_NextDemo (void)
 	if (cls.demonum == -1)
 		return;		// don't play demos
 
-	if (!cls.demos[cls.demonum][0] || cls.demonum == MAX_DEMOS)
+	if (!cls.demos[cls.demonum][0] || cls.demonum == MAX_DEMOS_8)
 	{
 		cls.demonum = 0;
 		if (!cls.demos[cls.demonum][0])
@@ -688,9 +688,9 @@ static void CL_Startdemos_f(cmd_state_t *cmd)
 	}
 
 	c = Cmd_Argc(cmd) - 1;
-	if (c > MAX_DEMOS) {
-		Con_PrintLinef ("Max %d demos in demoloop", MAX_DEMOS);
-		c = MAX_DEMOS;
+	if (c > MAX_DEMOS_8) {
+		Con_PrintLinef ("Max %d demos in demoloop", MAX_DEMOS_8);
+		c = MAX_DEMOS_8;
 	}
 	Con_DPrintLinef ("%d demo(s) in loop", c);
 
@@ -698,7 +698,7 @@ static void CL_Startdemos_f(cmd_state_t *cmd)
 		c_strlcpy (cls.demos[i-1], Cmd_Argv(cmd, i));
 
 	// LadyHavoc: clear the remaining slots
-	for ( ; i <= MAX_DEMOS; i ++)
+	for ( ; i <= MAX_DEMOS_8; i ++)
 		cls.demos[i-1][0] = 0;
 
 	cl_signon_start_time = Sys_DirtyTime (); // startdemos

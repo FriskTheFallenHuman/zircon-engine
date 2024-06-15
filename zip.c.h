@@ -1,4 +1,4 @@
-// zip.c -- zip
+// zip.c.h -- zip
 
 //minimus
 //#define CORE_LOCAL
@@ -115,7 +115,7 @@ int sZip_Extract_File_Is_Ok (const char *zipfile_url, const char *inside_zip_fil
 				continue;
 
 			// If it is a directory, we aren't writing it
-			if (String_Does_End_With (cur.m_filename, "/"))
+			if (String_Ends_With (cur.m_filename, "/"))
 				continue;
 
 			// If we are extracting the whole thing, destfile_url is folder + cur->name becomes url for curfile
@@ -228,7 +228,7 @@ clist_t * Zip_List_Alloc (const char *zipfile_url)
 	return list;
 }
 
-clist_t * Zip_List_Details_Alloc (const char *zipfile_url, const char *delimiter)
+clist_t * Zip_List_Details_Alloc (const char *zipfile_url, const char *s_delimiter)
 {
 	mz_zip_archive curzip = {0};
 	mz_bool status = mz_zip_reader_init_file(&curzip, zipfile_url, 0);

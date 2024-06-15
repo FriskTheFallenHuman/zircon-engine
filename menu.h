@@ -46,15 +46,17 @@ enum m_state_e {
 	m_quit,
 	m_lanconfig,
 	m_gameoptions,
-	m_slist,
 	m_options_effects,
 	m_options_graphics,
 	m_options_colorcontrol,
 	m_reset,
 	m_modlist,
 	m_video_nova,
-	m_maps,
-	m_zdev,
+	m_maps_26,
+	m_slist_27,
+	m_slist_qw_28,
+	m_zdev_29,
+	m_zform_30,
 };
 
 extern enum m_state_e m_state;
@@ -86,7 +88,7 @@ qbool MP_ConsoleCommand(const char *text);
 // menu router
 //
 
-void MR_Init_Commands (void);
+void MR_InitOnce_Commands (void);
 void MR_Init (void);
 void MR_Restart (void);
 extern void (*MR_KeyEvent) (int key, int ascii, qbool downevent);
@@ -119,11 +121,17 @@ extern qbool menu_is_csqc;
 int SList_Tiebreaker_Bias (const char *s);
 
 #ifdef CONFIG_MENU
-extern int m_load2_oldload_cursor; // Need to reset dynamic texture in menu.  DYNAMICTEX_Q3_END
+extern int m_load2_oldload_cursor; // Need to reload dynamic texture in menu.  DYNAMICTEX_Q3_END
 extern qbool m_load2_scroll_is_blocked;
+extern int mapeo_oldmaplistcursor;  // Need to reload dynamic texture in menu.  DYNAMICTEX_Q3_END
 #endif
 
 #define DOUBLE_CLICK_0_5 0.5 // Windows double-click time
+
+extern int menu_state_reenter;
+
+extern dp_font_t *zdev_dpfont; // fonts_mempool .. font shutdown
+
 
 #endif // ! MENU_H
 

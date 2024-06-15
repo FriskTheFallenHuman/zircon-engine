@@ -74,7 +74,7 @@ double bakergifdecode_getaspectratio (void *stream)
 WARP_X_ (dpvsimpledecode_video gd_get_frame SCR_gifclip_f video->decodeframe CL_Video_Frame)
 
 // Baker: Note: We seem to be ignoring rowbytes here.
-#pragma message ("Are weirdo width gif/jpeg like with odd widths like 303 ok or not?")
+
 static void _process_to_buffer (clvideo_t *video, gifstream_t *s, byte *imagedata)
 {
 	byte *vimageub = (byte *)imagedata;
@@ -185,7 +185,7 @@ WARP_X_ (dpvsimpledecode_open OpenStream gd_open_gif_alloc bakergifdecode_videof
 void *bakergifdecode_open (clvideo_t *video, char *filename, const char **perrorstring)
 {
 	// If does not end with .gif, get out.
-	if (false == String_Does_End_With (filename, ".gif")) {
+	if (false == String_Ends_With (filename, ".gif")) {
 		return NULL;
 	}
 

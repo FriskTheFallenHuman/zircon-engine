@@ -42,7 +42,7 @@ static void Consel_MouseDown (consel_t *m, float mx, float my, int row, int col)
 	memset (&m->a, 0, sizeof(m->a));
 
 	// MOUSE DOWN FOR FIRST TIME
-	c_assert (m->a.drag_state == drag_state_none_0);
+	c_assert_ (m->a.drag_state == drag_state_none_0);
 
 	m->a.drag_state				= drag_state_awaiting_threshold_1; // CHANGE TO AWAITING
 	DebugPrintf ("Mouse down at virtual x %f y %f", mx, my);
@@ -60,7 +60,7 @@ static void Consel_MouseDown (consel_t *m, float mx, float my, int row, int col)
 
 static void Consel_MouseUp_After_Dragging (consel_t *m, float mx, float my, int row, int col)
 {
-	c_assert (m->a.drag_state == drag_state_dragging_2);
+	c_assert_ (m->a.drag_state == drag_state_dragging_2);
 	m->a.drag_state = drag_state_drag_completed_3; // CHANGE TO COMPLETED
 	DebugPrintf ("To completed 3");
 }
@@ -78,7 +78,7 @@ WARP_X_ (Con_DrawConsoleLine_Num_Rows_Drawn)
 
 static void Consel_MouseMove_Check_Threshold (consel_t *m, float mx, float my, int row, int col)
 {
-	c_assert (m->a.drag_state == drag_state_awaiting_threshold_1);
+	c_assert_ (m->a.drag_state == drag_state_awaiting_threshold_1);
 
 	float delta_x			= m->a.mousedown_fx - mx;
 	float delta_y			= m->a.mousedown_fy - my;
@@ -98,6 +98,9 @@ static void Consel_MouseMove_Check_Threshold (consel_t *m, float mx, float my, i
 // Baker: Right now lose focus isn't calling this and maybe it shouldn't?
 void Consel_MouseReset (const char *reason)
 {
+#ifdef CONFIG_MENU
+	Vid_Cursor_Reset ();
+#endif // #ifdef CONFIG_MENU
 	consel_t *m = &g_consel;
 	memset (&m->a, 0, sizeof(m->a));
 	DebugPrintf ("Consel_MouseReset");
@@ -115,7 +118,7 @@ int Consel_Key_Event_Check_Did_Action (int is_down)
 	int		is_off_canvas			= mouse_canvas_y >= canvas_beyond_bottom; //
 	float	rows_up					= ((canvas_beyond_bottom /*378*/ - mouse_canvas_y /*334*/) / con_textsize.value);
 	int		irows_up				= (int) rows_up;
-	int		irow_frac				= rows_up -  irows_up; // We have 0.0 to 1.00
+	//int	irow_frac				= rows_up -  irows_up; // We have 0.0 to 1.00
 	int		real_row_collide		= is_off_canvas ? -2 : RealRowCollide (irows_up, g_consel.draww.draw_row_last_index);
 
 	consel_t *m = &g_consel;
@@ -159,6 +162,12 @@ int Consel_Key_Event_Check_Did_Action (int is_down)
 WARP_X_CALLERS_ (IN_Move)
 void Consel_MouseMove_Check (void)
 {
+	extern cvar_t vid_mouse_show_coords;
+
+	if (vid_mouse_show_coords.integer) {
+		Vid_SetWindowTitlef ("%6.1f, %6.1f", in_windowmouse_x, in_windowmouse_y);
+	}
+
 	consel_t *m = &g_consel;
 
 	// If not console or not dragging or completed get out.
@@ -177,7 +186,7 @@ void Consel_MouseMove_Check (void)
 	int		is_off_canvas			= mouse_canvas_y >= canvas_beyond_bottom; //
 	float	rows_up					= ((canvas_beyond_bottom /*378*/ - mouse_canvas_y /*334*/) / con_textsize.value);
 	int		irows_up				= (int) rows_up;
-	int		irow_frac				= rows_up -  irows_up; // We have 0.0 to 1.00
+	//int	irow_frac				= rows_up -  irows_up; // We have 0.0 to 1.00
 	int		real_row_collide		= is_off_canvas ? -2 : RealRowCollide (irows_up, g_consel.draww.draw_row_last_index);
 
 	if (m->a.drag_state == drag_state_awaiting_threshold_1) {

@@ -90,8 +90,8 @@ static qbool initialized = false;
 static qbool enabled = false;
 static float cdvolume;
 typedef char filename_t[MAX_QPATH_128];
-#ifdef MAXTRACKS
-static filename_t remap[MAXTRACKS];
+#ifdef MAXTRACKS_256
+static filename_t remap[MAXTRACKS_256];
 #endif
 static int faketrack = -1;
 
@@ -116,6 +116,14 @@ static int CDAudio_GetAudioDiskInfo (void)
 // Helper for CDAudio_Play, the "cd" command, and the music_playlist system.
 // Does _not_ act as NOP when a playlist is active, simply because this is used
 // _by_ playlist code. So beware when calling this.
+
+#pragma message ("Is start position reliable seconds into track?")
+
+// Baker: My guess is "tryreal" means use the actual cd player versus play the ogg
+// trackname example is "20" or "3"
+// Baker: startposition does "work", is it accurate?
+// Can we get the position?
+
 static void CDAudio_Play_byName (const char *trackname, qbool looping, qbool tryreal, float startposition)
 {
 	unsigned int track;
@@ -129,21 +137,22 @@ static void CDAudio_Play_byName (const char *trackname, qbool looping, qbool try
 
 	// Baker: strspn - Returns the length of the initial portion of str1 which consists only of 
 	// characters that are part of str2
+	// "gives the length of the initial span in string consisting of characters not in "chars"
+	// span .. strspn is a too clever way to find the offset
+	// strspn(trackname, "0123456789") probably returns 0 to 9
 	if (tryreal && strspn(trackname, "0123456789") == strlen(trackname))
 	{
 		track = (unsigned int) atoi(trackname);
-#ifdef MAXTRACKS
-		if (track > 0 && track < MAXTRACKS && *remap[track])
+#ifdef MAXTRACKS_256
+		if (track > 0 && track < MAXTRACKS_256 && *remap[track])
 			trackname = remap[track];
 #endif
 	}
 
-	if (tryreal && strspn(trackname, "0123456789") == strlen(trackname))
-	{
+	if (tryreal && strspn(trackname, "0123456789") == strlen(trackname)) {
 		track = (unsigned int) atoi(trackname);
-		if (track < 1)
-		{
-			Con_DPrintf ("CDAudio: Bad track number %u.\n", track);
+		if (track < 1) {
+			Con_DPrintLinef ("CDAudio: Bad track number %u.", track);
 			return;
 		}
 	}
@@ -156,8 +165,7 @@ static void CDAudio_Play_byName (const char *trackname, qbool looping, qbool try
 	CDAudio_Stop ();
 
 	// Try playing a fake track (sound file) first
-	if (track >= 1)
-	{
+	if (track >= 1) {
 		                              dpsnprintf(filename, sizeof(filename), "sound/cdtracks/track%03u.wav", track);
 		if (!FS_FileExists(filename)) dpsnprintf(filename, sizeof(filename), "sound/cdtracks/track%03u.ogg", track);
 		if (!FS_FileExists(filename)) dpsnprintf(filename, sizeof(filename), "music/track%03u.ogg", track);// added by motorsep
@@ -181,24 +189,34 @@ static void CDAudio_Play_byName (const char *trackname, qbool looping, qbool try
 		if (!FS_FileExists(filename)) dpsnprintf(filename, sizeof(filename), "music/%s.ogg", trackname); // added by motorsep
 		if (!FS_FileExists(filename)) dpsnprintf(filename, sizeof(filename), "music/cdtracks/%s.ogg", trackname); // added by motorsep
 	}
-	if (FS_FileExists(filename) && (sfx = S_PrecacheSound (filename, false, false)))
-	{
-		faketrack = S_StartSound_StartPosition_Flags (-1, 0, sfx, vec3_origin, cdvolume, 0, startposition, (looping ? CHANNELFLAG_FORCELOOP : 0) | CHANNELFLAG_FULLVOLUME | CHANNELFLAG_LOCALSOUND, 1.0f);
+
+	if (FS_FileExists(filename) && (sfx = S_PrecacheSound (filename, q_tx_complain_false, q_levelsound_false))) {
+		Con_DPrintLinef ("CD track %s", filename);
+		c_strlcpy (cl.cdtrackname, filename);
+		faketrack = S_StartSound_StartPosition_Flags (
+			ENT_NONE_NEG1, 
+			ENT_CHANNEL_0, 
+			sfx, 
+			vec3_origin, 
+			cdvolume, 
+			ATTENUATION_0, 
+			startposition, 
+			(looping ? CHANNELFLAG_FORCELOOP : 0) | CHANNELFLAG_FULLVOLUME | CHANNELFLAG_LOCALSOUND, 
+			SND_SPEED_NORMAL_1_0);
 		if (faketrack != -1)
 		{
 			if (track >= 1)
-				Con_DPrintf ("BGM track %u playing...\n", track);
+				Con_DPrintLinef ("BGM track %u playing...", track);
 			else
-				Con_DPrintf ("BGM track %s playing...\n", trackname);
+				Con_DPrintLinef ("BGM track %s playing...", trackname);
 		}
 	}
 
-	if (faketrack == -1)
-	{
+	if (faketrack == -1) {
 		if (track >= 1)
-			Con_DPrintf ("Could not load BGM track %u.\n", track);
+			Con_DPrintLinef ("Could not load BGM track %u.", track);
 		else
-			Con_DPrintf ("Could not load BGM track %s.\n", trackname);
+			Con_DPrintLinef ("Could not load BGM track %s.", trackname);
 		return;
 	}
 
@@ -216,7 +234,7 @@ void CDAudio_Play (int track, qbool looping)
 	if (music_playlist_index.integer >= 0)
 		return;
 	dpsnprintf(buf, sizeof(buf), "%d", (int) track);
-	CDAudio_Play_byName(buf, looping, true, 0);
+	CDAudio_Play_byName(buf, looping, q_tryreal_true, STARTPOS_0);
 }
 
 float CDAudio_GetPosition (void)
@@ -269,52 +287,52 @@ void CDAudio_Resume (void)
 static void CD_f(cmd_state_t *cmd)
 {
 	const char *command;
-#ifdef MAXTRACKS
+#ifdef MAXTRACKS_256
 	int ret;
 	int n;
 #endif
 
 	command = Cmd_Argv(cmd, 1);
 
-	if (String_Does_NOT_Match_Caseless (command, "remap"))
+	if (String_NOT_Match_Caseless (command, "remap"))
 		CL_StartVideo();
 
-	if (String_Does_Match_Caseless (command, "on")) {
+	if (String_Match_Caseless (command, "on")) {
 		enabled = true;
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "off")) {
+	if (String_Match_Caseless (command, "off")) {
 		CDAudio_Stop();
 		enabled = false;
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "reset")) {
+	if (String_Match_Caseless (command, "reset")) {
 		enabled = true;
 		CDAudio_Stop();
-#ifdef MAXTRACKS
-		for (n = 0; n < MAXTRACKS; n++)
+#ifdef MAXTRACKS_256
+		for (n = 0; n < MAXTRACKS_256; n++)
 			*remap[n] = 0; // empty string, that is, unremapped
 #endif
 		CDAudio_GetAudioDiskInfo();
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "rescan")) {
+	if (String_Match_Caseless (command, "rescan")) {
 		CDAudio_Shutdown();
 		CDAudio_Startup();
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "remap")) {
-#ifdef MAXTRACKS
+	if (String_Match_Caseless (command, "remap")) {
+#ifdef MAXTRACKS_256
 		ret = Cmd_Argc(cmd) - 2;
 		if (ret <= 0)
 		{
-			for (n = 1; n < MAXTRACKS; n++)
+			for (n = 1; n < MAXTRACKS_256; n++)
 				if (*remap[n])
-					Con_Printf ("  %u -> %s\n", n, remap[n]);
+					Con_PrintLinef ("  %u -> %s", n, remap[n]);
 			return;
 		}
 		for (n = 1; n <= ret; n++)
@@ -323,80 +341,82 @@ static void CD_f(cmd_state_t *cmd)
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "close")) {
+	if (String_Match_Caseless (command, "close")) {
 		CDAudio_CloseDoor();
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "play")) {
+	if (String_Match_Caseless (command, "play")) {
 		if (music_playlist_index.integer >= 0)
 			return;
-		CDAudio_Play_byName(Cmd_Argv(cmd, 2), false, true, (Cmd_Argc(cmd) > 3) ? atof( Cmd_Argv(cmd, 3) ) : 0);
+		int startposition = (Cmd_Argc(cmd) > 3) ? atof( Cmd_Argv(cmd, 3) ) : STARTPOS_0;
+		CDAudio_Play_byName(Cmd_Argv(cmd, 2), /*Baker: why?*/ q_looping_false, q_tryreal_true, startposition);
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "loop")) {
+	if (String_Match_Caseless (command, "loop")) {
 		if (music_playlist_index.integer >= 0)
 			return;
-		CDAudio_Play_byName(Cmd_Argv(cmd, 2), true, true, (Cmd_Argc(cmd) > 3) ? atof( Cmd_Argv(cmd, 3) ) : 0);
+		int startposition = (Cmd_Argc(cmd) > 3) ? atof( Cmd_Argv(cmd, 3) ) : STARTPOS_0;
+		CDAudio_Play_byName(Cmd_Argv(cmd, 2), q_looping_true, q_tryreal_true, startposition);
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "stop")) {
+	if (String_Match_Caseless (command, "stop")) {
 		if (music_playlist_index.integer >= 0)
 			return;
 		CDAudio_Stop();
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "pause")) {
+	if (String_Match_Caseless (command, "pause")) {
 		if (music_playlist_index.integer >= 0)
 			return;
 		CDAudio_Pause();
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "resume")) {
+	if (String_Match_Caseless (command, "resume")) {
 		if (music_playlist_index.integer >= 0)
 			return;
 		CDAudio_Resume();
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "eject")) {
+	if (String_Match_Caseless (command, "eject")) {
 		if (faketrack == -1)
 			CDAudio_Stop();
 		CDAudio_Eject();
 		return;
 	}
 
-	if (String_Does_Match_Caseless (command, "info") == 0) {
+	if (String_Match_Caseless (command, "info") == 0) {
 		CDAudio_GetAudioDiskInfo ();
 		if (cdPlaying)
-			Con_Printf ("Currently %s track %u\n", cdPlayLooping ? "looping" : "playing", cdPlayTrack);
+			Con_PrintLinef ("Currently %s track %u", cdPlayLooping ? "looping" : "playing", cdPlayTrack);
 		else if (wasPlaying)
-			Con_Printf ("Paused %s track %u\n", cdPlayLooping ? "looping" : "playing", cdPlayTrack);
+			Con_Printf ("Paused %s track %u", cdPlayLooping ? "looping" : "playing", cdPlayTrack);
 		if (cdvolume >= 0)
-			Con_Printf ("Volume is %f\n", cdvolume);
+			Con_PrintLinef ("Volume is %f", cdvolume);
 		else
-			Con_Printf ("Can't get CD volume\n");
+			Con_PrintLinef ("Can't get CD volume");
 		return;
 	}
 
-	Con_Printf ("CD commands:\n");
-	Con_Printf ("cd on - enables CD audio system\n");
-	Con_Printf ("cd off - stops and disables CD audio system\n");
-	Con_Printf ("cd reset - resets CD audio system (clears track remapping and re-reads disc information)\n");
-	Con_Printf ("cd rescan - rescans disks in drives (to use another disc)\n");
-	Con_Printf ("cd remap <remap1> [remap2] [remap3] [...] - chooses emulated CD tracks to play when a map asks for a particular track, this has many uses\n");
-	Con_Printf ("cd close - closes CD tray\n");
-	Con_Printf ("cd eject - stops playing music and opens CD tray to allow you to change disc\n");
-	Con_Printf ("cd play <tracknumber> <startposition> - plays selected track in remapping table\n");
-	Con_Printf ("cd loop <tracknumber> <startposition> - plays and repeats selected track in remapping table\n");
-	Con_Printf ("cd stop - stops playing current CD track\n");
-	Con_Printf ("cd pause - pauses CD playback\n");
-	Con_Printf ("cd resume - unpauses CD playback\n");
-	Con_Printf ("cd info - prints basic disc information (number of tracks, currently playing track, volume level)\n");
+	Con_PrintLinef ("CD commands:");
+	Con_PrintLinef ("cd on - enables CD audio system");
+	Con_PrintLinef ("cd off - stops and disables CD audio system");
+	Con_PrintLinef ("cd reset - resets CD audio system (clears track remapping and re-reads disc information)");
+	Con_PrintLinef ("cd rescan - rescans disks in drives (to use another disc)");
+	Con_PrintLinef ("cd remap <remap1> [remap2] [remap3] [...] - chooses emulated CD tracks to play when a map asks for a particular track, this has many uses");
+	Con_PrintLinef ("cd close - closes CD tray");
+	Con_PrintLinef ("cd eject - stops playing music and opens CD tray to allow you to change disc");
+	Con_PrintLinef ("cd play <tracknumber> <startposition> - plays selected track in remapping table");
+	Con_PrintLinef ("cd loop <tracknumber> <startposition> - plays and repeats selected track in remapping table");
+	Con_PrintLinef ("cd stop - stops playing current CD track");
+	Con_PrintLinef ("cd pause - pauses CD playback");
+	Con_PrintLinef ("cd resume - unpauses CD playback");
+	Con_PrintLinef ("cd info - prints basic disc information (number of tracks, currently playing track, volume level)");
 }
 
 static void CDAudio_SetVolume (float newvol)
@@ -541,8 +561,8 @@ int CDAudio_Init (void)
 	if (Sys_CheckParm("-nocdaudio"))
 		return -1;
 
-#ifdef MAXTRACKS
-	for (i = 0; i < MAXTRACKS; i++)
+#ifdef MAXTRACKS_256
+	for (i = 0; i < MAXTRACKS_256; i++)
 		*remap[i] = 0;
 #endif
 

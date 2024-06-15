@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // vid_sdl.c
 #undef WIN32_LEAN_AND_MEAN  //hush a warning, SDL.h redefines this
-#if defined(_MSC_VER) && _MSC_VER < 1900
+#if defined(CODEBLOCKS_LINUX_IDE) || (defined(_MSC_VER) && _MSC_VER < 1900)
 	#include <SDL2/SDL.h>
 #else
 	#include <SDL.h>
@@ -66,14 +66,43 @@ static io_connect_t IN_GetIOHandle(void)
 #endif
 #endif
 
+SDL_Cursor *baker_sdl_cursors[mousepointer_COUNT_32];
+
+void Baker_SDL_Cursors_Init (void)
+{
+	Sys_PrintToTerminal ("Baker_SDL_Cursors_Init" NEWLINE);
+
+	// Baker: Load SDL system cursors
+	for (int n = 0; n < SDL_NUM_SYSTEM_CURSORS /*ARRAY_COUNT(baker_sdl_cursors)*/; n++) {
+		//SDL_Cursor **p_e = &baker_sdl_cursors[n];
+		//(*p_e) = SDL_CreateSystemCursor((SDL_SystemCursor) n);
+		baker_sdl_cursors[n] = SDL_CreateSystemCursor((SDL_SystemCursor) n);
+	}
+}
+
+void Baker_SDL_Cursors_Shutdown (void)
+{
+	Sys_PrintToTerminal ("Baker_SDL_Cursors_Shutdown" NEWLINE);
+
+	// Baker: Load SDL system cursors
+	Vid_Cursor_Set (mousepointer_arrow_default_0);
+	for (int n = 0; n < (int)ARRAY_COUNT(baker_sdl_cursors); n++) {
+		if (baker_sdl_cursors[n]) {
+			SDL_FreeCursor (baker_sdl_cursors[n]);
+			baker_sdl_cursors[n] = NULL;
+		}
+	}
+	//mousepointer_lastset = mousepointer_arrow_default_0;
+}
+
 #ifdef _WIN32
-#define SDL_R_RESTART
+#define SDL_R_RESTART // Baker: For reasons I don't understand, non-Windows does not get this.
 #endif
 
 // Tell startup code that we have a client
 int cl_available = true;
 
-qbool vid_supportrefreshrate = false;
+qbool vid_supportrefreshrate = false; // Baker: I see no evidence this is ever set.
 
 static qbool vid_usingmouse = false;
 static qbool vid_usingmouse_relativeworks = false; // SDL2 workaround for unimplemented RelativeMouse mode
@@ -388,7 +417,7 @@ qbool VID_ShowingKeyboard(void)
 }
 
 // Baker: in-game relative is true, Zircon mouse driven menu does not call this
-// Baker: CL_UpdateScreen-> key_consoleactive --> 
+// Baker: CL_UpdateScreen-> key_consoleactive -->
 //   VID_SetMouse(q_mouse_relative_false, q_mouse_hidecursor_false);
 // Baker: What is the mouse cvar?
 void VID_SetMouse(qbool relative, qbool hidecursor)
@@ -477,10 +506,10 @@ float multitouch[MAXFINGERS][3];
 int multitouchs[MAXFINGERS];
 
 // modified heavily by ELUAN
-static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, float pheight, 
-	const char *icon, float textheight, const char *text, 
-	float *resultmove, qbool *resultbutton, keynum_t key, 
-	const char *typedtext, float deadzone, 
+static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, float pheight,
+	const char *icon, float textheight, const char *text,
+	float *resultmove, qbool *resultbutton, keynum_t key,
+	const char *typedtext, float deadzone,
 	float oversizepixels_x, float oversizepixels_y, qbool iamexclusive)
 {
 	int finger;
@@ -527,9 +556,9 @@ static qbool VID_TouchscreenArea(int corner, float px, float py, float pwidth, f
 				continue;
 
 			// Baker: look like hit rect ...
-			if (multitouch[finger][0] && 
-				multitouch[finger][1] >= overfx && 
-				multitouch[finger][2] >= overfy && 
+			if (multitouch[finger][0] &&
+				multitouch[finger][1] >= overfx &&
+				multitouch[finger][2] >= overfy &&
 				multitouch[finger][1] < overfx + overfwidth && multitouch[finger][2] < overfy + overfheight)
 			{
 				multitouchs[finger]++;
@@ -1034,7 +1063,7 @@ void IN_Move (void)
 			if (vid_stick_mouse.integer /*d:0*/ || !vid_usingmouse_relativeworks) {
 				// have the mouse stuck in the middle, example use: prevent expose effect of beryl during the game when not using
 				// window grabbing. --blub
-	
+
 				// we need 2 frames to initialize the center position
 				if (!stuck)
 				{
@@ -1060,6 +1089,9 @@ void IN_Move (void)
 		}
 
 		SDL_GetMouseState(&x, &y);
+		// Baker: These are window coordinates always?
+		void ZForm_MouseMove (int x, int y);
+		ZForm_MouseMove (x,y);
 		in_windowmouse_x = x;
 		in_windowmouse_y = y;
 		Consel_MouseMove_Check ();
@@ -1073,11 +1105,25 @@ void IN_Move (void)
 // Message Handling
 ////
 
+
+
 #ifdef SDL_R_RESTART
 static qbool sdl_needs_restart;
+
 static void sdl_start(void)
 {
+	int numsamples = bound (1, vid_samples.integer, 32); // MAX_SAMPLES
+	if (numsamples != 1) {
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, numsamples);
+	} else {
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+	}
+
+	Baker_SDL_Cursors_Init (); // Windows
 }
+
 static void sdl_shutdown(void)
 {
 	sdl_needs_restart = false;
@@ -1516,7 +1562,55 @@ void Sys_Platform_Init_DPI(void) // Windows DPI awareness
 
 static qbool vid_sdl_initjoysticksystem = false;
 
-void VID_Init (void)
+
+
+int Mousepointer_Get_SDL_Num (int sdl_cursor_num)
+{
+	switch (sdl_cursor_num) {
+	case mousepointer_arrow_default_0:	return SDL_SYSTEM_CURSOR_ARROW;
+	case mousepointer_text_beam_1:		return SDL_SYSTEM_CURSOR_IBEAM;
+	case mousepointer_hourglass_2:		return SDL_SYSTEM_CURSOR_WAIT;			// IDC_WAIT
+	case mousepointer_crosshair_3:		return SDL_SYSTEM_CURSOR_CROSSHAIR;		// IDC_CROSS
+	case mousepointer_waitarrow_4:		return SDL_SYSTEM_CURSOR_WAITARROW;		// ??? /**< Small wait cursor (or Wait if not available) */
+	case mousepointer_size_nwse_5:		return SDL_SYSTEM_CURSOR_SIZENWSE;		// Window resizer.
+	case mousepointer_size_nesw_6:		return SDL_SYSTEM_CURSOR_SIZENESW;		// Window resizer  other way like bottom left OOF!
+	case mousepointer_size_weast_7:		return SDL_SYSTEM_CURSOR_SIZEWE;		// IDC_SIZEWE
+	case mousepointer_size_northso_8:	return SDL_SYSTEM_CURSOR_SIZENS;		// IDC_SIZENS
+	case mousepointer_size_all_move_9:	return SDL_SYSTEM_CURSOR_SIZEALL;		// IDC_SIZEALL
+	case mousepointer_prohibited_10:	return SDL_SYSTEM_CURSOR_NO;			// IDC_NO
+    case mousepointer_hand_11:			return SDL_SYSTEM_CURSOR_HAND;			// IDC_HAND
+	case mousepointer_baker_column_20:	return mousepointer_baker_column_20;
+	default:							return 0;
+	} // End switch
+}
+
+WARP_X_ (wike)
+//SDL_SetCursor(SDL_CreateColorCursor(IMG_Load("Resources/Textures/cursor.png"), 0, 0));
+mousepointer_e mousepointer_lastset;
+void Vid_Cursor_Reset (void)
+{
+	if (mousepointer_lastset > mousepointer_arrow_default_0)
+		Vid_Cursor_Set (mousepointer_arrow_default_0);
+}
+
+void Vid_Cursor_Set (mousepointer_e mousepointer_wanted)
+{
+	//if ((int)mousepointer_wanted == 6)
+	//	int j = 4;
+	if (mousepointer_lastset == mousepointer_wanted) // Already the default cursor.
+		return;
+
+
+	int sdl_num = Mousepointer_Get_SDL_Num (mousepointer_wanted);
+	SDL_Cursor *cursor = baker_sdl_cursors[sdl_num];
+	SDL_SetCursor (cursor); // SDL_SetCursor(NULL) can be used to force cursor redraw, if this is desired for any reason.
+	mousepointer_lastset = mousepointer_wanted;
+}
+
+
+
+
+void VID_InitOnce (void)
 {
 
 // Baker r9005: DPI Awareness fix for Windows
@@ -1537,13 +1631,14 @@ void VID_Init (void)
 	R_RegisterModule("SDL", sdl_start, sdl_shutdown, sdl_newmap, NULL, NULL);
 #endif
 
-
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 		Sys_Error ("Failed to init SDL video subsystem: %s", SDL_GetError());
 	// Baker: Returns -1 on an error or 0 on success.
 	vid_sdl_initjoysticksystem = SDL_InitSubSystem(SDL_INIT_JOYSTICK) >= 0;
 	if (!vid_sdl_initjoysticksystem)
-		Con_Printf (CON_ERROR "Failed to init SDL joystick subsystem: %s\n", SDL_GetError());
+		Con_PrintLinef (CON_ERROR "Failed to init SDL joystick subsystem: %s", SDL_GetError());
+
+
 
 #if defined(_WIN32) || defined(MACOSX)
 	SDL_DisplayMode my_desktop_mode;
@@ -1553,8 +1648,70 @@ void VID_Init (void)
 	vid.desktop_height = my_desktop_mode.h;
 #endif
 
+#ifndef SDL_R_RESTART
+	int numsamples = bound (1, vid_samples.integer, 32); // MAX_SAMPLES
+	if (numsamples != 1) {
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, numsamples);
+	} else {
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+	}
+	Baker_SDL_Cursors_Init (); // Linux, Mac, Android, etc.
+#endif
+
 	vid_isfullscreen = false;
 }
+
+// YAY image_width/image_height globals again
+bgra4 *LoadPNG (ccs *imagepath, size_t *pfilesizet)
+{
+	unsigned char *pixels = NULL;
+	fs_offset_t filesize = 0;
+	int mip = 0; // Not used for png
+	unsigned char *PNG_LoadImage_BGRA (const unsigned char *pbytes, int data_size, int *miplevel_unused);
+	unsigned char *data = FS_LoadFile(imagepath, tempmempool, fs_quiet_true, &filesize);
+	if (data) {
+		if (String_Ends_With_Caseless (imagepath, ".png"))
+			pixels = PNG_LoadImage_BGRA(data, filesize, &mip);
+		else {
+			c_assert_msg_ (0, "Only png right now!");
+		}
+		//pixels = JPEG_LoadImage_BGRA(data, filesize, &mip);
+
+		Mem_Free(data);
+	}
+	// do we call Image_MakeLinearColorsFromsRGB or not?
+	NOT_MISSING_ASSIGN (pfilesizet, filesize);
+	return (bgra4 *)pixels;
+}
+
+#ifdef CONFIG_MENU
+void Vid_Cursor_Load_To_Slot_Maybe (ccs *imagepath, int slot)
+{
+	if (baker_sdl_cursors[slot] != NULL)
+		return; // Already loaded, presumably
+
+	#pragma message ("Baker: See if vid restart leaks SDL_Cursors and such")
+	size_t datasize;
+	bgra4 *pels = LoadPNG(imagepath, &datasize);
+	if (!pels)
+		return;
+
+	int ike_width = image_width;
+	int ike_height = image_height;
+	int rowbytes = ike_width * BGRA_4;
+	SDL_Surface *sdl_surface_icon = SDL_CreateRGBSurfaceFrom(pels,
+		ike_width , ike_height, RGBA_BPP_32, rowbytes, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+
+	WARP_X_(mousepointer_baker_column_20)
+	baker_sdl_cursors[slot] = SDL_CreateColorCursor (sdl_surface_icon, ike_width/2, ike_height/2);
+	SDL_FreeSurface (sdl_surface_icon);
+
+	Mem_Free(pels);
+
+}
+#endif // #ifdef CONFIG_MENU
 
 static int vid_sdljoystickindex = -1;
 void VID_EnableJoystick(qbool enable)
@@ -1694,7 +1851,7 @@ static void AdjustWindowBounds(viddef_mode_t *mode, RECT *rect)
 	workWidth = workArea.right - workArea.left;
 	workHeight = workArea.bottom - workArea.top;
 
-	// SDL forces the window height to be <= screen height - 27px (on Win8.1 - probably intended for the title bar) 
+	// SDL forces the window height to be <= screen height - 27px (on Win8.1 - probably intended for the title bar)
 	// If the task bar is docked to the the left screen border and we move the window to negative y,
 	// there would be some part of the regular desktop visible on the bottom of the screen.
 	screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -1711,7 +1868,7 @@ static void AdjustWindowBounds(viddef_mode_t *mode, RECT *rect)
 		rect->top = workArea.top + titleBarPixels;
 		mode->height = workHeight - titleBarPixels;
 	}
-	else 
+	else
 	{
 		rect->left = workArea.left + max(0, (workWidth - width) / 2);
 		rect->top = workArea.top + max(0, (workHeight - height) / 2);
@@ -1719,6 +1876,7 @@ static void AdjustWindowBounds(viddef_mode_t *mode, RECT *rect)
 }
 #endif
 
+// Baker: This IS called on vid_restart
 static qbool VID_InitModeGL(viddef_mode_t *mode)
 {
 	int windowflags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;
@@ -1813,11 +1971,19 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 	SDL_GL_SetAttribute (SDL_GL_STENCIL_SIZE, 8);
 	if (mode->stereobuffer)
 		SDL_GL_SetAttribute (SDL_GL_STEREO, 1);
-	if (mode->samples > 1)
+#if 0
+	if (mode->samples_aa > 1)
 	{
 		SDL_GL_SetAttribute (SDL_GL_MULTISAMPLEBUFFERS, 1);
-		SDL_GL_SetAttribute (SDL_GL_MULTISAMPLESAMPLES, mode->samples);
+		SDL_GL_SetAttribute (SDL_GL_MULTISAMPLESAMPLES, mode->samples_aa);
 	}
+#else
+	int numsamples = bound (1, vid_samples.integer, 32); // MAX_SAMPLES
+	if (numsamples != 1) {
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, numsamples);
+	}
+#endif
 
 #ifdef USE_GLES2
 	SDL_GL_SetAttribute (SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
@@ -1831,16 +1997,16 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, (gl_debug.integer > 0 ? SDL_GL_CONTEXT_DEBUG_FLAG : 0));
 
-	video_bpp = mode->bitsperpixel;
+	video_bpp = mode->bitsperpixel_m;
 	window_flags = windowflags;
 	window = SDL_CreateWindow(gamename, xPos, yPos, mode->width, mode->height, windowflags);
 	if (window == NULL) {
-		Con_PrintLinef (CON_ERROR "Failed to set video mode to %dx%d: %s\n", mode->width, mode->height, SDL_GetError());
+		Con_PrintLinef (CON_ERROR "Failed to set video mode to %dx%d: %s", mode->width, mode->height, SDL_GetError());
 		VID_Shutdown();
 		return false;
 	}
 
-	// Baker r9511: SDL ensure icon	
+	// Baker r9511: SDL ensure icon
 #if 0
 	#if defined(_WIN32)
 		SetWIke (window);
@@ -1855,7 +2021,8 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 		// Length is 3828, unpacks to 9216 bgra
 		const char *s_zircon_icon_jpeg_base64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAAwADADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAACAoGBwkL/8QAKxAAAAYCAgEDBQACAwAAAAAAAQIDBAUGBwgREiEACRMUIjFBURVCIzNh/8QAGQEAAwEBAQAAAAAAAAAAAAAABQcIBgME/8QAKxEAAgMAAgEDAgUFAQAAAAAAAgMBBAUGERIHExQhMQAIFSJBFiMkM1Fx/9oADAMBAAIRAxEAPwDn/gAiPAByI+AAPyI/z1ZFYxZarOZMWrJVNJTgSiKSh1RAfwIJgAAH94Mco8eePx6m2CMYOb7YmgfAKqYuCpIE69iibsAHUEP6UftJx5AQMIeQKPrZ3XDW3LGdMnWPD+szfHcQ1xXEMF8uZlyLFSs3W67Z5RYpWFGrcfFGFOWtCTVN07eIOiqNEDM3zV4rHqNUjPVnzn1Eo8STblj6dYaNQruhf0HSmjnVoapAsssEGnEtsPTVQpSX2LFhy010MZPX4JUM515iwWtjCafgpa47Nh9SUwMTMRHQiRkREIiIyRFEfX8Zf1LTi4TgpCePkV+4h4BI5CDz+gAhCm44EP8AcR55EP8Ay/W+mtbpbYj7INjp1IbdAOK9un4eDExeof8AWMu6bqKmN2+wifcxxMUpQMJigLD1V9nSal00hzxulmq3pHKAuq9hyErOCa6cDE4OyWLFFsr1+1LyKYqmOxVcEDsZJAxhKUrMa+1PoRjFdKQY691m5zZTAqvO5WezWUn71x2AxnLhrd5GZhSKnMAGMDSJaoiImEEg7n7SXyP82XHU+4COR6WsX1gVcZ4+8ahz/wALQ5JYwHpj+PMMS3Ez10vr907apwXRZAyyuitE9eU2rAkcR9PsuqNgZn6T3EvD/wB7+yiEpX9YGqLtszyW1mvoSAR8/hKzbZeFZCYRKX6mXZQKscVMfz8pF1ERKICBxDn0NmYsQMIFmhY606ZyUO+bA+j5GNUKtHyTI3YflRUTDoYwAU4DwBTkUIZFYAOUQTfd2QzFr1pbgKy3a7QNTgKQwYrw8DjyDgYZiF6sD9suWMo9erjRkRo9dzRynSXIDM7NjHg8kpL4o5o6VIlDkuJXpOE6xB2SPawk+4Tn7G+raJTpp1pKzTclPs68CSgmUQGLZPkGqjcwFO2WKogYvdIwjvfRP1b1eey7TVkb2XnBs1cqm3X1qeorcEq1p+idQauLjyg8mVUBtwJXkxOrWXLgcP8AeF8iwlZEqRNpFhpJNrASk0lW6JYq8/J7/KHeTJDv2yn2TmIkZ6iD6/zc3E0ueWohElLyEE8TrZTCj8hZY5fiBVAVzFQ+sR7KrswXMCYuiIlU+wTF9b/6Q5h2ox/hirYN1B05pVWTIdaWtmZNl8sMiO73fZgqR7Bcp+k0UhLQBnTgiLVg1CZkjM4VlGxxHzgGxlvS7WrtbnpmZaJsCrCRZ72S6gYeCcplES/oOVCnHx588/gfW+WC61n/AGhux9MtS5lxASyTFA+yuxhCOF69gqmPBMg8r8O/bCUj3JlgRK4j42NZuUn7ZUHKTddkqznJqrdPXirluVfraKuO2M2s+OQa+hyV2yGPi1qKprjpaysnUz/1BNL5LQzs+yNz5Wjd+LTo2b9uuEcuPNtLauahWIsNGKqV1QQVh0nIlKkk5TPak4GCa0JDxWvzNgrA5mTsbr7mm2G0UhrrTtwaazpWPDoG2QyTrRQE69jjGD5RwcFqBTcg2xmrd7rfDkRVZlQaOGLCLeEXO5dvEI2XM13ByXlPD+kmvy9xyVcJ1Cj49iEWJJW12CSuN/us2qVQzVgWUnny8zbrtZ3/AMynLh2IqLKOHS6jCJZrqtLtxVpfjzSLXwlMxfDyB6Zj+HdS7uNqdXsF2yJeZwUUxkZZSJr8a6mbZc7G6TSJ0atOhRFszbJx0MwQSZ4TTGrXu4bk7QQ2frbqbiyn40xyq6NrxjLa3IhWNAocgqukDbIt4x1jiTmbla7/APAmDwpZNi2i4p6Rq3TYvmsY0TWiINzhfqpqTEaPEODel3CFfvM/6W4Ps8z0BD7ivwqLtbmt11ArDTRxXIOJOdLQZM7bM+PpYdX/AFaGrt6H2j/LvopBPXfZTJwusj79z7RXHRP0UsekCLmGYzFnWzo7e7QQbqvKtmjhTWvXx6KqsXiKqOxKszttmYrpkK8yPOpJtn67pygm4ZmBsuog0M0g4uvYW7J5BmbPYnCT1RUSuF1jqCcTeSpnKIEDkf8AYxgE3P6LxxwPprHdjQ33LscYgn9lMi5ZxFsQ0prpOZyfgDEOK3FfBljoqTg9lsVKtUsU1pnZOspilIqRzto2EYtJ7IGF59Cdk5Wi2QptUnIdle6O9Sk69Oswl4d6mHQ4EN2+Vq5S+4zZ43UKqzetTD2buklEjgJkwH1bPoDyTjOuNW5lXuN6edWZOBQHirNBmNxw6oQ9eGK9WhnX1thb/m/PfXZG407eiF27Yi4a1pyOnoV2mN1VpNhwxZObftw2zBzAk/ySxi5GCH2/aEo9iIBcgsfDuV4slXNIw1ZJysyDGGszpOArMTYXin0zWuKWiajYBawruQIczYsS1fLvSugKAtVU03IgYUgIboUaqYP1T9unWirUCrXXH1SpjNkhO3DLFwtVagT5Ltr9mkrMX6zWeUkkWbxzLimKrEgyCzKJh02cXGmKwZJB65qeIMvR8IxcVqzNGclDv2/0MhGyaZVo+SZiJf8AjVIf7PkL1IYo8lUIoQqyJinKAkJWJs+sUcm0eucXRU0sxRErJCwztnn4tmQQAereKlZx1GFRHgoCkZqdLgA+0eAEBX5gfRDW9URqY7uQ8gxMhO1b1tGri49LVXyKSq0kZK7jbW5jzVnFJWkdPyVoogtew744vVHuevi/I04RNfFOvasMQtCWPeaSqxBnLvARQ/zix5Jg+iUXSAiCkSnp6nK3va+2rip0tEhsXF5QspDGSbVnCFds+WXz9co9fgaS1SintSBQw8gQXdkapnEOCqCIgAhBe/f1tMwRZLXXQnL9gRU5I1tGwt1qeBYhEo9ukh/gzkt0pKtgACn+lRkIxdYph+NYDAQqqqz3dSKqjVSNokPV6Wx6iQrKpQkZBIAXgQ4FvDNWxRDgoB5IIiIAHkRDkfLVuFcZo6gkfyK3cTeRWOmTgREQ8nP2/f6IIeB/Q+lrxX8knCantna4xq7jI6km8t5Lb+IRR10QZ/Fa3F2qD+ZS7XvRP1gzMP2yXu+o2s3uFWK9WP4inUAjiJ6+7Lh24mfr12KV/wDYiJ+v4Yuy57sPuWXlo9ScZr1m1niHKaqYx+JMcOMp2tNqqTqo1eSmUnUlBiuYgmSO6i0GwkExlEBKIEEq8GXbFX6xVnVVi5lSfUcSs3MPJNZjGxX18xPO1nr1RrERCLeMimfzq8oR0eiRozRD40SlIBQ9DzN5nuc0KgHenTKcR5EyqqpwAf4ImITn+9iGAeR8cj4rF6/eyKwrvXKrlUf91Tc8B/Ch4KUP3wUADnkeORH1WXp56MYnBBkczL4/iV2NrvfUwcWhnlabUFo1Su31qPU0PjxYsQn9Q0Lfs+80lwJMMpxWnu3NOYKzYs2SGCgCsPNkLg/Hy9pUz7KpKQHy9pYeXjHffUdf/9k=";
 
-		if (mod_list_game_icon_base64_zalloc)
+		// "mod_info.txt" provide game icon -> iconbase64 see packard
+		if (mod_list_game_icon_base64_zalloc) // Allow game to provide own icon (how?)
 			s_zircon_icon_jpeg_base64 = mod_list_game_icon_base64_zalloc;
 
 		// Baker: This shouldn't fail.
@@ -1869,7 +2036,7 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 
 		int rowbytes = ike_width * BGRA_4;
 		SDL_Surface *sdl_surface_icon = SDL_CreateRGBSurfaceFrom(bgra_pels_zalloc, /*rowbytes*/ ike_width , ike_height, /*depth*/ 32, rowbytes,0,0,0,0);
-		
+
 		SDL_SetWindowIcon (/*sdlWindow*/ window, sdl_surface_icon);
 
 		SDL_FreeSurface (sdl_surface_icon);
@@ -1892,7 +2059,7 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 
 	vid_hidden = false;
 	vid_activewindow = true;
-	vid_hasfocus = true; 
+	vid_hasfocus = true;
 	vid_usingmouse = false;
 	vid_usinghidecursor = false;
 
@@ -1910,18 +2077,18 @@ static qbool VID_InitModeGL(viddef_mode_t *mode)
 	Cvar_SetQuick(&gl_info_driver, gl_driver);
 
 	// LadyHavoc: report supported extensions
-	Con_DPrintf ("\nQuakeC extensions for server and client:");
+	Con_DPrintLinef ("QuakeC extensions for server and client:");
 	for (i = 0; vm_sv_extensions[i]; i++)
 		Con_DPrintf (" %s", vm_sv_extensions[i]);
-	Con_DPrintf ("\n");
+	Con_DPrintLinef ("");
 #ifdef CONFIG_MENU
-	Con_DPrintf ("\nQuakeC extensions for menu:");
+	Con_DPrintLinef ("QuakeC extensions for menu:");
 	for (i = 0; vm_m_extensions[i]; i++)
 		Con_DPrintf (" %s", vm_m_extensions[i]);
-	Con_DPrintf ("\n");
+	Con_DPrintLinef ("");
 #endif
 
-		
+
 	vid.restart_count++;
 	return true;
 }
@@ -1951,6 +2118,8 @@ void VID_Shutdown (void)
 {
 	VID_EnableJoystick	(false);
 	VID_SetMouse		(q_mouse_relative_false, q_mouse_hidecursor_false);
+
+	Baker_SDL_Cursors_Shutdown ();
 
 	SDL_GL_DeleteContext(context);
 	context = NULL;
@@ -2001,7 +2170,7 @@ void VID_Finish (void)
 void Vid_SetWindowTitlef (const char *fmt, ...)
 {
 	if (window) {
-		int j = 5;
+		//int j = 5;
 		// No window!
 	}
 
@@ -2052,5 +2221,44 @@ size_t VID_ListModes(vid_mode_t *modes, size_t maxcount)
 	return k;
 }
 
+#ifdef _WIN32
+const byte *Shell_Data_From_Resource (int resource_num, size_t *mem_length)
+{
+// Resourcing it up!
+// For Windows we will load from resource data.
+// Hardcoded constants for essentially Win32_Data_From_Resource
+
+	int *must_free = false;
+	//const int	resource_num = 2;
+	const char *text_type_field_in_rc = RT_RCDATA;
+
+	// http://stackoverflow.com/questions/2933295/embed-text-file-in-a-resource-in-a-native-windows-application
+	// It is not necessary to free the resource as it is memory as part of the .exe
+	HMODULE handle	= GetModuleHandle(NULL);
+	HRSRC rc		= FindResource(handle, MAKEINTRESOURCE(resource_num), TEXT(text_type_field_in_rc));// MAKEINTRESOURCE(type));
+	HGLOBAL rc_data	= LoadResource(handle, rc);
+
+	size_t num_bytes 	= SizeofResource(handle, rc);
+	const byte *mem		= (const byte *)LockResource(rc_data); // MSDN: It doesn't actually lock anything and you don't need to unlock, has a legacy name from Win 9x
+
+	NOT_MISSING_ASSIGN (mem_length, num_bytes);
+	NOT_MISSING_ASSIGN (must_free, false); // No for Windows, it's resource part of executable memory.
+
+	return num_bytes ? mem : NULL;
+}
+
+const byte *Bundle_Pointer (int bundle_idx, /*reply*/ size_t *pmem_length)
+{
+	const byte *mem = Shell_Data_From_Resource (bundle_idx, pmem_length);
+	return mem;
+}
+
+#else
+const byte *Bundle_Pointer (int bundle_idx, /*reply*/ size_t *mem_length)
+{
+	// LINUX, etc. -- not doing this right now ...
+	return NULL;
+}
+#endif
 #endif // CORE_SDL
 

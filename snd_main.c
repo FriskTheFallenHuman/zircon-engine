@@ -125,7 +125,7 @@ static const speakerlayout_t snd_speakerlayouts[] =
 // Internal sound data & structures
 // =======================================================================
 
-channel_t channels[MAX_CHANNELS];
+channel_t channels[MAX_CHANNELS_8196];
 unsigned int total_channels;
 
 snd_ringbuffer_t *snd_renderbuffer = NULL;
@@ -307,6 +307,7 @@ static void S_Play_f(cmd_state_t *cmd)
 
 static void S_PlayLoop_f(cmd_state_t *cmd)
 {
+	//int S_StartSound_StartPosition_Flags (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float fvol, float attenuation, float startposition, int flags, float fspeed)
 	S_Play_Common (cmd, 1.0f, 1.0f, q_is_forceloop_true);
 }
 
@@ -315,9 +316,76 @@ static void S_Play2_f(cmd_state_t *cmd)
 	S_Play_Common(cmd, 1.0f, 0.0f, q_is_forceloop_false);
 }
 
-static void S_PlayVol_f(cmd_state_t *cmd)
+static void S_PlayVol_f (cmd_state_t *cmd)
 {
-	S_Play_Common(cmd, -1.0f, 0.0f, q_is_forceloop_false);
+	// 0       1             2    c = 3
+	// playvol something.wav 0.3
+	// playvol something.wav 1   0.50 c = 4 pitch
+	if (Cmd_Argc(cmd) == 4) {
+		// Baker: pitch
+		char name [MAX_QPATH_128];
+		ccs *swav	= Cmd_Argv (cmd, 1);
+		ccs *svol	= Cmd_Argv (cmd, 2);
+		ccs *spitch	= Cmd_Argv (cmd, 3);
+
+		c_strlcpy (name, swav); // Baker: 0 read name
+
+		ccs *sext	= File_URL_GetExtensionEx(name);
+		if (!sext)
+			c_strlcat (name, ".wav"); // Default .wav if no extension
+
+		// Baker: q_levelsound_true is true?  Now that just means is not a menu sound
+		// and gets tossed on new map
+		sfx_t *sfx = S_PrecacheSound (name, q_tx_complain_true, q_levelsound_true);
+		
+		if (!sfx) {
+			Con_PrintLinef ("Couldn't load " QUOTED_S, name);
+			return;
+		}
+
+		float fvol = atof(svol);
+		fvol = bound (0, fvol, snd_maxchannelvolume.value);
+		
+		float fpitchchange = atof(spitch);
+		//fpitchchange = bound (0, fvol, snd_maxchannelvolume.value);
+		//fpitchchange = PRVM_G_FLOAT(OFS_PARM5) * 0.01f;
+		
+		//int speed4000 = (int)floor(fpitchchange * 4000.0f + 0.5f);
+
+		//S_StartSound_StartPosition_Flags (/*entnum*/ 0, 
+		//SV_StartSound (entity, channel, sample, nvolume, attenuation, flags & CHANNELFLAG_RELIABLE, pitchchange);
+		//int ch_ind = S_StartSound (
+		//	q_snd_entnum_neg1, q_snd_channel_0, sfx, 
+		//	listener_origin, 
+		//	fvol, 
+		//	ATTENUATION_0, is_forceloop);
+
+		int ch_ind = S_StartSound_StartPosition_Flags(
+			q_snd_entnum_neg1, q_snd_channel_0, sfx, 
+			listener_origin, 
+			fvol, 
+			q_snd_attenuation_0, 
+			q_snd_startposition_0,
+			CHANNELFLAG_NONE,
+			fpitchchange /*1.0f*/
+			);
+
+		float slenf = S_SoundLength (name);
+
+		Con_PrintLinef ("Sound length is " FLOAT_LOSSLESS_FORMAT " seconds", slenf);
+
+			// Free the sfx if the file didn't exist
+			if (!sfx->fetcher)
+				S_FreeSfx (sfx, /*force?*/ false);
+			else
+				channels[ch_ind].flags |= CHANNELFLAG_LOCALSOUND;
+
+
+
+		return;
+	}
+
+	S_Play_Common(cmd, q_snd_volume_read_arg_neg1, q_snd_attenuation_0, q_is_forceloop_false);
 }
 
 static void S_SoundList_f(cmd_state_t *cmd)
@@ -818,10 +886,10 @@ static void S_Restart_f(cmd_state_t *cmd)
 
 /*
 ================
-S_Init
+S_InitOnce
 ================
 */
-void S_Init(void)
+void S_InitOnce(void)
 {
 	Cvar_RegisterVariable(&volume);
 	Cvar_RegisterVariable(&bgmvolume);
@@ -938,8 +1006,8 @@ void S_Init(void)
 
 	known_sfx = NULL;
 
-	total_channels = MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS;	// no statics
-	memset(channels, 0, MAX_CHANNELS * sizeof(channel_t));
+	total_channels = MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS;	// no statics
+	memset(channels, 0, MAX_CHANNELS_8196 * sizeof(channel_t));
 
 	OGG_OpenLibrary ();
 #ifdef USEXMP
@@ -1017,7 +1085,7 @@ sfx_t *S_FindName (const char *name)
 	if (!snd_initialized.integer)
 		return NULL;
 
-	if (String_Does_Match(name, changevolume_sfx.name))
+	if (String_Match(name, changevolume_sfx.name))
 		return &changevolume_sfx;
 
 	if (strlen (name) >= sizeof (sfx->name))
@@ -1029,7 +1097,7 @@ sfx_t *S_FindName (const char *name)
 	// Look for this sound in the list of known sfx
 	// TODO: hash table search?
 	for (sfx = known_sfx; sfx != NULL; sfx = sfx->next)
-		if (String_Does_Match (sfx->name, name))
+		if (String_Match (sfx->name, name))
 			return sfx;
 
 	// check for # in the beginning, try lookup by soundindex
@@ -1067,7 +1135,7 @@ void S_FreeSfx (sfx_t *sfx, qbool force)
 		return;
 
 	if (developer_loading.integer)
-		Con_Printf ("unloading sound %s\n", sfx->name);
+		Con_PrintLinef ("unloading sound %s", sfx->name);
 
 	// Remove it from the list of known sfx
 	if (sfx == known_sfx)
@@ -1149,12 +1217,24 @@ void S_PurgeUnused(void)
 	sfx_t *sfxnext;
 
 	// Free all not-precached per-level sfx
-	for (sfx = known_sfx;sfx;sfx = sfxnext)
-	{
+	for (sfx = known_sfx; sfx; sfx = sfxnext) {
 		sfxnext = sfx->next;
-		if (!(sfx->flags & (SFXFLAG_LEVELSOUND | SFXFLAG_MENUSOUND)))
+		if (false == Have_Flag (sfx->flags, SFXFLAG_LEVELSOUND | SFXFLAG_MENUSOUND))
 			S_FreeSfx (sfx, false);
-	}
+	} // for
+}
+
+void S_PurgeALL (void) // Baker: Gamedir change
+{
+	sfx_t *sfx;
+	sfx_t *sfxnext;
+
+	// Free all not-precached per-level sfx
+	for (sfx = known_sfx; sfx; sfx = sfxnext) {
+		sfxnext = sfx->next;
+		if (1)
+			S_FreeSfx (sfx, false);
+	} // for
 }
 
 
@@ -1212,7 +1292,13 @@ float S_SoundLength(const char *name)
 	sfx = S_FindName(name);
 	if (sfx == NULL)
 		return -1;
+#if 1
+	// Baker: The length of the sounds needs divided by samples sound rate
+	return sfx->total_length / sfx->format.speed;
+#else
 	return sfx->total_length / (float) S_GetSoundRate();
+	
+#endif
 }
 
 /*
@@ -1270,7 +1356,7 @@ static channel_t *SND_PickChannel(int entnum, int entchannel)
 	// channels <= 0 are autochannels
 	if (IS_CHAN_SINGLE(entchannel))
 	{
-		for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS ; ch_idx++)
+		for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++)
 		{
 			ch = &channels[ch_idx];
 			if (ch->entnum == entnum && ch->entchannel == entchannel)
@@ -1283,7 +1369,7 @@ static channel_t *SND_PickChannel(int entnum, int entchannel)
 	}
 
 	// there was no channel to override, so look for the first empty one
-	for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS ; ch_idx++)
+	for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++)
 	{
 		ch = &channels[ch_idx];
 		sfx = ch->sfx; // fetch the volatile variable
@@ -1454,13 +1540,14 @@ static void SND_Spatialize_WithSfx(channel_t *ch, qbool isstatic, sfx_t *sfx)
 	}
 
 	// If this channel does not manage its own volume (like CD tracks)
-	if (!(ch->flags & CHANNELFLAG_FULLVOLUME))
+	//if (!(ch->flags & CHANNELFLAG_FULLVOLUME))
+	if (Have_Flag (ch->flags, CHANNELFLAG_FULLVOLUME) == false)
 		mastervol *= volume.value;
 
-	if (snd_maxchannelvolume.value > 0)
+	if (snd_maxchannelvolume.value > 0 /*d:10*/)
 	{
 		// clamp HERE to allow to go at most 10dB past mastervolume (before clamping), when mastervolume < -10dB (so relative volumes don't get too messy)
-		mastervol = bound(0.0f, mastervol, 10.0f * snd_maxchannelvolume.value);
+		mastervol = bound(0.0f, mastervol, 10.0f * snd_maxchannelvolume.value /*d:10*/);
 	}
 
 	// always apply "master"
@@ -1517,15 +1604,15 @@ static void SND_Spatialize_WithSfx(channel_t *ch, qbool isstatic, sfx_t *sfx)
 		f = dist * ch->distfade;
 
 		f =
-			((snd_attenuation_exponent.value == 0) ? 1.0 : pow(1.0 - min(1.0, f), (double)snd_attenuation_exponent.value))
+			((snd_attenuation_exponent.value == 0 /*d: 1*/) ? 1.0 : pow(1.0 - min(1.0, f), (double)snd_attenuation_exponent.value))
 			*
-			((snd_attenuation_decibel.value == 0) ? 1.0 : pow(0.1, 0.1 * snd_attenuation_decibel.value * f));
+			((snd_attenuation_decibel.value == 0 /*d: 0*/) ? 1.0 : pow(0.1, 0.1 * snd_attenuation_decibel.value * f));
 
 		intensity = mastervol * f;
 		if (intensity > 0)
 		{
 			qbool occluded = false;
-			if (snd_spatialization_occlusion.integer)
+			if (snd_spatialization_occlusion.integer /*d: 1*/)
 			{
 				if (snd_spatialization_occlusion.integer & 1)
 					if (listener_pvs && cl.worldmodel)
@@ -1544,7 +1631,7 @@ static void SND_Spatialize_WithSfx(channel_t *ch, qbool isstatic, sfx_t *sfx)
 				intensity *= 0.5f;
 
 			ch->prologic_invert = 1;
-			if (snd_spatialization_prologic.integer != 0)
+			if (snd_spatialization_prologic.integer != 0 /*d: 0*/)
 			{
 				if (dist == 0)
 					angle_factor = 0.5f;
@@ -1655,18 +1742,18 @@ static void S_PlaySfxOnChannel (sfx_t *sfx, channel_t *target_chan, unsigned int
 {
 	if (!sfx)
 	{
-		Con_Printf ("S_PlaySfxOnChannel called with NULL??\n");
+		Con_PrintLinef ("S_PlaySfxOnChannel called with NULL??");
 		return;
 	}
 
-	if ((sfx->loopstart < sfx->total_length) || (flags & CHANNELFLAG_FORCELOOP))
+	if ((sfx->loopstart < sfx->total_length) || Have_Flag(flags, CHANNELFLAG_FORCELOOP))
 	{
-		if (!snd_startloopingsounds.integer)
+		if (!snd_startloopingsounds.integer /*d:1*/)
 			return;
 	}
 	else
 	{
-		if (!snd_startnonloopingsounds.integer)
+		if (!snd_startnonloopingsounds.integer /*d:1*/)
 			return;
 	}
 
@@ -1691,7 +1778,8 @@ static void S_PlaySfxOnChannel (sfx_t *sfx, channel_t *target_chan, unsigned int
 	if (isstatic)
 	{
 		if (sfx->loopstart >= sfx->total_length && 
-			isin4(cls.protocol, PROTOCOL_FITZQUAKE666, PROTOCOL_FITZQUAKE999, PROTOCOL_QUAKE, PROTOCOL_QUAKEWORLD))
+			isin4(cls.protocol, PROTOCOL_FITZQUAKE666, 
+			PROTOCOL_FITZQUAKE999, PROTOCOL_QUAKE, PROTOCOL_QUAKEWORLD))
 			Con_DPrintLinef ("Quake compatibility warning: Static sound " QUOTED_S " is not looped", sfx->name);
 		target_chan->distfade = attenuation / (64.0f * snd_soundradius.value);
 	}
@@ -1721,7 +1809,7 @@ int S_StartSound_StartPosition_Flags (int entnum, int entchannel, sfx_t *sfx, ve
 	{
 		if (!IS_CHAN_SINGLE(entchannel))
 			return -1;
-		for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS ; ch_idx++)
+		for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++)
 		{
 			ch = &channels[ch_idx];
 			if (ch->entnum == entnum && ch->entchannel == entchannel)
@@ -1753,7 +1841,7 @@ int S_StartSound_StartPosition_Flags (int entnum, int entchannel, sfx_t *sfx, ve
 	startpos = (int)(startposition * sfx->format.speed);
 	if (startpos == 0)
 	{
-		for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS ; ch_idx++, check++)
+		for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++, check++)
 		{
 			if (check == target_chan)
 				continue;
@@ -1841,7 +1929,7 @@ void S_StopSound(int entnum, int entchannel)
 {
 	unsigned int i;
 
-	for (i = 0; i < MAX_DYNAMIC_CHANNELS; i++)
+	for (i = 0; i < MAX_DYNAMIC_CHANNELS_512; i++)
 		if (channels[i].entnum == entnum && channels[i].entchannel == entchannel)
 		{
 			S_StopChannel (i, true, false);
@@ -1869,8 +1957,8 @@ void S_StopAllSounds(void)
 			if (channels[i].sfx)
 				S_StopChannel (i, false, false);
 
-		total_channels = MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS;	// no statics
-		memset(channels, 0, MAX_CHANNELS * sizeof(channel_t));
+		total_channels = MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS;	// no statics
+		memset(channels, 0, MAX_CHANNELS_8196 * sizeof(channel_t));
 
 		// Mute the contents of the submittion buffer
 		clear = (snd_renderbuffer->format.width == 1) ? 0x80 : 0;
@@ -1960,9 +2048,9 @@ void S_StaticSound (sfx_t *sfx, vec3_t origin, float fvol, float attenuation)
 		return;
 	}
 
-	if (total_channels == MAX_CHANNELS)
+	if (total_channels == MAX_CHANNELS_8196)
 	{
-		Con_Print("S_StaticSound: total_channels == MAX_CHANNELS\n");
+		Con_Print("S_StaticSound: total_channels == MAX_CHANNELS_8196\n");
 		return;
 	}
 
@@ -2253,6 +2341,9 @@ void S_Update(const matrix4x4_t *listenermatrix)
 	Matrix4x4_Invert_Simple(&listener_basematrix, listenermatrix);
 	Matrix4x4_OriginFromMatrix(listenermatrix, listener_origin);
 	if (cl.worldmodel && cl.worldmodel->brush.FatPVS && cl.worldmodel->brush.num_pvsclusterbytes && cl.worldmodel->brush.PointInLeaf)
+#if 1 // June 2
+		listener_pvsbytes = cl.worldmodel->brush.FatPVS(cl.worldmodel, listener_origin, 2, &listener_pvs, snd_mempool, 0);
+#else
 	{
 		if (cl.worldmodel->brush.num_pvsclusterbytes != listener_pvsbytes)
 		{
@@ -2263,6 +2354,7 @@ void S_Update(const matrix4x4_t *listenermatrix)
 		}
 		cl.worldmodel->brush.FatPVS(cl.worldmodel, listener_origin, 2, listener_pvs, listener_pvsbytes, 0);
 	}
+#endif
 	else
 	{
 		if (listener_pvs)
@@ -2307,11 +2399,11 @@ void S_Update(const matrix4x4_t *listenermatrix)
 		cls.soundstats.totalsounds++;
 
 		// respatialize channel
-		SND_Spatialize(ch, i >= MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS);
+		SND_Spatialize(ch, i >= MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS);
 
 		// try to combine static sounds with a previous channel of the same
 		// sound effect so we don't mix five torches every frame
-		if (i > MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS)
+		if (i > MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS)
 		{
 			// no need to merge silent channels
 			for (j = 0;j < SND_LISTENERS_8;j++)
@@ -2324,7 +2416,7 @@ void S_Update(const matrix4x4_t *listenermatrix)
 			{
 				// search for one
 				combine = NULL;
-				for (j = MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS;j < i;j++)
+				for (j = MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS;j < i;j++)
 				{
 					if (channels[j].sfx == ch->sfx)
 					{

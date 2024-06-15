@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // cvar.c -- dynamic variable tracking
 
+
 #include "quakedef.h"
 
 const char *cvar_dummy_description = "custom cvar";
@@ -27,6 +28,51 @@ static const char *cvar_null_string = "";
 
 cvar_state_t cvars_all;
 cvar_state_t cvars_null;
+
+void Cvar_Audit_f(cmd_state_t *cmd)
+{
+	stringlist_t cvars_list = {0};
+	int cvar_count = 0;
+	for (cvar_t *v = cvars_all.vars; v; v = v->next) {
+		stringlistappend (&cvars_list, v->name);
+		float fval = atof(v->string);
+		qbool value_match = fval == v->value;
+		int ival = atoi(v->string);
+		qbool integer_match = ival == v->integer;
+		if (value_match == false)
+			Con_PrintLinef (QUOTED_S " failed value match, string is " QUOTED_S " val is %f", v->name, v->string, v->value);
+		if (integer_match == false)
+			Con_PrintLinef (QUOTED_S " failed integer match, string is " QUOTED_S " integer is %d", v->name, v->string, v->integer);
+		if (Have_Flag (v->flags, CF_ALLOCATED) == false) {
+			int default_match = String_Match (v->defstring, v->engine_string);
+			if (default_match == false) 
+				Con_PrintLinef (QUOTED_S " failed default match, string is " QUOTED_S " engine string is %s", v->name, v->defstring, v->engine_string);
+		}
+		cvar_count ++;
+	} //
+
+	stringlistsort (&cvars_list, fs_make_unique_true);
+
+	stringlist_t hash_list = {0};
+	int hash_count = 0;
+	for (int hashindex = 0; hashindex < CVAR_HASHSIZE_65536; hashindex ++) {
+		for (cvar_hash_t *hash = cvars_all.hashtable[hashindex]; hash; hash = hash->next) {
+			stringlistappend (&hash_list, hash->cvar->name);
+			hash_count ++;
+		} // 
+	} // n
+
+	stringlistsort (&hash_list, fs_make_unique_true);
+
+	Con_PrintLinef ("Hash count = %d", hash_count);
+	Con_PrintLinef ("Cvar count = %d", cvar_count);
+	Con_PrintLinef ("Is ok ? %d", hash_count == cvar_count);
+	Con_PrintLinef ("Hash count = %d", cvars_list.numstrings);
+	Con_PrintLinef ("Cvar count = %d", hash_list.numstrings);
+	stringlistfreecontents (&cvars_list);
+	stringlistfreecontents (&hash_list);
+}
+
 
 /*
 ============
@@ -41,11 +87,11 @@ cvar_t *Cvar_FindVar(cvar_state_t *cvars, const char *var_name, int neededflags)
 	// use hash lookup to minimize search time
 	hashindex = CRC_Block((const unsigned char *)var_name, strlen(var_name)) % CVAR_HASHSIZE_65536;
 	for (hash = cvars->hashtable[hashindex]; hash; hash = hash->next) {
-		if (String_Does_Match (var_name, hash->cvar->name) && (hash->cvar->flags & neededflags))
+		if (String_Match (var_name, hash->cvar->name) && (hash->cvar->flags & neededflags))
 			return hash->cvar;
 		else
 			for (char **alias = hash->cvar->aliases; alias && *alias; alias++) {
-				if (String_Does_Match (var_name, *alias) && (hash->cvar->flags & neededflags))
+				if (String_Match (var_name, *alias) && (hash->cvar->flags & neededflags))
 					return hash->cvar;
 			} // for
 	} // for
@@ -86,13 +132,12 @@ static cvar_t *Cvar_FindVarLink(cvar_state_t *cvars, const char *var_name, cvar_
 	if (parent) *parent = NULL;
 	if (prev_alpha) *prev_alpha = NULL;
 	if (link) *link = &cvars->hashtable[hashindex]->cvar;
-	for (hash = cvars->hashtable[hashindex]; hash; hash = hash->next)
-	{
-		if (String_Does_Match (var_name, hash->cvar->name) && (hash->cvar->flags & neededflags))
+	for (hash = cvars->hashtable[hashindex]; hash; hash = hash->next) {
+		if (String_Match (var_name, hash->cvar->name) && (hash->cvar->flags & neededflags))
 			goto match;
 		else
 			for (char **alias = hash->cvar->aliases; alias && *alias; alias++)
-				if (String_Does_Match (var_name, *alias) && (hash->cvar->flags & neededflags))
+				if (String_Match (var_name, *alias) && (hash->cvar->flags & neededflags))
 					goto match;
 		if (parent) *parent = hash->cvar;
 	}
@@ -226,14 +271,14 @@ int Cvar_CompleteCountPossible(cvar_state_t *cvars, const char *partial, int nee
 
 	// Loop through the cvars and count all possible matches
 	for (cvar = cvars->vars; cvar; cvar = cvar->next) {
-		if (String_Does_Start_With_Caseless (cvar->name, partial) && (cvar->flags & neededflags)) {
+		if (String_Starts_With_Caseless (cvar->name, partial) && (cvar->flags & neededflags)) {
 			const char *sxy = cvar->name;
 			SPARTIAL_EVAL_
 			h++;
 		}
 		else {
 			for (char **alias = cvar->aliases; alias && *alias; alias++) {
-				if (String_Does_Start_With_Caseless(*alias, partial) && (cvar->flags & neededflags)) {
+				if (String_Starts_With_Caseless(*alias, partial) && (cvar->flags & neededflags)) {
 					const char *sxy = *alias; //cvar->name;
 					SPARTIAL_EVAL_
 					h++;
@@ -280,7 +325,7 @@ const char **Cvar_CompleteBuildList(cvar_state_t *cvars, const char *partial, in
 
 void Cvar_PrintHelp(cvar_t *cvar, const char *name, qbool full)
 {
-	if (String_Does_NOT_Match (cvar->name, name))
+	if (String_NOT_Match (cvar->name, name))
 		Con_Printf (CON_BRONZE "%s" CON_WHITE " (alias of " CON_BRONZE "%s" CON_WHITE ")", name, cvar->name); // Baker: purple to bronze.
 	else
 		Con_Printf (CON_BRONZE "%s" CON_WHITE, name);
@@ -308,12 +353,14 @@ void Cvar_CompleteCvarPrint(cvar_state_t *cvars, const char *partial, int needed
 }
 
 // check if a cvar is held by some progs
+// Baker: What if prog is unloaded?
+WARP_X_CALLERS_ (Cvar_RestoreInitState)
+// Baker: Used exclusively to try to decide if we are able to destroy a cvar
 static qbool Cvar_IsAutoCvar(cvar_t *var)
 {
 	int i;
 	prvm_prog_t *prog;
-	for (i = 0;i < PRVM_PROG_MAX_3;i++)
-	{
+	for (i = 0; i < PRVM_PROG_MAX_3; i ++) {
 		prog = &prvm_prog_list[i];
 		if (prog->loaded && var->globaldefindex[i] >= 0)
 			return true;
@@ -616,10 +663,8 @@ void Cvar_RegisterVariable (cvar_t *variable)
 
 	// first check to see if it has already been defined
 	cvar = Cvar_FindVar(cvars, variable->name, ALL_FLAGS_ANTIZERO);
-	if (cvar)
-	{
-		if (cvar->flags & CF_ALLOCATED)
-		{
+	if (cvar) {
+		if (Have_Flag (cvar->flags, CF_ALLOCATED)) {
 			if (developer_extra.integer)
 				Con_DPrintLinef ("...  replacing existing allocated cvar {" QUOTED_S ", " QUOTED_S ", %d}", cvar->name, cvar->string, cvar->flags);
 			// fixed variables replace allocated ones
@@ -654,22 +699,35 @@ void Cvar_RegisterVariable (cvar_t *variable)
 			// (but not cvar->string and cvar->defstring, because we kept those)
 			Z_Free((char *)cvar->name);
 			Z_Free(cvar);
-		}
-		else
+		} // allocated - replace
+		else // Baker: registered cvar, cannot replace ... print a message
+			// Baker: Does this happen on gamedir change?
 			Con_DPrintLinef ("Can't register variable %s, already defined", variable->name);
 		return;
-	}
+	} // existing cvar
+
+	// NEW CVAR
 
 	// check for overlap with a command
-	if (Cmd_Exists(cmd_local, variable->name))
-	{
+	if (Cmd_Exists(cmd_local, variable->name)) {
 		Con_PrintLinef ("Cvar_RegisterVariable: %s is a command", variable->name); // AS-IS, not debug
 		return;
 	}
 
+	//const char *s = ;
+
 	// copy the value off, because future sets will Z_Free it
 	variable->name = (char *)Mem_strdup(zonemempool, variable->name);
+
+	variable->engine_string = Z_StrDup (variable->string);
+#if 0
+	variable->string = (char *)Mem_strdup(zonemempool, variable->engine_string);
+#else
 	variable->string = (char *)Mem_strdup(zonemempool, variable->string);
+#endif
+
+	
+
 	variable->defstring = (char *)Mem_strdup(zonemempool, variable->string);
 	variable->value = atof (variable->string);
 	variable->integer = (int) variable->value;
@@ -853,6 +911,7 @@ void Cvar_SaveInitState(cvar_state_t *cvars)
 	}
 }
 
+WARP_X_CALLERS_ (Cmd_RestoreInitState)
 void Cvar_RestoreInitState(cvar_state_t *cvars)
 {
 	int hashindex;
@@ -887,8 +946,7 @@ void Cvar_RestoreInitState(cvar_state_t *cvars)
 			else {
 				// Con_PrintLinef ("Cvar_RestoreInitState: " QUOTED_S " is unchanged", c->name);
 				// Baker need to set string to default string
-				if (String_Does_Match (c->string, c->defstring) == false) {
-					#pragma message ("Baker: Ran into situation where default string and string didn't match after this process")
+				if (String_Match (c->string, c->defstring) == false) {
 					Z_Free((char *)c->string);
 					c->string = Mem_strdup(zonemempool, c->defstring);
 				}
@@ -896,13 +954,25 @@ void Cvar_RestoreInitState(cvar_state_t *cvars)
 			c->flags = c->initstate->flags;
 			c->value = c->initstate->value;
 			c->integer = c->initstate->integer;
+
+			if (1) {
+				// AUDIT TIME
+				float fval = atof(c->string);
+				qbool value_match = fval == c->value;
+				int ival = atoi(c->string);
+				qbool integer_match = ival == c->integer;
+				if (value_match == false)
+					c->value = fval; // Baker: Sadly this happens
+				if (integer_match == false)
+					c->integer = ival; // Baker: Sadly this happens
+
+			}
 			VectorCopy(c->initstate->fvector, c->fvector);
 			cp = &c->next;
 		}
 		else
 		{
-			if (!(c->flags & CF_ALLOCATED))
-			{
+			if (Have_Flag(c->flags, CF_ALLOCATED) == false) {
 				Con_DPrintLinef ("Cvar_RestoreInitState: Unable to destroy cvar " QUOTED_S ", it was registered after init!", c->name);
 				// In this case, at least reset it to the default.
 				if ((c->flags & CF_PERSISTENT) == 0)
@@ -910,8 +980,8 @@ void Cvar_RestoreInitState(cvar_state_t *cvars)
 				cp = &c->next;
 				continue;
 			}
-			if (Cvar_IsAutoCvar(c))
-			{
+			// check if a cvar is held by some progs
+			if (Cvar_IsAutoCvar(c)) {
 				Con_DPrintLinef ("Cvar_RestoreInitState: Unable to destroy cvar " QUOTED_S ", it is an autocvar used by running progs!", c->name);
 				// In this case, at least reset it to the default.
 				if ((c->flags & CF_PERSISTENT) == 0)
@@ -1076,7 +1146,7 @@ void Cvar_WriteVariables (cvar_state_t *cvars, qfile_t *f)
 			continue; // Not a saved cvar
 
 		// If the string value is different, save
-		int shall_save = String_Does_NOT_Match (var->string, var->defstring);
+		int shall_save = String_NOT_Match (var->string, var->defstring);
 
 		// If string value is same
 		// and it is allocated without a default (SETA), save it anyway
@@ -1106,7 +1176,7 @@ void Cvar_WriteVariables_All_Changed (cvar_state_t *cvars, qfile_t *f)
 		//	continue; // Not a saved cvar
 
 		// If the string value is different, save
-		int shall_write = String_Does_NOT_Match (var->string, var->defstring);
+		int shall_write = String_NOT_Match (var->string, var->defstring);
 
 		if (shall_write == false)
 			continue;
@@ -1146,7 +1216,7 @@ void Cvar_List_f(cmd_state_t *cmd)
 	char vabuf[1024];
 	int wants_changed = false;
 
-	if (Cmd_Argc(cmd) == 2 && String_Does_Match(Cmd_Argv(cmd, 1), "changed")) {
+	if (Cmd_Argc(cmd) == 2 && String_Match(Cmd_Argv(cmd, 1), "changed")) {
 		wants_changed = true;
 		c_strlcpy (vabuf, "*");
 		partial = vabuf; //va(vabuf, sizeof(vabuf), "%s", "*");
@@ -1168,7 +1238,7 @@ void Cvar_List_f(cmd_state_t *cmd)
 	count = 0;
 	for (cvar = cvars->vars; cvar; cvar = cvar->next) {
 		if (matchpattern_with_separator(cvar->name, partial, false, "", false)) {
-			int shall_write = wants_changed == false || String_Does_NOT_Match (cvar->string, cvar->defstring);
+			int shall_write = wants_changed == false || String_NOT_Match (cvar->string, cvar->defstring);
 
 			if (shall_write) {
 				Cvar_PrintHelp(cvar, cvar->name, true);
@@ -1177,7 +1247,7 @@ void Cvar_List_f(cmd_state_t *cmd)
 		}
 		for (char **alias = cvar->aliases; alias && *alias; alias++) {
 			if (matchpattern_with_separator(*alias, partial, false, "", false)) {
-			int shall_write = wants_changed == false|| String_Does_NOT_Match (cvar->string, cvar->defstring);
+			int shall_write = wants_changed == false|| String_NOT_Match (cvar->string, cvar->defstring);
 				if (shall_write) {
 					Cvar_PrintHelp(cvar, *alias, true);
 					count++;
@@ -1195,16 +1265,15 @@ void Cvar_List_f(cmd_state_t *cmd)
 	else
 		Con_PrintLinef ("%d cvar(s)", count);
 }
-// 2000-01-09 CvarList command by Maddes
 
+// 2000-01-09 CvarList command by Maddes
 void Cvar_Set_f(cmd_state_t *cmd)
 {
 	cvar_state_t *cvars = cmd->cvars;
 	cvar_t *cvar;
 
 	// make sure it's the right number of parameters
-	if (Cmd_Argc(cmd) < 3)
-	{
+	if (Cmd_Argc(cmd) < 3) {
 		Con_PrintLinef ("Set: wrong number of parameters, usage: set <variablename> <value> [<description>]");
 		return;
 	}
@@ -1222,14 +1291,15 @@ void Cvar_Set_f(cmd_state_t *cmd)
 	Cvar_Get(cvars, Cmd_Argv(cmd, 1), Cmd_Argv(cmd, 2), cmd->cvars_flagsmask, Cmd_Argc(cmd) > 3 ? Cmd_Argv(cmd, 3) : NULL);
 }
 
+
+
 void Cvar_SetA_f(cmd_state_t *cmd)
 {
 	cvar_state_t *cvars = cmd->cvars;
 	cvar_t *cvar;
 
 	// make sure it's the right number of parameters
-	if (Cmd_Argc(cmd) < 3)
-	{
+	if (Cmd_Argc(cmd) < 3) {
 		Con_PrintLinef ("SetA: wrong number of parameters, usage: seta <variablename> <value> [<description>]");
 		return;
 	}
@@ -1306,39 +1376,3 @@ void Cvar_Del_f(cmd_state_t *cmd)
 	}
 }
 
-#ifdef FILLALLCVARSWITHRUBBISH
-void Cvar_FillAll_f(cmd_state_t *cmd)
-{
-	char *buf, *p, *q;
-	int n, i;
-	cvar_t *var;
-	qbool verify;
-	if (Cmd_Argc(cmd) != 2)
-	{
-		Con_PrintLinef ("Usage: %s length to plant rubbish", Cmd_Argv(cmd, 0));
-		Con_PrintLinef ("Usage: %s -length to verify that the rubbish is still there", Cmd_Argv(cmd, 0));
-		return;
-	}
-	n = atoi(Cmd_Argv(cmd, 1));
-	verify = (n < 0);
-	if (verify)
-		n = -n;
-	buf = Z_Malloc(n + 1);
-	buf[n] = 0;
-	for(var = cvars->vars; var; var = var->next)
-	{
-		for(i = 0, p = buf, q = var->name; i < n; ++i)
-		{
-			*p++ = *q++;
-			if (!*q)
-				q = var->name;
-		}
-		if (verify && strcmp(var->string, buf))
-		{
-			Con_PrintLinef (NEWLINE "%s does not contain the right rubbish, either this is the first run or a possible overrun was detected, or something changed it intentionally; it DOES contain: %s", var->name, var->string);
-		}
-		Cvar_SetQuick(var, buf);
-	}
-	Z_Free(buf);
-}
-#endif /* FILLALLCVARSWITHRUBBISH */

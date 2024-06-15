@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
 
+// Baker: fte does cl_nocsqc as the cvar name.  Alias it?
 cvar_t csqc_enable = {CF_CLIENT | CF_SERVER | CF_ARCHIVE, "csqc_enable","1","whether csqc csprogs.dat loads [Zircon]"}; // Baker r0101: csqc_enable
 cvar_t csqc_progname = {CF_CLIENT | CF_SERVER, "csqc_progname","csprogs.dat","name of csprogs.dat file to load"};
 cvar_t csqc_progcrc = {CF_CLIENT | CF_READONLY, "csqc_progcrc","-1","CRC of csprogs.dat file to load (-1 is none), only used during level changes and then reset to -1"};
@@ -138,9 +139,17 @@ void CL_ClearState(void)
 	Mem_EmptyPool(cls.levelmempool);
 	memset (&cl, 0, sizeof(cl));
 
+	WARP_X_ (V_cshift_f)
 #if 1 // Baker: 20240407 - Let's clear this
 	// Baker: Why not that whole struct?
+	// A: CL_MeshEntities_Scene_AddRenderEntity crashes if we do
+	WARP_X_ (CL_MeshEntities_Scene_AddRenderEntity)
 	r_refdef.scene.worldentity = NULL;
+	// Does restart come here?  I bet it does NOT.
+	// No it does!
+	r_refdef.viewblend[0] = r_refdef.viewblend[1] = r_refdef.viewblend[2] = r_refdef.viewblend[3] = 0;  
+	
+	//memset (&r_refdef, 0, sizeof(r_refdef)); // CRASHES
 #endif
 
 	S_StopAllSounds();
@@ -165,14 +174,14 @@ void CL_ClearState(void)
 
 	// tweak these if the game runs out
 	cl.max_csqcrenderentities = 0;
-	cl.max_entities = MAX_ENTITIES_INITIAL;
-	cl.max_static_entities = MAX_STATICENTITIES;
-	cl.max_effects = MAX_EFFECTS;
-	cl.max_beams = MAX_BEAMS;
+	cl.max_entities = MAX_ENTITIES_INITIAL_256;
+	cl.max_static_entities = MAX_STATICENTITIES_4096;
+	cl.max_effects = MAX_EFFECTS_256;
+	cl.max_beams = MAX_BEAMS_256;
 	cl.max_dlights = MAX_DLIGHTS_256;
 	cl.max_lightstyle = MAX_LIGHTSTYLES_256;
 	cl.max_brushmodel_entities = MAX_EDICTS_32768;
-	cl.max_particles = MAX_PARTICLES_INITIAL; // grows dynamically
+	cl.max_particles = MAX_PARTICLES_INITIAL_8192; // grows dynamically
 	cl.max_showlmps = 0;
 
 	cl.num_dlights = 0;
@@ -221,7 +230,7 @@ void CL_ClearState(void)
 	// entire entity array was cleared, so just fill in a few fields
 	ent->state_current.active = true;
 	ent->render.model = cl.worldmodel = NULL; // no world model yet
-	ent->render.alpha = 1;
+	ent->render.ralpha = 1;
 	ent->render.crflags = RENDER_SHADOW | RENDER_LIGHT;
 	Matrix4x4_CreateFromQuakeEntity(&ent->render.matrix, 0, 0, 0, 0, 0, 0, 1);
 	ent->render.allowdecals = true;
@@ -249,7 +258,7 @@ void CL_SetInfo(const char *key, const char *value, qbool send, qbool allowstark
 	char vabuf[1024];
 	if (!allowstarkey && key[0] == '*')
 		fail = true;
-	if (!allowmodel && (String_Does_Match_Caseless(key, "pmodel") || String_Does_Match_Caseless(key, "emodel")))
+	if (!allowmodel && (String_Match_Caseless(key, "pmodel") || String_Match_Caseless(key, "emodel")))
 		fail = true;
 	for (i = 0;key[i];i++)
 		if (ISWHITESPACE(key[i]) || key[i] == '\"')
@@ -271,37 +280,37 @@ void CL_SetInfo(const char *key, const char *value, qbool send, qbool allowstark
 			//MSG_WriteByte(&cls.netcon->message, qw_clc_stringcmd);
 			//MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "setinfo " QUOTED_S " " QUOTED_S, key, value));
 		}
-		else if (String_Does_Match_Caseless(key, "name"))
+		else if (String_Match_Caseless(key, "name"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "name " QUOTED_S, value));
 		}
-		else if (String_Does_Match_Caseless(key, "playermodel"))
+		else if (String_Match_Caseless(key, "playermodel"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "playermodel " QUOTED_S, value));
 		}
-		else if (String_Does_Match_Caseless(key, "playerskin"))
+		else if (String_Match_Caseless(key, "playerskin"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "playerskin " QUOTED_S, value));
 		}
-		else if (String_Does_Match_Caseless(key, "topcolor"))
+		else if (String_Match_Caseless(key, "topcolor"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "color %d %d", atoi(value), cl_bottomcolor.integer));
 		}
-		else if (String_Does_Match_Caseless(key, "bottomcolor"))
+		else if (String_Match_Caseless(key, "bottomcolor"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "color %d %d", cl_topcolor.integer, atoi(value)));
 		}
-		else if (String_Does_Match_Caseless(key, "rate"))
+		else if (String_Match_Caseless(key, "rate"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "rate " QUOTED_S, value));
 		}
-		else if (String_Does_Match_Caseless(key, "rate_burstsize"))
+		else if (String_Match_Caseless(key, "rate_burstsize"))
 		{
 			MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 			MSG_WriteString(&cls.netcon->message, va(vabuf, sizeof(vabuf), "rate_burstsize " QUOTED_S, value));
@@ -407,6 +416,10 @@ void CL_DisconnectEx(qbool kicked, const char *fmt, ... )
 	Cvar_SetValueQuick(&csqc_progcrc, -1);
 	Cvar_SetValueQuick(&csqc_progsize, -1);
 	CL_VM_ShutDown();
+	if (SVVM_prog->loaded) {
+		SVVM_prog->loaded = false;
+	}
+
 	// stop sounds (especially looping!)
 	S_StopAllSounds();
 	// prevent dlcache assets from this server from interfering with the next one
@@ -716,14 +729,14 @@ static void CL_PrintEntities_f (cmd_state_t *cmd)
 		Con_PrintLinef ("%3d: %-18s:%4d  (%5d %5d %5d) [%4d %4d %3d] %3.1f %3.1f %s",
 			ent_num,	// 0
 			modelname,	// 1
-			ent->render.framegroupblend[0].frame,
+			ent->render.framegroupblend[0].fb_frame,
 			(int) ent->state_current.origin[0],
 			(int) ent->state_current.origin[1],
 			(int) ent->state_current.origin[2],
 			(int) ent->state_current.angles[0] % 360,
 			(int) ent->state_current.angles[1] % 360,
 			(int) ent->state_current.angles[2] % 360,
-			ent->render.scale, ent->render.alpha, s_solid
+			ent->render.scale, ent->render.ralpha, s_solid
 		);
 		
 		if (expanded) {
@@ -891,7 +904,7 @@ void CL_ClearTempEntities (void)
 	// grow tempentities buffer on request
 	if (r_refdef.scene.expandtempentities)
 	{
-		Con_Printf ("CL_NewTempEntity: grow maxtempentities from %d to %d\n", r_refdef.scene.maxtempentities, r_refdef.scene.maxtempentities * 2);
+		Con_PrintLinef ("CL_NewTempEntity: grow maxtempentities from %d to %d", r_refdef.scene.maxtempentities, r_refdef.scene.maxtempentities * 2);
 		r_refdef.scene.maxtempentities *= 2;
 		r_refdef.scene.tempentities = (entity_render_t *)Mem_Realloc(cls.permanentmempool, r_refdef.scene.tempentities, sizeof(entity_render_t) * r_refdef.scene.maxtempentities);
 		r_refdef.scene.expandtempentities = false;
@@ -914,7 +927,7 @@ entity_render_t *CL_NewTempEntity(double shadertime)
 	r_refdef.scene.entities[r_refdef.scene.numentities++] = render;
 
 	render->shadertime = shadertime;
-	render->alpha = 1;
+	render->ralpha = 1;
 	VectorSet(render->colormod, 1, 1, 1);
 	VectorSet(render->glowmod, 1, 1, 1);
 	return render;
@@ -1108,7 +1121,7 @@ void CL_RelinkLightFlashes(void)
 
 static void CL_AddQWCTFFlagModel(entity_t *player, int skin)
 {
-	int frame = player->render.framegroupblend[0].frame;
+	int frame = player->render.framegroupblend[0].fb_frame;
 	float f;
 	entity_render_t *flagrender;
 	matrix4x4_t flagmatrix;
@@ -1151,7 +1164,7 @@ static void CL_AddQWCTFFlagModel(entity_t *player, int skin)
 
 	flagrender->model = CL_GetModelByIndex(cl.qw_modelindex_flag);
 	flagrender->skinnum = skin;
-	flagrender->alpha = 1;
+	flagrender->ralpha = 1;
 	VectorSet(flagrender->colormod, 1, 1, 1);
 	VectorSet(flagrender->glowmod, 1, 1, 1);
 	// attach the flag to the player matrix
@@ -1198,7 +1211,7 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 		return;
 	if (recursionlimit < 1)
 		return;
-	e->render.alpha = e->state_current.alpha * (1.0f / 255.0f); // FIXME: interpolate?
+	e->render.ralpha = e->state_current.alpha * (1.0f / 255.0f); // FIXME: interpolate?
 	e->render.scale = e->state_current.scale * (1.0f / 16.0f); // FIXME: interpolate?
 	e->render.crflags = e->state_current.sflags;
 	e->render.effects = e->state_current.effects;
@@ -1227,13 +1240,12 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 	else
 		CL_SetEntityColormapColors(&e->render, -1);
 	e->render.skinnum = e->state_current.skin;
-	if (e->state_current.tagentity)
-	{
+	if (e->state_current.tagxentity) { // TAGX CL_UpdateNetworkEntity
 		// attached entity (gun held in player model's hand, etc)
 		// if the tag entity is currently impossible, skip it
-		if (e->state_current.tagentity >= cl.num_entities)
+		if (e->state_current.tagxentity >= cl.num_entities)
 			return;
-		t = cl.entities + e->state_current.tagentity;
+		t = cl.entities + e->state_current.tagxentity;
 		// if the tag entity is inactive, skip it
 		if (t->state_current.active)
 		{
@@ -1245,9 +1257,9 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 		{
 			// it may still be a CSQC entity... trying to use its
 			// info from last render frame (better than nothing)
-			if (!cl.csqc_server2csqcentitynumber[e->state_current.tagentity])
+			if (!cl.csqc_server2csqcentitynumber[e->state_current.tagxentity])
 				return;
-			r = cl.csqcrenderentities + cl.csqc_server2csqcentitynumber[e->state_current.tagentity];
+			r = cl.csqcrenderentities + cl.csqc_server2csqcentitynumber[e->state_current.tagxentity];
 			if (!r->entitynumber)
 				return; // neither CSQC nor legacy entity... can't attach
 		}
@@ -1256,12 +1268,13 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 		// some properties of the tag entity carry over
 		e->render.crflags |= r->crflags & (RENDER_EXTERIORMODEL | RENDER_VIEWMODEL);
 		// if a valid tagindex is used, make it relative to that tag instead
-		if (e->state_current.tagentity && e->state_current.tagindex >= 1 && r->model)
-		{
-			if (!Mod_Alias_GetTagMatrix(r->model, r->frameblend, r->skeleton, e->state_current.tagindex - 1, &blendmatrix)) // i.e. no error
-			{
+		if (e->state_current.tagxentity && e->state_current.tagindex >= 1 && r->model) { // TAGXPRIME
+			// i.e. no error
+			// Baker: Fills blendmatrix
+			if (!Mod_Alias_GetTagMatrix(r->model, r->frameblend, r->skeleton, 
+				e->state_current.tagindex - 1, &blendmatrix)) { 
 				// concat the tag matrices onto the entity matrix
-				Matrix4x4_Concat(&tempmatrix, &r->matrix, &blendmatrix);
+				Matrix4x4_Concat(&tempmatrix, &r->matrix, &blendmatrix); // TAGXPRIME
 				// use the constructed tag matrix
 				matrix = &tempmatrix;
 			}
@@ -1369,7 +1382,7 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 		if (e->state_current.skeletonobject.model && e->state_current.skeletonobject.relativetransforms)
 			e->render.skeleton = &e->state_current.skeletonobject;
 	}
-	else if (e->render.framegroupblend[0].frame == frame)
+	else if (e->render.framegroupblend[0].fb_frame == frame)
 	{
 		// update frame lerp fraction
 		e->render.framegroupblend[0].lerp = 1;
@@ -1382,7 +1395,7 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 			float maxdelta = cl_lerpanim_maxdelta_server.value;
 			if (e->render.model)
 			if (e->render.model->animscenes)
-			if (e->render.model->animscenes[e->render.framegroupblend[0].frame].framecount > 1 || e->render.model->animscenes[e->render.framegroupblend[1].frame].framecount > 1)
+			if (e->render.model->animscenes[e->render.framegroupblend[0].fb_frame].framecount > 1 || e->render.model->animscenes[e->render.framegroupblend[1].fb_frame].framecount > 1)
 				maxdelta = cl_lerpanim_maxdelta_framegroups.value;
 			maxdelta = max(maxdelta, cl.mtime[0] - cl.mtime[1]);
 			e->render.framegroupblend[0].lerp = (cl.time - e->render.framegroupblend[0].start) / min(e->render.framegroupblend[0].start - e->render.framegroupblend[1].start, maxdelta);
@@ -1395,7 +1408,7 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 		// begin a new frame lerp
 		e->render.framegroupblend[1] = e->render.framegroupblend[0];
 		e->render.framegroupblend[1].lerp = 1;
-		e->render.framegroupblend[0].frame = frame;
+		e->render.framegroupblend[0].fb_frame = frame;
 		e->render.framegroupblend[0].start = cl.time;
 		e->render.framegroupblend[0].lerp = 0;
 	}
@@ -1430,7 +1443,7 @@ static void CL_UpdateNetworkEntity(entity_t *e, int recursionlimit, qbool interp
 	}
 	// hide player shadow during intermission or nehahra movie
 	if (!(e->render.effects & (EF_NOSHADOW | EF_ADDITIVE_32 | EF_NODEPTHTEST))
-	 && (e->render.alpha >= 1)
+	 && (e->render.ralpha >= 1)
 	 && !(e->render.crflags & RENDER_VIEWMODEL)
 	 && (!(e->render.crflags & RENDER_EXTERIORMODEL) || 
 		(!cl.intermission && cls.protocol != PROTOCOL_NEHAHRAMOVIE && !cl_noplayershadow.integer)))
@@ -1511,8 +1524,8 @@ static void CL_UpdateNetworkEntityTrail(entity_t *e)
 			trailtype = EFFECT_TR_ROCKET;
 		else if (e->render.effects & EF_GRENADE)
 		{
-			// LadyHavoc: e->render.alpha == -1 is for Nehahra dem compatibility (cigar smoke)
-			trailtype = e->render.alpha == -1 ? EFFECT_TR_NEHAHRASMOKE : EFFECT_TR_GRENADE;
+			// LadyHavoc: e->render.ralpha == -1 is for Nehahra dem compatibility (cigar smoke)
+			trailtype = e->render.ralpha == -1 ? EFFECT_TR_NEHAHRASMOKE : EFFECT_TR_GRENADE;
 		}
 		else if (e->render.effects & EF_TRACER3)
 			trailtype = EFFECT_TR_VORESPIKE;
@@ -1556,7 +1569,7 @@ void CL_UpdateViewEntities(void)
 		if (cl.entities_active[i])
 		{
 			entity_t *ent = cl.entities + i;
-			if ((ent->render.crflags & RENDER_VIEWMODEL) || ent->state_current.tagentity)
+			if ((ent->render.crflags & RENDER_VIEWMODEL) || ent->state_current.tagxentity)
 				CL_UpdateNetworkEntity(ent, 32, true);
 		}
 	}
@@ -1650,7 +1663,7 @@ skip:  // Baker r1488 viewmodel ring alpha
 	// reset animation interpolation on weaponmodel if model changed
 	if (ent->state_previous.modelindex != ent->state_current.modelindex)
 	{
-		ent->render.framegroupblend[0].frame = ent->render.framegroupblend[1].frame = ent->state_current.frame;
+		ent->render.framegroupblend[0].fb_frame = ent->render.framegroupblend[1].fb_frame = ent->state_current.frame;
 		ent->render.framegroupblend[0].start = ent->render.framegroupblend[1].start = cl.time;
 		ent->render.framegroupblend[0].lerp = 1;ent->render.framegroupblend[1].lerp = 0;
 	}
@@ -1669,17 +1682,17 @@ static void CL_LinkNetworkEntity(entity_t *e)
 	// skip inactive entities and world
 	if (!e->state_current.active || e == cl.entities)
 		return;
-	if (e->state_current.tagentity)
+	if (e->state_current.tagxentity)
 	{
 		// if the tag entity is currently impossible, skip it
-		if (e->state_current.tagentity >= cl.num_entities)
+		if (e->state_current.tagxentity >= cl.num_entities)
 			return;
 		// if the tag entity is inactive, skip it
-		if (!cl.entities[e->state_current.tagentity].state_current.active)
+		if (!cl.entities[e->state_current.tagxentity].state_current.active)
 		{
-			if (!cl.csqc_server2csqcentitynumber[e->state_current.tagentity])
+			if (!cl.csqc_server2csqcentitynumber[e->state_current.tagxentity])
 				return;
-			if (!cl.csqcrenderentities[cl.csqc_server2csqcentitynumber[e->state_current.tagentity]].entitynumber)
+			if (!cl.csqcrenderentities[cl.csqc_server2csqcentitynumber[e->state_current.tagxentity]].entitynumber)
 				return;
 			// if we get here, it's properly csqc networked and attached
 		}
@@ -1773,8 +1786,8 @@ static void CL_LinkNetworkEntity(entity_t *e)
 			trailtype = EFFECT_TR_ROCKET;
 		else if (e->render.effects & EF_GRENADE)
 		{
-			// LadyHavoc: e->render.alpha == -1 is for Nehahra dem compatibility (cigar smoke)
-			trailtype = e->render.alpha == -1 ? EFFECT_TR_NEHAHRASMOKE : EFFECT_TR_GRENADE;
+			// LadyHavoc: e->render.ralpha == -1 is for Nehahra dem compatibility (cigar smoke)
+			trailtype = e->render.ralpha == -1 ? EFFECT_TR_NEHAHRASMOKE : EFFECT_TR_GRENADE;
 		}
 		else if (e->render.effects & EF_TRACER3)
 			trailtype = EFFECT_TR_VORESPIKE;
@@ -1900,7 +1913,7 @@ static void CL_RelinkWorld(void)
 
 	// if the world is q2bsp, animate the textures
 	if (ent->render.model && ent->render.model->brush.isq2bsp)
-		ent->render.framegroupblend[0].frame = (int)(cl.time * 2.0f);
+		ent->render.framegroupblend[0].fb_frame = (int)(cl.time * 2.0f);
 }
 
 static void CL_RelinkStaticEntities(void)
@@ -1921,7 +1934,7 @@ static void CL_RelinkStaticEntities(void)
 				e->render.crflags |= RENDER_LIGHT;
 		}
 		// hide player shadow during intermission or nehahra movie
-		if (!(e->render.effects & (EF_NOSHADOW | EF_ADDITIVE_32 | EF_NODEPTHTEST)) && (e->render.alpha >= 1))
+		if (!(e->render.effects & (EF_NOSHADOW | EF_ADDITIVE_32 | EF_NODEPTHTEST)) && (e->render.ralpha >= 1))
 			e->render.crflags |= RENDER_SHADOW;
 		VectorSet(e->render.colormod, 1, 1, 1);  // OVERBRIGHT
 		if (e->render.model && e->render.model->model_name[0] == '*') {
@@ -1997,25 +2010,25 @@ static void CL_RelinkEffects(void)
 			if (r_draweffects.integer && (entrender = CL_NewTempEntity(e->starttime)))
 			{
 				// interpolation stuff
-				entrender->framegroupblend[0].frame = intframe;
+				entrender->framegroupblend[0].fb_frame = intframe;
 				entrender->framegroupblend[0].lerp = 1 - frame - intframe;
 				entrender->framegroupblend[0].start = e->frame1time;
 				if (intframe + 1 >= e->endframe)
 				{
-					entrender->framegroupblend[1].frame = 0; // disappear
+					entrender->framegroupblend[1].fb_frame = 0; // disappear
 					entrender->framegroupblend[1].lerp = 0;
 					entrender->framegroupblend[1].start = 0;
 				}
 				else
 				{
-					entrender->framegroupblend[1].frame = intframe + 1;
+					entrender->framegroupblend[1].fb_frame = intframe + 1;
 					entrender->framegroupblend[1].lerp = frame - intframe;
 					entrender->framegroupblend[1].start = e->frame2time;
 				}
 
 				// normal stuff
 				entrender->model = e->model;
-				entrender->alpha = 1;
+				entrender->ralpha = 1;
 				VectorSet(entrender->colormod, 1, 1, 1);
 				VectorSet(entrender->glowmod, 1, 1, 1);
 
@@ -2159,7 +2172,7 @@ static void CL_RelinkQWNails(void)
 
 		// normal stuff
 		entrender->model = CL_GetModelByIndex(cl.qw_modelindex_spike);
-		entrender->alpha = 1;
+		entrender->ralpha = 1;
 		VectorSet(entrender->colormod, 1, 1, 1);
 		VectorSet(entrender->glowmod, 1, 1, 1);
 
@@ -2384,7 +2397,7 @@ static void CL_TimeRefresh_f(cmd_state_t *cmd)
 	}
 	timedelta = Sys_DirtyTime() - timestart;
 
-	Con_Printf ("%f seconds (%f fps)\n", timedelta, 128/timedelta);
+	Con_PrintLinef ("%f seconds (%f fps)", timedelta, 128/timedelta);
 }
 
 static void CL_AreaStats_f(cmd_state_t *cmd)
@@ -2545,16 +2558,16 @@ static void CL_Locs_Save_f(cmd_state_t *cmd)
 			for (len = 0;len < (int)sizeof(name) - 1 && *in;)
 			{
 				if (*in == ' ') {s = "$loc_name_separator";in++;}
-				else if (String_Does_Start_With(in, "SSG"/*, 3*/))		{s = "$loc_name_ssg";in += 3;}
-				else if (String_Does_Start_With(in, "NG"/*, 2*/))		{s = "$loc_name_ng";in += 2;}
-				else if (String_Does_Start_With(in, "SNG"/*, 3*/))		{s = "$loc_name_sng";in += 3;}
-				else if (String_Does_Start_With(in, "GL"/*, 2*/))		{s = "$loc_name_gl";in += 2;}
-				else if (String_Does_Start_With(in, "RL"/*, 2*/))		{s = "$loc_name_rl";in += 2;}
-				else if (String_Does_Start_With(in, "LG"/*, 2*/))		{s = "$loc_name_lg";in += 2;}
-				else if (String_Does_Start_With(in, "GA"/*, 2*/))		{s = "$loc_name_ga";in += 2;}
-				else if (String_Does_Start_With(in, "YA"/*, 2*/))		{s = "$loc_name_ya";in += 2;}
-				else if (String_Does_Start_With(in, "RA"/*, 2*/))		{s = "$loc_name_ra";in += 2;}
-				else if (String_Does_Start_With(in, "MEGA"/*, 4*/))		{s = "$loc_name_mh";in += 4;}
+				else if (String_Starts_With(in, "SSG"/*, 3*/))		{s = "$loc_name_ssg";in += 3;}
+				else if (String_Starts_With(in, "NG"/*, 2*/))		{s = "$loc_name_ng";in += 2;}
+				else if (String_Starts_With(in, "SNG"/*, 3*/))		{s = "$loc_name_sng";in += 3;}
+				else if (String_Starts_With(in, "GL"/*, 2*/))		{s = "$loc_name_gl";in += 2;}
+				else if (String_Starts_With(in, "RL"/*, 2*/))		{s = "$loc_name_rl";in += 2;}
+				else if (String_Starts_With(in, "LG"/*, 2*/))		{s = "$loc_name_lg";in += 2;}
+				else if (String_Starts_With(in, "GA"/*, 2*/))		{s = "$loc_name_ga";in += 2;}
+				else if (String_Starts_With(in, "YA"/*, 2*/))		{s = "$loc_name_ya";in += 2;}
+				else if (String_Starts_With(in, "RA"/*, 2*/))		{s = "$loc_name_ra";in += 2;}
+				else if (String_Starts_With(in, "MEGA"/*, 4*/))		{s = "$loc_name_mh";in += 4;}
 				else s = NULL;
 				if (s)
 				{
@@ -2620,7 +2633,7 @@ void CL_Locs_Reload_f(cmd_state_t *cmd)
 		while (linestart < lineend && ISWHITESPACE(*linestart))
 			linestart++;
 		// check if this is a comment
-		if (linestart + 2 <= lineend && String_Does_Start_With(linestart, "//"/*, 2*/))
+		if (linestart + 2 <= lineend && String_Starts_With(linestart, "//"/*, 2*/))
 			continue;
 		linetext = linestart;
 		limit = 3;
@@ -2677,17 +2690,17 @@ void CL_Locs_Reload_f(cmd_state_t *cmd)
 			{
 				if (*linetext == '$')
 				{
-					if (linetext + 18 <= lineend && String_Does_Start_With(linetext, "$loc_name_separator"/*, 19*/)) {s = " ";linetext += 19;}
-					else if (linetext + 13 <= lineend && String_Does_Start_With(linetext, "$loc_name_ssg"/*, 13*/)) {s = "SSG";linetext += 13;}
-					else if (linetext + 12 <= lineend && String_Does_Start_With(linetext, "$loc_name_ng"/*, 12*/)) {s = "NG";linetext += 12;}
-					else if (linetext + 13 <= lineend && String_Does_Start_With(linetext, "$loc_name_sng"/*, 13*/)) {s = "SNG";linetext += 13;}
-					else if (linetext + 12 <= lineend && String_Does_Start_With(linetext, "$loc_name_gl"/*, 12*/)) {s = "GL";linetext += 12;}
-					else if (linetext + 12 <= lineend && String_Does_Start_With(linetext, "$loc_name_rl"/*, 12*/)) {s = "RL";linetext += 12;}
-					else if (linetext + 12 <= lineend && String_Does_Start_With(linetext, "$loc_name_lg"/*, 12*/)) {s = "LG";linetext += 12;}
-					else if (linetext + 12 <= lineend && String_Does_Start_With(linetext, "$loc_name_ga"/*, 12*/)) {s = "GA";linetext += 12;}
-					else if (linetext + 12 <= lineend && String_Does_Start_With(linetext, "$loc_name_ya"/*, 12*/)) {s = "YA";linetext += 12;}
-					else if (linetext + 12 <= lineend && String_Does_Start_With(linetext, "$loc_name_ra"/*, 12*/)) {s = "RA";linetext += 12;}
-					else if (linetext + 12 <= lineend && String_Does_Start_With(linetext, "$loc_name_mh"/*, 12*/)) {s = "MEGA";linetext += 12;}
+					if (linetext + 18 <= lineend && String_Starts_With(linetext, "$loc_name_separator"/*, 19*/)) {s = " ";linetext += 19;}
+					else if (linetext + 13 <= lineend && String_Starts_With(linetext, "$loc_name_ssg"/*, 13*/)) {s = "SSG";linetext += 13;}
+					else if (linetext + 12 <= lineend && String_Starts_With(linetext, "$loc_name_ng"/*, 12*/)) {s = "NG";linetext += 12;}
+					else if (linetext + 13 <= lineend && String_Starts_With(linetext, "$loc_name_sng"/*, 13*/)) {s = "SNG";linetext += 13;}
+					else if (linetext + 12 <= lineend && String_Starts_With(linetext, "$loc_name_gl"/*, 12*/)) {s = "GL";linetext += 12;}
+					else if (linetext + 12 <= lineend && String_Starts_With(linetext, "$loc_name_rl"/*, 12*/)) {s = "RL";linetext += 12;}
+					else if (linetext + 12 <= lineend && String_Starts_With(linetext, "$loc_name_lg"/*, 12*/)) {s = "LG";linetext += 12;}
+					else if (linetext + 12 <= lineend && String_Starts_With(linetext, "$loc_name_ga"/*, 12*/)) {s = "GA";linetext += 12;}
+					else if (linetext + 12 <= lineend && String_Starts_With(linetext, "$loc_name_ya"/*, 12*/)) {s = "YA";linetext += 12;}
+					else if (linetext + 12 <= lineend && String_Starts_With(linetext, "$loc_name_ra"/*, 12*/)) {s = "RA";linetext += 12;}
+					else if (linetext + 12 <= lineend && String_Starts_With(linetext, "$loc_name_mh"/*, 12*/)) {s = "MEGA";linetext += 12;}
 					else s = NULL;
 					if (s)
 					{
@@ -2768,10 +2781,10 @@ void CL_MeshEntities_Init(void)
 		ent->state_current.active = true;
 		ent->render.model = cl_meshentitymodels + i;
 		Mod_Mesh_Create(ent->render.model, cl_meshentitynames[i]);
-		ent->render.alpha = 1;
+		ent->render.ralpha = 1;
 		ent->render.crflags = RENDER_SHADOW | RENDER_LIGHT;
 		ent->render.framegroupblend[0].lerp = 1;
-		ent->render.frameblend[0].lerp = 1;
+		ent->render.frameblend[0].rlerp = 1;
 		VectorSet(ent->render.colormod, 1, 1, 1);  // OVERBRIGHT
 		if (gl_overbright_models.integer) {
 			VectorScale (ent->render.colormod, 2, ent->render.colormod);
@@ -2877,7 +2890,7 @@ lightme:
 		int entnum = ent->entitynumber, recursion;
 		for (recursion = 32; recursion > 0; --recursion)
 		{
-			int parentnum = cl.entities[entnum].state_current.tagentity;
+			int parentnum = cl.entities[entnum].state_current.tagxentity;
 			if (parentnum < 1 || parentnum >= cl.num_entities || !cl.entities_active[parentnum])
 				break;
 			entnum = parentnum;
@@ -3025,7 +3038,7 @@ void CL_UpdateEntityShading(void)
 }
 
 qbool vid_opened = false;
-// Baker: This is renderer restart "start video".  Sort of like VID_Init
+// Baker: This is renderer restart "start video".  Sort of like VID_InitOnce
 void CL_StartVideo(void)
 {
 	if (!vid_opened && cls.state != ca_dedicated)
@@ -3242,10 +3255,10 @@ void CL_Shutdown (void)
 
 /*
 =================
-CL_Init
+CL_InitOnce
 =================
 */
-void CL_Init (void)
+void CL_InitOnce (void)
 {
 	if (cls.state == ca_dedicated)
 	{
@@ -3257,18 +3270,18 @@ void CL_Init (void)
 
 		Cvar_SetValueQuick(&host_isclient, 1);
 
-		R_Modules_Init();
-		Palette_Init();
+		R_Modules_InitOnce();
+		Palette_InitOnce();
 #ifdef CONFIG_MENU
-		MR_Init_Commands();
+		MR_InitOnce_Commands();
 #endif
-		VID_Shared_Init();
-		VID_Init();
-		Render_Init();
-		S_Init();
+		VID_Shared_InitOnce();
+		VID_InitOnce();
+		Render_InitOnce();
+		S_InitOnce();
 		//CDAudio_Init();
-		Key_Init();
-		V_Init();
+		Key_InitOnce();
+		V_InitOnce(); // View
 
 		cls.levelmempool = Mem_AllocPool("client (per-level memory)", 0, NULL);
 		cls.permanentmempool = Mem_AllocPool("client (long term memory)", 0, NULL);
@@ -3279,7 +3292,7 @@ void CL_Init (void)
 		r_refdef.scene.entities = (entity_render_t **)Mem_Alloc(cls.permanentmempool, sizeof(entity_render_t *) * r_refdef.scene.maxentities);
 
 		// max temp entities
-		r_refdef.scene.maxtempentities = MAX_TEMPENTITIES;
+		r_refdef.scene.maxtempentities = MAX_TEMPENTITIES_4096;
 		r_refdef.scene.tempentities = (entity_render_t *)Mem_Alloc(cls.permanentmempool, sizeof(entity_render_t) * r_refdef.scene.maxtempentities);
 
 		CL_InitInput ();

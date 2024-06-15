@@ -90,26 +90,26 @@ static void M_Setup_Draw (void)
 
 	M_DrawPic ( (320-Draw_GetPicWidth(p0))/2, 4, "gfx/p_multi", NO_HOTSPOTS_0, NA0, NA0);
 
-	Hotspots_Add (menu_x + 48, menu_y + 40, 320, 8 + 1, 1, hotspottype_button);
+	Hotspots_Add (menu_x + 48, menu_y + 40, 320, 8 + 1, 1, hotspottype_button, q_force_scale_0);
 
 	M_Print(64, 40, "Your name");
 	M_DrawTextBox (160, 32, 16, 1);
 	M_PrintColored(168, 40, setup_myname);
 
 	M_Print(64, 64, "Shirt color");
-	Hotspots_Add (menu_x + 48, menu_y + 64, 320, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + 64, 320, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 
 	M_Print(64, 88, "Pants color");
-	Hotspots_Add (menu_x + 48, menu_y + 88, 320, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + 88, 320, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 
 	M_Print(64, 124-8, "Network speed limit");
 	M_Print(168, 124, va(vabuf, sizeof(vabuf), "%d (%s)", setup_rate, setup_ratetable[setup_rateindex(setup_rate)].name));
-	Hotspots_Add (menu_x + 48, menu_y + 116, 320, 8 + 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + 116, 320, 8 + 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 
 
 	M_DrawTextBox (64, 140-8, 14, 1);
 	M_Print(72, 140, "Accept Changes");
-	Hotspots_Add (menu_x + 48, menu_y + 140, 320, 8 + 1, 1, hotspottype_button);
+	Hotspots_Add (menu_x + 48, menu_y + 140, 320, 8 + 1, 1, hotspottype_button, q_force_scale_0);
 
 
 	// LadyHavoc: rewrote this code greatly
@@ -164,7 +164,7 @@ static void M_Setup_Draw (void)
 				}
 				menuplyr_translated[i] = palette_bgra_transparent[j];
 			}
-#pragma message ("The colors don't change .. not sure why yet")
+#pragma message ("KEEP ME - MENU_SETUP - The player colors don't change .. not sure why yet")
 			Draw_NewPic("gfx/menuplyr", menuplyr_width, menuplyr_height, (unsigned char *)menuplyr_translated, TEXTYPE_BGRA, TEXF_CLAMP);
 		}
 		M_DrawPic(160, 48, "gfx/bigbox", NO_HOTSPOTS_0, NA0, NA0);

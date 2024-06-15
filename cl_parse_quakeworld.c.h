@@ -84,13 +84,13 @@ WARP_X_ (CL_ParseServerMessage)
 					if (j == 3) {
 						// chat
 						va(vabuf, sizeof(vabuf), "\1%s", str);
-						if (1 /*cl_pext_qw_coloredtext.value*/ && String_Does_Contain (vabuf, "&"))
+						if (1 /*cl_pext_qw_coloredtext.value*/ && String_Contains (vabuf, "&"))
 							CSQC_AddPrintTextQWColor (vabuf);
 						else
 							CSQC_AddPrintText(vabuf);	//[515]: csqc
 					}
 					else {
-						if (1 /*cl_pext_qw_coloredtext.value*/ && String_Does_Contain (str, "&"))
+						if (1 /*cl_pext_qw_coloredtext.value*/ && String_Contains (str, "&"))
 							CSQC_AddPrintTextQWColor (str);
 						else
 							CSQC_AddPrintText(str);
@@ -210,14 +210,14 @@ gamedir_change:
 
 			case qw_svc_updatestat:
 				j = MSG_ReadByte(&cl_message);
-				if (j < 0 || j >= MAX_CL_STATS)
+				if (j < 0 || j >= MAX_CL_STATS_256)
 					Host_Error_Line ("svc_updatestat: %d is invalid", j);
 				cl.stats[j] = MSG_ReadByte(&cl_message);
 				break;
 
 			case qw_svc_updatestatlong:
 				j = MSG_ReadByte(&cl_message);
-				if (j < 0 || j >= MAX_CL_STATS)
+				if (j < 0 || j >= MAX_CL_STATS_256)
 					Host_Error_Line ("svc_updatestatlong: %d is invalid", j);
 				cl.stats[j] = MSG_ReadLong(&cl_message);
 				break;
@@ -230,9 +230,9 @@ gamedir_change:
 				cl.cdtrack = cl.looptrack = MSG_ReadByte(&cl_message);
 
 				if ( (cls.demoplayback || cls.demorecording) && (cls.forcetrack != -1) )
-					CDAudio_Play ((unsigned char)cls.forcetrack, true);
+					CDAudio_Play ((unsigned char)cls.forcetrack, q_looping_true);
 				else
-					CDAudio_Play ((unsigned char)cl.cdtrack, true);
+					CDAudio_Play ((unsigned char)cl.cdtrack, q_looping_true);
 
 				break;
 

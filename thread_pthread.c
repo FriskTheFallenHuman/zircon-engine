@@ -9,7 +9,7 @@
 #include <stdint.h>
 
 
-int Thread_Init(void)
+int Thread_InitOnce(void)
 {
 	return 0;
 }

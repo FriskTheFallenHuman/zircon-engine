@@ -44,7 +44,7 @@ float CL_SelectTraceLine(const vec3_t start, const vec3_t end, vec3_t impact, ve
 		if (Have_Flag(ent->crflags, RENDER_EXTERIORMODEL) && !chase_active.integer)
 			continue;
 		// if transparent and not selectable, skip entity
-		if (!(cl.entities[n].state_current.effects & EF_SELECTABLE) && (ent->alpha < 1 || (ent->effects & (EF_ADDITIVE_32 | EF_NODEPTHTEST))))
+		if (!(cl.entities[n].state_current.effects & EF_SELECTABLE) && (ent->ralpha < 1 || (ent->effects & (EF_ADDITIVE_32 | EF_NODEPTHTEST))))
 			continue;
 		if (ent == ignoreent)
 			continue;
@@ -1166,7 +1166,7 @@ trace_t CL_Cache_TraceLineSurfaces(const vec3_t start, const vec3_t end, int typ
 		if (!model)
 			continue;
 		// animated models are not suitable for caching
-		if ((touch->priv.server->frameblend[0].lerp != 1.0 || touch->priv.server->frameblend[0].subframe != 0) || touch->priv.server->skeleton.relativetransforms)
+		if ((touch->priv.server->frameblend[0].rlerp != 1.0 || touch->priv.server->frameblend[0].subframe != 0) || touch->priv.server->skeleton.relativetransforms)
 			continue;
 		if (type == MOVE_NOMONSTERS && PRVM_clientedictfloat(touch, solid) != SOLID_BSP_4)
 			continue;

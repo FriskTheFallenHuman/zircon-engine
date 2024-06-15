@@ -56,7 +56,7 @@ typedef struct snd_ringbuffer_s
 // struct sfx_s flags
 #define SFXFLAG_NONE			0
 #define SFXFLAG_FILEMISSING		(1 << 0) // 1 wasn't able to load the associated sound file
-#define SFXFLAG_LEVELSOUND		(1 << 1) // 2 the sfx is part of the server or client precache list for this level
+#define SFXFLAG_LEVELSOUND		(1 << 1) // 2 the sfx is part of the server or client precache list for this level (Baker: and also purged for new map)
 #define SFXFLAG_STREAMED		(1 << 2) // 4 informative only. You shouldn't need to know that
 #define SFXFLAG_MENUSOUND		(1 << 3) // 8 not freed during level change (menu sounds, music, etc)
 
@@ -119,7 +119,7 @@ struct snd_fetcher_s
 };
 
 extern unsigned int total_channels;
-extern channel_t channels[MAX_CHANNELS];
+extern channel_t channels[MAX_CHANNELS_8196];
 
 extern snd_ringbuffer_t *snd_renderbuffer;
 extern qbool snd_threaded; // enables use of snd_usethreadedmixing, provided that no sound hacks are in effect (like timedemo)

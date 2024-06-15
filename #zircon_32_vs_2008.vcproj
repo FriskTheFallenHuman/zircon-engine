@@ -185,6 +185,9 @@
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
+				Description="We no longer run, reasons unknown"
+				CommandLine=""
+				Outputs="$(TargetPath)"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -200,6 +203,7 @@
 				Optimization="0"
 				AdditionalIncludeDirectories="./xtra/SDK/SDL2-devel-2.0.8-mingw/SDL2-2.0.8/i686-w64-mingw32/include"
 				PreprocessorDefinitions="CONFIG_VIDEO_CAPTURE;CORE_SDL;CONFIG_MENU;_DEBUG;_WINDOWS;WIN32_LEAN_AND_MEAN;_FILE_OFFSET_BITS=64;__KERNEL_STRICT_NAMES;CONFIG_CD;USEODE"
+				GeneratePreprocessedFile="0"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -207,7 +211,7 @@
 				WarningLevel="4"
 				DebugInformationFormat="4"
 				CompileAs="2"
-				DisableSpecificWarnings="4706;4127;4100;4055;4054;4244;4305;4702;4201;4611;4996;4102"
+				DisableSpecificWarnings="4189;4130;4706;4127;4100;4055;4054;4244;4305;4702;4201;4611;4996;4102"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -248,6 +252,8 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
+				Description="Appending The engine bundle"
+				CommandLine="#bundle_append.bat $(TargetPath)"
 			/>
 		</Configuration>
 	</Configurations>
@@ -1420,10 +1426,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\darkplaces.h"
-				>
-			</File>
-			<File
 				RelativePath=".\jack_scripts.c.h"
 				>
 			</File>
@@ -1457,6 +1459,10 @@
 			</File>
 			<File
 				RelativePath=".\menu_zdev.c.h"
+				>
+			</File>
+			<File
+				RelativePath=".\miniz.h"
 				>
 			</File>
 			<File
@@ -1499,9 +1505,17 @@
 				RelativePath=".\sv_user_zmove.c.h"
 				>
 			</File>
+			<File
+				RelativePath=".\zip.c.h"
+				>
+			</File>
 			<Filter
 				Name="dpdefs"
 				>
+				<File
+					RelativePath=".\#bundle_append.bat"
+					>
+				</File>
 				<File
 					RelativePath=".\#zircon_dpbeta_sdl2_win64.cbp"
 					>
@@ -1527,15 +1541,7 @@
 					>
 				</File>
 				<File
-					RelativePath=".\miniz.h"
-					>
-				</File>
-				<File
 					RelativePath=".\dpdefs\progsdefs.qc"
-					>
-				</File>
-				<File
-					RelativePath=".\zip.c.h"
 					>
 				</File>
 			</Filter>
@@ -1554,6 +1560,222 @@
 					RelativePath=".\menu_saveload2.c.h"
 					>
 				</File>
+			</Filter>
+			<Filter
+				Name="_afontx"
+				>
+				<File
+					RelativePath=".\baker_mem_read.c.h"
+					>
+				</File>
+				<File
+					RelativePath=".\bundle_font.c.h"
+					>
+				</File>
+				<File
+					RelativePath=".\darkplaces.h"
+					>
+				</File>
+				<Filter
+					Name="controls"
+					>
+					<Filter
+						Name="oject"
+						>
+						<Filter
+							Name="ot"
+							>
+							<File
+								RelativePath=".\oject_bbx_button.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_checkbox.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_contextmenu.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_image.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_label.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_listbox.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_listview.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_listview_procs.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_polygon.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_rectangle.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_scrollbar.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_sizedot.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_tabselect.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_textbox.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_textbox_keys.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_textbox_mouse.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bbx_textbox_procs.c.h"
+								>
+							</File>
+						</Filter>
+						<Filter
+							Name="major"
+							>
+							<File
+								RelativePath=".\oject_aac_exec.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_cca_properties.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_ccb_object.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_ccx_form_parse.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_ccy_form_keymouse.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_ccz_form.c.h"
+								>
+							</File>
+						</Filter>
+						<Filter
+							Name="aorder"
+							>
+							<File
+								RelativePath="..\..\quak\id1\engine\form1.txt"
+								>
+							</File>
+							<File
+								RelativePath="..\..\quak\id1\engine\form1_original.txt"
+								>
+							</File>
+							<File
+								RelativePath="..\..\quak\id1\engine\form2.txt"
+								>
+							</File>
+							<File
+								RelativePath="..\..\quak\id1\engine\form3.txt"
+								>
+							</File>
+							<File
+								RelativePath=".\menu_zdev_draw.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\menu_zdev_feed.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\menu_zdev_head.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\menu_zform.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\menu_zform_connect.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_1_const_enums.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_2_macros.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_3_structs.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_3_structs_oject.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_4_globals.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_5_fn_prototypes.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_6_table___aaaa.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_aaa_procs.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_aab_procs_draw.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\oject_bba_lister.c.h"
+								>
+							</File>
+							<File
+								RelativePath=".\roboto.medium.ttf.bin.h"
+								>
+							</File>
+							<File
+								RelativePath=".\roboto.regular.ttf.bin.h"
+								>
+							</File>
+						</Filter>
+					</Filter>
+				</Filter>
 			</Filter>
 		</Filter>
 	</Files>

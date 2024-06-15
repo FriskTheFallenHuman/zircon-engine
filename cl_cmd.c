@@ -82,7 +82,7 @@ void CL_ForwardToServerf (const char *fmt, ...)
 		MSG_WriteByte(&cls.netcon->message, clc_stringcmd);
 
 	if (cl_locs_enable.integer &&
-		(String_Does_Start_With_PRE(s, "say ") || String_Does_Start_With_PRE(s, "say_team ")) ) {
+		(String_Starts_With_PRE(s, "say ") || String_Starts_With_PRE(s, "say_team ")) ) {
 		// say/say_team commands can replace % character codes with status info
 		while (*s) {
 			if (*s == '%' && s[1]) {
@@ -184,7 +184,7 @@ void CL_ForwardToServer_f (cmd_state_t *cmd)
 	const char *s;
 	char vabuf[MAX_INPUTLINE_16384];
 	size_t i;
-	if (String_Does_Match_Caseless(Cmd_Argv(cmd, 0), "cmd"))
+	if (String_Match_Caseless(Cmd_Argv(cmd, 0), "cmd"))
 	{
 		// we want to strip off "cmd", so just send the args
 		s = Cmd_Argc(cmd) > 1 ? Cmd_Args(cmd) : "";
@@ -262,7 +262,7 @@ static void CL_Name_f(cmd_state_t *cmd)
 CL_Color_f
 ==================
 */
-#pragma message ("DP bug: Player setup screen color change does not work")
+//#pragma message ("DP bug: Player setup screen color change does not work")
 cvar_t cl_color = {CF_CLIENT | CF_ARCHIVE, "_cl_color", "0", "internal storage cvar for current player colors (changed by color command)"};
 
 // HACK: Ignore the callbacks so this two-to-three way synchronization doesn't cause an infinite loop.
@@ -380,7 +380,7 @@ static void CL_User_f(cmd_state_t *cmd) // credit: taken from QuakeWorld
 	for (i = 0;i < cl.maxclients;i++) {
 		if (!cl.scores[i].name[0])
 			continue;
-		if (cl.scores[i].qw_userid == uid || String_Does_Match_Caseless(cl.scores[i].name, Cmd_Argv(cmd, 1))) {
+		if (cl.scores[i].qw_userid == uid || String_Match_Caseless(cl.scores[i].name, Cmd_Argv(cmd, 1))) {
 			InfoString_Print(cl.scores[i].qw_userinfo);
 			return;
 		}

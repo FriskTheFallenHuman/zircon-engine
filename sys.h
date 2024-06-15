@@ -187,7 +187,7 @@ void *Sys_GetProcAddress (dllhandle_t handle, const char *name);
 int Sys_CheckParm (const char *parm);
 
 /// called after command system is initialized but before first Con_Print
-void Sys_Init_Commands (void);
+void Sys_InitOnce_Commands (void);
 
 
 /// \returns current timestamp
@@ -243,7 +243,7 @@ void Sys_ProvideSelfFD (void);
 char *Sys_ConsoleInput (void);
 
 #ifdef _WIN32
-void Sys_Console_Init_WinQuake (void);
+void Sys_Console_InitOnce_WinQuake (void);
 char *Sys_ConsoleInput_WinQuake (void);
 #endif
 
@@ -258,7 +258,7 @@ char *Sys_GetClipboardData_Alloc (void); // Baker: max size is 16384
 int Sys_SetClipboardData(const char *text_to_clipboard);
 
 #ifdef CONFIG_MENU
-char *Sys_GetClipboardData_Unlimited_Alloc (void);
+char *Sys_GetClipboardData_Unlimited_ZAlloc (void);
 #endif
 
 extern qbool sys_supportsdlgetticks;
@@ -266,7 +266,7 @@ unsigned int Sys_SDL_GetTicks (void); // wrapper to call SDL_GetTicks
 void Sys_SDL_Delay (unsigned int milliseconds); // wrapper to call SDL_Delay
 
 /// called to set process priority for dedicated servers
-void Sys_InitProcessNice (void);
+void Sys_InitOnce_ProcessNice (void);
 void Sys_MakeProcessNice (void);
 void Sys_MakeProcessMean (void);
 

@@ -1011,7 +1011,7 @@ void SBar_DrawTexture (char *texstring) {
 	for (int n = 0; n < cl.worldmodel->num_textures; n ++) {
 		texture_t *tx = &cl.worldmodel->data_textures[n];
 
-		if (String_Does_Match(tx->name, texstring)) {
+		if (String_Match(tx->name, texstring)) {
 			tex = tx;
 			break;
 		} // if
@@ -1029,13 +1029,13 @@ void SBar_DrawTexture (char *texstring) {
 	if (tex) {
 		msurface_t *surf = Mod_Mesh_AddSurface(mod, 
 			tex, /*batchwithprevsurface*/ false /*true*/);
-		int e0 = Mod_Mesh_IndexForVertex(mod, surf, 10, 10, 0, /*normals*/ 0, 0, -1, /*st*/ 0, 0, /*uv*/ 0, 0, /*rgba*/ 1, 1, 1, q_alpha_1);
+		int e0 = Mod_Mesh_IndexForVertex(mod, surf, 10, 10, 0, /*normals*/ 0, 0, -1, /*st*/ 0, 0, /*uv*/ 0, 0, /*rgba*/ 1, 1, 1, alpha_1_0);
 		int e1 = Mod_Mesh_IndexForVertex(mod, surf, 10 + vid_conwidth.value / 8, 10, 0, /*normals*/ 0, 0, -1, 
-			/*st*/ 1, 0, 0, 0, 1, 1, 1, q_alpha_1);
+			/*st*/ 1, 0, 0, 0, 1, 1, 1, alpha_1_0);
 		int e2 = Mod_Mesh_IndexForVertex(mod, surf, 10 + vid_conwidth.value / 8, 10 + vid_conheight.value / 8, 0,/*normals*/ 0, 0, -1, 
-			/*st*/ 1, 1, 0, 0, 1, 1, 1, q_alpha_1);
+			/*st*/ 1, 1, 0, 0, 1, 1, 1, alpha_1_0);
 		int e3 = Mod_Mesh_IndexForVertex(mod, surf, 10, 10 + vid_conheight.value / 8, 0, /*normals*/ 0, 0, -1, 
-			/*st*/ 0, 1, 0, 0, 1, 1, 1, q_alpha_1);
+			/*st*/ 0, 1, 0, 0, 1, 1, 1, alpha_1_0);
 		Mod_Mesh_AddTriangle(mod, surf, e0, e1, e2);
 		Mod_Mesh_AddTriangle(mod, surf, e0, e2, e3);
 	}
@@ -1081,7 +1081,7 @@ void Sbar_ShowFPS(void)
 			dpsnprintf(fpsstring, sizeof(fpsstring), "%7.3f mspf", (1000.0 / showfps_framerate));
 		else if (showfps.integer < 0) {
 			extern cvar_t cl_maxfps;
-#pragma message ("Baker: TODO REMOVE SHOWFPS HACK FOR FIRST FRAME")
+			//#pragma message ("Baker: TODO REMOVE SHOWFPS HACK FOR FIRST FRAME")
 			if (cl_maxfps.value && showfps_framerate > cl_maxfps.value * 2) {
 				// Baker: this is a hack I'll do the right way later
 				// The first fps per level is wildly high
@@ -1414,7 +1414,7 @@ static void SBar_Quake()
 					char	*str = "Spectator Mode";
 
 					WARP_X_ (mapname: )
-//					Sbar_DrawAlphaPic (0, 0, sb_sbar, q_alpha_1);
+//					Sbar_DrawAlphaPic (0, 0, sb_sbar, alpha_1_0);
 					DrawQ_Fill (sbar_x, sbar_y, 320, 16, 39/255.0 * 0.3, 27/255.0* 0.3, 5/255.0* 0.3, /*alpha*/ 0.5, DRAWFLAG_NORMAL_0);
 
 					// print the filename and message

@@ -17,7 +17,7 @@ rendermodule_t;
 
 rendermodule_t rendermodule[MAXRENDERMODULES_20];
 
-void R_Modules_Init(void)
+void R_Modules_InitOnce(void)
 {
 	Cmd_AddCommand(CF_CLIENT, "r_restart", R_Modules_Restart_f, "restarts renderer");
 }
@@ -28,7 +28,7 @@ void R_RegisterModule(const char *name, void(*start)(void), void(*shutdown)(void
 	for (i = 0; i < MAXRENDERMODULES_20; i ++) {
 		if (rendermodule[i].name == NULL)
 			break;
-		if (String_Does_Match(name, rendermodule[i].name)) {
+		if (String_Match(name, rendermodule[i].name)) {
 			Con_PrintLinef ("R_RegisterModule: module " QUOTED_S " registered twice", name);
 			return;
 		}
@@ -47,7 +47,7 @@ void R_RegisterModule(const char *name, void(*start)(void), void(*shutdown)(void
 void R_Modules_Start(void)
 {
 // Baker: Looks like this more or less
-WARP_X_ (Palette_Init)
+WARP_X_ (Palette_InitOnce)
 WARP_X_ (sdl_start)
 WARP_X_ (gl_backend_start)
 WARP_X_ (r_textures_start r_textures_shutdown)

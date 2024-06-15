@@ -112,49 +112,52 @@ cvar_t sv_freezenonclients = {CF_SERVER /*| CF_NOTIFY*/, "sv_freezenonclients", 
 cvar_t sv_friction = {CF_SERVER | CF_NOTIFY, "sv_friction","4", "how fast you slow down"};
 cvar_t sv_gameplayfix_blowupfallenzombies = {CF_SERVER, "sv_gameplayfix_blowupfallenzombies", "1", "causes findradius to detect SOLID_NOT_0 entities such as zombies and corpses on the floor, allowing splash damage to apply to them"};
 cvar_t sv_gameplayfix_consistentplayerprethink = {CF_SERVER, "sv_gameplayfix_consistentplayerprethink", "0", "improves fairness in multiplayer by running all PlayerPreThink functions (which fire weapons) before performing physics, then running all PlayerPostThink functions"};
+#if 0
+cvar_t sv_gameplayfix_hemebond_pushmove = {CF_SERVER, "sv_gameplayfix_hemebond_pushmove", "0", "Theoretic pushmove fix to make it more like Quake [Zircon]"};
+#endif
 cvar_t sv_gameplayfix_delayprojectiles = {CF_SERVER, "sv_gameplayfix_delayprojectiles", "1", "causes entities to not move on the same frame they are spawned, meaning that projectiles wait until the next frame to perform their first move, giving proper interpolation and rocket trails, but making weapons harder to use at low framerates"};
 cvar_t sv_gameplayfix_droptofloorstartsolid = {CF_SERVER, "sv_gameplayfix_droptofloorstartsolid", "1", "prevents items and monsters that start in a solid area from falling out of the level (makes droptofloor treat trace_startsolid as an acceptable outcome)"};
 cvar_t sv_gameplayfix_droptofloorstartsolid_nudgetocorrect = {CF_SERVER, "sv_gameplayfix_droptofloorstartsolid_nudgetocorrect", "1", "tries to nudge stuck items and monsters out of walls before droptofloor is performed"};
 cvar_t sv_gameplayfix_easierwaterjump = {CF_SERVER, "sv_gameplayfix_easierwaterjump", "1", "changes water jumping to make it easier to get out of water (exactly like in QuakeWorld)"};
 cvar_t sv_gameplayfix_findradiusdistancetobox = {CF_SERVER, "sv_gameplayfix_findradiusdistancetobox", "1", "causes findradius to check the distance to the corner of a box rather than the center of the box, makes findradius detect bmodels such as very large doors that would otherwise be unaffected by splash damage"};
 cvar_t sv_gameplayfix_gravityunaffectedbyticrate = {CF_SERVER, "sv_gameplayfix_gravityunaffectedbyticrate", "0", "fix some ticrate issues in physics."};
-cvar_t sv_gameplayfix_grenadebouncedownslopes = {CF_SERVER, "sv_gameplayfix_grenadebouncedownslopes", "1", "prevents MOVETYPE_BOUNCE (grenades) from getting stuck when fired down a downward sloping surface"};
+cvar_t sv_gameplayfix_grenadebouncedownslopes = {CF_SERVER, "sv_gameplayfix_grenadebouncedownslopes", "1", "prevents MOVETYPE_BOUNCE_10 (grenades) from getting stuck when fired down a downward sloping surface"};
 cvar_t sv_gameplayfix_multiplethinksperframe = {CF_SERVER, "sv_gameplayfix_multiplethinksperframe", "1", "allows entities to think more often than the server framerate, primarily useful for very high fire rate weapons"};
 cvar_t sv_gameplayfix_noairborncorpse = {CF_SERVER, "sv_gameplayfix_noairborncorpse", "1", "causes entities (corpses, items, etc) sitting ontop of moving entities (players) to fall when the moving entity (player) is no longer supporting them"};
 cvar_t sv_gameplayfix_noairborncorpse_allowsuspendeditems = {CF_SERVER, "sv_gameplayfix_noairborncorpse_allowsuspendeditems", "1", "causes entities sitting ontop of objects that are instantaneously remove to float in midair (special hack to allow a common level design trick for floating items)"};
+
 #if 111 //  - M1
 cvar_t sv_gameplayfix_nudgeoutofsolid = {CF_SERVER, "sv_gameplayfix_nudgeoutofsolid", "0", "attempts to fix physics errors (where an object ended up in solid for some reason)"};
-
 #else
 cvar_t sv_gameplayfix_nudgeoutofsolid = {CF_SERVER, "sv_gameplayfix_nudgeoutofsolid", "1", "attempts to fix physics errors where an object ended up in solid for some reason, supersedes sv_gameplayfix_unstickentities"};
 #endif
 
-
 cvar_t sv_gameplayfix_fiendjumpfix = {CF_SERVER, "sv_gameplayfix_fiendjumpfix", "0", "DarkPlaces Beta fiend or dog stuck in air during jump fix [Zircon]"}; // Quake 1.5 has sliding corpses if this is enabled, so sadly must default to 0.
 cvar_t sv_gameplayfix_monsterinterpolate = {CF_SERVER, "sv_gameplayfix_monsterinterpolate", "1", "Scrag interpolation.  Force interpolation via RENDER_STEP for all FL_MONSTER entities. [Zircon]"};
-
 
 cvar_t sv_gameplayfix_nudgeoutofsolid_separation = {CF_SERVER, "sv_gameplayfix_nudgeoutofsolid_separation", "0.03125", "keep objects this distance apart to prevent collision issues on seams"};
 cvar_t sv_gameplayfix_q2airaccelerate = {CF_SERVER, "sv_gameplayfix_q2airaccelerate", "0", "Quake2-style air acceleration"};
 cvar_t sv_gameplayfix_nogravityonground = {CF_SERVER, "sv_gameplayfix_nogravityonground", "0", "turn off gravity when on ground (to get rid of sliding)  Requires sv_gameplayfix_downtracesupportsongroundflag 1 to function right with Quake."};
 cvar_t sv_gameplayfix_setmodelrealbox = {CF_SERVER, "sv_gameplayfix_setmodelrealbox", "1", "fixes a bug in Quake that made setmodel always set the entity box to ('-16 -16 -16', '16 16 16') rather than properly checking the model box, breaks some poorly coded mods"};
-cvar_t sv_gameplayfix_slidemoveprojectiles = {CF_SERVER, "sv_gameplayfix_slidemoveprojectiles", "1", "allows MOVETYPE_FLY/FLYMISSILE/TOSS/BOUNCE/BOUNCEMISSILE entities to finish their move in a frame even if they hit something, fixes 'gravity accumulation' bug for grenades on steep slopes"};
+cvar_t sv_gameplayfix_slidemoveprojectiles = {CF_SERVER, "sv_gameplayfix_slidemoveprojectiles", "1", "allows MOVETYPE_FLY_5/FLYMISSILE/TOSS/BOUNCE/BOUNCEMISSILE entities to finish their move in a frame even if they hit something, fixes 'gravity accumulation' bug for grenades on steep slopes"};
 cvar_t sv_gameplayfix_stepdown = {CF_SERVER, "sv_gameplayfix_stepdown", "0", "attempts to step down stairs, not just up them (prevents the familiar thud..thud..thud.. when running down stairs and slopes)"};
 cvar_t sv_gameplayfix_stepmultipletimes = {CF_SERVER, "sv_gameplayfix_stepmultipletimes", "0", "applies step-up onto a ledge more than once in a single frame, when running quickly up stairs"};
-cvar_t sv_gameplayfix_nostepmoveonsteepslopes = {CF_SERVER, "sv_gameplayfix_nostepmoveonsteepslopes", "0", "crude fix which prevents MOVETYPE_STEP (not swimming or flying) to move on slopes whose angle is bigger than 45 degree"};
+cvar_t sv_gameplayfix_nostepmoveonsteepslopes = {CF_SERVER, "sv_gameplayfix_nostepmoveonsteepslopes", "0", "crude fix which prevents MOVETYPE_STEP_4 (not swimming or flying) to move on slopes whose angle is bigger than 45 degree"};
 cvar_t sv_gameplayfix_swiminbmodels = {CF_SERVER, "sv_gameplayfix_swiminbmodels", "1", "causes pointcontents (used to determine if you are in a liquid) to check bmodel entities as well as the world model, so you can swim around in (possibly moving) water bmodel entities"};
 cvar_t sv_gameplayfix_upwardvelocityclearsongroundflag = {CF_SERVER, "sv_gameplayfix_upwardvelocityclearsongroundflag", "1", "prevents monsters, items, and most other objects from being stuck to the floor when pushed around by damage, and other situations in mods"};
 cvar_t sv_gameplayfix_downtracesupportsongroundflag = {CF_SERVER, "sv_gameplayfix_downtracesupportsongroundflag", "1", "prevents very short moves from clearing onground (which may make the player stick to the floor at high netfps), fixes groundentity not being set when walking onto a mover with sv_gameplayfix_nogravityonground"};
 cvar_t sv_gameplayfix_q1bsptracelinereportstexture = {CF_SERVER, "sv_gameplayfix_q1bsptracelinereportstexture", "1", "enables mods to get accurate trace_texture results on q1bsp by using a surface-hitting traceline implementation rather than the standard solidbsp method, q3bsp always reports texture accurately"};
 #if 111 // MX
-cvar_t sv_gameplayfix_unstickplayers = {CF_SERVER, "sv_gameplayfix_unstickplayers", "1", "big hack to try and fix the rare case of MOVETYPE_WALK entities getting stuck in the world clipping hull."};
+cvar_t sv_gameplayfix_unstickplayers = {CF_SERVER, "sv_gameplayfix_unstickplayers", "1", "big hack to try and fix the rare case of MOVETYPE_WALK_3 entities getting stuck in the world clipping hull."};
 cvar_t sv_gameplayfix_unstickentities = {CF_SERVER, "sv_gameplayfix_unstickentities", "1", "hack to check if entities are crossing world collision hull and try to move them to the right position"};
 
 #else
-cvar_t sv_gameplayfix_unstickplayers = {CF_SERVER, "sv_gameplayfix_unstickplayers", "0", "big hack to try and fix the rare case of MOVETYPE_WALK entities getting stuck in the world clipping hull."};
+cvar_t sv_gameplayfix_unstickplayers = {CF_SERVER, "sv_gameplayfix_unstickplayers", "0", "big hack to try and fix the rare case of MOVETYPE_WALK_3 entities getting stuck in the world clipping hull."};
 cvar_t sv_gameplayfix_unstickentities = {CF_SERVER, "sv_gameplayfix_unstickentities", "1", "hack to check if entities are crossing world collision hull and try to move them to the right position, superseded by sv_gameplayfix_nudgeoutofsolid"};
 #endif
 cvar_t sv_gameplayfix_fixedcheckwatertransition = {CF_SERVER, "sv_gameplayfix_fixedcheckwatertransition", "1", "fix two very stupid bugs in SV_CheckWaterTransition when watertype is CONTENTS_EMPTY (the bugs causes waterlevel to be 1 on first frame, -1 on second frame - the fix makes it 0 on both frames)"};
+
+// Baker: June 2 2024 - Current DarkPlaces calls this "sv_qcstats" instead of "sv_gameplayfix_customstats"
 cvar_t sv_gameplayfix_customstats = {CF_SERVER, "sv_gameplayfix_customstats", "0", "Disable stats higher than 220, for use by certain games such as Xonotic"};
 cvar_t sv_gravity = {CF_SERVER | CF_NOTIFY, "sv_gravity","800", "how fast you fall (512 = roughly earth gravity)"};
 cvar_t sv_init_frame_count = {CF_SERVER, "sv_init_frame_count", "2", "number of frames to run to allow everything to settle before letting clients connect"};
@@ -166,14 +169,14 @@ cvar_t sv_maxairspeed = {CF_SERVER, "sv_maxairspeed", "30", "maximum speed a pla
 cvar_t sv_maxrate = {CF_SERVER | CF_ARCHIVE | CF_NOTIFY, "sv_maxrate", "1000000", "upper limit on client rate cvar, should reflect your network connection quality"};
 cvar_t sv_maxspeed = {CF_SERVER | CF_NOTIFY, "sv_maxspeed", "320", "maximum speed a player can accelerate to when on ground (can be exceeded by tricks)"};
 cvar_t sv_maxvelocity = {CF_SERVER | CF_NOTIFY, "sv_maxvelocity","2000", "universal speed limit on all entities"};
-cvar_t sv_nostep = {CF_SERVER | CF_NOTIFY, "sv_nostep","0", "prevents MOVETYPE_STEP entities (monsters) from moving"};
+cvar_t sv_nostep = {CF_SERVER | CF_NOTIFY, "sv_nostep","0", "prevents MOVETYPE_STEP_4 entities (monsters) from moving"};
 cvar_t sv_playerphysicsqc = {CF_SERVER | CF_NOTIFY, "sv_playerphysicsqc", "1", "enables QuakeC function to override player physics"};
 cvar_t sv_progs = {CF_SERVER, "sv_progs", "progs.dat", "selects which quakec progs.dat file to run" };
 cvar_t sv_protocolname = {CF_SERVER, "sv_protocolname", "DP7", "selects network protocol to host for (values include QUAKE, QUAKEDP, NEHAHRAMOVIE, DP1 and up)"};
 cvar_t sv_random_seed = {CF_SERVER, "sv_random_seed", "", "random seed; when set, on every map start this random seed is used to initialize the random number generator. Don't touch it unless for benchmarking or debugging"};
 cvar_t host_limitlocal = {CF_SERVER, "host_limitlocal", "0", "whether to apply rate limiting to the local player in a listen server (only useful for testing)"};
-cvar_t sv_sound_land = {CF_SERVER, "sv_sound_land", "demon/dland2.wav", "sound to play when MOVETYPE_STEP entity hits the ground at high speed (empty cvar disables the sound)"};
-cvar_t sv_sound_watersplash = {CF_SERVER, "sv_sound_watersplash", "misc/h2ohit1.wav", "sound to play when MOVETYPE_FLY/TOSS/BOUNCE/STEP entity enters or leaves water (empty cvar disables the sound)"};
+cvar_t sv_sound_land = {CF_SERVER, "sv_sound_land", "demon/dland2.wav", "sound to play when MOVETYPE_STEP_4 entity hits the ground at high speed (empty cvar disables the sound)"};
+cvar_t sv_sound_watersplash = {CF_SERVER, "sv_sound_watersplash", "misc/h2ohit1.wav", "sound to play when MOVETYPE_FLY_5/TOSS/BOUNCE/STEP entity enters or leaves water (empty cvar disables the sound)"};
 cvar_t sv_stepheight = {CF_SERVER | CF_NOTIFY, "sv_stepheight", "18", "how high you can step up (TW_SV_STEPCONTROL extension)"};
 cvar_t sv_stopspeed = {CF_SERVER | CF_NOTIFY, "sv_stopspeed","100", "how fast you come to a complete stop"};
 cvar_t sv_wallfriction = {CF_SERVER | CF_NOTIFY, "sv_wallfriction", "1", "how much you slow down when sliding along a wall"};
@@ -187,7 +190,7 @@ cvar_t sv_warsowbunny_backtosideratio = {CF_SERVER, "sv_warsowbunny_backtosidera
 cvar_t sv_onlycsqcnetworking = {CF_SERVER, "sv_onlycsqcnetworking", "0", "disables legacy entity networking code for higher performance (except on clients, which can still be legacy)"};
 cvar_t sv_areadebug = {CF_SERVER, "sv_areadebug", "0", "disables physics culling for debugging purposes (only for development)"};
 
-cvar_t sys_ticrate = {CF_SERVER | CF_ARCHIVE, "sys_ticrate","0.0138889", "how long a server frame is in seconds, 0.05 is 20fps server rate, 0.1 is 10fps (can not be set higher than 0.1), 0 runs as many server frames as possible (makes games against bots a little smoother, overwhelms network players), 0.0138889 matches QuakeWorld physics 1/72"};
+cvar_t sys_ticrate = {CF_SERVER | CF_ARCHIVE, "sys_ticrate","0.01388889", "how long a server frame is in seconds, 0.05 is 20fps server rate, 0.1 is 10fps (can not be set higher than 0.1), 0 runs as many server frames as possible (makes games against bots a little smoother, overwhelms network players), 0.01388889 matches QuakeWorld physics 1/72"};
 cvar_t sv_maxphysicsframesperserverframe = {CF_SERVER, "sv_maxphysicsframesperserverframe","10", "maximum number of physics frames per server frame"};
 cvar_t sv_lagreporting_always = {CF_SERVER, "sv_lagreporting_always", "0", "report lag even in singleplayer, listen, or an empty dedicated server"};
 cvar_t sv_lagreporting_strict = {CF_SERVER, "sv_lagreporting_strict", "0", "log any extra frames run to catch up after a holdup (only applies when sv_maxphysicsframesperserverframe > 1)"};
@@ -1079,7 +1082,7 @@ static void Download_CheckExtensions(cmd_state_t *cmd)
 
 	for(i = 2; i < argc; ++i)
 	{
-		if (String_Does_Match(Cmd_Argv(cmd, i), "deflate"))
+		if (String_Match(Cmd_Argv(cmd, i), "deflate"))
 		{
 			host_client->download_deflate = true;
 			break;
@@ -1090,7 +1093,7 @@ static void Download_CheckExtensions(cmd_state_t *cmd)
 #if 0 // Baker r0104: No one is going to use this insane method to steal Quake in 2023
 		// And the checking for pop.lmp hurts total conversions that have the file just so they can
 		// run properly in a Quake engine.  I bet open sourced X-Men Ravages of Apocalypse has one.
-	if ((whichpack && whichpack2 && String_Does_Match_Caseless(whichpack, whichpack2))
+	if ((whichpack && whichpack2 && String_Match_Caseless(whichpack, whichpack2))
 		|| FS_IsRegisteredQuakePack(host_client->download_name))
 	{
 		SV_ClientPrintf("Download rejected: file " QUOTED_S " is part of registered Quake(r)" NEWLINE
@@ -1127,13 +1130,12 @@ int SV_ModelIndex(const char *s, int precachemode)
 	// testing
 	//if (precachemode == 2)
 	//	return 0;
-	strlcpy(filename, s, sizeof(filename));
+	c_strlcpy (filename, s);
 	for (i = 2;i < limit;i++)
 	{
-		if (!sv.model_precache[i][0])
-		{
-			if (precachemode)
-			{
+		if (!sv.model_precache[i][0]) {
+			if (precachemode > PRECACHE_MODE_0) {
+			//if (precachemode) {
 				if (sv.state != ss_loading &&
 					isin13(sv.protocol, 	PROTOCOL_FITZQUAKE666,	PROTOCOL_FITZQUAKE999,
 					PROTOCOL_QUAKE,			PROTOCOL_QUAKEDP,		PROTOCOL_NEHAHRAMOVIE,
@@ -1141,16 +1143,17 @@ int SV_ModelIndex(const char *s, int precachemode)
 					PROTOCOL_DARKPLACES1,	PROTOCOL_DARKPLACES2,	PROTOCOL_DARKPLACES3,
 					PROTOCOL_DARKPLACES4,	PROTOCOL_DARKPLACES5))
 				{
-					Con_Printf ("SV_ModelIndex(" QUOTED_S "): precache_model can only be done in spawn functions\n", filename);
+					Con_PrintLinef ("SV_ModelIndex(" QUOTED_S "): precache_model can only be done in spawn functions", filename);
 					return 0;
 				}
-				if (precachemode == 1)
-					Con_Printf ("SV_ModelIndex(" QUOTED_S "): not precached (fix your code), precaching anyway\n", filename);
-				strlcpy(sv.model_precache[i], filename, sizeof(sv.model_precache[i]));
+				//if (precachemode == 1)
+				if (precachemode == PRECACHE_MODE_1)
+					Con_PrintLinef ("SV_ModelIndex(" QUOTED_S "): not precached (fix your code), precaching anyway", filename);
+				c_strlcpy (sv.model_precache[i], filename);//, sizeof(sv.model_precache[i]));
 				if (sv.state == ss_loading)
 				{
 					// running from SV_SpawnServer which is launched from the client console command interpreter
-					sv.models[i] = Mod_ForName (sv.model_precache[i], true, false, s[0] == '*' ? sv.worldname : NULL);
+					sv.models[i] = Mod_ForName (sv.model_precache[i], /*crash?*/ true, /*checkdisk?*/ false, s[0] == '*' ? sv.worldname : NULL);
 				}
 				else
 				{
@@ -1162,7 +1165,7 @@ int SV_ModelIndex(const char *s, int precachemode)
 					else
 					{
 						// running single threaded, so we can load the model here
-						sv.models[i] = Mod_ForName (sv.model_precache[i], true, false, s[0] == '*' ? sv.worldname : NULL);
+						sv.models[i] = Mod_ForName (sv.model_precache[i], /*crash?*/ true, /*checkdisc?*/ false, s[0] == '*' ? sv.worldname : NULL);
 					}
 					MSG_WriteByte(&sv.reliable_datagram, svc_precache);
 					MSG_WriteShort(&sv.reliable_datagram, i);
@@ -1170,21 +1173,25 @@ int SV_ModelIndex(const char *s, int precachemode)
 				}
 				return i;
 			}
-			Con_Printf ("SV_ModelIndex(" QUOTED_S "): not precached\n", filename);
+			Con_PrintLinef ("SV_ModelIndex(" QUOTED_S "): not precached", filename);
 			return 0;
 		}
-		if (String_Does_Match(sv.model_precache[i], filename))
+		if (String_Match(sv.model_precache[i], filename))
 			return i;
 	}
-	Con_Printf ("SV_ModelIndex(" QUOTED_S "): i (%d) == MAX_MODELS_8192 (%d)\n", filename, i, MAX_MODELS_8192);
+	Con_PrintLinef ("SV_ModelIndex(" QUOTED_S "): i (%d) == MAX_MODELS_8192 (%d)", filename, i, MAX_MODELS_8192);
 	return 0;
 }
 
  // Baker r9067: loadgame precaches "precache at any time models and sounds"
+// Baker: This is for our precache fix that seems to not apply to DarkPlaces Beta anyway
+// See: sv_main_precache.c.h
 int SV_ModelIndex_Count(void)
 {
-	int i, limit = ((sv.protocol == PROTOCOL_QUAKE || sv.protocol == PROTOCOL_QUAKEDP || sv.protocol == PROTOCOL_NEHAHRAMOVIE || sv.protocol == PROTOCOL_NEHAHRABJP || sv.protocol == PROTOCOL_NEHAHRABJP2 || sv.protocol == PROTOCOL_NEHAHRABJP3) ? 256 : MAX_MODELS_8192);
-	for (i = 2;i < limit;i++) {
+	int i, limit = isin6 (sv.protocol, PROTOCOL_QUAKE,       PROTOCOL_QUAKEDP,     PROTOCOL_NEHAHRAMOVIE, 
+									   PROTOCOL_NEHAHRABJP,  PROTOCOL_NEHAHRABJP2, PROTOCOL_NEHAHRABJP3) ? 256 : MAX_MODELS_8192;
+
+	for (i = 2; i < limit; i ++) {
 		if (!sv.model_precache[i][0]) {
 			return i;
 		}
@@ -1201,9 +1208,10 @@ SV_SoundIndex
  // Baker r9067: loadgame precaches "precache at any time models and sounds"
 int SV_SoundIndex_Count(void)
 {
-	int i, limit = ((sv.protocol == PROTOCOL_QUAKE || sv.protocol == PROTOCOL_QUAKEDP || sv.protocol == PROTOCOL_NEHAHRAMOVIE || sv.protocol == PROTOCOL_NEHAHRABJP || sv.protocol == PROTOCOL_NEHAHRABJP2 || sv.protocol == PROTOCOL_NEHAHRABJP3) ? 256 : MAX_SOUNDS_4096);
+	int i, limit = isin6(sv.protocol, PROTOCOL_QUAKE,		PROTOCOL_QUAKEDP,	  PROTOCOL_NEHAHRAMOVIE,
+						              PROTOCOL_NEHAHRABJP,  PROTOCOL_NEHAHRABJP2, PROTOCOL_NEHAHRABJP3) ? 256 : MAX_SOUNDS_4096;
 
-	for (i = 1;i < limit;i++) {
+	for (i = 1; i < limit; i++) {
 		if (!sv.sound_precache[i][0]) {
 			return i;
 		}
@@ -1252,7 +1260,7 @@ int SV_SoundIndex(const char *s, int precachemode)
 			Con_PrintLinef ("SV_SoundIndex(" QUOTED_S "): not precached", filename);
 			return 0;
 		}
-		if (String_Does_Match(sv.sound_precache[i], filename))
+		if (String_Match(sv.sound_precache[i], filename))
 			return i;
 	}
 	Con_PrintLinef ("SV_SoundIndex(" QUOTED_S "): i (%d) == MAX_SOUNDS_4096 (%d)", filename, i, MAX_SOUNDS_4096);
@@ -1300,7 +1308,7 @@ int SV_ParticleEffectIndex (const char *name)
 				argc = 0;
 				for (;;) {
 					if (!COM_ParseToken_Simple(&text, true, false, true) || 
-						String_Does_Match(com_token, NEWLINE))
+						String_Match(com_token, NEWLINE))
 						break;
 					
 					if (argc < 16) {
@@ -1312,11 +1320,11 @@ int SV_ParticleEffectIndex (const char *name)
 					break; // if the loop exited and it's not a \n, it's EOF
 				if (argc < 1)
 					continue;
-				if (String_Does_Match(argv[0], "effect")) {
+				if (String_Match(argv[0], "effect")) {
 					if (argc == 2) {
 						for (effectnameindex = 1;effectnameindex < MAX_PARTICLEEFFECTNAME_4096;effectnameindex++) {
 							if (sv.particleeffectname[effectnameindex][0]) {
-								if (String_Does_Match(sv.particleeffectname[effectnameindex], argv[1]))
+								if (String_Match(sv.particleeffectname[effectnameindex], argv[1]))
 									break;
 							} else {
 								c_strlcpy (sv.particleeffectname[effectnameindex], argv[1]);
@@ -1337,7 +1345,7 @@ int SV_ParticleEffectIndex (const char *name)
 
 	// search for the name
 	for (effectnameindex = 1; effectnameindex < MAX_PARTICLEEFFECTNAME_4096 && sv.particleeffectname[effectnameindex][0]; effectnameindex ++)
-		if (String_Does_Match(sv.particleeffectname[effectnameindex], name))
+		if (String_Match(sv.particleeffectname[effectnameindex], name))
 			return effectnameindex;
 	// return 0 if we couldn't find it
 	return 0;
@@ -1393,7 +1401,7 @@ static void SV_CreateBaseline (void)
 		if (entnum > 0 && entnum <= svs.maxclients) {
 			// PLAYER
 			svent->priv.server->baseline.colormap = entnum;
-			svent->priv.server->baseline.modelindex = SV_ModelIndex("progs/player.mdl", 1);
+			svent->priv.server->baseline.modelindex = SV_ModelIndex("progs/player.mdl", PRECACHE_MODE_1);
 
 			if (is_fitz) {
 			svent->priv.server->baseline.alpha = FITZ_ENTALPHA_DEFAULT_0;// .colormap = entnum;
@@ -1613,8 +1621,8 @@ SV_SpawnServer
 This is called at the start of each level
 ================
 */
+//extern cvar_t prvm_cl_gamecommands; // Baker r7103 gamecommand autocomplete
 extern cvar_t prvm_sv_gamecommands; // Baker r7103 gamecommand autocomplete
-extern cvar_t prvm_cl_gamecommands; // Baker r7103 gamecommand autocomplete
 extern cvar_t prvm_sv_progfields;
 
 WARP_X_ (SV_Restart_f SV_Changelevel2_f)
@@ -1643,15 +1651,18 @@ void SV_SpawnServer (const char *mapshortname, const char *s_loadgame, const cha
 	char modelname[sizeof(sv.worldname)];
 	char vabuf[1024];
 
-	Cvar_SetValueQuick	(&sv_freezenonclients, 0); // Baker r0090: freezeall
-
-#ifdef CONFIG_MENU
-	// Baker: What is cl equivalent?
-	if (cls.state != ca_dedicated) {
-		Cvar_SetValueQuick	(&tool_inspector, 0); // Baker r0106: tool inspector
-		Cvar_SetValueQuick	(&tool_marker, 0); // Baker r0109: tool marker
-	}
-#endif
+	WARP_X_ (CL_SetupWorldModel)
+	Cvar_SetValueQuick	(&sv_freezenonclients, 0);	// Baker r0090: freezeall
+	
+// Baker: Moved to CL_SetupWorldModel since it is client
+//#ifdef CONFIG_MENU
+//
+//	// Baker: What is cl equivalent?
+//	if (cls.state != ca_dedicated) {
+//		Cvar_SetValueQuick	(&tool_inspector, 0); // Baker r0106: tool inspector
+//		Cvar_SetValueQuick	(&tool_marker, 0); // Baker r0109: tool marker
+//	}
+//#endif
 
 	Cvar_SetQuick		(&prvm_sv_gamecommands, "");  // Baker r7103 gamecommand autocomplete
 	Cvar_SetQuick		(&prvm_sv_progfields, "");  // Baker r7103 gamecommand autocomplete
@@ -1698,6 +1709,7 @@ void SV_SpawnServer (const char *mapshortname, const char *s_loadgame, const cha
 			PRVM_serverglobalfloat(time) = sv.time;
 			PRVM_serverfunction(SV_Shutdown) = 0; // prevent it from getting called again
 			prog->ExecuteProgram(prog, s,"SV_Shutdown() required");
+			prog->loaded = false; // Baker SV_Shutdown
 		}
 	}
 
@@ -1814,7 +1826,7 @@ void SV_SpawnServer (const char *mapshortname, const char *s_loadgame, const cha
 
 	c_strlcpy (sv.worldname, modelname);
 	FS_StripExtension(sv.worldname, sv.worldnamenoextension, sizeof(sv.worldnamenoextension));
-	c_strlcpy (sv.worldbasename, String_Does_Start_With_PRE(sv.worldnamenoextension, "maps/"/*, 5*/) ?
+	c_strlcpy (sv.worldbasename, String_Starts_With_PRE(sv.worldnamenoextension, "maps/"/*, 5*/) ?
 		sv.worldnamenoextension + 5 : sv.worldnamenoextension);
 	//Cvar_SetQuick(&sv_worldmessage, sv.worldmessage); // set later after QC is spawned
 	Cvar_SetQuick(&sv_worldname, sv.worldname);
@@ -1923,7 +1935,7 @@ intermap_no_load_entities:
 	PRVM_serveredictstring	(ent, model) = PRVM_SetEngineString(prog, sv.worldname);
 	PRVM_serveredictfloat	(ent, modelindex) = 1;		// world model
 	PRVM_serveredictfloat	(ent, solid) = SOLID_BSP_4;
-	PRVM_serveredictfloat	(ent, movetype) = MOVETYPE_PUSH;
+	PRVM_serveredictfloat	(ent, movetype) = MOVETYPE_PUSH_7;
 	VectorCopy				(sv.world.mins, PRVM_serveredictvector(ent, mins));
 	VectorCopy				(sv.world.maxs, PRVM_serveredictvector(ent, maxs));
 	VectorCopy				(sv.world.mins, PRVM_serveredictvector(ent, absmin));
@@ -1988,8 +2000,13 @@ intermap_no_load_entities:
 		PRVM_ED_LoadFromFile(prog, entities);
 		Mem_Free(entities);
 	}
-	else
+	else if (cls.s_find_za) {
+		char *s_malloc = String_Replace_Malloc (sv.worldmodel->brush.entities, cls.s_find_za, cls.s_replace_za);
+		PRVM_ED_LoadFromFile(prog, s_malloc);
+		freenull_ (s_malloc);
+	} else {
 		PRVM_ED_LoadFromFile(prog, sv.worldmodel->brush.entities);
+	}
 
 #if 1  // Baker r9067: loadgame precaches "precache at any time models and sounds"
 	// Baker r9067: Only a host is client situation requires this fix.
@@ -2103,6 +2120,7 @@ void SV_Shutdown(void)
 			PRVM_serverglobalfloat(time) = sv.time;
 			PRVM_serverfunction(SV_Shutdown) = 0; // prevent it from getting called again
 			prog->ExecuteProgram(prog, s,"SV_Shutdown() required");
+			prog->loaded = false; // Baker SV_Shutdown
 		}
 	}
 	for (i = 0, host_client = svs.clients;i < svs.maxclients;i++, host_client++)
@@ -2241,7 +2259,7 @@ static void SVVM_count_edicts(prvm_prog_t *prog)
 			solid++;
 		if (PRVM_serveredictstring(ent, model))
 			models++;
-		if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_STEP)
+		if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_STEP_4)
 			step++;
 	}
 
@@ -2996,10 +3014,16 @@ void SV_ProtocolName_c (cvar_t *var)
 
 /*
 ===============
-SV_Init
+SV_InitOnce
 ===============
 */
-void SV_Init (void)
+
+static void CSQC_Progcrc_c(cvar_t *var)
+{
+	int j = 5;
+}
+
+void SV_InitOnce (void)
 {
 	// init the csqc progs cvars, since they are updated/used by the server code
 	// TODO: fix this since this is a quick hack to make some of [515]'s broken code run ;) [9/13/2006 Black]
@@ -3018,6 +3042,7 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&csqc_enable); // Baker r0101; csqc_enable
 	Cvar_RegisterVariable (&csqc_progname);
 	Cvar_RegisterVariable (&csqc_progcrc);
+	Cvar_RegisterCallback (&csqc_progcrc, CSQC_Progcrc_c);
 	Cvar_RegisterVariable (&csqc_progsize);
 	Cvar_RegisterVariable (&csqc_usedemoprogs);
 
@@ -3118,6 +3143,9 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_gameplayfix_multiplethinksperframe);
 	Cvar_RegisterVariable (&sv_gameplayfix_noairborncorpse);
 	Cvar_RegisterVariable (&sv_gameplayfix_noairborncorpse_allowsuspendeditems);
+#if 0
+	Cvar_RegisterVariable (&sv_gameplayfix_hemebond_pushmove);
+#endif
 	Cvar_RegisterVariable (&sv_gameplayfix_nudgeoutofsolid);
 	Cvar_RegisterVariable (&sv_gameplayfix_nudgeoutofsolid_separation);
 	Cvar_RegisterVariable (&sv_gameplayfix_q2airaccelerate);

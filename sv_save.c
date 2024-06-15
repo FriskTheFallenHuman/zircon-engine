@@ -93,7 +93,7 @@ void SV_Savegame_to (prvm_prog_t *prog, char **p_string, const char *name, int i
 
 	if (p_string) {
 		// Start ?
-		k_save = BakerString_Create_Alloc ("");
+		k_save = BakerString_Create_Malloc ("");
 	} else {
 		// Save To File Start
 		Con_PrintLinef ("Saving game to %s...", name);
@@ -110,7 +110,7 @@ void SV_Savegame_to (prvm_prog_t *prog, char **p_string, const char *name, int i
 		// Need to save time and what else?
 		Flex_Writef ("%s" NEWLINE, sv.name);
 		Flex_Writef ("%f" NEWLINE, sv.time); // YES ... but this means the time accum is wrong
-		// We need to subtract out totaltimeatlastexit from totaltimeatstart 
+		// We need to subtract out totaltimeatlastexit from totaltimeatstart
 		Flex_Writef ("%f" NEWLINE, totaltimeatlastexit_to_write); // totaltimeatlastexit_from_loadgame
 		Flex_Writef ("%d" NEWLINE, svs.maxclients);
 		goto intermap_no_comment_no_players;
@@ -175,8 +175,8 @@ intermap_no_globals:
 		// Write out nothing burgers for 1 to svs.maxclients
 		for (i = 1; i < (svs.maxclients + 1); i ++) {
 			Flex_Writef ("// edict %d" NEWLINE, i);
-			Flex_Writef ("{" NEWLINE, i);
-			Flex_Writef ("}" NEWLINE, i);
+			Flex_Writef ("{" NEWLINE);
+			Flex_Writef ("}" NEWLINE);
 			//Con_Printf ("edict %d...\n", i);
 //			PRVM_ED_Write (prog, f, PRVM_EDICT_NUM(i));
 		}
@@ -276,7 +276,7 @@ intermap_no_globals:
 
 	if (cl.islocalgame && sv_save_screenshots.integer) {
 		// free (s_base64_alloc);
-		if (cls.state == ca_connected && cls.signon == SIGNONS_4 && cl.worldmodel && r_refdef.scene.worldentity) {	
+		if (cls.state == ca_connected && cls.signon == SIGNONS_4 && cl.worldmodel && r_refdef.scene.worldentity) {
 			char *s_base64_alloc = Screenshot_To_Jpeg_String_Malloc_512_320 ();
 			if (!s_base64_alloc) {
 				Con_PrintLinef (CON_WARN "Screenshot_To_Jpeg_String_Malloc_512_320 failed" NEWLINE);
@@ -284,9 +284,9 @@ intermap_no_globals:
 			else {
 				//Sys_PrintToTerminal ("Screenshot_To_Jpeg_String_Malloc_512_320 OK!" NEWLINE);
 				int base64_slen = strlen(s_base64_alloc);
-				
+
 				//Sys_PrintToTerminal (va32 ("strlen is %d" NEWLINE, base64_slen));
-	
+
 				// Baker: Warning DarkPlaces can only variadic print 16384 at a time!
 				Flex_Writef ("sv.screenshot %d %s" NEWLINE, (int)base64_slen, s_base64_alloc);
 				//Sys_PrintToTerminal ("About to free" NEWLINE);
@@ -432,7 +432,7 @@ void SV_Siv_f (cmd_state_t *cmd)
 			// .SIV data - Intermap saved game
 			const char *sxy_map = sv_intermap_siv_list.strings[idx + 0];
 			const char *sxy_siv = sv_intermap_siv_list.strings[idx + 1];
-			Con_PrintLinef ("%03d " S_FMT_RIGHT_PAD_16 " %07d", idx, sxy_map, strlen(sxy_siv) );
+			Con_PrintLinef ("%03d " S_FMT_RIGHT_PAD_16 " %07d", idx, sxy_map, (int)strlen(sxy_siv) );
 		} // for
 		return;
 	}
@@ -480,7 +480,7 @@ void SV_Savegame_f (cmd_state_t *cmd)
 	}
 
 	const char *s_savename = Cmd_Argv(cmd, 1);
-	if (String_Does_Contain (s_savename, "..")) {
+	if (String_Contains (s_savename, "..")) {
 		Con_PrintLinef ("Relative pathnames are not allowed.");
 		return;
 	}
@@ -535,7 +535,7 @@ void Intermap_List_Saves_Parse (int index, char *s)
 ////stringlistsort (&matchedSet, fs_make_unique_true);
 ////stringlistfreecontents( &matchedSet );
 //	int idx = stringlist_find_index (sv_
-//	void stringlist_to_string (stringlist_t *p_stringlist, char *s_delimiter, char *buf, size_t buflen)
+//	void stringlist_join_buf (stringlist_t *p_stringlist, char *s_delimiter, char *buf, size_t buflen)
 //	{
 //		buf[0] = 0;
 //		strlcpy (buf, "", buflen);
@@ -629,7 +629,7 @@ intermap_no_description_spawnparms_skill:
 
 	// Baker: Intermap ... hmmm .. we do not want entities from the bsp
 	// Not even entity 0
-#pragma message ("LOAD GAME SIV")
+	//#pragma message ("LOAD GAME SIV")
 	vec3_t zero_origin = {0,0,0}; // SIV TODO!!!!!
 	SV_SpawnServer (mapname, s_loadgame, q_s_startspot_EmptyString, zero_origin, /*totaltimeatstart*/ 0); // Baker r9067: loadgame precaches "precache at any time models and sounds"
 
@@ -698,7 +698,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 	for (;;) {
 		start = t;
 		while (COM_ParseToken_Simple(&t, false, false, true))
-			if (String_Does_Match(com_token, "}"))
+			if (String_Match(com_token, "}"))
 				break;
 
 		if (!COM_ParseToken_Simple(&start, false, false, true)) {
@@ -706,7 +706,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 			break;
 		}
 
-		if (String_Does_NOT_Match (com_token, "{")) {
+		if (String_NOT_Match (com_token, "{")) {
 			Mem_Free(text);
 			Host_Error_Line ("First token isn't a brace");
 		}
@@ -737,7 +737,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 			if (developer_entityparsing.integer)
 				Con_PrintLinef ("SV_Loadgame_f: loading edict %d", entnum);
 
-			PRVM_ED_ParseEdict (prog, start, ent);
+			PRVM_ED_ParseEdict (prog, start, ent, q_is_saveload_true); // ITK #4
 
 			// link it into the bsp tree
 			if (!ent->free)
@@ -786,7 +786,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 
 			// t is ptr
 			while (COM_ParseToken_Simple(&t, false, false, true)) {
-				if (String_Does_Match(com_token, "sv.lightstyles")) {
+				if (String_Match(com_token, "sv.lightstyles")) {
 					COM_Parse_Basic (&t);
 					i = atoi(com_token);
 					COM_Parse_Basic (&t);
@@ -795,7 +795,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 					else
 						Con_PrintLinef ("unsupported lightstyle %d " QUOTED_S, i, com_token);
 				}
-				else if (String_Does_Match(com_token, "sv.model_precache")) {
+				else if (String_Match(com_token, "sv.model_precache")) {
 					COM_Parse_Basic (&t);
 					i = atoi(com_token);
 					COM_Parse_Basic (&t);
@@ -806,7 +806,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 					else
 						Con_PrintLinef ("unsupported model %d " QUOTED_S, i, com_token);
 				}
-				else if (String_Does_Match(com_token, "sv.sound_precache")) {
+				else if (String_Match(com_token, "sv.sound_precache")) {
 					COM_Parse_Basic (&t); // index
 					i = atoi(com_token);
 					COM_Parse_Basic (&t); // com_token is now string
@@ -815,36 +815,36 @@ intermap_no_sv_loadgame_no_sv_paused:
 					else
 						Con_PrintLinef ("unsupported sound %d " QUOTED_S, i, com_token);
 				}
-				else if (String_Does_Match(com_token, "sv.serverflags")) {
+				else if (String_Match(com_token, "sv.serverflags")) {
 					COM_Parse_Basic (&t); // Flags
 					i = atoi(com_token);
 					svs.serverflags = i;
 				}
 				// VFS_PRINTF(f, "sv.startspot %s\n", InfoBuf_ValueForKey(&svs.info, "*startspot")); //startspot, for restarts.
-				else if (String_Does_Match(com_token, "sv.startspot")) {
+				else if (String_Match(com_token, "sv.startspot")) {
 					//COM_Parse_Basic (&t); // Flags
 					//i = atoi(com_token);
 					COM_Parse_Basic (&t); // Start spot
 					c_strlcpy  (sv.intermap_startspot, com_token);
 				}
-				else if (String_Does_Match(com_token, "sv.startorigin")) {
+				else if (String_Match(com_token, "sv.startorigin")) {
 					COM_Parse_Basic (&t); f = atof(com_token); sv.intermap_startorigin[0] = f; // x
 					COM_Parse_Basic (&t); f = atof(com_token); sv.intermap_startorigin[1] = f; // y
 					COM_Parse_Basic (&t); f = atof(com_token); sv.intermap_startorigin[2] = f; // z
 				}
-				else if (String_Does_Match(com_token, "sv.totaltimeatstart")) {
+				else if (String_Match(com_token, "sv.totaltimeatstart")) {
 					COM_Parse_Basic (&t); f = atof(com_token);
 					sv.intermap_totaltimeatstart = f; // z
 				}
-				else if (String_Does_Match(com_token, "sv.totaltimeatlastexit")) {
+				else if (String_Match(com_token, "sv.totaltimeatlastexit")) {
 					COM_Parse_Basic (&t); f = atof(com_token);
 					sv.intermap_totaltimeatlastexit = f; // z
 				}
-				else if (String_Does_Match(com_token, "sv.surplustime")) {
+				else if (String_Match(com_token, "sv.surplustime")) {
 					COM_Parse_Basic (&t); f = atof(com_token);
 					sv.intermap_surplustime = f; // z
 				}
-				else if (String_Does_Match(com_token, "sv.intermap_siv")) {
+				else if (String_Match(com_token, "sv.intermap_siv")) {
 					// sv.intermap_siv (INDEX) %d (STRLEN)%d (STRING)%s
 					COM_Parse_Basic (&t); int siv_idx = atoi(com_token);
 					COM_Parse_Basic (&t); int siv_strlen = atoi(com_token);
@@ -873,7 +873,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 						// READ SIV BLOB
 						COM_Parse_Basic (&t); // advances cursor past
 
-						baker_string_t *k_siv = BakerString_Create_Alloc ("");
+						baker_string_t *k_siv = BakerString_Create_Malloc ("");
 						BakerString_Set (k_siv, siv_strlen, s_siv);
 
 						size_t unbase_datasize;
@@ -890,7 +890,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 						BakerString_Destroy_And_Null_It (&k_siv);
 					}
 				} // sv.intermap_siv
-				else if (String_Does_Match(com_token, "sv.buffer")) {
+				else if (String_Match(com_token, "sv.buffer")) {
 					if (COM_ParseToken_Simple(&t, false, false, true)) {
 						i = atoi(com_token);
 						if (i >= 0) {
@@ -906,7 +906,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 					else
 						Con_PrintLinef ("unexpected end of line when parsing sv.buffer (expected buffer index)");
 				}
-				else if (String_Does_Match(com_token, "sv.bufstr"))
+				else if (String_Match(com_token, "sv.bufstr"))
 				{
 					if (!COM_ParseToken_Simple(&t, false, false, true))
 						Con_PrintLinef ("unexpected end of line when parsing sv.bufstr");
@@ -932,7 +932,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 					}
 				}
 				// skip any trailing text or unrecognized commands
-				while (COM_ParseToken_Simple(&t, true, false, true) && String_Does_NOT_Match (com_token, "\n"))
+				while (COM_ParseToken_Simple(&t, true, false, true) && String_NOT_Match (com_token, "\n"))
 					;
 			}
 		}
@@ -949,7 +949,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 		int v_totaltimeatstart_offset = PRVM_ED_FindGlobalOffset(prog, "totaltimeatstart");
 		if (v_totaltimeatstart_offset >= 0) {
 			//VectorCopy(v, PRVM_GLOBALFIELDVECTOR(prog->globaldefs[var->globaldefindex[i]].ofs));
-			PRVM_GLOBALFIELDFLOAT(v_totaltimeatstart_offset) = sv.intermap_totaltimeatstart; 
+			PRVM_GLOBALFIELDFLOAT(v_totaltimeatstart_offset) = sv.intermap_totaltimeatstart;
 			//PRVM_GLOBALFIELDVECTOR(v_startspot_offset) = PRVM_SetEngineString(prog, sv.intermap_startorigin);
 		} // if
 		int v_totaltimeatlastexit_offset = PRVM_ED_FindGlobalOffset(prog, "totaltimeatlastexit");
@@ -1115,8 +1115,8 @@ int SV_Loadgame_Intermap_Do_Ents (const char *s_load_game_contents)
 
 	// Baker: Intermap ... hmmm .. we do not want entities from the bsp
 	// Not even entity 0
-#pragma message ("Baker: Why is this commented?  We aren't supposed to change loadgame")
-#pragma message ("If there is a reaosn, document it")
+//#pragma message ("Baker: Why is this commented?  We aren't supposed to change loadgame")
+//#pragma message ("If there is a reaosn, document it")
 #if 0
 	SV_SpawnServer (mapname, s_loadgame, q_s_startspot_EmptyString, is_intermap); // Baker r9067: loadgame precaches "precache at any time models and sounds"
 
@@ -1188,7 +1188,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 	} // while (1)
 
 	// unlink all entities
-#pragma message (".siv see if this is ok")
+	//#pragma message (".siv see if this is ok")
 	World_UnlinkAll(&sv.world);
 
 // load the edicts out of the savegame file
@@ -1202,7 +1202,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 	for (;;) {
 		start = t;
 		while (COM_ParseToken_Simple(&t, false, false, true))
-			if (String_Does_Match(com_token, "}"))
+			if (String_Match(com_token, "}"))
 				break;
 
 		if (!COM_ParseToken_Simple(&start, false, false, true)) {
@@ -1210,7 +1210,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 			break;
 		}
 
-		if (String_Does_NOT_Match (com_token, "{")) {
+		if (String_NOT_Match (com_token, "{")) {
 			//Mem_Free(s_load_game_contents);
 			Host_Error_Line ("First token isn't a brace");
 		}
@@ -1243,7 +1243,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 			if (developer_entityparsing.integer)
 				Con_PrintLinef ("SV_Loadgame_f: loading edict %d", entnum);
 
-			PRVM_ED_ParseEdict (prog, start, ent);
+			PRVM_ED_ParseEdict (prog, start, ent, q_is_saveload_true); // ITK #5
 
 			// link it into the bsp tree
 			if (!ent->free)
@@ -1306,7 +1306,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 
 			// t is ptr
 			while (COM_ParseToken_Simple(&t, false, false, true)) {
-				if (String_Does_Match(com_token, "sv.lightstyles")) {
+				if (String_Match(com_token, "sv.lightstyles")) {
 					COM_Parse_Basic (&t);
 					i = atoi(com_token);
 					COM_Parse_Basic (&t);
@@ -1315,7 +1315,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 					else
 						Con_PrintLinef ("unsupported lightstyle %d " QUOTED_S, i, com_token);
 				}
-				else if (String_Does_Match(com_token, "sv.model_precache")) {
+				else if (String_Match(com_token, "sv.model_precache")) {
 					COM_Parse_Basic (&t);
 					i = atoi(com_token);
 					COM_Parse_Basic (&t);
@@ -1325,9 +1325,9 @@ intermap_no_sv_loadgame_no_sv_paused:
 					}
 					else
 						Con_PrintLinef ("unsupported model %d " QUOTED_S, i, com_token);
-#pragma message("Intermap SIV load")
+					//#pragma message("Intermap SIV load")
 				}
-				else if (String_Does_Match(com_token, "sv.sound_precache")) {
+				else if (String_Match(com_token, "sv.sound_precache")) {
 					COM_Parse_Basic (&t);
 					i = atoi(com_token);
 					COM_Parse_Basic (&t);
@@ -1336,7 +1336,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 					else
 						Con_PrintLinef ("unsupported sound %d " QUOTED_S, i, com_token);
 				}
-				else if (String_Does_Match(com_token, "sv.buffer")) {
+				else if (String_Match(com_token, "sv.buffer")) {
 					if (COM_ParseToken_Simple(&t, false, false, true)) {
 						i = atoi(com_token);
 						if (i >= 0) {
@@ -1352,7 +1352,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 					else
 						Con_PrintLinef ("unexpected end of line when parsing sv.buffer (expected buffer index)");
 				}
-				else if (String_Does_Match(com_token, "sv.bufstr"))
+				else if (String_Match(com_token, "sv.bufstr"))
 				{
 					if (!COM_ParseToken_Simple(&t, false, false, true))
 						Con_PrintLinef ("unexpected end of line when parsing sv.bufstr");
@@ -1378,7 +1378,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 					}
 				}
 				// skip any trailing text or unrecognized commands
-				while (COM_ParseToken_Simple(&t, true, false, true) && String_Does_NOT_Match (com_token, "\n"))
+				while (COM_ParseToken_Simple(&t, true, false, true) && String_NOT_Match (com_token, "\n"))
 					;
 			}
 		}

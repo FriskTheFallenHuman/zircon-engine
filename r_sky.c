@@ -15,7 +15,7 @@ int skyscissor[4];
 static int skyrendersphere;
 static int skyrenderbox;
 static rtexturepool_t *skytexturepool;
-static char g_skyname[MAX_QPATH_128];
+char g_skyname[MAX_QPATH_128];
 static matrix4x4_t skymatrix;
 static matrix4x4_t skyinversematrix;
 
@@ -142,7 +142,7 @@ static int R_LoadSkyBox(void)
 
 int R_SetSkyBox(const char *sky)
 {
-	if (String_Does_Match(sky, g_skyname)) // no change
+	if (String_Match(sky, g_skyname)) // no change
 		return true;
 
 	if (strlen(sky) > 1000)

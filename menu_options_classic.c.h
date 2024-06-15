@@ -100,7 +100,7 @@ static void M_Menu_Options_AdjustSliders (int dir)
 
 static void M_Options_PrintCommand(const char *s, int enabled)
 {
-	Hotspots_Add (menu_x + 80 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_button); // PPX DUR
+	Hotspots_Add (menu_x + 80 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_button, q_force_scale_0); // PPX DUR
 	if (drawcur_y >= 32) {
 		int issel = drawidx == g_draw_frame_cursor;  
 		if (issel)
@@ -115,7 +115,7 @@ static void M_Options_PrintCommand(const char *s, int enabled)
 
 static void M_Options_PrintSS(const char *s, int enabled, const char *s2)
 {
-	Hotspots_Add (menu_x + 80 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 80 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	if (drawcur_y >= 32) {
 		int issel = drawidx == g_draw_frame_cursor; 
 		if (issel)
@@ -131,7 +131,7 @@ static void M_Options_PrintSS(const char *s, int enabled, const char *s2)
 
 static void M_Options_PrintCheckbox(const char *s, int enabled, int yes)
 {
-	Hotspots_Add (menu_x + 80 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_slider); // PPX DUR
+	Hotspots_Add (menu_x + 80 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_slider, q_force_scale_0); // PPX DUR
 	if (drawcur_y >= 32) {
 		int issel = drawidx == g_draw_frame_cursor;
 		if (issel)
@@ -147,7 +147,7 @@ static void M_Options_PrintCheckbox(const char *s, int enabled, int yes)
 
 static void M_Options_PrintSlider(const char *s, int enabled, float value, float minvalue, float maxvalue)
 {
-	Hotspots_Add (menu_x + 80 - 16, menu_y + drawcur_y, 320, 8 + 1, /*count*/ 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 80 - 16, menu_y + drawcur_y, 320, 8 + 1, /*count*/ 1, hotspottype_slider, q_force_scale_0);
 	if (drawcur_y >= 32) {
 		int issel = drawidx == g_draw_frame_cursor;
 		if (issel) 	

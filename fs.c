@@ -380,14 +380,20 @@ typedef struct packfile_s
 
 typedef struct pack_s
 {
-	char		filename [MAX_OSPATH];
-	char		shortname [MAX_QPATH_128];
-	filedesc_t	handle;
-	int			ignorecase;  ///< PK3 ignores case
-	int			numfiles;
-	qbool		vpack;
-	qbool		dlcache;
-	packfile_t	*files;
+	char			filename [MAX_OSPATH];
+	char			shortname [MAX_QPATH_128];
+	filedesc_t		pk3_handle;
+	bakerbuf_t		*baker_handle;
+	int				ignorecase;  ///< PK3 ignores case
+	int				numfiles;
+	qbool			vpack;
+	qbool			dlcache;
+	packfile_t		*files;
+
+#if 1
+	const byte	*memory_start;
+	fs_offset_t	memory_length;
+#endif
 } pack_t;
 //@}
 
@@ -440,6 +446,8 @@ char fs_userdir[MAX_OSPATH];
 char fs_gamedir[MAX_OSPATH];
 char fs_basedir[MAX_OSPATH];
 static pack_t *fs_selfpack = NULL;
+//static pack_t *fs_bakerpak = NULL;
+
 
 int fs_data_override; // Baker r0009: Super -data override
 int fs_is_zircon_galaxy;
@@ -716,12 +724,12 @@ static int PK3_BuildFileList (pack_t *pack, const pk3_endOfCentralDir_t *eocd)
 
 	// Load the central directory in memory
 	central_dir = (unsigned char *)Mem_Alloc (tempmempool, eocd->cdir_size);
-	if (FILEDESC_SEEK (pack->handle, eocd->cdir_offset, SEEK_SET) == -1)
+	if (FILEDESC_SEEK (pack->pk3_handle, eocd->cdir_offset, SEEK_SET) == -1)
 	{
 		Mem_Free (central_dir);
 		return -1;
 	}
-	if (FILEDESC_READ (pack->handle, central_dir, eocd->cdir_size) != (fs_offset_t) eocd->cdir_size)
+	if (FILEDESC_READ (pack->pk3_handle, central_dir, eocd->cdir_size) != (fs_offset_t) eocd->cdir_size)
 	{
 		Mem_Free (central_dir);
 		return -1;
@@ -866,14 +874,14 @@ static pack_t *FS_LoadPackPK3FromFD (const char *packfile, filedesc_t packhandle
 	pack = (pack_t *)Mem_Alloc(fs_mempool, sizeof (pack_t));
 	pack->ignorecase = true; // PK3 ignores case
 	strlcpy (pack->filename, packfile, sizeof (pack->filename));
-	pack->handle = packhandle;
+	pack->pk3_handle = packhandle;
 	pack->numfiles = eocd.nbentries;
 	pack->files = (packfile_t *)Mem_Alloc(fs_mempool, eocd.nbentries * sizeof(packfile_t));
 
 	real_nb_files = PK3_BuildFileList (pack, &eocd);
 	if (real_nb_files < 0) {
 		Con_PrintLinef ("%s is not a valid PK3 file", packfile);
-		FILEDESC_CLOSE(pack->handle);
+		FILEDESC_CLOSE(pack->pk3_handle);
 		Mem_Free(pack);
 		return NULL;
 	}
@@ -910,12 +918,12 @@ static qbool PK3_GetTrueFileOffset (packfile_t *pfile, pack_t *pack)
 		return true;
 
 	// Load the local file description
-	if (FILEDESC_SEEK (pack->handle, pfile->offset, SEEK_SET) == -1)
+	if (FILEDESC_SEEK (pack->pk3_handle, pfile->offset, SEEK_SET) == -1)
 	{
 		Con_PrintLinef ("Can't seek in package %s", pack->filename);
 		return false;
 	}
-	count = FILEDESC_READ (pack->handle, buffer, ZIP_LOCAL_CHUNK_BASE_SIZE);
+	count = FILEDESC_READ (pack->pk3_handle, buffer, ZIP_LOCAL_CHUNK_BASE_SIZE);
 	if (count != ZIP_LOCAL_CHUNK_BASE_SIZE || BuffBigLong (buffer) != ZIP_DATA_HEADER) {
 		Con_PrintLinef ("Can't retrieve file %s in package %s", pfile->name, pack->filename);
 		return false;
@@ -1075,6 +1083,19 @@ static void FS_Path_f(cmd_state_t *cmd)
 	}
 }
 
+void FS_Path_Feed (stringlist_t *plist)
+{
+	int count = 0;
+	for (searchpath_t *s = fs_searchpaths; s; s=s->next) {
+		if (s->pack) {
+			stringlistappendf	(plist, "%d", count ++);
+			if (s->pack->vpack)
+				stringlistappendf	(plist, "%sdir (virtual pack)", s->pack->filename);
+			else
+				stringlistappendf	(plist, "%s (%d files)", s->pack->filename, s->pack->numfiles);
+		} // if
+	} // for
+}
 
 /*
 =================
@@ -1139,7 +1160,7 @@ static pack_t *FS_LoadPackPAK (const char *packfile)
 	pack = (pack_t *)Mem_Alloc(fs_mempool, sizeof (pack_t));
 	pack->ignorecase = true; // PAK is sensitive in Quake1 but insensitive in Quake2
 	strlcpy (pack->filename, packfile, sizeof (pack->filename));
-	pack->handle = packhandle;
+	pack->pk3_handle = packhandle;
 	pack->numfiles = 0;
 	pack->files = (packfile_t *)Mem_Alloc(fs_mempool, numpackfiles * sizeof(packfile_t));
 
@@ -1175,10 +1196,10 @@ static pack_t *FS_LoadPackVirtual (const char *dirname)
 	pack->vpack = true;
 	pack->ignorecase = false;
 	strlcpy (pack->filename, dirname, sizeof(pack->filename));
-	pack->handle = FILEDESC_INVALID;
+	pack->pk3_handle = FILEDESC_INVALID;
 	pack->numfiles = -1;
 	pack->files = NULL;
-	Con_DPrintf ("Added packfile %s (virtual pack)\n", dirname);
+	Con_DPrintLinef ("Added packfile %s (virtual pack)", dirname);
 	return pack;
 }
 
@@ -1204,8 +1225,8 @@ static qbool FS_AddPack_Fullpath(const char *pakfile, const char *shortname, qbo
 	const char *ext = FS_FileExtension(pakfile);
 	size_t slen;
 
-	for(search = fs_searchpaths; search; search = search->next) {
-		if (search->pack && String_Does_Match_Caseless(search->pack->filename, pakfile)) {
+	for (search = fs_searchpaths; search; search = search->next) {
+		if (search->pack && String_Match_Caseless(search->pack->filename, pakfile)) {
 			if (already_loaded)
 				*already_loaded = true;
 			return true; // already loaded
@@ -1215,13 +1236,13 @@ static qbool FS_AddPack_Fullpath(const char *pakfile, const char *shortname, qbo
 	if (already_loaded)
 		*already_loaded = false;
 
-	if (String_Does_Match_Caseless(ext, "pk3dir"))			pak = FS_LoadPackVirtual (pakfile);
-	else if (String_Does_Match_Caseless(ext, "dpkdir"))		pak = FS_LoadPackVirtual (pakfile);
-	else if (String_Does_Match_Caseless(ext, "pak"))		pak = FS_LoadPackPAK (pakfile);
-	else if (String_Does_Match_Caseless(ext, "pk3"))		pak = FS_LoadPackPK3 (pakfile);
-	else if (String_Does_Match_Caseless(ext, "kpf")) 		pak = FS_LoadPackPK3 (pakfile); // AURA 3.1
-	else if (String_Does_Match_Caseless(ext, "dpk")) 		pak = FS_LoadPackPK3 (pakfile);
-	else if (String_Does_Match_Caseless(ext, "obb")) 		pak = FS_LoadPackPK3 (pakfile); // android apk expansion
+	if (String_Match_Caseless(ext, "pk3dir"))			pak = FS_LoadPackVirtual (pakfile);
+	else if (String_Match_Caseless(ext, "dpkdir"))		pak = FS_LoadPackVirtual (pakfile);
+	else if (String_Match_Caseless(ext, "pak"))		pak = FS_LoadPackPAK (pakfile);
+	else if (String_Match_Caseless(ext, "pk3"))		pak = FS_LoadPackPK3 (pakfile);
+	else if (String_Match_Caseless(ext, "kpf")) 		pak = FS_LoadPackPK3 (pakfile); // AURA 3.1
+	else if (String_Match_Caseless(ext, "dpk")) 		pak = FS_LoadPackPK3 (pakfile);
+	else if (String_Match_Caseless(ext, "obb")) 		pak = FS_LoadPackPK3 (pakfile); // android apk expansion
 	else
 		Con_PrintLinef (QUOTED_S " does not have a pack extension", pakfile);
 
@@ -1273,11 +1294,11 @@ static qbool FS_AddPack_Fullpath(const char *pakfile, const char *shortname, qbo
 			// same goes for the name inside the pack structure
 			slen = strlen(pak->shortname);
 			if (slen >= 7)
-				if (String_Does_Match_Caseless(pak->shortname + slen - 7, ".pk3dir") || String_Does_Match_Caseless(pak->shortname + slen - 7, ".dpkdir"))
+				if (String_Match_Caseless(pak->shortname + slen - 7, ".pk3dir") || String_Match_Caseless(pak->shortname + slen - 7, ".dpkdir"))
 					pak->shortname[slen - 3] = 0;
 			slen = strlen(pak->filename);
 			if (slen >= 7)
-				if (String_Does_Match_Caseless(pak->filename + slen - 7, ".pk3dir") || String_Does_Match_Caseless(pak->filename + slen - 7, ".dpkdir"))
+				if (String_Match_Caseless(pak->filename + slen - 7, ".pk3dir") || String_Match_Caseless(pak->filename + slen - 7, ".dpkdir"))
 					pak->filename[slen - 3] = 0;
 		}
 		return true;
@@ -1349,15 +1370,15 @@ static void FS_AddGameDirectory (const char *dir)
 
 	// add any PAK package in the directory
 	for (i = 0;i < list.numstrings;i++) {
-		if (String_Does_Match_Caseless(FS_FileExtension(list.strings[i]), "pak")) {
+		if (String_Match_Caseless(FS_FileExtension(list.strings[i]), "pak")) {
 			FS_AddPack_Fullpath(list.strings[i], list.strings[i] + strlen(dir), NULL, false, false);
 		}
 	}
 
 	// add any PK3 package in the directory
 	for (i = 0;i < list.numstrings;i++) {
-		if (String_Does_Match_Caseless(FS_FileExtension(list.strings[i]), "pk3") || String_Does_Match_Caseless(FS_FileExtension(list.strings[i]), "obb") || String_Does_Match_Caseless(FS_FileExtension(list.strings[i]), "pk3dir")
-			|| String_Does_Match_Caseless(FS_FileExtension(list.strings[i]), "dpk") || String_Does_Match_Caseless(FS_FileExtension(list.strings[i]), "dpkdir"))
+		if (String_Match_Caseless(FS_FileExtension(list.strings[i]), "pk3") || String_Match_Caseless(FS_FileExtension(list.strings[i]), "obb") || String_Match_Caseless(FS_FileExtension(list.strings[i]), "pk3dir")
+			|| String_Match_Caseless(FS_FileExtension(list.strings[i]), "dpk") || String_Match_Caseless(FS_FileExtension(list.strings[i]), "dpkdir"))
 		{
 			FS_AddPack_Fullpath(list.strings[i], list.strings[i] + strlen(dir), NULL, false, false);
 		}
@@ -1457,7 +1478,7 @@ static void FS_ClearSearchPath (void)
 			if (!search->pack->vpack)
 			{
 				// close the file
-				FILEDESC_CLOSE(search->pack->handle);
+				FILEDESC_CLOSE(search->pack->pk3_handle);
 				// free any memory associated with it
 				if (search->pack->files)
 					Mem_Free(search->pack->files);
@@ -1495,7 +1516,7 @@ void FS_UnloadPacks_dlcache(void)
 				searchprev->next = search->next;
 
 			// close the file
-			FILEDESC_CLOSE(search->pack->handle);
+			FILEDESC_CLOSE(search->pack->pk3_handle);
 			// free any memory associated with it
 			if (search->pack->files)
 				Mem_Free(search->pack->files);
@@ -1508,6 +1529,7 @@ void FS_UnloadPacks_dlcache(void)
 	}
 }
 
+
 static void FS_AddSelfPack(void)
 {
 	if (fs_selfpack)
@@ -1518,6 +1540,14 @@ static void FS_AddSelfPack(void)
 		search->pack = fs_selfpack;
 		fs_searchpaths = search;
 	}
+
+	//else if (fs_bakerpak) {
+	//	searchpath_t *search;
+	//	search = (searchpath_t *)Mem_Alloc(fs_mempool, sizeof(searchpath_t));
+	//	search->next = fs_searchpaths;
+	//	search->pack = fs_bakerpak;
+	//	fs_searchpaths = search;
+	//}
 }
 
 
@@ -1538,9 +1568,13 @@ void FS_Rescan (void)
 		reset = true;
 	FS_ClearSearchPath();
 
+#ifdef _DEBUG
+	FS_AddSelfPack(); // Baker: Last item?
+#endif
 	// automatically activate gamemode for the gamedirs specified
 	if (reset)
 		COM_ChangeGameTypeForGameDirs();
+
 
 	// add the game-specific paths
 	// gamedirname1 (typically id1)
@@ -1563,6 +1597,7 @@ void FS_Rescan (void)
 	// Adds basedir/gamedir as an override game
 	// LadyHavoc: now supports multiple -game directories
 	// set the com_modname (reported in server info)
+
 	*gamedirbuf = 0;
 	for (i = 0;i < fs_numgamedirs;i++)
 	{
@@ -1578,7 +1613,9 @@ void FS_Rescan (void)
 	Cvar_SetQuick(&cvar_fs_gamedir, gamedirbuf); // so QC or console code can query it
 
 	// add back the selfpack as new first item
+#ifndef _DEBUG
 	FS_AddSelfPack();
+#endif
 
 	fs_have_qex = 0; // AURA 3.2
 	const char *s_qex = "QuakeEX.kpf";
@@ -1669,7 +1706,7 @@ qbool FS_ChangeGameDirs(int numgamedirs, char gamedirs[][MAX_QPATH_128], qbool c
 
 	if (fs_numgamedirs == numgamedirs) {
 		for (i = 0;i < numgamedirs;i++) {
-			if (String_Does_Match_Caseless(fs_gamedirs[i], gamedirs[i]) == false)
+			if (String_Match_Caseless(fs_gamedirs[i], gamedirs[i]) == false)
 				break;
 		} // for
 		if (i == numgamedirs)
@@ -1730,6 +1767,38 @@ FS_GameDir_f
 
 // Baker: What happens if dedicated server switches game?
 // I see CL_ stuff here.
+
+void FS_PurgeAll_f (cmd_state_t *cmd)
+{
+	if ((cls.state == ca_connected && !cls.demoplayback) || sv.active) {
+		Con_PrintLinef ("Disconnecting...");
+	}
+
+	// halt demo playback to close the file
+	CL_Disconnect();
+
+#ifdef CONFIG_MENU
+	Menu_Resets (); // Cursor to 0 for all the menus
+	R_Shadow_ClearWorldLights ();
+	r_shadow_mapname[0] = 0; // Clear the name
+#endif
+
+	Mod_FreeQ3Shaders();
+	Mod_Skeletal_FreeBuffers();
+
+	// Baker r9003: Clear models/sounds on gamedir change
+	//if (is_game_switch) {
+		//Mod_PurgeUnused (); // Baker .. loadmodel: stuff from prior gamedir persisted
+	Mod_PurgeALL ();
+	S_PurgeALL (); //S_PurgeUnused();
+
+	// Baker r9003: Clear models/sounds on gamedir change
+//	is_game_switch = true;   // This does what?  Clear models thoroughly.  As opposed to video restart which shouldn't?
+//	FS_ChangeGameDirs(numgamedirs, gamedirs, q_tx_complain_true, q_fail_on_missing_true);
+	// is_game_switch = false; // Baker r9062: This is not where to do this for DarkPlaces Beta
+
+}
+
 static void FS_GameDir_f(cmd_state_t *cmd)
 {
 	int i;
@@ -1780,6 +1849,8 @@ static void FS_GameDir_f(cmd_state_t *cmd)
 
 #ifdef CONFIG_MENU
 	Menu_Resets (); // Cursor to 0 for all the menus
+	R_Shadow_ClearWorldLights ();
+	r_shadow_mapname[0] = 0; // Clear the name
 #endif
 
 	// Baker r9003: Clear models/sounds on gamedir change
@@ -1891,7 +1962,7 @@ static int FS_Baker_ListGameDirs_Is_Total_Conversion (void)
 	// It is sending "/" to FindFirstFileW
 	// which is looking through the root directory of my drive checking files
 #ifdef _WIN32 // modlist.txt
-	const char *s_pwd = Sys_Getcwd_SBuf();
+	//const char *s_pwd = Sys_Getcwd_SBuf();
 	if (fs_basedir[0] == NULL_CHAR_0)
 		c_strlcpy (vabuf, ""); // Baker: This should work?	
 	else 
@@ -1992,9 +2063,9 @@ static int FS_Baker_ListGameDirs_Is_Total_Conversion (void)
 
 		s = String_Worldspawn_Value_For_Key_Sbuf (filedata, "requirements");
 		if (s) {
-			if (String_Does_Match (s, "total_conversion")) mod_list_requires = REQUIRES_WHAT_STANDALONE_1;
-			else if (String_Does_Match (s, "quake")) mod_list_requires = REQUIRES_WHAT_QUAKE_0;
-			else if (String_Does_Match (s, "flexible")) mod_list_requires = REQUIRES_WHAT_FLEXIBLE_2;
+			if (String_Match (s, "total_conversion")) mod_list_requires = REQUIRES_WHAT_STANDALONE_1;
+			else if (String_Match (s, "quake")) mod_list_requires = REQUIRES_WHAT_QUAKE_0;
+			else if (String_Match (s, "flexible")) mod_list_requires = REQUIRES_WHAT_FLEXIBLE_2;
 		} // Haha
 
 		s = String_Worldspawn_Value_For_Key_Sbuf (filedata, "iconbase64");
@@ -2033,7 +2104,7 @@ static void FS_ListGameDirs(void)
 	// It is sending "/" to FindFirstFileW
 	// which is looking through the root directory of my drive checking files
 #ifdef _WIN32 // modlist.txt
-	const char *s_pwd = Sys_Getcwd_SBuf();
+	//const char *s_pwd = Sys_Getcwd_SBuf();
 	if (fs_basedir[0])
 		va(vabuf, sizeof(vabuf), "%s/", fs_basedir);
 	else c_strlcpy (vabuf, ""); // Baker: This should work?
@@ -2052,11 +2123,11 @@ static void FS_ListGameDirs(void)
 
 	stringlistinit(&list2);
 	for (i = 0; i < list.numstrings; i ++) {
-		const char *s = list.strings[i];
+		//const char *s = list.strings[i];
 #if 0
 		// Baker: This is a unique check, we make the sort above do unique
 		if (i)
-			if (String_Does_Match(list.strings[i-1], list.strings[i]))
+			if (String_Match(list.strings[i-1], list.strings[i]))
 				continue;
 #endif
 
@@ -2266,7 +2337,7 @@ static int FS_ChooseUserDir(userdirmode_t userdirmode, char *userdir, size_t use
 
 #ifdef _WIN32
 	// historical behavior...
-	if (userdirmode == USERDIRMODE_NOHOME && String_Does_NOT_Match(gamedirname1, "id1"))
+	if (userdirmode == USERDIRMODE_NOHOME && String_NOT_Match(gamedirname1, "id1"))
 		return 0; // don't bother checking if the basedir folder is writable, it's annoying...  unless it is Quake on Windows where NOHOME is the default preferred and we have to check for an error case
 #endif
 
@@ -2304,6 +2375,7 @@ static int FS_ChooseUserDir(userdirmode_t userdirmode, char *userdir, size_t use
 FS_Init_SelfPack
 ================
 */
+
 void FS_Init_SelfPack (void)
 {
 	char *buf;
@@ -2318,11 +2390,26 @@ void FS_Init_SelfPack (void)
 		}
 	} // noopt
 
-#ifndef USE_RWOPS
+#ifndef USE_RWOPS // This is not defined
+	// Baker: This appears to be the norm
+#if 0
+	pack_t *FS_LoadPackFromMemory (const char *packfile, const byte *pakdata, fs_offset_t pakdatasize);
+	//extern const unsigned char *bundle_char_array_name;
+	//extern const unsigned char bundle_char_array_name[];
+	//extern unsigned char const * const bundle_char_array_name[];
+	extern size_t bundle_char_array_name_size;
+	
+	fs_bakerpak = FS_LoadPackFromMemory ("engine", (const byte *)bundle_char_array_name, bundle_char_array_name_size);
+
+#endif
+	
 	// Provide the SelfPack.
+
+
+
 	if (!Sys_CheckParm("-noselfpack") && sys.selffd >= 0) {
 		fs_selfpack = FS_LoadPackPK3FromFD(sys.argv[0], sys.selffd, true);
-		if (fs_selfpack) {
+		if (fs_selfpack) { // Baker: This is returning NULL
 			FS_AddSelfPack();
 			if (!Sys_CheckParm("-noopt")) {
 				buf = (char *) FS_LoadFile("darkplaces.opt", tempmempool, fs_quiet_true, fs_size_ptr_null);
@@ -2523,14 +2610,14 @@ static qfile_t *FS_OpenPackedFile (pack_t *pack, int pack_ind)
 
 	// LadyHavoc: FILEDESC_SEEK affects all duplicates of a handle so we do it before
 	// the dup() call to avoid having to close the dup_handle on error here
-	if (FILEDESC_SEEK (pack->handle, pfile->offset, SEEK_SET) == -1)
+	if (FILEDESC_SEEK (pack->pk3_handle, pfile->offset, SEEK_SET) == -1)
 	{
-		Con_Printf ("FS_OpenPackedFile: can't lseek to %s in %s (offset: %08x%08x)\n",
+		Con_PrintLinef ("FS_OpenPackedFile: can't lseek to %s in %s (offset: %08x%08x)",
 					pfile->name, pack->filename, (unsigned int)(pfile->offset >> 32), (unsigned int)(pfile->offset));
 		return NULL;
 	}
 
-	dup_handle = FILEDESC_DUP (pack->filename, pack->handle);
+	dup_handle = FILEDESC_DUP (pack->filename, pack->pk3_handle);
 	if (!FILEDESC_ISVALID(dup_handle))
 	{
 		Con_Printf ("FS_OpenPackedFile: can't dup package's handle (pack: %s)\n", pack->filename);
@@ -3295,6 +3382,14 @@ int FS_Printf(qfile_t *file, const char *format, ...)
 	return result;
 }
 
+int FS_PrintLinef(qfile_t *file, const char *fmt, ...)
+{
+	int result;
+	VA_EXPAND_ALLOC (text, text_slen, bufsiz, fmt);
+	result = FS_Printf (file, "%s" NEWLINE, text);
+	VA_EXPAND_ALLOC_FREE (text);
+	return result;
+}
 
 /*
 ====================
@@ -3806,13 +3901,13 @@ fssearch_t *FS_Search (const char *pattern, int caseinsensitive, int quiet, cons
 #if 1 // Maps gamedir only
 		if (isgamedironly_in && sgamedironly[0] == 0 && !searchpath->pack) {
 			// ignore the home directory for map menu
-			if ( !fs_userdir[0] /*not homed*/ || String_Does_Start_With (searchpath->filename, fs_userdir) == false /*homed, but not a home dir*/ ) {
+			if ( !fs_userdir[0] /*not homed*/ || String_Starts_With (searchpath->filename, fs_userdir) == false /*homed, but not a home dir*/ ) {
 				c_strlcpy (sgamedironly, searchpath->filename);
 			}
 		}
 
 		if (searchpath->pack) {
-			if (isgamedironly_in && hit_gamedironly_limiter && String_Does_Start_With_Caseless (searchpath->pack->filename, sgamedironly) == false) {
+			if (isgamedironly_in && hit_gamedironly_limiter && String_Starts_With_Caseless (searchpath->pack->filename, sgamedironly) == false) {
 				if (developer_loading.value) {
 					Con_PrintLinef ("Surpassed isgamedironly limit at %s limit is %s", searchpath->pack->filename, sgamedironly);
 				}
@@ -3820,14 +3915,14 @@ fssearch_t *FS_Search (const char *pattern, int caseinsensitive, int quiet, cons
 			}
 
 		} else {
-			if (hit_gamedironly_limiter && String_Does_Start_With_Caseless (searchpath->filename, sgamedironly) == false) {
+			if (hit_gamedironly_limiter && String_Starts_With_Caseless (searchpath->filename, sgamedironly) == false) {
 				if (developer_loading.value) {
 					Con_PrintLinef ("Surpassed isgamedironly limit at %s limit is %s", searchpath->filename, sgamedironly);
 				}
 				goto failout;
 			}
 
-			if (hit_gamedironly_limiter == false && isgamedironly_in && String_Does_Match_Caseless (searchpath->filename, sgamedironly)) {
+			if (hit_gamedironly_limiter == false && isgamedironly_in && String_Match_Caseless (searchpath->filename, sgamedironly)) {
 				if (developer_loading.value) {
 					Con_PrintLinef ("Found limit at %s limit is %s", searchpath->filename, sgamedironly);
 				}
@@ -3840,7 +3935,7 @@ fssearch_t *FS_Search (const char *pattern, int caseinsensitive, int quiet, cons
 			// look through all the pak file elements
 			pak = searchpath->pack;
 			if (packfile) {
-				if (String_Does_NOT_Match(packfile, pak->shortname))
+				if (String_NOT_Match(packfile, pak->shortname))
 					continue;
 			}
 			for (i = 0;i < pak->numfiles;i++)
@@ -3852,7 +3947,7 @@ fssearch_t *FS_Search (const char *pattern, int caseinsensitive, int quiet, cons
 					if (matchpattern(temp, (char *)pattern, true))
 					{
 						for (resultlistindex = 0;resultlistindex < resultlist.numstrings;resultlistindex++)
-							if (String_Does_Match(resultlist.strings[resultlistindex], temp))
+							if (String_Match(resultlist.strings[resultlistindex], temp))
 								break;
 						if (resultlistindex == resultlist.numstrings)
 						{
@@ -3959,7 +4054,7 @@ fssearch_t *FS_Search (const char *pattern, int caseinsensitive, int quiet, cons
 				if (matchpattern(matchtemp, (char *)pattern, true))
 				{
 					for (resultlistindex = 0;resultlistindex < resultlist.numstrings;resultlistindex++)
-						if (String_Does_Match(resultlist.strings[resultlistindex], matchtemp))
+						if (String_Match(resultlist.strings[resultlistindex], matchtemp))
 							break;
 					if (resultlistindex == resultlist.numstrings)
 					{
@@ -4089,10 +4184,10 @@ static void FS_ListDirectory_f (cmd_state_t *cmd, const char *cmdname, int onepe
 
 	if (Cmd_Argc(cmd) == 2) {
 		const char *spat = Cmd_Argv(cmd, 1);
-		if (String_Does_End_With (spat, "*") || String_Does_End_With (spat, "?") || String_Does_End_With (spat, "/" ))
+		if (String_Ends_With (spat, "*") || String_Ends_With (spat, "?") || String_Ends_With (spat, "/" ))
 			has_pat = true;
 		c_strlcpy (pattern, spat);
-		if (String_Does_End_With (pattern, "/")) {
+		if (String_Ends_With (pattern, "/")) {
 			c_strlcat (pattern, "*");
 		}
 	} else {
@@ -4176,7 +4271,7 @@ void FS_BitAtomize_f (cmd_state_t *cmd)
 	double dnumber = atof(Cmd_Argv(cmd,1));
 	uint64_t number = dnumber;
 
-	Con_PrintLinef ("Number: %u", number);
+	Con_PrintLinef ("Number: " PRINTF_UINT64, number);
 
 	// bust down to bits and then print
 	for (uint64_t j = 0; j < 32; j ++) {
@@ -4209,8 +4304,8 @@ void FS_Parse_f (cmd_state_t *cmd)
 
 	const char *s_parse = NULL;
 	char *s_alloc = NULL;
-	if (Cmd_Argc (cmd) == 2 && String_Does_Match (Cmd_Argv(cmd, 1), "clipboard")) {
-		s_alloc = Sys_GetClipboardData_Unlimited_Alloc(); // zallocs
+	if (Cmd_Argc (cmd) == 2 && String_Match (Cmd_Argv(cmd, 1), "clipboard")) {
+		s_alloc = Sys_GetClipboardData_Unlimited_ZAlloc(); // zallocs
 		s_parse = s_alloc;
 
 	} else {
@@ -4240,7 +4335,7 @@ void FS_Parse_f (cmd_state_t *cmd)
 
 void FS_Base64Clipboard_f (cmd_state_t *cmd)
 {
-	char *s_alloc = Sys_GetClipboardData_Unlimited_Alloc(); // zallocs
+	char *s_alloc = Sys_GetClipboardData_Unlimited_ZAlloc(); // zallocs
 	if (s_alloc == NULL) {
 		Con_PrintLinef ("No text on clipboard");
 		return;
@@ -4258,7 +4353,7 @@ void FS_Base64Clipboard_f (cmd_state_t *cmd)
 char *Compresso (char *s);
 void FS_Base64ClipboardCompressed_f (cmd_state_t *cmd)
 {
-	/*cleanupok*/ char *s_alloc = Sys_GetClipboardData_Unlimited_Alloc(); // zallocs
+	/*cleanupok*/ char *s_alloc = Sys_GetClipboardData_Unlimited_ZAlloc(); // zallocs
 	if (s_alloc == NULL) {
 		Con_PrintLinef ("No text on clipboard");
 		return;
@@ -4284,7 +4379,7 @@ void FS_Base64ClipboardCompressed_f (cmd_state_t *cmd)
 
 void FS_Base64ClipboardDeCompressed_f (cmd_state_t *cmd)
 {
-	/*cleanupok*/ char *s_alloc = Sys_GetClipboardData_Unlimited_Alloc(); // zallocs
+	/*cleanupok*/ char *s_alloc = Sys_GetClipboardData_Unlimited_ZAlloc(); // zallocs
 	if (s_alloc == NULL) {
 		Con_PrintLinef ("No text on clipboard");
 		return;
@@ -4315,6 +4410,8 @@ void FS_Base64ClipboardDeCompressed_f (cmd_state_t *cmd)
 
 void FS_JpegSplit_f (cmd_state_t *cmd)
 {
+	extern int image_width, image_height; // Baker: image globals !!!
+
 	if (Cmd_Argc(cmd) < 2) {
 		Con_PrintLinef ("usage:" NEWLINE "%s <folder>", Cmd_Argv(cmd, 0));
 		return;
@@ -4327,20 +4424,19 @@ void FS_JpegSplit_f (cmd_state_t *cmd)
 	stringlist_t slist = {0};
 
 	WARP_X_ (LoadTGA_BGRA, JPEG_SaveImage_preflipped, Image_CopyAlphaFromBlueBGRA)
-	stringlist_from_dir_pattern (&slist, s_folder, ".tga", q_strip_exten_false);
+
+	stringlistappend_from_dir_pattern (&slist, s_folder, ".png", q_strip_exten_false);
+	stringlistappend_from_dir_pattern (&slist, s_folder, ".tga", q_strip_exten_false);
 
 	Con_PrintLinef ("%d results" NEWLINE, slist.numstrings);
 
+
 	for (int idx = 0; idx < slist.numstrings; idx ++) {
-		unsigned char *LoadTGA_BGRA (const unsigned char *f, int filesize, int *miplevel);
-		qbool JPEG_SaveImage_preflipped (const char *filename, int width, int height, unsigned char *data);
-		void Image_CopyMux(unsigned char *outpixels, const unsigned char *inpixels, int inputwidth, int inputheight, qbool inputflipx, qbool inputflipy, qbool inputflipdiagonal, int numoutputcomponents, int numinputcomponents, int *outputinputcomponentindices);
-
 		char *s_name = slist.strings[idx];
-		fs_offset_t filesize;
-		unsigned char *f = FS_LoadFile(s_name, tempmempool, fs_quiet_true, &filesize);
-
-		Con_PrintLinef ("%4d: size %12d %s", idx, (int)filesize, slist.strings[idx]);
+		
+		Vid_SetWindowTitlef ("%d/%d %s", idx, slist.numstrings, s_name);
+		
+		Con_PrintLinef ("%4d: %s", idx, s_name);
 
 		if (is_write == false)
 			goto free_data_continue;
@@ -4349,21 +4445,27 @@ void FS_JpegSplit_f (cmd_state_t *cmd)
 		c_strlcpy (s_name_out, s_name);
 		File_URL_Edit_Remove_Extension(s_name_out);
 		c_strlcat (s_name_out, ".jpg");
-
-		//int image_width = 0; // These are globals!
-		//int image_height = 0;
-
-		int mymiplevel = 0;
 		WARP_X_ (LoadTGA_BGRA imageformats_textures)
 
-extern int		image_width; // Baker: image globals !!!
-extern int		image_height;
+		unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool allowFixtrans, qbool convertsRGB, int *miplevel); // LoadTGA_BGRA
+		byte *data_bgra = loadimagepixelsbgra (
+			s_name,
+			q_tx_complain_false,
+			q_tx_allowfixtrans_false,
+			q_tx_convertsrgb_false,
+			q_tx_miplevel_null
+		);
 
-		unsigned char *data_bgra = LoadTGA_BGRA(f, (int)filesize, &mymiplevel);
+		if (data_bgra == NULL) {
+			Con_PrintLinef ("Error loading PNG or TGA %s", s_name);
+			goto free_data_continue;
+		}
 
 		int is_alpha_channel = false;
 
-		for (int y = 3; y < image_width * image_height * BGRA_4; y += BGRA_4) {
+		// Look through every pixel
+		int numpels = image_width * image_height * BGRA_4;
+		for (int y = 3; y < numpels; y += BGRA_4) {
 			if (data_bgra[y] < 255) {
 				is_alpha_channel = true;
 				break;
@@ -4372,19 +4474,17 @@ extern int		image_height;
 
 		Con_PrintLinef ("Image has alpha = %d", is_alpha_channel);
 
-		if (data_bgra == NULL) {
-			Con_PrintLinef ("Error loading TGA %s ", s_name);
-			goto free_data_continue;
-		}
-
 #if 0
 		int is_ok_clip =
 			Sys_Clipboard_Set_Image_BGRA_Is_Ok ((unsigned int *)data_bgra, image_width, image_height);
 #endif
-		unsigned char *noalphabuffer_3 = (unsigned char *)Mem_Alloc(tempmempool, image_width * image_height * 3);
+		unsigned char *noalphabuffer_3 = (unsigned char *)Mem_Alloc(tempmempool, image_width * image_height * RGB_3);
 
 		int	indices[4] = {0,1,2,3}; // BGRA
 		if (1 /*jpeg*/) { indices[0] = 2; indices[2] = 0; }
+
+		qbool JPEG_SaveImage_preflipped (const char *filename, int width, int height, unsigned char *data);
+		void Image_CopyMux(unsigned char *outpixels, const unsigned char *inpixels, int inputwidth, int inputheight, qbool inputflipx, qbool inputflipy, qbool inputflipdiagonal, int numoutputcomponents, int numinputcomponents, int *outputinputcomponentindices);
 
 		if (1) {
 			// Part 1: RGB part
@@ -4410,7 +4510,7 @@ extern int		image_height;
 			c_strlcat (s_name_out, ".jpg");
 
 			// Copy alpha to rgb
-			for (int y = 0; y < image_width * image_height * BGRA_4; y += BGRA_4) {
+			for (int y = 0; y < numpels; y += BGRA_4) {
 				data_bgra[y + 0] = data_bgra[y + 1] = data_bgra[y + 2] =
 					data_bgra[y + 3];
 			} // for
@@ -4428,12 +4528,13 @@ extern int		image_height;
 				Con_PrintLinef ("Error saving JPEG %s ", s_name_out);
 		} // diffuse
 
+		Mem_Free (noalphabuffer_3); // Baker: it's temppool so ok
 
-		Mem_Free(noalphabuffer_3); // Baker: it's temppool so ok
-		Mem_Free(data_bgra); // Baker: it's temppool so ok
+		Mem_Free (data_bgra); // Baker: it's temppool so ok
 
 free_data_continue:
-		Mem_Free(f);
+
+		; // Oblig
 
 //		if (idx > 20)
 //			break; // One until it works.
@@ -4442,11 +4543,13 @@ free_data_continue:
 	stringlistfreecontents (&slist);
 
 	if (is_write == false) {
-		Con_PrintLinef (CON_BRONZE "testing done", Cmd_Argv(cmd, 0));
+		Con_PrintLinef (CON_BRONZE "testing done %s", Cmd_Argv(cmd, 0));
 		Con_PrintLinef (CON_BRONZE "TO REALLY RUN CONVERSION:" NEWLINE CON_GREEN "%s %s go " CON_WHITE "// REALLY RUN CONVERSION!", Cmd_Argv(cmd, 0), Cmd_Argv(cmd, 1));
 		Con_PrintLinef (CON_BRONZE "Note that DarkPlaces pattern matching hates periods '.' in path names.");
 		return;
 	}
+
+	Vid_SetWindowTitlef (gamename); // RESET
 
 }
 
@@ -4663,7 +4766,7 @@ qbool FS_IsRegisteredQuakePack(const char *name)
 
 	// search through the path, one element at a time
 	for (search = fs_searchpaths;search;search = search->next) {
-		if (search->pack && !search->pack->vpack && String_Does_Match_Caseless(FS_FileWithoutPath(search->filename), name))
+		if (search->pack && !search->pack->vpack && String_Match_Caseless(FS_FileWithoutPath(search->filename), name))
 			// TODO do we want to support vpacks in here too?
 		{
 			int (*strcmp_funct) (const char *str1, const char *str2);
@@ -4916,7 +5019,7 @@ int File_Exists (const char *path_to_file_)
 	struct stat st_buf = {0};
 	char buf[SYSTEM_STRING_SIZE_1024];
 	const char *path_to_file = path_to_file_;
-	if (String_Does_End_With_Caseless (path_to_file_, "/")) { // TRAILING SLASH REMOVER
+	if (String_Ends_With_Caseless (path_to_file_, "/")) { // TRAILING SLASH REMOVER
 		int slen = (int)strlen (path_to_file_);
 		c_strlcpy (buf, path_to_file);
 		if (slen <= (int)sizeof(buf /*1024*/)) { // Otherwise it is truncated ... which is bad.
@@ -5035,7 +5138,7 @@ static void FS_Init_Dir (void)
 		int userdirstatus[USERDIRMODE_COUNT];
 # if defined(_WIN32) || defined(MACOSX)
 		// historical behavior...
-		if (String_Does_Match(gamedirname1, "id1"))
+		if (String_Match(gamedirname1, "id1"))
 			preferreduserdirmode = USERDIRMODE_NOHOME;
 # endif
 		// check what limitations the user wants to impose
@@ -5090,7 +5193,7 @@ static void FS_Init_Dir (void)
 #endif
 
 	// if userdir equal to basedir, clear it to avoid confusion later
-	if (String_Does_Match(fs_basedir, fs_userdir))
+	if (String_Match(fs_basedir, fs_userdir))
 		fs_userdir[0] = 0;
 
 #if 1
@@ -5135,7 +5238,7 @@ static void FS_Init_Dir (void)
 	{
 		if (!sys.argv[i])
 			continue;
-		if (String_Does_Match (sys.argv[i], "-game") && i < sys.argc-1)
+		if (String_Match (sys.argv[i], "-game") && i < sys.argc-1)
 		{
 			i++;
 			p = FS_CheckGameDir(sys.argv[i]);
@@ -5165,6 +5268,7 @@ void FS_Init_Commands(void)
 
 	Cmd_AddCommand(CF_SHARED, "gamedir", FS_GameDir_f, "changes active gamedir list (can take multiple arguments), not including base directory (example usage: gamedir ctf)");
 	Cmd_AddCommand(CF_SHARED, "game", FS_GameDir_f, "changes active gamedir list (can take multiple arguments), not including base directory (example usage: gamedir ctf) [Zircon]"); // Baker r1203: "game" command like Quakespasm/FitzQuake 0.85, Quakespasm and most singleplayer engines use this command for "gamedir" switching
+	Cmd_AddCommand(CF_SHARED, "purgeall", FS_PurgeAll_f, "Purges all models, textures, sounds [Zircon]");
 	Cmd_AddCommand(CF_SHARED, "fs_rescan", FS_Rescan_f, "rescans filesystem for new pack archives and any other changes");
 	Cmd_AddCommand(CF_SHARED, "path", FS_Path_f, "print searchpath (game directories and archives)");
 	Cmd_AddCommand(CF_SHARED, "dir", FS_Dir_f, "list files in searchpath matching an * filename pattern, one per line");
@@ -5173,7 +5277,7 @@ void FS_Init_Commands(void)
 #endif
 	Cmd_AddCommand(CF_SHARED, "pwd", FS_Pwd_f, "what is current working directory [Zircon]");  // Baker r3101: pwd command to say the current directory
 	Cmd_AddCommand(CF_SHARED, "zipinfo", FS_Zipinfo_f, "zipinfo <file> list files in a zip [Zircon]");
-	Cmd_AddCommand(CF_SHARED, "jpegsplit", FS_JpegSplit_f, "jpegsplit <folder> (test) -- or --  <folder> go (run conversion!) --- load all TGA in supplied folder, write them as .jpg to same directory including any _alpha jpegs.  DarkPlaces pattern matching hates periods '.' in path names, beware! [Zircon]");
+	Cmd_AddCommand(CF_SHARED, "jpegsplit", FS_JpegSplit_f, "jpegsplit <folder> (test) -- or --  <folder> go (run conversion!) --- load all TGA/PNG in supplied folder, write them as .jpg to same directory including any _alpha jpegs.  DarkPlaces pattern matching hates periods '.' in path names, beware! [Zircon]");
 #if 0 // Baker: Too dangerous
 	Cmd_AddCommand(CF_SHARED, "shell", FS_Shell_f, "execute a command line [Zircon]");
 #endif
@@ -5192,11 +5296,11 @@ void FS_Init_Commands(void)
 
 /*
 ================
-FS_Init
+FS_InitOnce
 ================
 */
 
-void FS_Init(void)
+void FS_InitOnce(void)
 {
 	fs_mempool = Mem_AllocPool("file management", 0, NULL);
 
@@ -5222,8 +5326,8 @@ void FS_Init(void)
 	// Check for #contents.pk3
 	if (FS_Baker_ListGameDirs_Is_Total_Conversion ()) { // modlist.txt
 		// Do stuff here?
-		int j = 5;
-		char *s = mod_list_folder_name; // Like "pac"
+		//int j = 5;
+		//char *s = mod_list_folder_name; // Like "pac"
 	}
 #endif
 
@@ -5234,3 +5338,91 @@ void FS_Init(void)
 	FS_Init_Dir();
 }
 
+
+#if 0 // Baker: DarkPlaces is too hardwired to use file handles.
+pack_t *FS_LoadPackFromMemory (const char *packfile, const byte *pakdata, fs_offset_t pakdatasize)
+{
+	dpackheader_t header;
+	int numpackfiles;
+
+	pack_t *pack = (pack_t *)Mem_Alloc(fs_mempool, sizeof (pack_t));
+	pack->vpack = true; // I guess
+	pack->ignorecase = true; // PAK is sensitive in Quake1 but insensitive in Quake2
+
+	bakerbuf_t *bb = baker_open_from_memory_NO_MALLOC_is_ok (pakdata, (size_t)pakdatasize); // Mallocs
+
+	
+//Read exactly length bytes from fd into buf. If end of file is reached,
+//the number of bytes read is returned. If an error occurred, that error
+//is returned. Note that if an error is returned, any previously read
+//data is lost.
+
+	int readsize;
+	readsize = baker_read (bb, (void *)&header, /*readsize*/ sizeof(header));
+
+	if (readsize != sizeof(header)) {
+		Con_PrintLinef ("%s is not a packfile", packfile);
+		baker_close (bb);
+		//FILEDESC_CLOSE(packhandle);
+		return NULL;
+	}
+	if (memcmp(header.id, "PACK", 4)) {
+		Con_PrintLinef ("%s is not a packfile", packfile);
+		baker_close (bb);
+		return NULL;
+	}
+	header.dirofs = LittleLong (header.dirofs);
+	header.dirlen = LittleLong (header.dirlen);
+
+	if (header.dirlen % sizeof(dpackfile_t)) {
+		Con_PrintLinef ("%s has an invalid directory size", packfile);
+		baker_close (bb);
+		return NULL;
+	}
+
+	numpackfiles = header.dirlen / sizeof(dpackfile_t);
+
+	if (numpackfiles < 0 || numpackfiles > MAX_FILES_IN_PACK_65536) {
+		Con_PrintLinef ("%s has %d files", packfile, numpackfiles);
+		baker_close (bb);
+		return NULL;
+	}
+
+	// Baker: This is freed below
+	dpackfile_t *info = (dpackfile_t *)Mem_Alloc(tempmempool, sizeof(*info) * numpackfiles);
+	//FILEDESC_SEEK (packhandle, header.dirofs, SEEK_SET);
+	baker_lseek (bb, header.dirofs, SEEK_SET);
+	//if (header.dirlen != FILEDESC_READ (packhandle, (void *)info, header.dirlen)) {
+	readsize = baker_read (bb, (void *)info, header.dirlen);
+	if (readsize != header.dirlen) {
+		Con_PrintLinef ("%s is an incomplete PAK, not loading", packfile);
+		Mem_Free(info);
+		baker_close (bb);
+		return NULL;
+	}
+
+	pack = (pack_t *)Mem_Alloc(fs_mempool, sizeof (pack_t));
+	pack->ignorecase = true; // PAK is sensitive in Quake1 but insensitive in Quake2
+	strlcpy (pack->filename, packfile, sizeof (pack->filename));
+	pack->pk3_handle = FILEDESC_INVALID; //packhandle;
+	pack->baker_handle = bb;
+	pack->numfiles = 0;
+	pack->files = (packfile_t *)Mem_Alloc(fs_mempool, numpackfiles * sizeof(packfile_t));
+
+	// parse the directory
+	for (int i = 0;i < numpackfiles;i++) {
+		fs_offset_t offset = (unsigned int)LittleLong (info[i].dpackfilepos);
+		fs_offset_t size = (unsigned int)LittleLong (info[i].dpackfilelen);
+
+		// Ensure a zero terminated file name (required by format).
+		info[i].name[sizeof(info[i].name) - 1] = 0;
+
+		FS_AddFileToPack (info[i].name, pack, offset, size, size, PACKFILE_FLAG_TRUEOFFS);
+	}
+
+	Mem_Free(info);
+
+	Con_DPrintLinef ("Added packfile %s (%d files)", packfile, numpackfiles);
+	return pack;
+}
+#endif

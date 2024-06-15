@@ -330,7 +330,7 @@ qbool CSQC_AddRenderEdict(prvm_edict_t *ed, int edictnum)
 		//entrender->shadertime = 0; // shadertime was set by spawn()
 		entrender->crflags = 0;
 		entrender->effects = 0;
-		entrender->alpha = 1;
+		entrender->ralpha = 1;
 		entrender->scale = 1;
 		VectorSet(entrender->colormod, 1, 1, 1);
 		VectorSet(entrender->glowmod, 1, 1, 1);
@@ -352,13 +352,13 @@ qbool CSQC_AddRenderEdict(prvm_edict_t *ed, int edictnum)
 	entrender->skinnum = (int)PRVM_clientedictfloat(ed, skin);
 	entrender->effects |= entrender->model->effects;
 	renderflags = (int)PRVM_clientedictfloat(ed, renderflags);
-	entrender->alpha = PRVM_clientedictfloat(ed, alpha);
+	entrender->ralpha = PRVM_clientedictfloat(ed, alpha);
 	entrender->scale = scale = PRVM_clientedictfloat(ed, scale);
 	VectorCopy(PRVM_clientedictvector(ed, colormod), entrender->colormod);
 	VectorCopy(PRVM_clientedictvector(ed, glowmod), entrender->glowmod);
 	if (PRVM_clientedictfloat(ed, effects))	entrender->effects |= (int)PRVM_clientedictfloat(ed, effects);
-	if (!entrender->alpha)
-		entrender->alpha = 1.0f;
+	if (!entrender->ralpha)
+		entrender->ralpha = 1.0f;
 	if (!entrender->scale)
 		entrender->scale = scale = 1.0f;
 	if (!VectorLength2(entrender->colormod))
@@ -417,7 +417,7 @@ qbool CSQC_AddRenderEdict(prvm_edict_t *ed, int edictnum)
 	}
 	// hide player shadow during intermission or nehahra movie
 	if (!(entrender->effects & (EF_NOSHADOW | EF_ADDITIVE_32 | EF_NODEPTHTEST))
-	 &&  (entrender->alpha >= 1)
+	 &&  (entrender->ralpha >= 1)
 	 && !(renderflags & RF_NOSHADOW)
 	 && !(entrender->crflags & RENDER_VIEWMODEL)
 	 && (!(entrender->crflags & RENDER_EXTERIORMODEL) || (!cl.intermission && cls.protocol != PROTOCOL_NEHAHRAMOVIE && !cl_noplayershadow.integer)))
@@ -590,7 +590,7 @@ void CL_VM_Parse_StuffCmd (const char *msg, int is_qw)
 	if (developer_qw.integer) {
 		// Commented cmd string is sneaky info
 		// ezQuake looks for: tinfo, cainfo, at, vwep, sn, qul, wps
-		if (String_Does_Start_With_Caseless_PRE (msg, "//")) goto skip_comment;
+		if (String_Starts_With_Caseless_PRE (msg, "//")) goto skip_comment;
 		Con_PrintLinef ("Parse_StuffCmd: %s", msg);
 	}
 
@@ -605,7 +605,7 @@ skip_comment:
 	//*z_ext               235
 
 	// ezQuake send cl extensions (stuffcmd)  !strcmp(msg, "cmd pext\n"
-	if (is_qw && String_Does_Start_With (msg, "cmd pext")) {
+	if (is_qw && String_Starts_With (msg, "cmd pext")) {
 		// If someone requested protocol extensions we support - reply.
 		// PROTOCOL_VERSION_FTE
 		char vabuf[1024];
@@ -692,7 +692,7 @@ static void CL_VM_Parse_Print (const char *msg)
 
 void CSQC_AddPrintTextQWColor (const char *text)
 {
-	int is_bronze = String_Does_Start_With (text, "\1"); // Character 1
+	int is_bronze = String_Starts_With (text, "\1"); // Character 1
 	// We know there is stuff
 	char vabuf[MAX_INPUTLINE_16384] = {0};
 	//c_strlcpy (vabuf, msg);
@@ -1310,7 +1310,7 @@ CSQC_BEGIN
 	}
 	PRVM_Prog_Reset(prog);
 CSQC_END
-	Con_DPrint("CSQC ^1unloaded\n");
+	Con_DPrintLinef ("CSQC ^1unloaded");
 	cl.csqc_loaded = false;
 }
 

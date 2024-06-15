@@ -225,7 +225,7 @@ Larger attenuations will drop off.  (max 4 attenuation)
 
 ==================
 */
-void SV_StartSound (prvm_edict_t *entity, int channel, const char *sample, int nvolume, float attenuation, qbool reliable, float speed)
+void SV_StartSound (prvm_edict_t *entity, int channel, const char *sample, int nvolume, float attenuation, qbool reliable, float pitchchange)
 {
 	prvm_prog_t *prog = SVVM_prog;
 	sizebuf_t *dest;
@@ -233,12 +233,14 @@ void SV_StartSound (prvm_edict_t *entity, int channel, const char *sample, int n
 
 	dest = (reliable ? &sv.reliable_datagram : &sv.datagram);
 
-	if (nvolume < 0 || nvolume > 255) {
+	if (false == in_range(0, nvolume, 255)) {
+	//if (nvolume < 0 || nvolume > 255) {
 		Con_PrintLinef ("SV_StartSound: volume = %d", nvolume);
 		return;
 	}
 
-	if (attenuation < 0 || attenuation > 4) {
+	if (false == in_range(0, attenuation, 4)) {
+	//if (attenuation < 0 || attenuation > 4) {
 		Con_PrintLinef ("SV_StartSound: attenuation = %f", attenuation);
 		return;
 	}
@@ -285,14 +287,14 @@ void SV_StartSound (prvm_edict_t *entity, int channel, const char *sample, int n
 			MSG_WriteByte (dest, attenuation*64);
 
 		//johnfitz -- PROTOCOL_FITZQUAKE
-		if (field_mask & SND_LARGEENTITY_8)
+		if (Have_Flag (field_mask, SND_LARGEENTITY_8))
 		{
 			MSG_WriteShort (dest, ent);
 			MSG_WriteByte (dest, channel);
 		}
 		else
 			MSG_WriteShort (dest, (ent<<3) | channel);
-		if (field_mask & SND_LARGESOUND_16)
+		if (Have_Flag (field_mask, SND_LARGESOUND_16))
 			MSG_WriteShort (dest, sound_num);
 		else
 			MSG_WriteByte (dest, sound_num);
@@ -305,7 +307,7 @@ void SV_StartSound (prvm_edict_t *entity, int channel, const char *sample, int n
 		goto fitz_bypass;
 	}
 
-	speed4000 = (int)floor(speed * 4000.0f + 0.5f);
+	speed4000 = (int)floor(pitchchange * 4000.0f + 0.5f);
 	field_mask = 0;
 	if (nvolume != DEFAULT_SOUND_PACKET_VOLUME)
 		field_mask |= SND_VOLUME_1;
@@ -321,20 +323,20 @@ void SV_StartSound (prvm_edict_t *entity, int channel, const char *sample, int n
 // directed messages go only to the entity they are targeted on
 	MSG_WriteByte (dest, svc_sound);
 	MSG_WriteByte (dest, field_mask);
-	if (field_mask & SND_VOLUME_1)
+	if (Have_Flag (field_mask, SND_VOLUME_1))
 		MSG_WriteByte (dest, nvolume);
-	if (field_mask & SND_ATTENUATION_2)
+	if (Have_Flag (field_mask, SND_ATTENUATION_2))
 		MSG_WriteByte (dest, (int)(attenuation*64));
-	if (field_mask & SND_SPEEDUSHORT4000_32)
+	if (Have_Flag (field_mask, SND_SPEEDUSHORT4000_32))
 		MSG_WriteShort (dest, speed4000);
-	if (field_mask & SND_LARGEENTITY_8) {
+	if (Have_Flag (field_mask, SND_LARGEENTITY_8)) {
 		MSG_WriteShort (dest, ent);
 		MSG_WriteChar (dest, channel);
 	}
 	else
 		MSG_WriteShort (dest, (ent<<3) | channel);
 
-	if (Have_Flag(field_mask, SND_LARGESOUND_16) || 
+	if (Have_Flag (field_mask, SND_LARGESOUND_16) || 
 		isin2 (sv.protocol, PROTOCOL_NEHAHRABJP2, PROTOCOL_NEHAHRABJP3) )
 		MSG_WriteShort (dest, sound_num);
 	else
@@ -366,15 +368,15 @@ void SV_StartPointSound (vec3_t origin, const char *sample, int nvolume, float a
 {
 	int sound_num, field_mask, i, speed4000;
 
-	if (nvolume < 0 || nvolume > 255)
-	{
-		Con_Printf ("SV_StartPointSound: volume = %d\n", nvolume);
+	if (false == in_range(0, nvolume, 255)) {
+	//if (nvolume < 0 || nvolume > 255) {
+		Con_PrintLinef ("SV_StartPointSound: volume = %d", nvolume);
 		return;
 	}
 
-	if (attenuation < 0 || attenuation > 4)
-	{
-		Con_Printf ("SV_StartPointSound: attenuation = %f\n", attenuation);
+	if (false == in_range(0, attenuation, 4)) {
+	//if (attenuation < 0 || attenuation > 4) {
+		Con_PrintLinef ("SV_StartPointSound: attenuation = %f\n", attenuation);
 		return;
 	}
 
@@ -576,7 +578,7 @@ static qbool SV_PrepareEntityForSending (prvm_edict_t *ent, entity_state_t *cs, 
 	cs->nodrawtoclient = PRVM_serveredictedict(ent, nodrawtoclient);
 	cs->drawonlytoclient = PRVM_serveredictedict(ent, drawonlytoclient);
 	cs->customizeentityforclient = customizeentityforclient;
-	cs->tagentity = PRVM_serveredictedict(ent, tag_entity);
+	cs->tagxentity = PRVM_serveredictedict(ent, tag_entity); // TAGX SV_PrepareEntityForSending
 	cs->tagindex = (unsigned char)PRVM_serveredictfloat(ent, tag_index);
 	cs->glowsize = glowsize;
 	cs->traileffectnum = PRVM_serveredictfloat(ent, traileffectnum);
@@ -643,7 +645,7 @@ static qbool SV_PrepareEntityForSending (prvm_edict_t *ent, entity_state_t *cs, 
 		cs->effects |= ((unsigned int)f & 0xff) << 24;
 
 	int is_monster = Have_Flag ((int)PRVM_serveredictfloat(ent, flags), FL_MONSTER_32);
-	if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_STEP)
+	if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_STEP_4)
 		cs->sflags |= RENDER_STEP;
 	else if (sv_gameplayfix_monsterinterpolate.integer && is_monster)
 		cs->sflags |= RENDER_STEP;
@@ -656,9 +658,9 @@ static qbool SV_PrepareEntityForSending (prvm_edict_t *ent, entity_state_t *cs, 
 	// Baker:
 	int is_non_solid_baker = isin3 (solid_typex, SOLID_NOT_0, SOLID_TRIGGER_1, SOLID_CORPSE_5);
 	// Baker: The nailgun in particular shoots projectiles that we don't want blocking player movement.
-	// Baker: This doesn't cover enforcer lasers which are MOVETYPE_FLY, but gets the rest of the standard
+	// Baker: This doesn't cover enforcer lasers which are MOVETYPE_FLY_5, but gets the rest of the standard
 	// projectiles.
-	int is_non_solid_baker2 = is_monster == false && isin2 (movetype_typex, MOVETYPE_FLY, MOVETYPE_FLYMISSILE_9);
+	int is_non_solid_baker2 = is_monster == false && isin2 (movetype_typex, MOVETYPE_FLY_5, MOVETYPE_FLYMISSILE_9);
 
 	if (is_non_solid_baker || is_non_solid_baker2) {
 		cs->sflags |= RENDER_SOLID_NOT_BAKER_256;
@@ -677,10 +679,10 @@ static qbool SV_PrepareEntityForSending (prvm_edict_t *ent, entity_state_t *cs, 
 		cs->sflags |= RENDER_COMPLEXANIMATION;
 		if (PRVM_serveredictfloat(ent, skeletonindex) >= 1)
 			cs->skeletonobject = ent->priv.server->skeleton;
-		cs->framegroupblend[0].frame = PRVM_serveredictfloat(ent, frame);
-		cs->framegroupblend[1].frame = PRVM_serveredictfloat(ent, frame2);
-		cs->framegroupblend[2].frame = PRVM_serveredictfloat(ent, frame3);
-		cs->framegroupblend[3].frame = PRVM_serveredictfloat(ent, frame4);
+		cs->framegroupblend[0].fb_frame = PRVM_serveredictfloat(ent, frame);
+		cs->framegroupblend[1].fb_frame = PRVM_serveredictfloat(ent, frame2);
+		cs->framegroupblend[2].fb_frame = PRVM_serveredictfloat(ent, frame3);
+		cs->framegroupblend[3].fb_frame = PRVM_serveredictfloat(ent, frame4);
 		cs->framegroupblend[0].start = PRVM_serveredictfloat(ent, frame1time);
 		cs->framegroupblend[1].start = PRVM_serveredictfloat(ent, frame2time);
 		cs->framegroupblend[2].start = PRVM_serveredictfloat(ent, frame3time);
@@ -989,18 +991,18 @@ void SV_MarkWriteEntityStateToClient(entity_state_t *s, client_t *client)
 			if (s->viewmodelforclient != sv.writeentitiestoclient_cliententitynumber)
 				return;
 		}
-		else if (s->tagentity)
+		else if (s->tagxentity)
 		{
 			// tag attached entities simply check their parent
-			if (!sv.sendentitiesindex[s->tagentity])
+			if (!sv.sendentitiesindex[s->tagxentity])
 				return;
-			SV_MarkWriteEntityStateToClient(sv.sendentitiesindex[s->tagentity], client);
-			if (sv.sententities[s->tagentity] != sv.sententitiesmark)
+			SV_MarkWriteEntityStateToClient(sv.sendentitiesindex[s->tagxentity], client);
+			if (sv.sententities[s->tagxentity] != sv.sententitiesmark)
 				return;
 		}
 		// always send world submodels in newer protocols because they don't
 		// generate much traffic (in old protocols they hog bandwidth)
-		// but only if sv_cullentities_nevercullbmodels is off
+		// but only if sv_cullentities_nevercullbmodels /*d: 0*/ is off
 		else if (!(s->effects & EF_NODEPTHTEST) && (!isbmodel || !sv_cullentities_nevercullbmodels.integer || 
 			isin5(sv.protocol, PROTOCOL_FITZQUAKE666, PROTOCOL_FITZQUAKE999, 
 					PROTOCOL_QUAKE, PROTOCOL_QUAKEDP, PROTOCOL_NEHAHRAMOVIE
@@ -1010,16 +1012,28 @@ void SV_MarkWriteEntityStateToClient(entity_state_t *s, client_t *client)
 			ed = PRVM_EDICT_NUM(s->number);
 
 			// if not touching a visible leaf
-			// sv_cullentities_trace defaults 1.
-			if (sv_cullentities_pvs.integer && !r_novis.integer && !r_trippy.integer && 
+#if 1 // June 2
+			if (sv_cullentities_pvs.integer && 
+				!r_novis.integer && 
+				!r_trippy.integer && 
+				sv.writeentitiestoclient_pvs)
+#else			
+			if (sv_cullentities_pvs.integer /*d: 1*/ && 
+				!r_novis.integer /*d: 0*/ && 
+				!r_trippy.integer /*d: 1*/ && 
 				sv.writeentitiestoclient_pvsbytes)
+#endif
 			{
 				if (ed->priv.server->pvs_numclusters < 0)
 				{
 					// entity too big for clusters list
+#if 1 // June 2
+					if (sv.worldmodel && sv.worldmodel->brush.BoxTouchingPVS && !sv.worldmodel->brush.BoxTouchingPVS(sv.worldmodel, sv.writeentitiestoclient_pvs, ed->priv.server->cullmins, ed->priv.server->cullmaxs))
+#else			
 					if (sv.worldmodel && sv.worldmodel->brush.BoxTouchingPVS && 
 						!sv.worldmodel->brush.BoxTouchingPVS(sv.worldmodel, 
 						sv.writeentitiestoclient_pvs, ed->priv.server->cullmins, ed->priv.server->cullmaxs))
+#endif
 					{
 						sv.writeentitiestoclient_stats_culled_pvs++;
 						return;
@@ -1042,7 +1056,7 @@ void SV_MarkWriteEntityStateToClient(entity_state_t *s, client_t *client)
 
 			// or not seen by random tracelines
 			// Baker: sv_cullentities_trace defaults 0 -- is not the norm
-			if (sv_cullentities_trace.integer && !isbmodel && sv.worldmodel && sv.worldmodel->brush.TraceLineOfSight && !r_trippy.integer && (client->frags != NEXUIZ_OBS_NEG_666 || sv_cullentities_trace_spectators.integer))
+			if (sv_cullentities_trace.integer /*d: 0*/ && !isbmodel && sv.worldmodel && sv.worldmodel->brush.TraceLineOfSight && !r_trippy.integer && (client->frags != NEXUIZ_OBS_NEG_666 || sv_cullentities_trace_spectators.integer))
 			{
 				int samples =
 					s->number <= svs.maxclients
@@ -1367,16 +1381,23 @@ void SV_WriteClientdataToMessage (client_t *client, prvm_edict_t *ent, sizebuf_t
 	// the runes are in serverflags, pack them into the items value, also pack
 	// in the items2 value for mission pack huds
 	// (used only in the mission packs, which do not use serverflags)
+#if 1
+	items = (int)PRVM_serveredictfloat(ent, items)
+		| (((int)PRVM_serveredictfloat(ent, items2) & ((1<<9)-1)) << 23)
+		| (((int)PRVM_serverglobalfloat(serverflags) & ((1<<4)-1)) << 28);
+#else
 	items = (int)PRVM_serveredictfloat(ent, items) | ((int)PRVM_serveredictfloat(ent, items2) << 23) | ((int)PRVM_serverglobalfloat(serverflags) << 28);
+#endif
 
 	VectorCopy(PRVM_serveredictvector(ent, punchvector), punchvector);
 
 	// cache weapon model name and index in client struct to save time
 	// (this search can be almost 1% of cpu time!)
 	s = PRVM_GetString(prog, PRVM_serveredictstring(ent, weaponmodel));
-	if (String_Does_NOT_Match(s, client->weaponmodel)) {
+	if (String_NOT_Match(s, client->weaponmodel)) {
 		c_strlcpy(client->weaponmodel, s);
-		client->weaponmodelindex = SV_ModelIndex(s, 1);
+		//client->weaponmodelindex = SV_ModelIndex(s, 1);
+		client->weaponmodelindex = SV_ModelIndex(s, PRECACHE_MODE_1);
 	}
 
 	viewzoom = (int)(PRVM_serveredictfloat(ent, viewzoom) * 255.0f);
@@ -1413,7 +1434,7 @@ void SV_WriteClientdataToMessage (client_t *client, prvm_edict_t *ent, sizebuf_t
 
 	gravity = PRVM_serveredictfloat(ent, gravity);if (!gravity) gravity = 1.0f;
 
-	memset(stats, 0, sizeof(int[MAX_CL_STATS]));
+	memset(stats, 0, sizeof(int[MAX_CL_STATS_256]));
 	stats[STAT_VIEWHEIGHT] = (int)PRVM_serveredictvector(ent, view_ofs)[2];
 	stats[STAT_ITEMS] = items;
 	stats[STAT_WEAPONFRAME] = (int)PRVM_serveredictfloat(ent, weaponframe);
@@ -1444,7 +1465,7 @@ void SV_WriteClientdataToMessage (client_t *client, prvm_edict_t *ent, sizebuf_t
 		statsf[STAT_MOVEVARS_AIRSTRAFEACCEL_QW] = sv_airstrafeaccel_qw.value; // 0
 		statsf[STAT_MOVEVARS_AIRCONTROL_POWER] = sv_aircontrol_power.value; // 2
 		// movement settings for prediction
-		// note: these are not sent in protocols with lower MAX_CL_STATS limits
+		// note: these are not sent in protocols with lower MAX_CL_STATS_256 limits
 
 		stats[STAT_MOVEFLAGS] = MOVEFLAG_VALID;
 		if (sv_gameplayfix_q2airaccelerate.integer) // 0
@@ -1683,7 +1704,7 @@ static void SV_SendClientDatagram (client_t *client)
 {
 	int clientrate, maxrate, maxsize, maxsize2, downloadsize;
 	sizebuf_t msg;
-	int stats[MAX_CL_STATS];
+	int stats[MAX_CL_STATS_256];
 	static unsigned char sv_sendclientdatagram_buf[NET_MAXMESSAGE_65536];
 	double timedelta;
 

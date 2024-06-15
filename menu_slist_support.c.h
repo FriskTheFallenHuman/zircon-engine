@@ -159,7 +159,7 @@ int SList_Tiebreaker_Bias (const char *s)
 {
 	for (int idx = 0; idx < tiebreakers_count;  idx ++) {
 		char *sxy = tiebreakers[idx];
-		if (String_Does_Contain_Caseless (s, sxy))
+		if (String_Contains_Caseless (s, sxy))
 			return MAX_TIEBREAKERS_10 + 1 - idx;
 	}
 	return 0;
@@ -174,7 +174,7 @@ void SList_Tiebreaker_Changed_c (cvar_t *var)
 	int			comma_items_count = String_Count_Char (var->string, ',') + 1;
 
 	for (int idx = 0; idx < comma_items_count && idx < MAX_TIEBREAKERS_10; idx ++) {
-		char *s_this =  String_Instance_Alloc_Base1 (var->string, ',' , idx + 1, q_reply_len_NULL);
+		char *s_this =  String_Instance_Malloc_Base1 (var->string, ',' , idx + 1, q_reply_len_NULL);
 		// gcc unused ... int sz = sizeof(tiebreakers[idx]);
 		c_strlcpy (tiebreakers[idx], s_this);
 		freenull_ (s_this);
@@ -198,13 +198,13 @@ void M_ServerList_Rebuild (void)
 		// Word Filter?
 		if (slist_filter_word[0]) {
 			// Must contain
-			if (String_Does_Contain_Caseless (my_entry->info.cname, slist_filter_word))
+			if (String_Contains_Caseless (my_entry->info.cname, slist_filter_word))
 				goto keep_me;
-			if (String_Does_Contain_Caseless (my_entry->info.name, slist_filter_word))
+			if (String_Contains_Caseless (my_entry->info.name, slist_filter_word))
 				goto keep_me;
-			if (String_Does_Contain_Caseless (my_entry->info.mod, slist_filter_word))
+			if (String_Contains_Caseless (my_entry->info.mod, slist_filter_word))
 				goto keep_me;
-			if (String_Does_Contain_Caseless (my_entry->info.map, slist_filter_word))
+			if (String_Contains_Caseless (my_entry->info.map, slist_filter_word))
 				goto keep_me;
 
 			continue; // Disqualified
@@ -263,7 +263,7 @@ empty:
 	for (int idx = 0 ; idx < serverlist_list_count; idx ++) {
 		int idx_nova = serverlist_list[idx];
 		serverlist_entry_t *this_entry = ServerList_GetViewEntry(idx_nova);
-		if (String_Does_Match (this_entry->info.cname, last_nav_cname)) {
+		if (String_Match (this_entry->info.cname, last_nav_cname)) {
 			// Found it
 			slist_cursor = idx;
 			return;

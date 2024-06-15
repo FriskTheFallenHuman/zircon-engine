@@ -31,7 +31,7 @@ cvar_t snd_staticvolume = {CF_ARCHIVE, "snd_staticvolume", "1", "volume of ambie
 cvar_t snd_initialized = { CF_READONLY, "snd_initialized", "0", "indicates the sound subsystem is active"};
 cvar_t snd_mutewhenidle = {CF_ARCHIVE, "snd_mutewhenidle", "1", "whether to disable sound output when game window is inactive"};
 
-void S_Init (void)
+void S_InitOnce (void)
 {
 	Cvar_RegisterVariable(&bgmvolume);
 	Cvar_RegisterVariable(&mastervolume);

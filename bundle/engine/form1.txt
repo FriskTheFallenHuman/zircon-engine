@@ -1,0 +1,75 @@
+// How do we want this to work
+// Get listview working first
+
+Form		onload:DevInit
+
+//TextBox		rect:"20,730,200,36" Text:"Filter"
+
+TabSelect
+	Name:TabSelect1
+	Rect:"17,75,205,693" // TabSelect autosizes so width/height are optional
+	//IsRounded:True	// Rounded button style or not
+	FontSize: 22
+	AutoSize:0
+	BackAlpha:1 // 0.5
+	CellPaddingXPct:1.0
+
+	//CellPaddingYPct:0.15
+	//CellSpacingYPct:0.125
+	//FontDescendPct:0.25
+	//ForeColorSelected:"RGB(255, 255, 255)"
+	//BackColorSelected:"RGB(192,32,0)"
+	//ForeColor:"RGB(128,128,128)"
+	//BackColor:"RGB(167,0,0)"
+	List:"Entities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon Extras"
+	onchange:"DevTabSelectOnChange" 
+
+	CellPaddingYPct:0.25
+	IsRounded:False
+	FontDescendPct:0.5
+	forecolorselected:"RGB(255, 255, 255)"
+	backcolorselected:"RGB(0,90,230)"
+	forecolor:"RGB(128, 128, 128)"
+	backcolor:"RGB(0,51,167)"
+
+	
+			 
+			 // Object sent
+
+// TextBox		rect:"1000,90,200,36" Text:"Details" /*backcolor:"RGB(0,90,230)"*/ /*onchange:check1_click*/
+
+ListView	name:ListView1 Rect:"253,75,1110,693"
+			backcolor:"RGB(0,90,230)" 
+			//backcolor:"RGB(167,0,0)"
+			forecolor:white
+			FontSize: 24
+			//ColumnsCount:6
+			//ColumnHeaders:"id,Name,City,This,That,Other"	// Special
+
+Label 		rect:"17,19" Forecolor:white fontsize:56 caption:"^7dev^xfa0info"  /*comment here*/
+
+Label 		name:LblTitle rect:"256,40" Forecolor:white fontsize:24 caption:"Shaders"  /*comment here*/
+
+
+//Label 		rect:"56, 660, 0, 24" forecolor:"RGB(255,192,0)" caption:"Cycle = TAB"
+
+Label 		Rect:"1245,43,105,24" forecolor:white name:LabelEntries caption:"Entries"
+
+//ListBox		name:ListboxMine rect:"253, 90, 725, 540" forecolor:"RGB(192,192,192)"  backcolor:"RGB(0,90,230)" 
+//			
+//			list:"Entities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon Extras,Entities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon ExtrasEntities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon Extras,Entities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon ExtrasEntities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon Extras,Entities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon ExtrasEntities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon Extras,Entities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon ExtrasEntities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon Extras,Entities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon ExtrasEntities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon Extras,Entities,Models,Sounds,Textures,Shaders,Globals,Fields,Map,Environment,CSQC Entities,CSQC Globals,CSQC Fields, Zircon Extras" onchange:tabsel_click
+
+
+
+
+
+
+// Colors:"RGB(255,255,0),RGB(255,255,128),RGB(255,255,92)"
+
+
+//ScrollBar	name:oof rect:"30, 600, 600, 16" isHorizontal:1
+//			forecolor:"RGB(192,192,192)"  backcolor:"RGB(0,90,230)" 
+			
+
+// Image ImageName:"engine/bicons/checked.png" Rect:"5,600,64,64"
+

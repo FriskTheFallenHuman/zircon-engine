@@ -22,8 +22,8 @@ qbool Curl_Begin_ToMemory(const char *URL, double maxspeed, unsigned char *buf, 
 qbool Curl_Begin_ToMemory_POST(const char *URL, const char *extraheaders, double maxspeed, const char *post_content_type, const unsigned char *postbuf, size_t postbufsize, unsigned char *buf, size_t bufsize, curl_callback_t callback, void *cbdata);
 void Curl_Cancel_ToMemory(curl_callback_t callback, void *cbdata);
 
-void Curl_Init(void);
-void Curl_Init_Commands(void);
+void Curl_InitOnce(void);
+void Curl_InitOnce_Commands(void);
 void Curl_Shutdown(void);
 qbool Curl_Available(void);
 void Curl_CancelAll(void);

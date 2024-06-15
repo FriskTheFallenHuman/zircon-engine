@@ -46,6 +46,7 @@ void GL_Color(float cr, float cg, float cb, float ca);
 void GL_ActiveTexture(unsigned int num);
 void GL_Scissor(int x, int y, int width, int height);
 void GL_ScissorTest(int state);
+qbool GL_IsIn_Scissor (void);
 void GL_Clear(int mask, const float *colorvalue, float depthvalue, int stencilvalue);
 void GL_ReadPixelsBGRA(int x, int y, int width, int height, unsigned char *outpixels);
 int R_Mesh_CreateFramebufferObject(rtexture_t *depthtexture, rtexture_t *colortexture, rtexture_t *colortexture2, rtexture_t *colortexture3, rtexture_t *colortexture4);

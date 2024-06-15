@@ -100,8 +100,8 @@ cvar_t timedemo_screenshotframelist = {CF_CLIENT, "timedemo_screenshotframelist"
 cvar_t vid_touchscreen_outlinealpha = {CF_CLIENT, "vid_touchscreen_outlinealpha", "0", "opacity of touchscreen area outlines"};
 cvar_t vid_touchscreen_overlayalpha = {CF_CLIENT, "vid_touchscreen_overlayalpha", "0.25", "opacity of touchscreen area icons"};
 
-cvar_t tool_inspector = {CF_CLIENT, "tool_inspector", "0", "view visible entity QC information [Zircon]"}; // Baker r0106: tool inspector
-cvar_t tool_marker = {CF_CLIENT, "tool_marker", "0", "set a position to display on-screen, this value must be quoted since it is a since string [Zircon]"}; // Baker r0109: tool marker
+cvar_t tool_inspector = {CF_CLIENT | CL_RESETNEWMAP_0, "tool_inspector", "0", "view visible entity QC information [Zircon]"}; // Baker r0106: tool inspector
+cvar_t tool_marker = {CF_CLIENT | CL_RESETNEWMAP_0, "tool_marker", "0", "set a position to display on-screen, this value must be quoted since it is a since string [Zircon]"}; // Baker r0109: tool marker
 
 extern cvar_t sbar_info_pos;
 extern cvar_t r_fog_clear;
@@ -881,7 +881,7 @@ static void SCR_SetLoadingScreenTexture(void)
 	w = vid.width; h = vid.height;
 	loadingscreentexture_w = loadingscreentexture_h = 1;
 
-	loadingscreentexture = R_LoadTexture2D(r_main_texturepool, "loadingscreentexture", w, h, NULL, TEXTYPE_COLORBUFFER, TEXF_RENDERTARGET | TEXF_FORCENEAREST | TEXF_CLAMP, -1, NULL);
+	loadingscreentexture = R_LoadTexture2D(r_main_texturepool, "loadingscreentexture", w, h, NULL, TEXTYPE_COLORBUFFER, TEXF_RENDERTARGET | TEXF_FORCENEAREST | TEXF_CLAMP, q_tx_miplevel_neg1, q_tx_palette_NULL);
 	R_Mesh_CopyToTexture(loadingscreentexture, 0, 0, 0, 0, vid.width, vid.height);
 
 	loadingscreentexture_vertex3f[2] = loadingscreentexture_vertex3f[5] = loadingscreentexture_vertex3f[8] = loadingscreentexture_vertex3f[11] = 0;
@@ -1740,7 +1740,7 @@ menu:
 			// If so we complete the UI draw -> set canvas to "fullscreen"
 			// and then draw and then set the canvas back.
 
-			int is_full_canvas = MVM_prog->loaded == false && isin1 (m_state, m_zdev);
+			int is_full_canvas = MVM_prog->loaded == false && isin2 (m_state, m_zdev_29, m_zform_30);
 
 			switch (is_full_canvas) {
 			case true:
@@ -1756,10 +1756,11 @@ menu:
 				MR_Draw (); // MENUOIC
 				break;
 			} // sw
-#endif
 		}
 
 	CL_DrawVideo_SCR_DrawScreen();
+#endif
+
 	R_Shadow_EditLights_DrawSelectedLightProperties();
 
 	if (scr_loading)
@@ -2068,17 +2069,18 @@ void CL_Screen_NewMap(void)
 #include "cl_screen_gif.c.h"
 
 
-void Dynamic_Baker_Texture2D_Prep (dynamic_baker_texture_t *fill, int is_dirty, const char *name, bgra4 *vimagedata, int in_pic_width, int in_pic_height)
+void Dynamic_Baker_Texture2D_Prep (dynamic_baker_texture_t *fill, int is_dirty, const char *name, 
+								   bgra4 *vimagedata, int in_pic_width, int in_pic_height)
 {
 	fill->modelui	= CL_Mesh_UI ();
-	fill->pic		= Draw_CachePic_Flags(name, CACHEPICFLAG_NOTPERSISTENT | CACHEPICFLAG_QUIET);
+	fill->bpic		= Draw_CachePic_Flags(name, CACHEPICFLAG_NOTPERSISTENT | CACHEPICFLAG_QUIET);
 
 	DYNAMICTEX_Q3_START (vimagedata);
-	fill->tex = Mod_Mesh_GetTexture (
+	fill->btex = Mod_Mesh_GetTexture (
 		fill->modelui,
-		fill->pic->name,
+		fill->bpic->name,
 		DRAWFLAG_NORMAL_0, // DRAWFLAG_MODULATE and such
-		fill->pic->texflags, // TEXF_CLAMP and such
+		fill->bpic->texflags, // TEXF_CLAMP and such
 		MATERIALFLAG_WALL | MATERIALFLAG_VERTEXCOLOR | MATERIALFLAG_ALPHAGEN_VERTEX | MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED | MATERIALFLAG_NOSHADOW
 	);
 	DYNAMICTEX_Q3_END ();
@@ -2086,13 +2088,13 @@ void Dynamic_Baker_Texture2D_Prep (dynamic_baker_texture_t *fill, int is_dirty, 
 	if (is_dirty) {
 		extern rtexturepool_t *r_main_texturepool;
 		
-		skinframe_t *skinframe		= fill->tex->materialshaderpass->skinframes[0];
+		skinframe_t *skinframe		= fill->btex->materialshaderpass->skinframes[0];
 		int			textureflags	= skinframe->textureflags;
 
 		R_SkinFrame_PurgeSkinFrame(skinframe);
 		textureflags &= ~TEXF_FORCE_RELOAD;
 
-		skinframe->stain = NULL;
+		skinframe->stain = NULL;	// I think this has been done.
 		skinframe->merged = NULL;
 		skinframe->base = NULL;
 		skinframe->pants = NULL;
@@ -2245,6 +2247,8 @@ void CL_Screen_Init(void)
 	Cmd_AddCommand(CF_CLIENT, "gifclip", SCR_gifclip_f, "extract a jpeg from a save and copy to clipboard [Zircon]");
 #endif
 	Cmd_AddCommand(CF_CLIENT, "envmap", R_Envmap_f, "render a cubemap (skybox) of the current scene");
+	Cmd_AddCommand(CF_CLIENT, "levelshot_here", R_LevelShot_Here_f, "take screenshot without HUD and write levelshots/mapname.jpg");
+	Cmd_AddCommand(CF_CLIENT, "levelshot_maps_all", R_LevelShot_Maps_All_f, "make levelshots of maps for the current gamedir only");
 	Cmd_AddCommand(CF_CLIENT, "infobar", SCR_InfoBar_f, "display a text in the infobar (usage: infobar expiretime string)");
 
 #ifdef CONFIG_VIDEO_CAPTURE

@@ -136,7 +136,7 @@ static dllfunction_t ft2funcs[] =
 };
 
 /// Handle for FreeType2 DLL
-static dllhandle_t ft2_dll = NULL;
+/*static*/ dllhandle_t ft2_dll = NULL;
 
 #else
 
@@ -244,17 +244,16 @@ typedef struct fontfilecache_s
 	char path[MAX_QPATH_128];
 }
 fontfilecache_t;
-#define MAX_FONTFILES 8
-static fontfilecache_t fontfiles[MAX_FONTFILES];
-static const unsigned char *fontfilecache_LoadFile(const char *path, qbool quiet, fs_offset_t *filesizepointer)
+#define MAX_FONTFILES_8 8
+static fontfilecache_t fontfiles[MAX_FONTFILES_8];
+static const unsigned char *fontfilecache_LoadFile (const char *path, qbool quiet, fs_offset_t *filesizepointer, const byte *ft_data_in, fs_offset_t ft_datasize)
 {
 	int i;
 	unsigned char *buf;
 
-	for(i = 0; i < MAX_FONTFILES; ++i)
-	{
+	for(i = 0; i < MAX_FONTFILES_8; ++i) {
 		if (fontfiles[i].refcount > 0)
-			if (String_Does_Match(path, fontfiles[i].path))
+			if (String_Match(path, fontfiles[i].path))
 			{
 				*filesizepointer = fontfiles[i].len;
 				++fontfiles[i].refcount;
@@ -265,10 +264,9 @@ static const unsigned char *fontfilecache_LoadFile(const char *path, qbool quiet
 	buf = FS_LoadFile(path, font_mempool, quiet, filesizepointer);
 	if (buf)
 	{
-		for(i = 0; i < MAX_FONTFILES; ++i)
-			if (fontfiles[i].refcount <= 0)
-			{
-				strlcpy(fontfiles[i].path, path, sizeof(fontfiles[i].path));
+		for (i = 0; i < MAX_FONTFILES_8; ++i)
+			if (fontfiles[i].refcount <= 0) {
+				c_strlcpy (fontfiles[i].path, path);
 				fontfiles[i].len = *filesizepointer;
 				fontfiles[i].buf = buf;
 				fontfiles[i].refcount = 1;
@@ -281,7 +279,7 @@ static const unsigned char *fontfilecache_LoadFile(const char *path, qbool quiet
 static void fontfilecache_Free(const unsigned char *buf)
 {
 	int i;
-	for(i = 0; i < MAX_FONTFILES; ++i)
+	for(i = 0; i < MAX_FONTFILES_8; ++i)
 	{
 		if (fontfiles[i].refcount > 0)
 			if (fontfiles[i].buf == buf)
@@ -300,7 +298,7 @@ static void fontfilecache_Free(const unsigned char *buf)
 static void fontfilecache_FreeAll(void)
 {
 	int i;
-	for(i = 0; i < MAX_FONTFILES; ++i)
+	for(i = 0; i < MAX_FONTFILES_8; ++i)
 	{
 		if (fontfiles[i].refcount > 0)
 			Mem_Free(fontfiles[i].buf);
@@ -382,6 +380,7 @@ Initialize the freetype2 font subsystem
 ====================
 */
 
+
 void font_start(void)
 {
 	if (!Font_OpenLibrary())
@@ -397,21 +396,32 @@ void font_start(void)
 	font_mempool = Mem_AllocPool("FONT", 0, NULL);
 	if (!font_mempool)
 	{
-		Con_PrintLinef (CON_ERROR "ERROR: Failed to allocate FONT memory pool!\n");
+		Con_PrintLinef (CON_ERROR "ERROR: Failed to allocate FONT memory pool!");
 		Font_CloseLibrary();
 		return;
 	}
+
 }
 
 // Baker: This unloads specific dpfonts.
 void font_shutdown(void)
 {
+#ifdef CONFIG_MENU // zdev
+	if (zdev_dpfont) {
+		// Con_PrintLinef ("Shutting down Roboto font");
+		Font_UnloadFont (zdev_dpfont->ft2);
+		zdev_dpfont = NULL;
+	}
+#endif
+
 	for (int i = 0; i < dp_fonts.maxsize_font; i ++) {
 		if (dp_fonts.f[i].ft2) {
 			Font_UnloadFont (dp_fonts.f[i].ft2);
 			dp_fonts.f[i].ft2 = NULL;
 		}
 	} // for
+
+
 	Font_CloseLibrary();
 }
 
@@ -494,17 +504,16 @@ float Font_SnapTo(float val, float snapwidth)
 	return floor(val / snapwidth + 0.5f) * snapwidth;
 }
 
-static qbool Font_LoadFile (const char *name, int _face, ft2_settings_t *settings, ft2_font_t *font, const byte *data_in); // Baker added data_in
-static qbool Font_LoadSize(ft2_font_t *font, float size, qbool check_only);
-qbool Font_LoadFont(const char *name, dp_font_t *dpfnt, const byte *data_in)
+static qbool Font_LoadFile (const char *name, int _face, ft2_settings_t *settings, ft2_font_t *font, const byte *data_in, fs_offset_t ft_datasize); // Baker added data_in
+static qbool Font_LoadSize(ft2_font_t *font, float size, qbool check_only, short *pascender, short *pdescender, short *pheight);
+qbool Font_LoadFont(const char *name, dp_font_t *dpfnt, const byte *ft_data_in, fs_offset_t ft_datasize)
 {
 	int s, count, i;
 	ft2_font_t *ft2, *fbfont, *fb;
 	char vabuf[1024];
 
-	ft2 = Font_Alloc();
-	if (!ft2)
-	{
+	ft2 = Font_Alloc(); // Baker: allocs ft2_font_t
+	if (!ft2) {
 		dpfnt->ft2 = NULL;
 		return false;
 	}
@@ -516,7 +525,7 @@ qbool Font_LoadFont(const char *name, dp_font_t *dpfnt, const byte *data_in)
 			break;
 	}
 
-	if (false == Font_LoadFile(name, dpfnt->req_face, &dpfnt->settings, ft2, DATA_NULL)) {
+	if (false == Font_LoadFile(name, dpfnt->req_face, &dpfnt->settings, ft2, ft_data_in, ft_datasize)) {
 		if (i >= MAX_FONT_FALLBACKS_3) {
 			dpfnt->ft2 = NULL;
 			Mem_Free(ft2);
@@ -542,7 +551,7 @@ qbool Font_LoadFont(const char *name, dp_font_t *dpfnt, const byte *data_in)
 			break;
 		}
 
-		if (false == Font_LoadFile(dpfnt->fallbacks[i], dpfnt->fallback_faces[i], &dpfnt->settings, fb, DATA_NULL)) {
+		if (false == Font_LoadFile(dpfnt->fallbacks[i], dpfnt->fallback_faces[i], &dpfnt->settings, fb, ft_data_in, ft_datasize)) {
 			if (false == FS_FileExists(va(vabuf, sizeof(vabuf), "%s.tga", dpfnt->fallbacks[i])) )
 			if (false == FS_FileExists(va(vabuf, sizeof(vabuf), "%s.png", dpfnt->fallbacks[i])))
 			if (false == FS_FileExists(va(vabuf, sizeof(vabuf), "%s.jpg", dpfnt->fallbacks[i])))
@@ -554,7 +563,7 @@ qbool Font_LoadFont(const char *name, dp_font_t *dpfnt, const byte *data_in)
 		count = 0;
 
 		for (s = 0; s < MAX_FONT_SIZES_16 && dpfnt->req_sizes[s] >= 0; s ++) {
-			if (Font_LoadSize(fb, Font_VirtualToRealSize(dpfnt->req_sizes[s]), /*check only?*/ true))
+			if (Font_LoadSize(fb, Font_VirtualToRealSize(dpfnt->req_sizes[s]), /*check only?*/ true, &dpfnt->ft2->ft_baker_ascend, &dpfnt->ft2->ft_baker_descend, &dpfnt->ft2->ft_baker_height))
 				count ++;
 		}
 
@@ -579,8 +588,8 @@ qbool Font_LoadFont(const char *name, dp_font_t *dpfnt, const byte *data_in)
 	}
 
 	count = 0;
-	for (s = 0; s < MAX_FONT_SIZES_16 && dpfnt->req_sizes[s] >= 0; s++) {
-		if (Font_LoadSize(ft2, Font_VirtualToRealSize(dpfnt->req_sizes[s]), /*check only?*/ false))
+	for (s = 0; s < MAX_FONT_SIZES_16 && dpfnt->req_sizes[s] >= 0; s ++) {
+		if (Font_LoadSize(ft2, Font_VirtualToRealSize(dpfnt->req_sizes[s]), /*check only?*/ false, &ft2->ft_baker_ascend, &ft2->ft_baker_descend, &ft2->ft_baker_height))
 			count ++;
 	}
 
@@ -598,13 +607,13 @@ qbool Font_LoadFont(const char *name, dp_font_t *dpfnt, const byte *data_in)
 }
 
 // Baker: So who knows the font index then?
-static qbool Font_LoadFile (const char *name, int _face, ft2_settings_t *settings, ft2_font_t *font, const byte *data_in)
+static qbool Font_LoadFile (const char *name, int _face, ft2_settings_t *settings, ft2_font_t *font, const byte *ft_data_in, fs_offset_t ft_datasize)
 {
 	size_t namelen;
 	char filename[MAX_QPATH_128];
 	int status;
 	size_t i;
-	const byte *data;
+	const byte *data = NULL;
 	fs_offset_t datasize;
 
 	memset (font, 0, sizeof(*font));
@@ -620,9 +629,9 @@ static qbool Font_LoadFile (const char *name, int _face, ft2_settings_t *setting
 
 	font->settings = settings;
 
-	if (data_in) {
-		data = data_in;
-
+	if (ft_data_in) {
+		data = ft_data_in;
+		datasize = ft_datasize;
 	}
 
 	namelen = strlen(name);
@@ -632,32 +641,29 @@ static qbool Font_LoadFile (const char *name, int _face, ft2_settings_t *setting
 	}
 
 	// try load direct file
-	memcpy(filename, name, namelen+1);
-	data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &datasize);
-	// try load .ttf
+	memcpy(filename, name, namelen + 1);
 	if (!data)
-	{
+		data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &datasize, ft_data_in, ft_datasize);
+	// try load .ttf
+	if (!data) {
 		memcpy(filename + namelen, ".ttf", 5);
-		data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &datasize);
+		data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &datasize, DATA_NULL, DATASIZE_0);
 	}
 	// try load .otf
-	if (!data)
-	{
+	if (!data) {
 		memcpy(filename + namelen, ".otf", 5);
-		data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &datasize);
+		data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &datasize, DATA_NULL, DATASIZE_0);
 	}
 	// try load .pfb/afm // Baker: AFM = Adobe Font Metric, PFB is a  Adobe Type I Font
-	if (!data)
-	{
+	if (!data) {
 		ft2_attachment_t afm;
 
 		memcpy(filename + namelen, ".pfb", 5);
-		data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &datasize);
+		data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &datasize, DATA_NULL, DATASIZE_0);
 
-		if (data)
-		{
+		if (data) {
 			memcpy(filename + namelen, ".afm", 5);
-			afm.data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &afm.size);
+			afm.data = fontfilecache_LoadFile(filename, fs_quiet_FALSE, &afm.size, DATA_NULL, DATASIZE_0);
 
 			if (afm.data)
 				Font_Attach(font, &afm);
@@ -882,8 +888,8 @@ static void Font_Postprocess(ft2_font_t *fnt, unsigned char *imagedata, int pitc
 }
 
 static float Font_SearchSize(ft2_font_t *font, FT_Face fontface, float size);
-static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch, ft2_font_map_t **outmap);
-static qbool Font_LoadSize(ft2_font_t *font, float size, qbool check_only)
+static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch, ft2_font_map_t **outmap, short *pascender, short *pdescender, short *pheight);
+static qbool Font_LoadSize(ft2_font_t *font, float size, qbool check_only, short *pascender, short *pdescender, short *pheight)
 {
 	int map_index;
 	ft2_font_map_t *fmap, temp;
@@ -929,7 +935,7 @@ static qbool Font_LoadSize(ft2_font_t *font, float size, qbool check_only)
 	temp.sfx = (1.0/64.0)/(double)size;
 	temp.sfy = (1.0/64.0)/(double)size;
 	temp.intSize = -1; // negative value: LoadMap must search now :)
-	if (!Font_LoadMap(font, &temp, 0, &fmap))
+	if (!Font_LoadMap(font, &temp, 0, &fmap, pascender, pdescender, pheight))
 	{
 		Con_PrintLinef (CON_ERROR "ERROR: can't load the first character map for %s" NEWLINE
 			   "This is fatal",
@@ -1014,7 +1020,7 @@ int Font_IndexForSize(ft2_font_t *font, float _fsize, float *outw, float *outh)
 				break;
 		}
 	}
-	if (value <= r_font_size_snapping.value)
+	if (value <= r_font_size_snapping.value /*d: 1*/)
 	{
 		// do NOT keep the aspect for perfect rendering
 		if (outh) *outh = maps[match]->size * vid_conheight.value / vid.height;
@@ -1195,7 +1201,7 @@ static float Font_SearchSize(ft2_font_t *font, FT_Face fontface, float size)
 	}
 }
 
-static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch, ft2_font_map_t **outmap)
+static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch, ft2_font_map_t **outmap, short *pascender, short *pdescender, short *pheight)
 {
 	char map_identifier[MAX_QPATH_128];
 	unsigned long mapidx = _ch / FONT_CHARS_PER_MAP;
@@ -1227,6 +1233,10 @@ static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch,
 		fontface = (FT_Face)font->next->face;
 	else
 		fontface = (FT_Face)font->face;
+
+	if (pascender)	*pascender	= fontface->ascender;
+	if (pdescender) *pdescender = fontface->descender;
+	if (pheight)	*pheight	= fontface->height;
 
 	switch(font->settings->antialias)
 	{
@@ -1266,6 +1276,12 @@ static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch,
 			}
 			break;
 	}
+#if 0 // Baker: Don't think we need this
+	#define FT_LOAD_COMPUTE_METRICS              ( 1L << 21 )
+	/* Bits 16-19 are used by `FT_LOAD_TARGET_` */
+	Flag_Add_To (load_flags, FT_LOAD_COMPUTE_METRICS);
+#endif
+	
 
 	//status = qFT_Set_Pixel_Sizes((FT_Face)font->face, /*size*/0, mapstart->size);
 	//if (status)
@@ -1617,7 +1633,7 @@ static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch,
 		// update the pic returned by Draw_CachePic_Flags earlier to contain our texture
 		map->pic = Draw_NewPic(map_identifier, w, h, data, r_font_use_alpha_textures.integer ? TEXTYPE_ALPHA : TEXTYPE_RGBA, TEXF_ALPHA | TEXF_CLAMP | (r_font_compress.integer > 0 ? TEXF_COMPRESS : 0));
 
-		if (r_font_diskcache.integer >= 1)
+		if (r_font_diskcache.integer >= 1 /*d:0*/)
 		{
 			// swap to BGRA for tga writing...
 			int s = w * h;
@@ -1656,14 +1672,14 @@ static qbool Font_LoadMap(ft2_font_t *font, ft2_font_map_t *mapstart, Uchar _ch,
 	return true;
 }
 
-qbool Font_LoadMapForIndex(ft2_font_t *font, int map_index, Uchar _ch, ft2_font_map_t **outmap)
+qbool Font_LoadMapForIndex(ft2_font_t *font, int map_index, Uchar _ch, ft2_font_map_t **outmap, short *pascender, short *pdescender, short *pheight)
 {
 	if (map_index < 0 || map_index >= MAX_FONT_SIZES_16)
 		return false;
 	// the first map must have been loaded already
 	if (!font->font_maps[map_index])
 		return false;
-	return Font_LoadMap(font, font->font_maps[map_index], _ch, outmap);
+	return Font_LoadMap(font, font->font_maps[map_index], _ch, outmap, pascender, pdescender, pheight);
 }
 
 ft2_font_map_t *FontMap_FindForChar(ft2_font_map_t *start, Uchar ch)

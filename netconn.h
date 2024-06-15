@@ -45,7 +45,7 @@ struct cmd_state_s;
 
 
 #define NET_PROTOCOL_VERSION_3	3
-#define NET_EXTRESPONSE_MAX 16
+#define NET_EXTRESPONSE_MAX_16	16
 
 /// \page netconn The network info/connection protocol.
 /// It is used to find Quake
@@ -436,11 +436,11 @@ void ServerList_GetPlayerStatistics(int *numplayerspointer, int *maxplayerspoint
 //
 //============================================================================
 
-extern char cl_net_extresponse[NET_EXTRESPONSE_MAX][1400];
+extern char cl_net_extresponse[NET_EXTRESPONSE_MAX_16][1400];
 extern int cl_net_extresponse_count;
 extern int cl_net_extresponse_last;
 
-extern char sv_net_extresponse[NET_EXTRESPONSE_MAX][1400];
+extern char sv_net_extresponse[NET_EXTRESPONSE_MAX_16][1400];
 extern int sv_net_extresponse_count;
 extern int sv_net_extresponse_last;
 
@@ -479,7 +479,7 @@ void NetConn_OpenServerPorts(int opennetports);
 void NetConn_UpdateSockets(void);
 lhnetsocket_t *NetConn_ChooseClientSocketForAddress(lhnetaddress_t *address);
 lhnetsocket_t *NetConn_ChooseServerSocketForAddress(lhnetaddress_t *address);
-void NetConn_Init(void);
+void NetConn_InitOnce(void);
 void NetConn_Shutdown(void);
 netconn_t *NetConn_Open(lhnetsocket_t *mysocket, lhnetaddress_t *peeraddress);
 void NetConn_Close(netconn_t *conn);

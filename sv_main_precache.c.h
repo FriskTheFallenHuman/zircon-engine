@@ -54,11 +54,11 @@
                     Con_PrintLinef (CON_CYAN "Precaching late models/sounds");
 
                     while (COM_Parse_Basic(&tm)) {
-                        if (String_Does_Match(com_token, "sv.lightstyles")) {
+                        if (String_Match(com_token, "sv.lightstyles")) {
                             COM_Parse_Basic (&tm);
                             jj = atoi(com_token);
                             COM_Parse_Basic (&tm);
-                        } else if (String_Does_Match(com_token, "sv.model_precache")) {
+                        } else if (String_Match(com_token, "sv.model_precache")) {
                             COM_Parse_Basic (&tm);
                             jj = atoi(com_token);
                             COM_Parse_Basic (&tm);
@@ -69,7 +69,7 @@
                                     sv.models[jj] = Mod_ForName (sv.model_precache[jj], true, false, sv.model_precache[jj][0] == '*' ? sv.worldname : NULL);
                                 }
                             } else Con_PrintLinef (CON_CYAN "unsupported model %d " QUOTED_S, jj, com_token);
-                        } else if (String_Does_Match(com_token, "sv.sound_precache")) {
+                        } else if (String_Match(com_token, "sv.sound_precache")) {
                             COM_Parse_Basic (&tm);
                             jj = atoi(com_token);
                             COM_Parse_Basic (&tm);
@@ -79,7 +79,7 @@
                                     c_strlcpy (sv.sound_precache[jj], com_token);
                                 }
                             } else Con_PrintLinef (CON_CYAN "unsupported sound %d " QUOTED_S, jj, com_token);
-                        } else if (String_Does_Match(com_token, "sv.buffer")) {
+                        } else if (String_Match(com_token, "sv.buffer")) {
                             if (COM_ParseToken_Simple(&tm, false, false, true)) {
                                 jj = atoi(com_token);
                                 if (jj >= 0) {
@@ -92,7 +92,7 @@
                             else
                                 Con_PrintLinef (CON_CYAN "unexpected end of line when parsing sv.buffer (expected buffer index)");
                         }
-                        else if (String_Does_Match(com_token, "sv.bufstr"))
+                        else if (String_Match(com_token, "sv.bufstr"))
                         {
                             if (!COM_ParseToken_Simple(&tm, false, false, true))
                                 Con_PrintLinef (CON_CYAN "unexpected end of line when parsing sv.bufstr");
@@ -111,7 +111,7 @@
                             }
                         }
                         // skip any trailing text or unrecognized commands
-                        while (COM_ParseToken_Simple(&tm, true, false, true) && String_Does_NOT_Match (com_token, NEWLINE))
+                        while (COM_ParseToken_Simple(&tm, true, false, true) && String_NOT_Match (com_token, NEWLINE))
                             ; // wh
                     } // wh
                 } // preparse

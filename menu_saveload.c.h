@@ -96,7 +96,7 @@ static void M_Load_Draw (void)
 
 	drawcur_y = 32;
 	for (drawidx = 0 ; drawidx< local_count; drawidx++) {
-		Hotspots_Add (menu_x + 16 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_slider); // PPX DUR
+		Hotspots_Add (menu_x + 16 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_slider, q_force_scale_0); // PPX DUR
 		M_Print(16, drawcur_y, m_filenames[drawidx]);
 		if (drawidx == local_cursor) 
 			drawsel_idx = drawidx;
@@ -122,7 +122,7 @@ static void M_Save_Draw (void)
 
 	drawcur_y = 32;
 	for (drawidx = 0; drawidx < local_count; drawidx++) {
-		Hotspots_Add (menu_x + 16 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_button); // PPX DUR
+		Hotspots_Add (menu_x + 16 - 16, menu_y + drawcur_y, 320, 8 + 1, 1, hotspottype_button, q_force_scale_0); // PPX DUR
 		M_Print(16, drawcur_y, m_filenames[drawidx]);
 		if (drawidx == local_cursor) drawsel_idx = drawidx;
 		drawcur_y += 8;

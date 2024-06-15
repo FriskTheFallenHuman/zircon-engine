@@ -356,7 +356,7 @@ static void MP_Init (void)
 	prog->edictprivate_size = 0; // no private struct used
 	prog->name = "menu";
 	prog->num_edicts = 1;
-	prog->limit_edicts = M_MAX_EDICTS;
+	prog->limit_edicts = M_MAX_EDICTS_32768;
 	prog->extensionstring = vm_m_extensions;
 	prog->builtins = vm_m_builtins;
 	prog->numbuiltins = vm_m_numbuiltins;
@@ -396,7 +396,7 @@ static void MP_Init (void)
 void (*MR_KeyEvent) (int key, int ascii, qbool downevent);
 void (*MR_Draw) (void);
 WARP_X_ (M_ToggleMenu)
-void (*MR_ToggleMenu) (int mode);
+void (*MR_ToggleMenu) (int mode); WARP_X_ (M_ToggleMenu)
 void (*MR_Shutdown) (void);
 void (*MR_NewMap) (void);
 int (*MR_GetServerListEntryCategory) (const serverlist_entry_t *entry);
@@ -414,6 +414,7 @@ void MR_SetRouting(qbool forceold)
 		MR_NewMap = M_NewMap;
 		MR_GetServerListEntryCategory = M_GetServerListEntryCategory;
 		M_Init();
+
 #ifdef CONFIG_MENU
 		menu_is_csqc = false;
 #endif
@@ -457,7 +458,7 @@ static void Call_MR_ToggleMenu_f(cmd_state_t *cmd)
 	}
 }
 
-void MR_Init_Commands(void)
+void MR_InitOnce_Commands(void)
 {
 	// set router console commands
 	Cvar_RegisterVariable (&forceqmenu);

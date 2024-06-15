@@ -27,7 +27,7 @@
 #include "utf8lib.h"
 #include "csprogs.h"
 
-#pragma message ("Seek input from non-US keyboard users on tilde always closing console.  Quakespasm does it, so it is ok right?")
+//#pragma message ("Seek input from non-US keyboard users on tilde always closing console.  Quakespasm does it, so it is ok right?")
 cvar_t con_closeontoggleconsole = {CF_CLIENT | CF_ARCHIVE, "con_closeontoggleconsole","4", "allows toggleconsole binds to close the console as well; when set to 2, this even works when not at the start of the line in console input; when set to 3, this works even if the toggleconsole key is the color tag; 4, same as 3 except backquote never emits to console under any cirumstances (Quake compat) [Zircon default]"};  // Baker r0092 option for tilde to never ever emit to console.
 
 /*
@@ -54,7 +54,7 @@ int			key_sellength;			// Number of characters selected
 qbool	key_insert = true;	// insert key toggle (for editing)
 keydest_e	key_dest;
 int			key_consoleactive;
-char		*keybindings[MAX_BINDMAPS][MAX_KEYS];
+char		*keybindings[MAX_BINDMAPS_8][MAX_KEYS_44032];
 
 int			history_line;
 char		history_savedline[MAX_INPUTLINE_16384];
@@ -68,15 +68,15 @@ extern cvar_t	con_textsize;
 
 #include "keys_history.c.h"
 
-// key modifier states
-#define KM_NONE           (!keydown[K_CTRL] && !keydown[K_SHIFT] && !keydown[K_ALT])
-#define KM_CTRL_SHIFT_ALT ( keydown[K_CTRL] &&  keydown[K_SHIFT] &&  keydown[K_ALT])
-#define KM_CTRL_SHIFT     ( keydown[K_CTRL] &&  keydown[K_SHIFT] && !keydown[K_ALT])
-#define KM_CTRL_ALT       ( keydown[K_CTRL] && !keydown[K_SHIFT] &&  keydown[K_ALT])
-#define KM_SHIFT_ALT      (!keydown[K_CTRL] &&  keydown[K_SHIFT] &&  keydown[K_ALT])
-#define KM_CTRL           ( keydown[K_CTRL] && !keydown[K_SHIFT] && !keydown[K_ALT])
-#define KM_SHIFT          (!keydown[K_CTRL] &&  keydown[K_SHIFT] && !keydown[K_ALT])
-#define KM_ALT            (!keydown[K_CTRL] && !keydown[K_SHIFT] &&  keydown[K_ALT])
+//// key modifier states -- Baker: Moved to keys.h
+//#define KM_NONE           (!keydown[K_CTRL] && !keydown[K_SHIFT] && !keydown[K_ALT])
+//#define KM_CTRL_SHIFT_ALT ( keydown[K_CTRL] &&  keydown[K_SHIFT] &&  keydown[K_ALT])
+//#define KM_CTRL_SHIFT     ( keydown[K_CTRL] &&  keydown[K_SHIFT] && !keydown[K_ALT])
+//#define KM_CTRL_ALT       ( keydown[K_CTRL] && !keydown[K_SHIFT] &&  keydown[K_ALT])
+//#define KM_SHIFT_ALT      (!keydown[K_CTRL] &&  keydown[K_SHIFT] &&  keydown[K_ALT])
+//#define KM_CTRL           ( keydown[K_CTRL] && !keydown[K_SHIFT] && !keydown[K_ALT])
+//#define KM_SHIFT          (!keydown[K_CTRL] &&  keydown[K_SHIFT] && !keydown[K_ALT])
+//#define KM_ALT            (!keydown[K_CTRL] && !keydown[K_SHIFT] &&  keydown[K_ALT])
 
 /*
 ====================
@@ -255,8 +255,6 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 		linestart = 0;
 	}
 
-#pragma message ("kx: CTRL-C - copy")
-
 	// Any non-shift action should clear the selection?
 	// Remember the typing of a normal key needs to stomp the selection
 
@@ -318,7 +316,7 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 		}
 	}
 
-	if (is_console && key == 'a' && KM_CTRL) {
+	if (is_console && key == 'a' && KM_CTRL) { // CTRL-A
 		// (X) kx: CTRL-A
 		Partial_Reset_Undo_Normal_Selection_Reset ();
 		//Partial_Reset ();  Con_Undo_Point (q_undo_action_none_0, q_was_a_space_false);
@@ -782,7 +780,17 @@ Key_Console(cmd_state_t *cmd, int key, int unicode)
 
 	// End Advanced Console Editing
 
-	if (((key == K_UPARROW || key == K_KP_UPARROW) && KM_NONE) || (key == 'p' && KM_CTRL)) {
+	if (isin1(key, K_UPARROW) && KM_SHIFT) {
+		con_backscroll += 1; // SCROLL 1 line at a time, Con_DrawConsole performs bounds check
+		return;
+	}
+
+	if (isin1(key, K_DOWNARROW) && KM_SHIFT) {
+		con_backscroll -= 1; // SCROLL 1 line at a time, Con_DrawConsole performs bounds check
+		return;
+	}
+
+	if ( (isin2(key, K_UPARROW, K_KP_UPARROW) && KM_NONE) || (key == 'p' && KM_CTRL)) {
 		// (X) kx: UP - stomps
 		// This should cover
 		Partial_Reset_Undo_Normal_Selection_Reset (); // SEL/UNDO: Up arrow because changes the line
@@ -902,7 +910,9 @@ Key_Console(cmd_state_t *cmd, int key, int unicode)
 	if (keydown[K_CTRL]) {
 		// text zoom in
 		// Baker: '+' is '=' when unshifted!
-		if ((key == '=' /*plus but unshifted*/ || key == K_KP_PLUS) && KM_CTRL) {
+		// Baker: TerranceHill at DarkPlaces github says Italic keyboard does have a plus
+		// Baker: Added the plus April 15 2024
+		if (isin3 (key, /*plus but unshifted*/ '=', '+', K_KP_PLUS) && KM_CTRL) {
 			// (X) kx: CTRL-PLUS - inert
 			if (con_textsize.integer < 128)
 				Cvar_SetValueQuick(&con_textsize, con_textsize.integer + 1);

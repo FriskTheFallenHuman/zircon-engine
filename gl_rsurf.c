@@ -26,8 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "image.h"
 
 cvar_t r_ambient = {CF_CLIENT, "r_ambient", "0", "brightens map, value is 0-128"};
-cvar_t r_lockpvs = {CF_CLIENT, "r_lockpvs", "0", "disables pvs switching, allows you to walk around and inspect what is visible from a given location in the map (anything not visible from your current location will not be drawn)"};
-cvar_t r_lockvisibility = {CF_CLIENT, "r_lockvisibility", "0", "disables visibility updates, allows you to walk around and inspect what is visible from a given viewpoint in the map (anything offscreen at the moment this is enabled will not be drawn)"};
+cvar_t r_lockpvs = {CF_CLIENT | CL_RESETNEWMAP_0, "r_lockpvs", "0", "disables pvs switching, allows you to walk around and inspect what is visible from a given location in the map (anything not visible from your current location will not be drawn)"};
+cvar_t r_lockvisibility = {CF_CLIENT | CL_RESETNEWMAP_0, "r_lockvisibility", "0", "disables visibility updates, allows you to walk around and inspect what is visible from a given viewpoint in the map (anything offscreen at the moment this is enabled will not be drawn)"};
 cvar_t r_useportalculling = {CF_CLIENT, "r_useportalculling", "1", "improve framerate with r_novis 1 by using portal culling - still not as good as compiled visibility data in the map, but it helps (a value of 2 forces use of this even with vis data, which improves framerates in maps without too much complexity, but hurts in extremely complex maps, which is why 2 is not the default mode)"};
 cvar_t r_usesurfaceculling = {CF_CLIENT, "r_usesurfaceculling", "1", "skip off-screen surfaces (1 = cull surfaces if the map is likely to benefit, 2 = always cull surfaces)"};
 cvar_t r_vis_trace = {CF_CLIENT, "r_vis_trace", "0", "test if each portal or leaf is visible using tracelines"};
@@ -473,7 +473,11 @@ void R_View_WorldVisibility(qbool forcenovis)
 		viewleaf = model->brush.PointInLeaf ? model->brush.PointInLeaf(model, r_refdef.view.origin) : NULL;
 		// if possible fetch the visible cluster bits
 		if (!r_lockpvs.integer && model->brush.FatPVS)
+#if 1 // June 2
+			model->brush.FatPVS(model, r_refdef.view.origin, 2, &r_refdef.viewcache.world_pvsbits, r_main_mempool, false);
+#else
 			model->brush.FatPVS(model, r_refdef.view.origin, 2, r_refdef.viewcache.world_pvsbits, (r_refdef.viewcache.world_numclusters+7)>>3, false);
+#endif
 
 		// if floating around in the void (no pvs data available, and no
 		// portals available), simply use all on-screen leafs.
@@ -595,7 +599,10 @@ void R_Mod_DrawSky(entity_render_t *ent)
 {
 	if (ent->model == NULL)
 		return;
-	R_DrawModelSurfaces(ent, true, true, false, false, false, false);
+	// 
+	R_DrawModelSurfaces(ent, q_skysurfaces_true, q_write_depth_true, q_depthonly_false, 
+		q_debug_false, q_prepass_false, q_is_ui_false); // TTFFFF
+	// R_DrawModelSurfaces(ent, true, true, false, false, false, false); // TTFFFF
 }
 
 void R_Mod_DrawAddWaterPlanes(entity_render_t *ent)
@@ -606,7 +613,7 @@ void R_Mod_DrawAddWaterPlanes(entity_render_t *ent)
 	if (model == NULL)
 		return;
 
-	RSurf_ActiveModelEntity(ent, true, false, false);
+	RSurf_ActiveModelEntity(ent, q_wants_normals_true, q_wants_tangents_false, q_prepass_false); // RSurf_ActiveModelEntity(ent, true, false, false);
 
 	surfaces = model->data_surfaces;
 	flagsmask = MATERIALFLAG_WATERSHADER | MATERIALFLAG_REFRACTION | MATERIALFLAG_REFLECTION | MATERIALFLAG_CAMERA;
@@ -632,14 +639,21 @@ void R_Mod_DrawAddWaterPlanes(entity_render_t *ent)
 	rsurface.entity = NULL; // used only by R_GetCurrentTexture and RSurf_ActiveModelEntity
 }
 
+WARP_X_ (R_Mod_DrawDepth ->DrawDepth  r_depthfirst.integer >= 2)
 void R_Mod_Draw(entity_render_t *ent)
 {
 	model_t *model = ent->model;
 	if (model == NULL)
 		return;
-	R_DrawModelSurfaces(ent, false, true, false, false, false, false);
+
+	R_DrawModelSurfaces(ent, q_skysurfaces_false, q_write_depth_true, 
+
+		q_depthonly_false,  q_debug_false, q_prepass_false, q_is_ui_false); 
+		// FTFFFF
+	//R_DrawModelSurfaces(ent, false, true, false, false, false, false); // FTFFFF
 }
 
+// Baker:  r_transparentdepthmasking 1
 void R_Mod_DrawDepth(entity_render_t *ent)
 {
 	model_t *model = ent->model;
@@ -651,7 +665,10 @@ void R_Mod_DrawDepth(entity_render_t *ent)
 	GL_BlendFunc(GL_ONE, GL_ZERO);
 	GL_DepthMask(true);
 //	R_Mesh_ResetTextureState();
-	R_DrawModelSurfaces(ent, false, false, true, false, false, false);
+	R_DrawModelSurfaces(ent, q_skysurfaces_false, q_write_depth_false, 
+		q_depthonly_true, q_debug_false, q_prepass_false, q_is_ui_false); // FFTFFF
+	//R_DrawModelSurfaces(ent, false, false, true, false, false, false);  // FFTFFF
+	
 	GL_ColorMask(r_refdef.view.colormask[0], r_refdef.view.colormask[1], r_refdef.view.colormask[2], 1);
 }
 
@@ -659,7 +676,10 @@ void R_Mod_DrawDebug(entity_render_t *ent)
 {
 	if (ent->model == NULL)
 		return;
-	R_DrawModelSurfaces(ent, false, false, false, true, false, false);
+	
+	R_DrawModelSurfaces(ent, q_skysurfaces_false, q_write_depth_false, q_depthonly_false, 
+		q_debug_true, q_prepass_false, q_is_ui_false); // FFFTFF
+	//R_DrawModelSurfaces(ent, false, false, false, true, false, false);
 }
 
 void R_Mod_DrawPrepass(entity_render_t *ent)
@@ -667,7 +687,11 @@ void R_Mod_DrawPrepass(entity_render_t *ent)
 	model_t *model = ent->model;
 	if (model == NULL)
 		return;
-	R_DrawModelSurfaces(ent, false, true, false, false, true, false);
+	
+	R_DrawModelSurfaces(ent, q_skysurfaces_false, q_write_depth_true, q_depthonly_false, 
+		q_debug_false, q_prepass_true, q_is_ui_false); // FTFFTF
+	//R_DrawModelSurfaces(ent, false, true, false, false, true, false);
+
 }
 
 typedef struct r_q1bsp_getlightinfo_s
@@ -1511,7 +1535,7 @@ static void R_ReplaceWorldTexture_f(cmd_state_t *cmd)
 	if (!newt[0])
 		newt = r;
 	for(i=0,t=m->data_textures;i<m->num_textures;i++,t++) {
-		// /*t->width && String_Does_Match_Caseless(t->name, r)*/
+		// /*t->width && String_Match_Caseless(t->name, r)*/
 		if ( matchpattern( t->name, r, fs_caseless_true) ) {
 			if ((skinframe = R_SkinFrame_LoadExternal(newt, TEXF_MIPMAP | TEXF_ALPHA | TEXF_PICMIP, q_tx_complain_true, q_tx_fallback_notexture_false))) {
 //				t->skinframes[0] = skinframe;
@@ -1533,8 +1557,7 @@ static void R_ListWorldTextures_f(cmd_state_t *cmd)
 	model_t		*m;
 	texture_t	*t;
 	int			j;
-	if (!r_refdef.scene.worldmodel)
-	{
+	if (!r_refdef.scene.worldmodel) {
 		Con_PrintLinef ("There is no worldmodel");
 		return;
 	}
@@ -1551,13 +1574,32 @@ static void R_ListWorldTextures_f(cmd_state_t *cmd)
 
 	for (j = 0, t = m->data_textures; j < m->num_textures; j++, t++) {
 		if (!t->name[0]) continue;
-		if (String_Does_Contain_Caseless(t->name, "NO TEXTURE FOUND")) continue;
+		if (String_Contains_Caseless(t->name, "NO TEXTURE FOUND")) continue;
 		
-		if (c > 1 && String_Does_Contain_Caseless (t->name, spartial) == false) continue;
+		if (c > 1 && String_Contains_Caseless (t->name, spartial) == false) continue;
 		
 		Con_PrintLinef ("%s", t->name);
 	} // for
 }
+
+void R_WorldTextures_Query (feed_fn_t myfeed_shall_stop)
+{
+	if (!r_refdef.scene.worldmodel)
+		return;
+
+	model_t		*m = r_refdef.scene.worldmodel;
+	texture_t	*t;
+	int j;
+	for (j = 0, t = m->data_textures; j < m->num_textures; j++, t++) {
+		if (!t->name[0]) continue;
+		if (String_Contains_Caseless(t->name, "NO TEXTURE FOUND")) continue;
+		
+		qbool shall_stop = myfeed_shall_stop (-1, t->name, "", NULL, NULL, NULL, j, 1, 2);
+		if (shall_stop)
+			return;
+	} // for
+}
+
 
 #if 0
 static void gl_surf_start(void)

@@ -29,12 +29,12 @@ pushmove objects do not obey gravity, and do not interact with each other or tri
 
 onground is set for toss objects when they come to a complete rest.  it is set for steping or walking objects
 
-doors, plats, etc are SOLID_BSP_4, and MOVETYPE_PUSH
-bonus items are SOLID_TRIGGER_1 touch, and MOVETYPE_TOSS
-corpses are SOLID_NOT_0 and MOVETYPE_TOSS
-crates are SOLID_BBOX_2 and MOVETYPE_TOSS
-walking monsters are SOLID_SLIDEBOX_3 and MOVETYPE_STEP
-flying/floating monsters are SOLID_SLIDEBOX_3 and MOVETYPE_FLY
+doors, plats, etc are SOLID_BSP_4, and MOVETYPE_PUSH_7
+bonus items are SOLID_TRIGGER_1 touch, and MOVETYPE_TOSS_6
+corpses are SOLID_NOT_0 and MOVETYPE_TOSS_6
+crates are SOLID_BBOX_2 and MOVETYPE_TOSS_6
+walking monsters are SOLID_SLIDEBOX_3 and MOVETYPE_STEP_4
+flying/floating monsters are SOLID_SLIDEBOX_3 and MOVETYPE_FLY_5
 
 solid_edge items only clip against bsp models.
 
@@ -683,16 +683,13 @@ int SV_EntitiesInBox(const vec3_t mins, const vec3_t maxs, int maxedicts, prvm_e
 	//VectorSet(paddedmaxs, maxs[0] + 10, maxs[1] + 10, maxs[2] + 1);
 	VectorCopy(mins, paddedmins);
 	VectorCopy(maxs, paddedmaxs);
-	if (sv_areadebug.integer)
-	{
+	if (sv_areadebug.integer /*d: 0*/) {
 		int numresultedicts = 0;
 		int edictindex;
 		prvm_edict_t *ed;
-		for (edictindex = 1;edictindex < prog->num_edicts;edictindex++)
-		{
+		for (edictindex = 1;edictindex < prog->num_edicts;edictindex++) { // BOXX
 			ed = PRVM_EDICT_NUM(edictindex);
-			if (!ed->free && BoxesOverlap(PRVM_serveredictvector(ed, absmin), PRVM_serveredictvector(ed, absmax), paddedmins, paddedmaxs))
-			{
+			if (!ed->free && BoxesOverlap(PRVM_serveredictvector(ed, absmin), PRVM_serveredictvector(ed, absmax), paddedmins, paddedmaxs)) {
 				resultedicts[numresultedicts++] = ed;
 				if (numresultedicts == maxedicts)
 					break;
@@ -830,8 +827,7 @@ void SV_LinkEdict (prvm_edict_t *ent)
 
 // set the abs box
 
-	if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_PHYSICS)
-	{
+	if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_PHYSICS_32) {
 		// TODO maybe should do this for rotating SOLID_BSP_4 too? Would behave better with rotating doors
 		// TODO special handling for spheres?
 		VectorCopy(PRVM_serveredictvector(ent, mins), entmins);
@@ -846,10 +842,10 @@ void SV_LinkEdict (prvm_edict_t *ent)
 		if (model != NULL)
 		{
 			if (!model->TraceBox)
-				Con_DPrintf ("edict %d: SOLID_BSP_4 with non-collidable model\n", PRVM_NUM_FOR_EDICT(ent));
+				Con_DPrintLinef ("edict %d: SOLID_BSP_4 with non-collidable model", PRVM_NUM_FOR_EDICT(ent));
 
-			if (PRVM_serveredictvector(ent, angles)[0] || PRVM_serveredictvector(ent, angles)[2] || PRVM_serveredictvector(ent, avelocity)[0] || PRVM_serveredictvector(ent, avelocity)[2])
-			{
+			if (PRVM_serveredictvector(ent, angles)[0] || PRVM_serveredictvector(ent, angles)[2] 
+			|| PRVM_serveredictvector(ent, avelocity)[0] || PRVM_serveredictvector(ent, avelocity)[2]) {
 				VectorAdd(PRVM_serveredictvector(ent, origin), model->rotatedmins, mins);
 				VectorAdd(PRVM_serveredictvector(ent, origin), model->rotatedmaxs, maxs);
 			}
@@ -935,7 +931,7 @@ static int SV_TestEntityPosition (prvm_edict_t *ent, vec3_t offset)
 	VectorCopy(PRVM_serveredictvector(ent, origin), entorigin);
 	VectorCopy(PRVM_serveredictvector(ent, mins), entmins);
 	VectorCopy(PRVM_serveredictvector(ent, maxs), entmaxs);
-	trace = SV_TraceBox(org, entmins, entmaxs, entorigin, ((PRVM_serveredictfloat(ent, movetype) == MOVETYPE_FLY_WORLDONLY) ? MOVE_WORLDONLY : MOVE_NOMONSTERS), ent, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value);
+	trace = SV_TraceBox(org, entmins, entmaxs, entorigin, ((PRVM_serveredictfloat(ent, movetype) == MOVETYPE_FLY_WORLDONLY_33) ? MOVE_WORLDONLY : MOVE_NOMONSTERS), ent, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value);
 	if (trace.startsupercontents & hitsupercontentsmask)
 		return true;
 	else
@@ -1108,7 +1104,7 @@ static qbool SV_RunThink (prvm_edict_t *ent)
 		//capture interval to nextthink here and send it to client for better
 		//lerp timing, but only if interval is not 0.1 (which client assumes)
 			ent->sendinterval = false;
-			if (!ent->free && ent->v.nextthink && (ent->v.movetype == MOVETYPE_STEP 
+			if (!ent->free && ent->v.nextthink && (ent->v.movetype == MOVETYPE_STEP_4 
 				|| ent->v.frame != oldframe))
 			{
 				i = Q_rint((ent->v.nextthink-thinktime)*255);
@@ -1285,7 +1281,7 @@ static int SV_FlyMove (prvm_edict_t *ent, float time, qbool applygravity, float 
 			break;
 		}
 
-		// this code is used by MOVETYPE_WALK and MOVETYPE_STEP and SV_UnstickEntity
+		// this code is used by MOVETYPE_WALK_3 and MOVETYPE_STEP_4 and SV_UnstickEntity
 		// abort move if we're stuck in the world (and didn't make it out)
 #if 111 // Baker r0061: Classic DarkPlaces physics
 		if (trace.worldstartsolid && trace.allsolid)
@@ -1670,7 +1666,7 @@ static qbool SV_PushEntity (trace_t *trace, prvm_edict_t *ent, vec3_t push, qboo
 
 	if (movetype == MOVETYPE_FLYMISSILE_9)
 		type = MOVE_MISSILE;
-	else if (movetype == MOVETYPE_FLY_WORLDONLY)
+	else if (movetype == MOVETYPE_FLY_WORLDONLY_33)
 		type = MOVE_WORLDONLY;
 	else if (solid == SOLID_TRIGGER_1 || solid == SOLID_NOT_0)
 		type = MOVE_NOMONSTERS; // only clip against bmodels
@@ -1908,9 +1904,9 @@ static void SV_PushMove (prvm_edict_t *pusher, float movetime)
 // see if any solid entities are inside the final position
 	num_moved = 0;
 
-	if (PRVM_serveredictfloat(pusher, movetype) == MOVETYPE_FAKEPUSH) // Tenebrae's MOVETYPE_PUSH variant that doesn't push...
+	if (PRVM_serveredictfloat(pusher, movetype) == MOVETYPE_FAKEPUSH_13) // Tenebrae's MOVETYPE_PUSH_7 variant that doesn't push...
 		numcheckentities = 0;
-	else // MOVETYPE_PUSH
+	else // MOVETYPE_PUSH_7
 		numcheckentities = SV_EntitiesInBox(mins, maxs, MAX_EDICTS_32768, checkentities);
 	
 	for (e = 0;e < numcheckentities;e++) {
@@ -1918,11 +1914,11 @@ static void SV_PushMove (prvm_edict_t *pusher, float movetime)
 		int movetype = (int)PRVM_serveredictfloat(check, movetype);
 		switch(movetype)
 		{
-		case MOVETYPE_NONE:
-		case MOVETYPE_PUSH:
-		case MOVETYPE_FOLLOW:
-		case MOVETYPE_NOCLIP:
-		case MOVETYPE_FLY_WORLDONLY:
+		case MOVETYPE_NONE_0:
+		case MOVETYPE_PUSH_7:
+		case MOVETYPE_FOLLOW_12:
+		case MOVETYPE_NOCLIP_8:
+		case MOVETYPE_FLY_WORLDONLY_33:
 			continue;
 		default:
 			break;
@@ -1936,7 +1932,7 @@ static void SV_PushMove (prvm_edict_t *pusher, float movetime)
 
 		//Con_Printf ("%d %s ", PRVM_NUM_FOR_EDICT(check), PRVM_GetString(PRVM_serveredictstring(check, classname)));
 
-		// tell any MOVETYPE_STEP entity that it may need to check for water transitions
+		// tell any MOVETYPE_STEP_4 entity that it may need to check for water transitions
 		check->priv.server->waterposition_forceupdate = true;
 
 		checkcontents = SV_GenericHitSuperContentsMask(check);
@@ -1953,10 +1949,18 @@ static void SV_PushMove (prvm_edict_t *pusher, float movetime)
 			VectorCopy(PRVM_serveredictvector(check, maxs), checkmaxs);
 			Collision_ClipToGenericEntity(&trace, pushermodel, pusher->priv.server->frameblend, &pusher->priv.server->skeleton, pushermins, pushermaxs, SUPERCONTENTS_BODY, &pusherfinalmatrix, &pusherfinalimatrix, checkorigin, checkmins, checkmaxs, checkorigin, checkcontents, 0, 0, collision_extendmovelength.value);
 			//trace = SV_TraceBox(PRVM_serveredictvector(check, origin), PRVM_serveredictvector(check, mins), PRVM_serveredictvector(check, maxs), PRVM_serveredictvector(check, origin), MOVE_NOMONSTERS, check, checkcontents);
-			if (!trace.startsolid)
-			{
-				//Con_Printf ("- not in solid\n");
+			if (!trace.startsolid) {
+				// Con_PrintLinef ("- not in solid");
 				continue;
+
+#if 0
+				if (sv_gameplayfix_hemebond_pushmove.value) {
+					// continue - don't continue
+				} else {
+					// DarkPlaces
+					continue;
+				}
+#endif
 			}
 		}
 
@@ -1993,7 +1997,7 @@ static void SV_PushMove (prvm_edict_t *pusher, float movetime)
 		num_moved ++; // Baker: Moved
 
 		// physics objects need better collisions than this code can do
-		if (movetype == MOVETYPE_PHYSICS)
+		if (movetype == MOVETYPE_PHYSICS_32)
 		{
 			VectorAdd(PRVM_serveredictvector(check, origin), move, PRVM_serveredictvector(check, origin));
 			SV_LinkEdict(check);
@@ -2020,7 +2024,7 @@ static void SV_PushMove (prvm_edict_t *pusher, float movetime)
 		// this trace.fraction < 1 check causes items to fall off of pushers
 		// if they pass under or through a wall
 		// the groundentity check causes items to fall off of ledges
-		if (PRVM_serveredictfloat(check, movetype) != MOVETYPE_WALK && (trace.fraction < 1 || PRVM_PROG_TO_EDICT(PRVM_serveredictedict(check, groundentity)) != pusher))
+		if (PRVM_serveredictfloat(check, movetype) != MOVETYPE_WALK_3 && (trace.fraction < 1 || PRVM_PROG_TO_EDICT(PRVM_serveredictedict(check, groundentity)) != pusher))
 			PRVM_serveredictfloat(check, flags) = (int)PRVM_serveredictfloat(check, flags) & ~FL_ONGROUND;
 
 		// if it is still inside the pusher, block
@@ -2435,7 +2439,7 @@ static void SV_WalkMove (prvm_edict_t *ent)
 	if (sv_gameplayfix_unstickplayers.integer /*d: 1*/)
 		SV_CheckStuck (ent);
 
-	applygravity = !SV_CheckWater (ent) && PRVM_serveredictfloat(ent, movetype) == MOVETYPE_WALK && ! ((int)PRVM_serveredictfloat(ent, flags) & FL_WATERJUMP);
+	applygravity = !SV_CheckWater (ent) && PRVM_serveredictfloat(ent, movetype) == MOVETYPE_WALK_3 && ! ((int)PRVM_serveredictfloat(ent, flags) & FL_WATERJUMP);
 
 	SV_CheckVelocity(ent);
 
@@ -2457,7 +2461,7 @@ static void SV_WalkMove (prvm_edict_t *ent)
 			VectorSet(downmove, PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2] - 1);
 			if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_FLYMISSILE_9)
 				type = MOVE_MISSILE;
-			else if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_FLY_WORLDONLY)
+			else if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_FLY_WORLDONLY_33)
 				type = MOVE_WORLDONLY;
 			else if (PRVM_serveredictfloat(ent, solid) == SOLID_TRIGGER_1 || PRVM_serveredictfloat(ent, solid) == SOLID_NOT_0)
 				type = MOVE_NOMONSTERS; // only clip against bmodels
@@ -2505,10 +2509,10 @@ static void SV_WalkMove (prvm_edict_t *ent)
 		if (fabs(start_velocity[0]) < 0.03125 && fabs(start_velocity[1]) < 0.03125)
 			return;
 
-		if (PRVM_serveredictfloat(ent, movetype) != MOVETYPE_FLY)
+		if (PRVM_serveredictfloat(ent, movetype) != MOVETYPE_FLY_5)
 		{
 			// return if gibbed by a trigger
-			if (PRVM_serveredictfloat(ent, movetype) != MOVETYPE_WALK)
+			if (PRVM_serveredictfloat(ent, movetype) != MOVETYPE_WALK_3)
 				return;
 
 			// return if attempting to jump while airborn (unless sv_jumpstep)
@@ -2634,7 +2638,7 @@ static void SV_Physics_Follow (prvm_edict_t *ent)
 	vec3_t vf, vr, vu, angles, v;
 	prvm_edict_t *e;
 
-	// LadyHavoc: implemented rotation on MOVETYPE_FOLLOW objects
+	// LadyHavoc: implemented rotation on MOVETYPE_FOLLOW_12 objects
 	e = PRVM_PROG_TO_EDICT(PRVM_serveredictedict(ent, aiment));
 	if (PRVM_serveredictvector(e, angles)[0] == PRVM_serveredictvector(ent, punchangle)[0] && PRVM_serveredictvector(e, angles)[1] == PRVM_serveredictvector(ent, punchangle)[1] && PRVM_serveredictvector(e, angles)[2] == PRVM_serveredictvector(ent, punchangle)[2])
 	{
@@ -2774,9 +2778,9 @@ void SV_Physics_Toss (prvm_edict_t *ent)
 // add gravity
 	float fmovetype = PRVM_serveredictfloat(ent, movetype);
 	if (sv.is_qex && fmovetype == MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11) // AURA 11.0
-		fmovetype = MOVETYPE_BOUNCE; // MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11
+		fmovetype = MOVETYPE_BOUNCE_10; // MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11
 
-	if (isin2 (fmovetype, MOVETYPE_TOSS, MOVETYPE_BOUNCE))
+	if (isin2 (fmovetype, MOVETYPE_TOSS_6, MOVETYPE_BOUNCE_10))
 		PRVM_serveredictvector(ent, velocity)[2] -= SV_Gravity(ent);
 
 // move angles
@@ -2802,9 +2806,9 @@ void SV_Physics_Toss (prvm_edict_t *ent)
 				return;
 		}
 #else
-		// The buzzsaw traps in r2m6 and r2m7 use MOVETYPE_FLY and rely on moving while stuck in the world.
+		// The buzzsaw traps in r2m6 and r2m7 use MOVETYPE_FLY_5 and rely on moving while stuck in the world.
 		// Quake movetypes checked allsolid only in SV_FlyMove().
-		if (!SV_PushEntity(&trace, ent, move, true, PRVM_serveredictfloat(ent, movetype) != MOVETYPE_FLY))
+		if (!SV_PushEntity(&trace, ent, move, true, PRVM_serveredictfloat(ent, movetype) != MOVETYPE_FLY_5))
 			return; // teleported
 
 		if (ent->free)
@@ -2815,7 +2819,7 @@ void SV_Physics_Toss (prvm_edict_t *ent)
 		movetime *= 1 - min(1, trace.fraction);
 		switch((int)PRVM_serveredictfloat(ent, movetype))
 		{
-		case MOVETYPE_BOUNCEMISSILE:
+		case MOVETYPE_BOUNCEMISSILE_11:
 			if (sv.is_qex) { // AURA 11.1
 				goto gib_movetype; // MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11 is BOUNCE
 			}
@@ -2829,7 +2833,7 @@ void SV_Physics_Toss (prvm_edict_t *ent)
 				movetime = 0;
 			break;
 
-		case MOVETYPE_BOUNCE:
+		case MOVETYPE_BOUNCE_10:
 gib_movetype: // MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11 is BOUNCE // AURA 11.2
 			bouncefactor = PRVM_serveredictfloat(ent, bouncefactor);
 			if (!bouncefactor)
@@ -2991,29 +2995,32 @@ static void SV_Physics_Entity (prvm_edict_t *ent)
 
 	switch ((int) PRVM_serveredictfloat(ent, movetype))
 	{
-	case MOVETYPE_PUSH:
-	case MOVETYPE_FAKEPUSH:
+	case MOVETYPE_PUSH_7:
+	case MOVETYPE_FAKEPUSH_13:
 		SV_Physics_Pusher (ent);
 		break;
-	case MOVETYPE_NONE:
-		// LadyHavoc: manually inlined the thinktime check here because MOVETYPE_NONE is used on so many objects
+	case MOVETYPE_NONE_0:
+		// LadyHavoc: manually inlined the thinktime check here because MOVETYPE_NONE_0 is used on so many objects
 		if (PRVM_serveredictfloat(ent, nextthink) > 0 && PRVM_serveredictfloat(ent, nextthink) <= sv.time + sv.frametime)
 			SV_RunThink (ent);
 		break;
-	case MOVETYPE_FOLLOW:
-		if (SV_RunThink(ent))
-			SV_Physics_Follow (ent);
+	case MOVETYPE_FOLLOW_12:
+		if (SV_RunThink(ent)) // AVELOX - SV_RunThink first .. why? Runs thinking code if time
+			// Baker: SV_RunThink seems to return true unless entity is freed.
+			SV_Physics_Follow (ent); // AVELOX FOLLOW SV_Physics_Entity
 		break;
-	case MOVETYPE_NOCLIP:
+	case MOVETYPE_NOCLIP_8:
 		if (SV_RunThink(ent))
 		{
 			SV_CheckWater(ent);
 			VectorMA(PRVM_serveredictvector(ent, origin), sv.frametime, PRVM_serveredictvector(ent, velocity), PRVM_serveredictvector(ent, origin));
-			VectorMA(PRVM_serveredictvector(ent, angles), sv.frametime, PRVM_serveredictvector(ent, avelocity), PRVM_serveredictvector(ent, angles));
+			
+			// AVELOX - NOCLIP
+			VectorMA(PRVM_serveredictvector(ent, angles), sv.frametime, PRVM_serveredictvector(ent, avelocity), PRVM_serveredictvector(ent, angles)); 
 		}
 		SV_LinkEdict(ent);
 		break;
-	case MOVETYPE_STEP:
+	case MOVETYPE_STEP_4:
 		SV_Physics_Step (ent);
 		// regular thinking
 		if (SV_RunThink(ent))
@@ -3024,21 +3031,21 @@ static void SV_Physics_Entity (prvm_edict_t *ent)
 			SV_CheckWaterTransition(ent);
 		}
 		break;
-	case MOVETYPE_WALK:
+	case MOVETYPE_WALK_3:
 		if (SV_RunThink (ent))
 			SV_WalkMove (ent);
 		break;
-	case MOVETYPE_TOSS:
-	case MOVETYPE_BOUNCE:
-	case MOVETYPE_BOUNCEMISSILE: // MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11
+	case MOVETYPE_TOSS_6:
+	case MOVETYPE_BOUNCE_10:
+	case MOVETYPE_BOUNCEMISSILE_11: // MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11
 	case MOVETYPE_FLYMISSILE_9:
-	case MOVETYPE_FLY:
-	case MOVETYPE_FLY_WORLDONLY:
+	case MOVETYPE_FLY_5:
+	case MOVETYPE_FLY_WORLDONLY_33:
 		// regular thinking
 		if (SV_RunThink (ent))
 			SV_Physics_Toss (ent);
 		break;
-	case MOVETYPE_PHYSICS:
+	case MOVETYPE_PHYSICS_32:
 		if (SV_RunThink(ent))
 		{
 			SV_LinkEdict(ent);
@@ -3063,37 +3070,38 @@ static void SV_Physics_ClientEntity_NoThink (prvm_edict_t *ent)
 	// This probably only makes sense for CSQC-networked (SendEntity field set) player entities
 	switch ((int) PRVM_serveredictfloat(ent, movetype))
 	{
-	case MOVETYPE_PUSH:
-	case MOVETYPE_FAKEPUSH:
+	case MOVETYPE_PUSH_7:
+	case MOVETYPE_FAKEPUSH_13:
 		// push physics relies heavily on think times and calls, and so cannot be predicted currently
-		Con_Printf ("SV_Physics_ClientEntity_NoThink: bad movetype %d\n", (int)PRVM_serveredictfloat(ent, movetype));
+		Con_PrintLinef ("SV_Physics_ClientEntity_NoThink: bad movetype %d", (int)PRVM_serveredictfloat(ent, movetype));
 		break;
-	case MOVETYPE_NONE:
+	case MOVETYPE_NONE_0:
 		break;
-	case MOVETYPE_FOLLOW:
-		SV_Physics_Follow (ent);
+	case MOVETYPE_FOLLOW_12:
+		SV_Physics_Follow (ent); // AVELOX - NOCLIP SV_Physics_ClientEntity_NoThink
 		break;
-	case MOVETYPE_NOCLIP:
+	case MOVETYPE_NOCLIP_8:
 		VectorMA(PRVM_serveredictvector(ent, origin), sv.frametime, PRVM_serveredictvector(ent, velocity), PRVM_serveredictvector(ent, origin));
+		// AVELOX - NOCLIP SV_Physics_ClientEntity_NoThink
 		VectorMA(PRVM_serveredictvector(ent, angles), sv.frametime, PRVM_serveredictvector(ent, avelocity), PRVM_serveredictvector(ent, angles));
 		break;
-	case MOVETYPE_STEP:
+	case MOVETYPE_STEP_4:
 		SV_Physics_Step (ent);
 		break;
-	case MOVETYPE_WALK:
+	case MOVETYPE_WALK_3:
 		SV_WalkMove (ent);
 		break;
-	case MOVETYPE_TOSS:
-	case MOVETYPE_BOUNCE:
-	case MOVETYPE_BOUNCEMISSILE: // MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11 // AURA
+	case MOVETYPE_TOSS_6:
+	case MOVETYPE_BOUNCE_10:
+	case MOVETYPE_BOUNCEMISSILE_11: // MOVETYPE_GIB_FIGHTS_BOUNCEMISSILE_11 // AURA
 	case MOVETYPE_FLYMISSILE_9:
 		SV_Physics_Toss (ent);
 		break;
-	case MOVETYPE_FLY:
-	case MOVETYPE_FLY_WORLDONLY:
+	case MOVETYPE_FLY_5:
+	case MOVETYPE_FLY_WORLDONLY_33:
 		SV_WalkMove (ent);
 		break;
-	case MOVETYPE_PHYSICS:
+	case MOVETYPE_PHYSICS_32:
 		break;
 	default:
 		if ((int) PRVM_serveredictfloat(ent, movetype) >= MOVETYPE_USER_FIRST && (int) PRVM_serveredictfloat(ent, movetype) <= MOVETYPE_USER_LAST)
@@ -3125,7 +3133,7 @@ void SV_Physics_ClientMove(void)
 	SV_CheckVelocity(ent);
 
 	// perform movetype behaviour
-	// note: will always be MOVETYPE_WALK if disableclientprediction = 0
+	// note: will always be MOVETYPE_WALK_3 if disableclientprediction = 0
 	SV_Physics_ClientEntity_NoThink (ent);
 
 	// call standard player post-think, with frametime = 0
@@ -3224,32 +3232,36 @@ static void SV_Physics_ClientEntity(prvm_edict_t *ent)
 	// make sure the velocity is sane (not a NaN)
 	SV_CheckVelocity(ent);
 
-	switch ((int) PRVM_serveredictfloat(ent, movetype))
+	int cl_movetype = (int) PRVM_serveredictfloat(ent, movetype);
+	int shall_exec_touch = true;
+	switch (cl_movetype)
 	{
-	case MOVETYPE_PUSH:
-	case MOVETYPE_FAKEPUSH:
+	case MOVETYPE_PUSH_7:
+	case MOVETYPE_FAKEPUSH_13:
 		SV_Physics_Pusher (ent);
 		break;
-	case MOVETYPE_NONE:
-		// LadyHavoc: manually inlined the thinktime check here because MOVETYPE_NONE is used on so many objects
+	case MOVETYPE_NONE_0:
+		// LadyHavoc: manually inlined the thinktime check here because MOVETYPE_NONE_0 is used on so many objects
 		if (PRVM_serveredictfloat(ent, nextthink) > 0 && PRVM_serveredictfloat(ent, nextthink) <= sv.time + sv.frametime)
 			SV_RunThink (ent);
 		break;
-	case MOVETYPE_FOLLOW:
+	case MOVETYPE_FOLLOW_12:
 		SV_RunThink (ent);
 		if (host_client->clmovement_inputtimeout <= 0) // don't run physics here if running asynchronously
 			SV_Physics_Follow (ent);
 		break;
-	case MOVETYPE_NOCLIP:
+	case MOVETYPE_NOCLIP_8:
 		SV_RunThink(ent);
-		if (host_client->clmovement_inputtimeout <= 0) // don't run physics here if running asynchronously
-		{
+		if (host_client->clmovement_inputtimeout <= 0) { // don't run physics here if running asynchronously
 			SV_CheckWater(ent);
 			VectorMA(PRVM_serveredictvector(ent, origin), sv.frametime, PRVM_serveredictvector(ent, velocity), PRVM_serveredictvector(ent, origin));
+			// AVELOX - NOCLIP
 			VectorMA(PRVM_serveredictvector(ent, angles), sv.frametime, PRVM_serveredictvector(ent, avelocity), PRVM_serveredictvector(ent, angles));
 		}
+		if (sv_altnoclipmove.integer) // Don't touch stuff
+			shall_exec_touch = false;
 		break;
-	case MOVETYPE_STEP:
+	case MOVETYPE_STEP_4:
 		if (host_client->clmovement_inputtimeout <= 0) // don't run physics here if running asynchronously
 			SV_Physics_Step (ent);
 		if (SV_RunThink(ent))
@@ -3260,28 +3272,28 @@ static void SV_Physics_ClientEntity(prvm_edict_t *ent)
 			SV_CheckWaterTransition(ent);
 		}
 		break;
-	case MOVETYPE_WALK:
+	case MOVETYPE_WALK_3:
 		SV_RunThink (ent);
 		// don't run physics here if running asynchronously
 		if (host_client->clmovement_inputtimeout <= 0)
 			SV_WalkMove (ent);
 		break;
-	case MOVETYPE_TOSS:
-	case MOVETYPE_BOUNCE:
-	case MOVETYPE_BOUNCEMISSILE:
+	case MOVETYPE_TOSS_6:
+	case MOVETYPE_BOUNCE_10:
+	case MOVETYPE_BOUNCEMISSILE_11:
 	case MOVETYPE_FLYMISSILE_9:
 		// regular thinking
 		SV_RunThink (ent);
 		if (host_client->clmovement_inputtimeout <= 0) // don't run physics here if running asynchronously
 			SV_Physics_Toss (ent);
 		break;
-	case MOVETYPE_FLY:
-	case MOVETYPE_FLY_WORLDONLY:
+	case MOVETYPE_FLY_5:
+	case MOVETYPE_FLY_WORLDONLY_33:
 		SV_RunThink (ent);
 		if (host_client->clmovement_inputtimeout <= 0) // don't run physics here if running asynchronously
 			SV_WalkMove (ent);
 		break;
-	case MOVETYPE_PHYSICS:
+	case MOVETYPE_PHYSICS_32:
 		SV_RunThink (ent);
 		break;
 	default:
@@ -3294,7 +3306,9 @@ static void SV_Physics_ClientEntity(prvm_edict_t *ent)
 	SV_CheckVelocity (ent);
 
 	SV_LinkEdict(ent);
-	SV_LinkEdict_TouchAreaGrid(ent);
+	if (shall_exec_touch) {
+		SV_LinkEdict_TouchAreaGrid(ent);
+	}
 
 	SV_CheckVelocity (ent);
 }
@@ -3371,7 +3385,7 @@ void SV_Physics (void)
 	{
 		for (;i < prog->num_edicts;i++, ent = PRVM_NEXT_EDICT(ent))
 			if (!ent->free)
-				SV_Physics_Entity(ent);
+				SV_Physics_Entity(ent); // AVELOX
 		// make a second pass to see if any ents spawned this frame and make
 		// sure they run their move/think
 		if (sv_gameplayfix_delayprojectiles.integer < 0)

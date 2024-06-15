@@ -93,6 +93,7 @@ fs_offset_t FS_Write (qfile_t *file, const void *data, size_t datasize);
 fs_offset_t FS_Read (qfile_t *file, void *buffer, size_t buffersize);
 int FS_Print(qfile_t *file, const char *msg);
 int FS_Printf(qfile_t *file, const char *format, ...) DP_FUNC_PRINTF(2);
+int FS_PrintLinef(qfile_t *file, const char *fmt, ...) DP_FUNC_PRINTF(2);
 int FS_VPrintf(qfile_t *file, const char *format, va_list ap);
 int FS_Getc (qfile_t *file);
 int FS_UnGetc (qfile_t *file, unsigned char c);
@@ -143,6 +144,11 @@ void FS_FreeSearch(fssearch_t *search);
 	} // Ender
 
 unsigned char *FS_LoadFile (const char *path, mempool_t *pool, qbool quiet, fs_offset_t *filesizepointer);
+
+#define FS_LoadFile_Quiet_Temp(path) \
+	(char *)FS_LoadFile(path, tempmempool, fs_quiet_FALSE, fs_size_ptr_null)
+
+
 unsigned char *FS_SysLoadFile (const char *path, mempool_t *pool, qbool quiet, fs_offset_t *filesizepointer);
 qbool FS_WriteFileInBlocks (const char *filename, const void *const *data, const fs_offset_t *len, size_t count);
 qbool FS_WriteFile (const char *filename, const void *data, fs_offset_t len);
@@ -170,7 +176,7 @@ unsigned char *FS_Inflate(const unsigned char *data, size_t size, size_t *inflat
 qbool FS_HasZlib(void);
 
 void FS_Init_SelfPack(void);
-void FS_Init(void);
+void FS_InitOnce(void);
 void FS_Shutdown(void);
 void FS_Init_Commands(void);
 
@@ -203,5 +209,7 @@ extern int	mod_list_requires;				// g_requires_quake 0 = YES, 1 = STANDAALONE, 2
 
 extern stringlist_t baker_gamelist_names_ignore_char1; // char1 is our enum
 
+void String_Worldspawn_Values_stringlistappend (stringlist_t *plist, ccs *s_entities_string);
 
-#endif
+#endif // ! FS_H
+

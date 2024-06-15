@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "cl_collision.h"
 
-#ifdef MAX_EXPLOSIONS
+#ifdef MAX_EXPLOSIONS_64
 #define EXPLOSIONGRID 8
 #define EXPLOSIONVERTS ((EXPLOSIONGRID+1)*(EXPLOSIONGRID+1))
 #define EXPLOSIONTRIS (EXPLOSIONGRID*EXPLOSIONGRID*2)
@@ -47,7 +47,7 @@ typedef struct explosion_s
 }
 explosion_t;
 
-static explosion_t explosion[MAX_EXPLOSIONS];
+static explosion_t explosion[MAX_EXPLOSIONS_64];
 
 static rtexture_t	*explosiontexture;
 //static rtexture_t	*explosiontexturefog;
@@ -56,7 +56,7 @@ static rtexturepool_t	*explosiontexturepool;
 #endif
 
 cvar_t r_explosionclip = {CF_CLIENT | CF_ARCHIVE, "r_explosionclip", "1", "enables collision detection for explosion shell (so that it flattens against walls and floors)"};
-#ifdef MAX_EXPLOSIONS
+#ifdef MAX_EXPLOSIONS_64
 static cvar_t r_drawexplosions = {CF_CLIENT, "r_drawexplosions", "1", "enables rendering of explosion shells (see also cl_particles_explosions_shell)"};
 
 //extern qbool r_loadfog;
@@ -86,7 +86,7 @@ static void r_explosion_start(void)
 			data[y][x][3] = bound(0, a, 255);
 		}
 	}
-	explosiontexture = R_LoadTexture2D(explosiontexturepool, "explosiontexture", 128, 128, &data[0][0][0], TEXTYPE_BGRA, TEXF_MIPMAP | TEXF_ALPHA | TEXF_FORCELINEAR, -1, NULL);
+	explosiontexture = R_LoadTexture2D(explosiontexturepool, "explosiontexture", 128, 128, &data[0][0][0], TEXTYPE_BGRA, TEXF_MIPMAP | TEXF_ALPHA | TEXF_FORCELINEAR, q_tx_miplevel_neg1, q_tx_palette_NULL);
 //	if (r_loadfog)
 //	{
 //		for (y = 0;y < 128;y++)
@@ -130,7 +130,7 @@ static int R_ExplosionVert(int column, int row)
 
 void R_Explosion_Init(void)
 {
-#ifdef MAX_EXPLOSIONS
+#ifdef MAX_EXPLOSIONS_64
 	int i, x, y;
 	i = 0;
 	for (y = 0;y < EXPLOSIONGRID;y++)
@@ -150,7 +150,7 @@ void R_Explosion_Init(void)
 
 #endif
 	Cvar_RegisterVariable(&r_explosionclip);
-#ifdef MAX_EXPLOSIONS
+#ifdef MAX_EXPLOSIONS_64
 	Cvar_RegisterVariable(&r_drawexplosions);
 
 	R_RegisterModule("R_Explosions", r_explosion_start, r_explosion_shutdown, r_explosion_newmap, NULL, NULL);
@@ -159,14 +159,14 @@ void R_Explosion_Init(void)
 
 void R_NewExplosion(const vec3_t org)
 {
-#ifdef MAX_EXPLOSIONS
+#ifdef MAX_EXPLOSIONS_64
 	int i, j;
 	float dist, n;
 	explosion_t *e;
 	trace_t trace;
 	unsigned char noise[EXPLOSIONGRID*EXPLOSIONGRID];
 	fractalnoisequick(noise, EXPLOSIONGRID, 4); // adjust noise grid size according to explosion
-	for (i = 0, e = explosion;i < MAX_EXPLOSIONS;i++, e++)
+	for (i = 0, e = explosion;i < MAX_EXPLOSIONS_64;i++, e++)
 	{
 		if (!e->alpha)
 		{
@@ -199,7 +199,7 @@ void R_NewExplosion(const vec3_t org)
 #endif
 }
 
-#ifdef MAX_EXPLOSIONS
+#ifdef MAX_EXPLOSIONS_64
 static void R_DrawExplosion_TransparentCallback(const entity_render_t *ent, const rtlight_t *rtlight, int numsurfaces, int *surfacelist)
 {
 	int surfacelistindex = 0;
@@ -263,7 +263,7 @@ static void R_MoveExplosion(explosion_t *e)
 
 void R_DrawExplosions(void)
 {
-#ifdef MAX_EXPLOSIONS
+#ifdef MAX_EXPLOSIONS_64
 	int i;
 
 	if (!r_drawexplosions.integer)

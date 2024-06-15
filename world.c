@@ -35,7 +35,7 @@ line of sight checks trace->inopen and trace->inwater, but bullets don't
 #ifdef USEODE
 static void World_Physics_Init(void);
 #endif
-void World_Init(void)
+void World_InitOnce(void)
 {
 	Collision_Init();
 #ifdef USEODE
@@ -228,16 +228,15 @@ int World_EntitiesInBox(world_t *world, const vec3_t requestmins, const vec3_t r
 	numlist = 0;
 	// add entities not linked into areagrid because they are too big or
 	// outside the grid bounds
-	if (world->areagrid_outside.list.next)
-	{
+	if (world->areagrid_outside.list.next) {
 		grid = &world->areagrid_outside;
-		List_For_Each_Entry(l, &grid->list, link_t, list)
-		{
+		List_For_Each_Entry(l, &grid->list, link_t, list) {
 			ent = PRVM_EDICT_NUM(l->entitynumber);
-			if (ent->priv.server->areagridmarknumber != world->areagrid_marknumber)
-			{
+			if (ent->priv.server->areagridmarknumber != world->areagrid_marknumber) {
 				ent->priv.server->areagridmarknumber = world->areagrid_marknumber;
-				if (!ent->free && BoxesOverlap(paddedmins, paddedmaxs, ent->priv.server->areamins, ent->priv.server->areamaxs))
+				if (!ent->free && 
+					BoxesOverlap(paddedmins, paddedmaxs, ent->priv.server->areamins, 
+					ent->priv.server->areamaxs))
 				{
 					if (numlist < maxlist)
 						list[numlist] = ent;
@@ -261,7 +260,8 @@ int World_EntitiesInBox(world_t *world, const vec3_t requestmins, const vec3_t r
 					if (ent->priv.server->areagridmarknumber != world->areagrid_marknumber)
 					{
 						ent->priv.server->areagridmarknumber = world->areagrid_marknumber;
-						if (!ent->free && BoxesOverlap(paddedmins, paddedmaxs, ent->priv.server->areamins, ent->priv.server->areamaxs))
+						if (!ent->free && 
+							BoxesOverlap(paddedmins, paddedmaxs, ent->priv.server->areamins, ent->priv.server->areamaxs))
 						{
 							if (numlist < maxlist)
 								list[numlist] = ent;
@@ -1768,7 +1768,7 @@ static void World_Physics_Frame_BodyToEntity(world_t *world, prvm_edict_t *ed)
 	if (!body)
 		return;
 	movetype = (int)PRVM_gameedictfloat(ed, movetype);
-	if (movetype != MOVETYPE_PHYSICS)
+	if (movetype != MOVETYPE_PHYSICS_32)
 	{
 		jointtype = (int)PRVM_gameedictfloat(ed, jointtype);
 		switch(jointtype)
@@ -1858,7 +1858,7 @@ static void World_Physics_Frame_ForceFromEntity(world_t *world, prvm_edict_t *ed
 
 	movetype = (int)PRVM_gameedictfloat(ed, movetype);
 	forcetype = (int)PRVM_gameedictfloat(ed, forcetype);
-	if (movetype == MOVETYPE_PHYSICS)
+	if (movetype == MOVETYPE_PHYSICS_32)
 		forcetype = FORCETYPE_NONE; // can't have both
 	if (!forcetype)
 		return;
@@ -1913,7 +1913,7 @@ static void World_Physics_Frame_JointFromEntity(world_t *world, prvm_edict_t *ed
 	VectorCopy(PRVM_gameedictvector(ed, velocity), velocity);
 	VectorCopy(PRVM_gameedictvector(ed, angles), angles);
 	VectorCopy(PRVM_gameedictvector(ed, movedir), movedir);
-	if (movetype == MOVETYPE_PHYSICS)
+	if (movetype == MOVETYPE_PHYSICS_32)
 		jointtype = JOINTTYPE_NONE; // can't have both
 	if (enemy <= 0 || enemy >= prog->num_edicts || prog->edicts[enemy].free || prog->edicts[enemy].priv.server->ode_body == 0)
 		enemy = 0;
@@ -2122,7 +2122,7 @@ static void World_Physics_Frame_BodyFromEntity(world_t *world, prvm_edict_t *ed)
 	int *oe;
 	int axisindex;
 	int modelindex = 0;
-	int movetype = MOVETYPE_NONE;
+	int movetype = MOVETYPE_NONE_0;
 	int numtriangles;
 	int numvertices;
 	int solid = SOLID_NOT_0, geomtype = 0;
@@ -2179,7 +2179,7 @@ static void World_Physics_Frame_BodyFromEntity(world_t *world, prvm_edict_t *ed)
 	modelindex = 0;
 	if (PRVM_gameedictfloat(ed, mass))
 		massval = PRVM_gameedictfloat(ed, mass);
-	if (movetype != MOVETYPE_PHYSICS)
+	if (movetype != MOVETYPE_PHYSICS_32)
 		massval = 1.0f;
 	mempool = prog->progs_mempool;
 	model = NULL;
@@ -2269,7 +2269,7 @@ static void World_Physics_Frame_BodyFromEntity(world_t *world, prvm_edict_t *ed)
 		// check geomsize
 		if (geomsize[0] * geomsize[1] * geomsize[2] == 0)
 		{
-			if (movetype == MOVETYPE_PHYSICS)
+			if (movetype == MOVETYPE_PHYSICS_32)
 				Con_Printf ("entity %d (classname %s) .mass * .size_x * .size_y * .size_z == 0\n", PRVM_NUM_FOR_EDICT(ed), PRVM_GetString(prog, PRVM_gameedictstring(ed, classname)));
 			VectorSet(geomsize, 1.0f, 1.0f, 1.0f);
 		}
@@ -2291,7 +2291,7 @@ static void World_Physics_Frame_BodyFromEntity(world_t *world, prvm_edict_t *ed)
 			convex_compatible = false;
 			for (i = model->submodelsurfaces_start;i < model->submodelsurfaces_end;i++)
 			{
-				if (String_Does_Match(model->data_surfaces[i].texture->name, "collisionconvex"))
+				if (String_Match(model->data_surfaces[i].texture->name, "collisionconvex"))
 				{
 					convex_compatible = true;
 					break;
@@ -2332,7 +2332,7 @@ static void World_Physics_Frame_BodyFromEntity(world_t *world, prvm_edict_t *ed)
 			VectorSubtract(entmaxs, entmins, geomsize);
 			if (VectorLength2(geomsize) == 0)
 			{
-				if (movetype == MOVETYPE_PHYSICS)
+				if (movetype == MOVETYPE_PHYSICS_32)
 					Con_Printf ("entity %d collision mesh has null geomsize\n", PRVM_NUM_FOR_EDICT(ed));
 				VectorSet(geomsize, 1.0f, 1.0f, 1.0f);
 			}
@@ -2644,7 +2644,7 @@ treatasbox:
 
 	if (ed->priv.server->ode_geom)
 		dGeomSetData((dGeomID)ed->priv.server->ode_geom, (void*)ed);
-	if (movetype == MOVETYPE_PHYSICS && ed->priv.server->ode_geom)
+	if (movetype == MOVETYPE_PHYSICS_32 && ed->priv.server->ode_geom)
 	{
 		// entity is dynamic
 		if (ed->priv.server->ode_body == NULL)
@@ -2813,7 +2813,7 @@ treatasbox:
 		r[2][2] = up[2];
 		if (body)
 		{
-			if (movetype == MOVETYPE_PHYSICS)
+			if (movetype == MOVETYPE_PHYSICS_32)
 			{
 				dGeomSetBody((dGeomID)ed->priv.server->ode_geom, body);
 				dBodySetPosition(body, origin[0], origin[1], origin[2]);
@@ -2917,7 +2917,7 @@ static void nearCallback (void *data, dGeomID o1, dGeomID o2)
 	if (b2)
 		b2enabled = dBodyIsEnabled(b2);
 
-	// at least one object has to be using MOVETYPE_PHYSICS and should be enabled or we just don't care
+	// at least one object has to be using MOVETYPE_PHYSICS_32 and should be enabled or we just don't care
 	if (!b1enabled && !b2enabled)
 		return;
 	

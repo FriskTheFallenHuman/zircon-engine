@@ -504,7 +504,7 @@ void _Mem_Free(void *data, const char *filename, int fileline)
 	_Mem_FreeBlock((memheader_t *)((unsigned char *) data - sizeof(memheader_t)), filename, fileline);
 }
 
-mempool_t *_Mem_AllocPool(const char *name, int flags, mempool_t *parent, const char *filename, int fileline)
+mempool_t *_Mem_AllocPool(const char *name, unsigned flags, mempool_t *parent, const char *filename, int fileline)
 {
 	mempool_t *pool;
 	if (developer_memorydebug.integer)
@@ -523,7 +523,7 @@ mempool_t *_Mem_AllocPool(const char *name, int flags, mempool_t *parent, const 
 	pool->sentinel2 = MEMHEADER_SENTINEL_FOR_ADDRESS(&pool->sentinel2);
 	pool->filename = filename;
 	pool->fileline = fileline;
-	pool->flags = flags;
+	pool->memflags = flags;
 	List_Create(&pool->chain);
 	pool->totalsize = 0;
 	pool->realsize = sizeof(mempool_t);
@@ -659,7 +659,7 @@ void _Mem_CheckSentinelsGlobal(const char *filename, int fileline)
 #endif // MEMCLUMPING != 0
 }
 
-qbool Mem_IsAllocated(mempool_t *pool, void *data)
+qbool Mem_IsAllocated(mempool_t *pool, const void *data)
 {
 	memheader_t *header;
 	memheader_t *target;
@@ -807,21 +807,24 @@ void Mem_PrintStats(void)
 	mempool_t *pool;
 	memheader_t *mem;
 	Mem_CheckSentinelsGlobal();
-	for (pool = poolchain;pool;pool = pool->next)
-	{
+	for (pool = poolchain;pool;pool = pool->next) {
 		count++;
 		size += pool->totalsize;
 		realsize += pool->realsize;
 	}
-	Con_Printf ("%lu memory pools, totalling %lu bytes (%.3fMB)\n", (unsigned long)count, (unsigned long)size, size / 1048576.0);
-	Con_Printf ("total allocated size: %lu bytes (%.3fMB)\n", (unsigned long)realsize, realsize / 1048576.0);
-	for (pool = poolchain;pool;pool = pool->next)
-	{
-		if ((pool->flags & POOLFLAG_TEMP) && !List_Is_Empty(&pool->chain))
-		{
-			Con_Printf ("Memory pool %p has sprung a leak totalling %lu bytes (%.3fMB)!  Listing contents...\n", (void *)pool, (unsigned long)pool->totalsize, pool->totalsize / 1048576.0);
+#if 1
+	Con_PrintLinef ("%lu memory pools, totalling %s bytes (%.3fMB)", (unsigned long)count, 
+		String_Num_To_Thousands_Sbuf(size), size / 1048576.0);
+	Con_PrintLinef ("total allocated size: %s bytes (%.3fMB)", String_Num_To_Thousands_Sbuf(realsize), realsize / 1048576.0);
+#else
+	Con_PrintLinef ("%lu memory pools, totalling %lu bytes (%.3fMB)", (unsigned long)count, (unsigned long)size, size / 1048576.0);
+	Con_PrintLinef ("total allocated size: %lu bytes (%.3fMB)", (unsigned long)realsize, realsize / 1048576.0);
+#endif
+	for (pool = poolchain; pool; pool = pool->next) {
+		if (Have_Flag(pool->memflags, POOLFLAG_TEMP) && !List_Is_Empty(&pool->chain)) {
+			Con_PrintLinef ("Memory pool %p has sprung a leak totalling %lu bytes (%.3fMB)!  Listing contents...", (void *)pool, (unsigned long)pool->totalsize, pool->totalsize / 1048576.0);
 			List_For_Each_Entry(mem, &pool->chain, memheader_t, list)
-				Con_Printf ("%10lu bytes allocated at %s:%d\n", (unsigned long)mem->size, mem->filename, mem->fileline);
+				Con_PrintLinef ("%10lu bytes allocated at %s:%d", (unsigned long)mem->size, mem->filename, mem->fileline);
 		}
 	}
 }
@@ -831,15 +834,15 @@ void Mem_PrintList(size_t minallocationsize)
 	mempool_t *pool;
 	memheader_t *mem;
 	Mem_CheckSentinelsGlobal();
-	Con_Print("memory pool list:\n"
-	           "size    name\n");
-	for (pool = poolchain;pool;pool = pool->next)
-	{
-		Con_Printf ("%10luk (%10luk actual) %s (%+li byte change) %s\n", (unsigned long) ((pool->totalsize + 1023) / 1024), (unsigned long)((pool->realsize + 1023) / 1024), pool->name, (long)(pool->totalsize - pool->lastchecksize), (pool->flags & POOLFLAG_TEMP) ? "TEMP" : "");
+	Con_PrintLinef ("memory pool list:" NEWLINE
+					"size    name");
+	for (pool = poolchain;pool;pool = pool->next) {
+		Con_PrintLinef ("%10luk (%10luk actual) %s (%+li byte change) %s", (unsigned long) ((pool->totalsize + 1023) / 1024), (unsigned long)((pool->realsize + 1023) / 1024), pool->name, (long)(pool->totalsize - pool->lastchecksize), Have_Flag (pool->memflags, POOLFLAG_TEMP) ? "TEMP" : "");
 		pool->lastchecksize = pool->totalsize;
 		List_For_Each_Entry(mem, &pool->chain, memheader_t, list)
 			if (mem->size >= minallocationsize)
-				Con_Printf ("%10lu bytes allocated at %s:%d\n", (unsigned long)mem->size, mem->filename, mem->fileline);
+				Con_PrintLinef ("%10lu bytes allocated at %s:%d", (unsigned long)mem->size, 
+				mem->filename, mem->fileline);
 	}
 }
 
@@ -910,7 +913,7 @@ void Memory_Shutdown (void)
 	mem_mutex = NULL;
 }
 
-void Memory_Init_Commands (void)
+void Memory_InitOnce_Commands (void)
 {
 	Cmd_AddCommand(CF_SHARED, "memstats", MemStats_f, "prints memory system statistics");
 	Cmd_AddCommand(CF_SHARED, "memlist", MemList_f, "prints memory pool information (or if used as memlist 5 lists individual allocations of 5K or larger, 0 lists all allocations)");
@@ -963,13 +966,13 @@ void Memory_Init_Commands (void)
 					const char *p = buf;
 					if (!COM_ParseToken_Console(&p))
 						continue;
-					if (String_Does_Match(com_token, "MemTotal:"))
+					if (String_Match(com_token, "MemTotal:"))
 					{
 						if (!COM_ParseToken_Console(&p))
 							continue;
 						Cvar_SetValueQuick(&sys_memsize_physical, atof(com_token) / 1024.0);
 					}
-					if (String_Does_Match(com_token, "SwapTotal:"))
+					if (String_Match(com_token, "SwapTotal:"))
 					{
 						if (!COM_ParseToken_Console(&p))
 							continue;

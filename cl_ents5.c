@@ -112,8 +112,8 @@ static void EntityFrame5_CL_ReadFrame_ReadUpdate (entity_state_t *s, int number)
 	if (bits & E5_COLORMAP)
 		s->colormap = MSG_ReadByte(&cl_message);
 
-	if (bits & E5_ATTACHMENT) {
-		s->tagentity = (unsigned short) MSG_ReadShort(&cl_message);
+	if (bits & E5_ATTACHMENT) { // TAGX
+		s->tagxentity = (unsigned short) MSG_ReadShort(&cl_message);
 		s->tagindex = MSG_ReadByte(&cl_message);
 	}
 
@@ -154,10 +154,10 @@ static void EntityFrame5_CL_ReadFrame_ReadUpdate (entity_state_t *s, int number)
 		type = MSG_ReadByte(&cl_message);
 		switch(type) {
 		case 0:
-			s->framegroupblend[0].frame = MSG_ReadShort(&cl_message);
-			s->framegroupblend[1].frame = 0;
-			s->framegroupblend[2].frame = 0;
-			s->framegroupblend[3].frame = 0;
+			s->framegroupblend[0].fb_frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[1].fb_frame = 0;
+			s->framegroupblend[2].fb_frame = 0;
+			s->framegroupblend[3].fb_frame = 0;
 			s->framegroupblend[0].start = cl.time - (unsigned short)MSG_ReadShort(&cl_message) * (1.0f / 1000.0f);
 			s->framegroupblend[1].start = 0;
 			s->framegroupblend[2].start = 0;
@@ -168,10 +168,10 @@ static void EntityFrame5_CL_ReadFrame_ReadUpdate (entity_state_t *s, int number)
 			s->framegroupblend[3].lerp = 0;
 			break;
 		case 1:
-			s->framegroupblend[0].frame = MSG_ReadShort(&cl_message);
-			s->framegroupblend[1].frame = MSG_ReadShort(&cl_message);
-			s->framegroupblend[2].frame = 0;
-			s->framegroupblend[3].frame = 0;
+			s->framegroupblend[0].fb_frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[1].fb_frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[2].fb_frame = 0;
+			s->framegroupblend[3].fb_frame = 0;
 			s->framegroupblend[0].start = cl.time - (unsigned short)MSG_ReadShort(&cl_message) * (1.0f / 1000.0f);
 			s->framegroupblend[1].start = cl.time - (unsigned short)MSG_ReadShort(&cl_message) * (1.0f / 1000.0f);
 			s->framegroupblend[2].start = 0;
@@ -182,10 +182,10 @@ static void EntityFrame5_CL_ReadFrame_ReadUpdate (entity_state_t *s, int number)
 			s->framegroupblend[3].lerp = 0;
 			break;
 		case 2:
-			s->framegroupblend[0].frame = MSG_ReadShort(&cl_message);
-			s->framegroupblend[1].frame = MSG_ReadShort(&cl_message);
-			s->framegroupblend[2].frame = MSG_ReadShort(&cl_message);
-			s->framegroupblend[3].frame = 0;
+			s->framegroupblend[0].fb_frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[1].fb_frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[2].fb_frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[3].fb_frame = 0;
 			s->framegroupblend[0].start = cl.time - (unsigned short)MSG_ReadShort(&cl_message) * (1.0f / 1000.0f);
 			s->framegroupblend[1].start = cl.time - (unsigned short)MSG_ReadShort(&cl_message) * (1.0f / 1000.0f);
 			s->framegroupblend[2].start = cl.time - (unsigned short)MSG_ReadShort(&cl_message) * (1.0f / 1000.0f);
@@ -196,10 +196,10 @@ static void EntityFrame5_CL_ReadFrame_ReadUpdate (entity_state_t *s, int number)
 			s->framegroupblend[3].lerp = 0;
 			break;
 		case 3:
-			s->framegroupblend[0].frame = MSG_ReadShort(&cl_message);
-			s->framegroupblend[1].frame = MSG_ReadShort(&cl_message);
-			s->framegroupblend[2].frame = MSG_ReadShort(&cl_message);
-			s->framegroupblend[3].frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[0].fb_frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[1].fb_frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[2].fb_frame = MSG_ReadShort(&cl_message);
+			s->framegroupblend[3].fb_frame = MSG_ReadShort(&cl_message);
 			s->framegroupblend[0].start = cl.time - (unsigned short)MSG_ReadShort(&cl_message) * (1.0f / 1000.0f);
 			s->framegroupblend[1].start = cl.time - (unsigned short)MSG_ReadShort(&cl_message) * (1.0f / 1000.0f);
 			s->framegroupblend[2].start = cl.time - (unsigned short)MSG_ReadShort(&cl_message) * (1.0f / 1000.0f);
@@ -292,7 +292,7 @@ static void EntityFrame5_CL_ReadFrame_ReadUpdate (entity_state_t *s, int number)
 		if (bits & E5_COLORMAP)
 			Con_Printf (" E5_COLORMAP %d", s->colormap);
 		if (bits & E5_ATTACHMENT)
-			Con_Printf (" E5_ATTACHMENT e%d:%d", s->tagentity, s->tagindex);
+			Con_Printf (" E5_ATTACHMENT e%d:%d", s->tagxentity, s->tagindex);
 		if (bits & E5_LIGHT)
 			Con_Printf (" E5_LIGHT %d:%d:%d:%d %d:%d", s->light[0], s->light[1], s->light[2], s->light[3], s->lightstyle, s->lightpflags);
 		if (bits & E5_GLOW)

@@ -91,7 +91,7 @@ static void Cmd_Defer_f (cmd_state_t *cmd)
 			List_For_Each_Entry(current, &cbuf->deferred, cmd_input_t, list)
 				Con_PrintLinef ("-> In %9.2f: %s", current->delay, current->text);
 		}
-	} else if (Cmd_Argc(cmd) == 2 && String_Does_Match_Caseless("clear", Cmd_Argv(cmd, 1)))
+	} else if (Cmd_Argc(cmd) == 2 && String_Match_Caseless("clear", Cmd_Argv(cmd, 1)))
 	{
 		while(!List_Is_Empty(&cbuf->deferred))
 		{
@@ -445,10 +445,12 @@ void Cbuf_Execute (cmd_buf_t *cbuf)
 		// Baker: Advance past white space
 		while (*firstchar && ISWHITESPACE(*firstchar))
 			firstchar ++;
+
+		// Baker: alias bind in_bind get preprocess.
 		if (
-		  (String_Does_NOT_Start_With_Caseless_PRE (firstchar, "alias"/*, 5*/)   || !ISWHITESPACE(firstchar[5])) &&
-		   (String_Does_NOT_Start_With_Caseless_PRE (firstchar, "bind"/*, 4*/)    || !ISWHITESPACE(firstchar[4])) &&
-		   (String_Does_NOT_Start_With_Caseless_PRE (firstchar, "in_bind"/*, 7*/) || !ISWHITESPACE(firstchar[7])))
+		  (String_NOT_Start_With_Caseless_PRE (firstchar, "alias"/*, 5*/)   || !ISWHITESPACE(firstchar[5])) &&
+		   (String_NOT_Start_With_Caseless_PRE (firstchar, "bind"/*, 4*/)    || !ISWHITESPACE(firstchar[4])) &&
+		   (String_NOT_Start_With_Caseless_PRE (firstchar, "in_bind"/*, 7*/) || !ISWHITESPACE(firstchar[7])))
 		{
 			if (Cmd_PreprocessString(current->source, current->text, preprocessed, sizeof(preprocessed), NULL )) {
 				Cmd_ExecuteString(current->source, preprocessed, src_local, /*lockmutex ?*/ false);
@@ -456,6 +458,7 @@ void Cbuf_Execute (cmd_buf_t *cbuf)
 		}
 		else
 		{
+			
 			Cmd_ExecuteString (current->source, current->text, src_local, /*lockmutex ?*/ false);
 		}
 
@@ -515,8 +518,7 @@ void Cbuf_Frame(cmd_buf_t *cbuf)
 
 	// execute commands queued with the defer command
 	Cbuf_Execute_Deferred(cbuf);
-	if (cbuf->size)
-	{
+	if (cbuf->size) {
 		SV_LockThreadMutex();
 		Cbuf_Execute(cbuf);
 		SV_UnlockThreadMutex();
@@ -971,31 +973,50 @@ static char *s_quake_rc =
 
 static void Cmd_Exec (cmd_state_t *cmd, const char *filename)
 {
-	char *f;
+	char *text; // Baker: Renamed from "f" to "text".  f implies file handle.
 	//size_t filenameLen = strlen(filename);
-	qbool is_default_cfg = String_Does_Match (filename, "default.cfg") ||
-							String_Does_End_With(filename, "/default.cfg");
-	// (filenameLen >= 12 && String_Does_Match(filename + filenameLen - 12, "/default.cfg"));
+	qbool is_default_cfg = String_Match (filename, "default.cfg") ||
+							String_Ends_With(filename, "/default.cfg");
+	// (filenameLen >= 12 && String_Match(filename + filenameLen - 12, "/default.cfg"));
 
-#if 0
-	qbool is_quake_rc = String_Does_Match (filename, "quake.rc") ||
-							String_Does_End_With(filename, "/quake.rc");
-#endif
 
-	if (String_Does_Match(filename, "config.cfg")) {
+
+
+	if (String_Match(filename, "config.cfg")) {
 		filename = CONFIGFILENAME;
 		if (Sys_CheckParm("-noconfig"))
 			return; // don't execute config.cfg
 	}
 
-	f = (char *)FS_LoadFile (filename, tempmempool, fs_quiet_FALSE, fs_size_ptr_null);
+	text = (char *)FS_LoadFile (filename, tempmempool, fs_quiet_FALSE, fs_size_ptr_null);
+	// c:\quak\smej2_1.1
+#if 1
+	if (gamemode == GAME_NORMAL) {
+		qbool is_quake_rc = String_Match (filename, "quake.rc") || String_Ends_With(filename, "/quake.rc");
+		if (is_quake_rc) {
+			if (strstr (text, "default.cfg") == NULL) {
+				// quake.rc with no default.cfg .. DarkPlaces needs to run default.cfg
+				// it sets/locks defaults and signals to run DarkPlaces_Settings_For_Game
+				// Prepend to text data.
+				const char *s_default_cfg = "exec default.cfg" "\n";
+				size_t extrasize = strlen(s_default_cfg) + 1; // +1 for null
+				size_t currentsize = strlen(text) + 1; // +1 for null
+				size_t totalsize = extrasize + currentsize;
+				char *s = (char *)Mem_Alloc (tempmempool, currentsize + extrasize);
+				strlcpy (s, s_default_cfg, totalsize);
+				strlcat (s, text, totalsize);
+				Mem_Free (text);
+				text = s;
+			}
+		} // quake_rc
+	} // gamemode normal
+#endif
 
-
-	if (!f && fs_have_qex && is_default_cfg) {
-		f = (char *)MemAllocString (s_default_cfg);
+	if (!text && fs_have_qex && is_default_cfg) {
+		text = (char *)MemAllocString (s_default_cfg);
 	}
 
-	if (!f) {
+	if (!text) {
 		Con_PrintLinef ("couldn't exec %s", filename);
 		return;
 	}
@@ -1008,8 +1029,8 @@ static void Cmd_Exec (cmd_state_t *cmd, const char *filename)
 		Cbuf_InsertText (cmd, NEWLINE "cvar_lockdefaults" NEWLINE);
 	}
 
-	Cbuf_InsertText (cmd, f);
-	Mem_Free(f);
+	Cbuf_InsertText (cmd, text);
+	Mem_Free(text);
 
 	if (is_default_cfg) {
 		DarkPlaces_Settings_For_Game (cmd, gamemode);
@@ -1033,7 +1054,7 @@ static void Cmd_Exec_f (cmd_state_t *cmd)
 	const char *s_execfile = Cmd_Argv(cmd, 1);
 	s = FS_Search (s_execfile, fs_caseless_true, fs_quiet_true, fs_pakfile_null, fs_gamedironly_false);
 
-	if (!s && String_Does_Match (s_execfile, "default.cfg") && fs_have_qex) {
+	if (!s && String_Match (s_execfile, "default.cfg") && fs_have_qex) {
 		Cmd_Exec (cmd, s_execfile);
 		goto default_cfg_qex_skip;
 	}
@@ -1272,7 +1293,7 @@ static void Cmd_Alias_f (cmd_state_t *cmd)
 	// if the alias already exists, reuse it
 	for (a = cmd->userdefined->alias ; a ; a=a->next)
 	{
-		if (String_Does_Match(s, a->name))
+		if (String_Match(s, a->name))
 		{
 			Z_Free (a->value);
 			break;
@@ -1340,7 +1361,7 @@ static void Cmd_UnAlias_f (cmd_state_t *cmd)
 		p = NULL;
 		for(a = cmd->userdefined->alias; a; p = a, a = a->next)
 		{
-			if (String_Does_Match(s, a->name))
+			if (String_Match(s, a->name))
 			{
 				if (a->initstate) // we can not remove init aliases
 					continue;
@@ -1381,13 +1402,13 @@ static const char *Cmd_GetDirectCvarValue(cmd_state_t *cmd, const char *varname,
 
 	if (alias)
 	{
-		if (String_Does_Match(varname, "*"))
+		if (String_Match(varname, "*"))
 		{
 			if (is_multiple)
 				*is_multiple = true;
 			return Cmd_Args(cmd);
 		}
-		else if (String_Does_Match(varname, "#"))
+		else if (String_Match(varname, "#"))
 		{
 			return va(vabuf, sizeof(vabuf), "%d", Cmd_Argc(cmd));
 		}
@@ -1586,14 +1607,14 @@ static const char *Cmd_GetCvarValue(cmd_state_t *cmd, const char *var, size_t va
 		}
 	}
 
-	if (!varfunc || String_Does_Match(varfunc, "q")) // note: quoted form is default, use "asis" to override!
+	if (!varfunc || String_Match(varfunc, "q")) // note: quoted form is default, use "asis" to override!
 	{
 		// quote it so it can be used inside double quotes
 		// we just need to replace " by \", and of course, double backslashes
 		Cmd_QuoteString(varval, sizeof(varval), varstr, "\"\\", false);
 		return varval;
 	}
-	else if (String_Does_Match(varfunc, "asis"))
+	else if (String_Match(varfunc, "asis"))
 	{
 		return varstr;
 	}
@@ -1878,12 +1899,12 @@ static void Cmd_Apropos_f(cmd_state_t *cmd)
 		Con_Printf ("alias " CON_BRONZE "%s" CON_WHITE ": %s", alias->name, alias->value); // do not print an extra \n
 		count++;
 	}
-	Con_Printf ("%d result%s\n\n", count, (count > 1) ? "s" : "");
+	Con_PrintLinef ("%d result%s" NEWLINE, count, (count > 1) ? "s" : "");
 }
 
 static cmd_state_t *Cmd_AddInterpreter(cmd_buf_t *cbuf, cvar_state_t *cvars, int cvars_flagsmask, int cmds_flagsmask, cmd_userdefined_t *userdefined)
 {
-	cmd_state_t *cmd = (cmd_state_t *)Mem_Alloc(tempmempool, sizeof(cmd_state_t));
+	cmd_state_t *cmd = (cmd_state_t *)Mem_Alloc(cbuf_mempool, sizeof(cmd_state_t));
 
 	cmd->mempool = Mem_AllocPool("commands", 0, NULL);
 	// space for commands and script files
@@ -2024,7 +2045,7 @@ void Cmd_AddCommand(int flags, const char *cmd_name, xcommand_t function, const 
 				// fail if the command already exists in this interpreter
 				for (func = cmd->engine_functions; func; func = func->next)
 				{
-					if (String_Does_Match(cmd_name, func->name))
+					if (String_Match(cmd_name, func->name))
 					{
 						Con_PrintLinef ("Cmd_AddCommand: %s already defined", cmd_name);
 						continue;
@@ -2054,7 +2075,7 @@ void Cmd_AddCommand(int flags, const char *cmd_name, xcommand_t function, const 
 				// mark qcfunc if the function already exists in the qc_functions list
 				for (func = cmd->userdefined->qc_functions; func; func = func->next)
 				{
-					if (String_Does_Match(cmd_name, func->name))
+					if (String_Match(cmd_name, func->name))
 					{
 						func->qcfunc = true; //[515]: csqc
 						continue;
@@ -2073,7 +2094,7 @@ void Cmd_AddCommand(int flags, const char *cmd_name, xcommand_t function, const 
 				// to avoid doing this search at invocation if QC declines to handle this command.
 				for (cmd_function_t *f = cmd->engine_functions; f; f = f->next)
 				{
-					if (String_Does_Match(cmd_name, f->name))
+					if (String_Match(cmd_name, f->name))
 					{
 						Con_DPrintf ("Adding QC override of engine command %s\n", cmd_name);
 						func->overridden = f;
@@ -2106,11 +2127,11 @@ qbool Cmd_Exists (cmd_state_t *cmd, const char *cmd_name)
 	cmd_function_t	*func;
 
 	for (func = cmd->userdefined->qc_functions; func; func = func->next)
-		if (String_Does_Match(cmd_name, func->name))
+		if (String_Match(cmd_name, func->name))
 			return true;
 
 	for (func=cmd->engine_functions ; func ; func=func->next)
-		if (String_Does_Match (cmd_name,func->name))
+		if (String_Match (cmd_name,func->name))
 			return true;
 
 	return false;
@@ -2134,11 +2155,11 @@ const char *Cmd_CompleteCommand (cmd_state_t *cmd, const char *partial, int is_f
 
 // check functions
 	for (func = cmd->userdefined->qc_functions; func; func = func->next)
-		if (String_Does_Start_With_Caseless (func->name, partial))
+		if (String_Starts_With_Caseless (func->name, partial))
 			return func->name;
 
 	for (func = cmd->engine_functions; func; func = func->next)
-		if (String_Does_Start_With_Caseless (func->name, partial))
+		if (String_Starts_With_Caseless (func->name, partial))
 			return func->name;
 
 	return NULL;
@@ -2168,7 +2189,7 @@ int Cmd_CompleteCountPossible (cmd_state_t *cmd, const char *partial, int is_fro
 
 	// Loop through the command list and count all partial matches
 	for (func = cmd->userdefined->qc_functions; func; func = func->next) {
-		if (String_Does_Start_With_Caseless (func->name, partial)) {
+		if (String_Starts_With_Caseless (func->name, partial)) {
 			const char *sxy = func->name;
 
 			SPARTIAL_EVAL_
@@ -2178,7 +2199,7 @@ int Cmd_CompleteCountPossible (cmd_state_t *cmd, const char *partial, int is_fro
 	} // for
 
 	for (func = cmd->engine_functions; func; func = func->next) {
-		if (String_Does_Start_With_Caseless(func->name, partial)) {
+		if (String_Starts_With_Caseless(func->name, partial)) {
 			const char *sxy = func->name;
 			SPARTIAL_EVAL_
 			h++; // qualified
@@ -2209,11 +2230,11 @@ const char **Cmd_CompleteBuildList (cmd_state_t *cmd, const char *partial, int i
 	buf = (const char **)Mem_Alloc(tempmempool, sizeofbuf + sizeof (const char *));
 	// Loop through the functions lists and print all matches
 	for (func = cmd->userdefined->qc_functions; func; func = func->next) {
-		if (String_Does_Start_With_Caseless (func->name, partial))
+		if (String_Starts_With_Caseless (func->name, partial))
 			buf[bpos++] = func->name;
 	} // for
 	for (func = cmd->engine_functions; func; func = func->next) {
-		if (String_Does_Start_With_Caseless (func->name, partial))
+		if (String_Starts_With_Caseless (func->name, partial))
 			buf[bpos++] = func->name;
 	} // for
 
@@ -2229,12 +2250,12 @@ void Cmd_CompleteCommandPrint (cmd_state_t *cmd, const char *partial, int is_fro
 
 	// Loop through the command list and print all matches
 	for (func = cmd->userdefined->qc_functions; func; func = func->next) {
-		if (String_Does_Start_With_Caseless (func->name, partial))
+		if (String_Starts_With_Caseless (func->name, partial))
 			Con_PrintLinef (CON_BRONZE "%s" CON_WHITE ": %s", func->name, func->description);
 	} // for
 
 	for (func = cmd->engine_functions; func; func = func->next) {
-		if (String_Does_Start_With_Caseless (func->name, partial))
+		if (String_Starts_With_Caseless (func->name, partial))
 			Con_PrintLinef (CON_BRONZE "%s" CON_WHITE ": %s", func->name, func->description);
 	} // for
 }
@@ -2260,7 +2281,7 @@ const char *Cmd_CompleteAlias (cmd_state_t *cmd, const char *partial, int is_fro
 
 	// Check functions
 	for (alias = cmd->userdefined->alias; alias; alias = alias->next)
-		if (String_Does_Start_With_Caseless (alias->name, partial))
+		if (String_Starts_With_Caseless (alias->name, partial))
 			return alias->name;
 
 	return NULL;
@@ -2273,7 +2294,7 @@ void Cmd_CompleteAliasPrint (cmd_state_t *cmd, const char *partial, int is_from_
 
 	// Loop through the alias list and print all matches
 	for (alias = cmd->userdefined->alias; alias; alias = alias->next)
-		if (String_Does_Start_With_Caseless (alias->name, partial))
+		if (String_Starts_With_Caseless (alias->name, partial))
 			Con_PrintLinef (CON_BRONZE "%s" CON_WHITE ": %s", alias->name, alias->value);
 }
 
@@ -2302,7 +2323,7 @@ int Cmd_CompleteAliasCountPossible (cmd_state_t *cmd, const char *partial, int i
 
 	// Loop through the command list and count all partial matches
 	for (alias = cmd->userdefined->alias; alias; alias = alias->next) {
-		if (String_Does_Start_With_Caseless(alias->name, partial)) {
+		if (String_Starts_With_Caseless(alias->name, partial)) {
 			const char *sxy = alias->name;
 			h++;
 			SPARTIAL_EVAL_
@@ -2333,7 +2354,7 @@ const char **Cmd_CompleteAliasBuildList (cmd_state_t *cmd, const char *partial, 
 	buf = (const char **)Mem_Alloc(tempmempool, sizeofbuf + sizeof (const char *));
 	// Loop through the alias list and print all matches
 	for (alias = cmd->userdefined->alias; alias; alias = alias->next)
-		if (String_Does_Start_With_Caseless (alias->name, partial))
+		if (String_Starts_With_Caseless (alias->name, partial))
 			buf[bpos++] = alias->name;
 
 	buf[bpos] = NULL;
@@ -2459,10 +2480,12 @@ void Cmd_ExecuteString (cmd_state_t *cmd, const char *text, cmd_source_t src, qb
 	oldpos = cmd->cbuf->tokenizebufferpos;
 	cmd->source = src;
 
-#if 0
-	if (developer_execstring.integer)
-		Con_PrintLinef ("exec: " QUOTED_S, text);
+#if 1
+	if (developer_execstring.integer) {
+		DebugPrintf ("exec: " QUOTED_S, text);
+	}
 #endif
+
 	Cmd_TokenizeString (cmd, text);
 
 // execute the command line
@@ -2474,7 +2497,7 @@ void Cmd_ExecuteString (cmd_state_t *cmd, const char *text, cmd_source_t src, qb
 // check functions
 	for (func = cmd->userdefined->qc_functions; func; func = func->next)
 	{
-		if (String_Does_Match_Caseless(func->name, s_command_wanted))
+		if (String_Match_Caseless(func->name, s_command_wanted))
 		{
 			if (cmd->Handle(cmd, func, text, src))
 				goto done;
@@ -2483,7 +2506,7 @@ void Cmd_ExecuteString (cmd_state_t *cmd, const char *text, cmd_source_t src, qb
 
 	for (func = cmd->engine_functions; func; func=func->next)
 	{
-		if (String_Does_Match_Caseless (func->name, s_command_wanted))
+		if (String_Match_Caseless (func->name, s_command_wanted))
 		{
 			if (cmd->Handle(cmd, func, text, src))
 				goto done;
@@ -2500,7 +2523,7 @@ void Cmd_ExecuteString (cmd_state_t *cmd, const char *text, cmd_source_t src, qb
 // check alias
 	for (a=cmd->userdefined->alias ; a ; a=a->next)
 	{
-		if (String_Does_Match_Caseless (a->name, s_command_wanted))
+		if (String_Match_Caseless (a->name, s_command_wanted))
 		{
 			Cmd_ExecuteAlias(cmd, a);
 			goto done;
@@ -2509,7 +2532,7 @@ void Cmd_ExecuteString (cmd_state_t *cmd, const char *text, cmd_source_t src, qb
 
 // check cvars
 	if (!Cvar_Command(cmd) && host.superframecount > 0) {
-		if (is_in_loadconfig && String_Does_Match (s_command_wanted, "gamma")) {
+		if (is_in_loadconfig && String_Match (s_command_wanted, "gamma")) {
 			// Baker: Sick of "unknown command gamma" during Quake gamedir change startup
 			// Do not print
 			// Must be in loadconfig only
@@ -2540,13 +2563,13 @@ int Cmd_Is_Lead_Word_A_Command_Cvar_Alias (cmd_state_t *cmd, const char *text)
 
 	WARP_X_ (examples: )
 	for (cmd_function_t *func = cmd->userdefined->qc_functions; func; func = func->next) {
-		if (String_Does_Match_Caseless(func->name, s_command_wanted))
+		if (String_Match_Caseless(func->name, s_command_wanted))
 			return true;
 	} // for cmd
 
 	WARP_X_ (examples: wait cprint sv_downloads )
 	for (cmd_function_t *func = cmd->engine_functions; func; func = func->next) {
-		if (String_Does_Match_Caseless (func->name, s_command_wanted))
+		if (String_Match_Caseless (func->name, s_command_wanted))
 			return true;
 	} // for engine_functions // what is that?
 
@@ -2558,7 +2581,7 @@ int Cmd_Is_Lead_Word_A_Command_Cvar_Alias (cmd_state_t *cmd, const char *text)
 
 // check alias
 	for (cmd_alias_t *a = cmd->userdefined->alias; a ; a = a->next) {
-		if (String_Does_Match_Caseless (a->name, s_command_wanted))
+		if (String_Match_Caseless (a->name, s_command_wanted))
 			return true;
 	} // alias
 
@@ -2592,7 +2615,7 @@ int Cmd_CheckParm (cmd_state_t *cmd, const char *parm)
 	}
 
 	for (i = 1; i < Cmd_Argc (cmd); i++)
-		if (String_Does_Match_Caseless (parm, Cmd_Argv(cmd, i)))
+		if (String_Match_Caseless (parm, Cmd_Argv(cmd, i)))
 			return i;
 
 	return 0;
@@ -2620,6 +2643,7 @@ void Cmd_Host_Init_SaveInitState(void)
 	Cvar_SaveInitState(&cvars_all);
 }
 
+WARP_X_CALLERS_ (Host_LoadConfig_f)
 void Cmd_RestoreInitState(void)
 {
 	cmd_iter_t *cmd_iter;
@@ -2707,12 +2731,12 @@ void Cmd_Shutdown(void)
 
 /*
 ============
-Cmd_Init
+Cmd_InitOnce
 ============
 */
 
 
-void Cmd_Init(void)
+void Cmd_InitOnce(void)
 {
 	cmd_buf_t *cbuf;
 	cbuf_mempool = Mem_AllocPool("Command buffer", 0, NULL);
@@ -2727,7 +2751,7 @@ void Cmd_Init(void)
 	cbuf->free.prev = cbuf->free.next = &(cbuf->free);
 
 	// FIXME: Get rid of cmd_iter_all eventually. This is just a hack to reduce the amount of work to make the interpreters dynamic.
-	cmd_iter_all = (cmd_iter_t *)Mem_Alloc(tempmempool, sizeof(cmd_iter_t) * 3);
+	cmd_iter_all = (cmd_iter_t *)Mem_Alloc(cbuf_mempool, sizeof(cmd_iter_t) * 3);
 
 	// local console
 	cmd_iter_all[0].cmd = cmd_local = Cmd_AddInterpreter(cbuf, &cvars_all, CF_CLIENT | CF_SERVER, CF_CLIENT | CF_CLIENT_FROM_SERVER | CF_SERVER_FROM_CLIENT, &cmd_userdefined_all);
@@ -2761,6 +2785,8 @@ void Cmd_Init(void)
 	Cmd_AddCommand(CF_SHARED, "echo",Cmd_Echo_f, "print a message to the console (useful in scripts)");
 	Cmd_AddCommand(CF_SHARED, "alias",Cmd_Alias_f, "create a script function (parameters are passed in as $X (being X a number), $* for all parameters, $X- for all parameters starting from $X). Without arguments show the list of all alias");
 	Cmd_AddCommand(CF_SHARED, "unalias",Cmd_UnAlias_f, "remove an alias");
+	void Cvar_Audit_f(cmd_state_t *cmd);
+	Cmd_AddCommand(CF_SHARED, "audit", Cvar_Audit_f, "verify values");
 	Cmd_AddCommand(CF_SHARED, "set", Cvar_Set_f, "create or change the value of a console variable");
 	Cmd_AddCommand(CF_SHARED, "seta", Cvar_SetA_f, "create or change the value of a console variable that will be saved to config.cfg");
 	Cmd_AddCommand(CF_SHARED, "unset", Cvar_Del_f, "delete a cvar (does not work for static ones like _cl_name, or read-only ones)");

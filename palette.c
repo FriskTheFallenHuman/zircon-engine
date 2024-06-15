@@ -363,7 +363,7 @@ static void Palette_Load(void)
 	Palette_LoadQ2Colormap();
 }
 
-void Palette_Init(void)
+void Palette_InitOnce(void)
 {
 	R_RegisterModule("Palette", Palette_Load, Palette_Shutdown, Palette_NewMap, NULL, NULL);
 	Cvar_RegisterVariable(&r_colormap_palette);

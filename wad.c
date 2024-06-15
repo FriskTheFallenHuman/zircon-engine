@@ -154,7 +154,7 @@ unsigned char *W_GetLumpName(const char *wanted_lump_name, fs_offset_t *returnfi
 	}
 
 	for (lump = wad.gfx.lumps, i = 0;i < wad.gfx.numlumps;i++, lump++) {
-		if (String_Does_Match (s_cleaned_name_buf, lump->name)) {
+		if (String_Match (s_cleaned_name_buf, lump->name)) {
 			if (returnfilesize)
 				*returnfilesize = lump->size;
 			return (wad.gfx_base + lump->filepos);
@@ -301,7 +301,7 @@ unsigned char *W_GetTextureBGRA_HalfLife(char *name)
 			continue;
 		for (i = 0;i < (unsigned int)w->numlumps;i++)
 		{
-			if (String_Does_Match(texname, w->lumps[i].name)) { // found it 
+			if (String_Match(texname, w->lumps[i].name)) { // found it 
 				if (FS_Seek(w->file, w->lumps[i].filepos, SEEK_SET)) {
 					Con_PrintLinef ("W_GetTexture: corrupt WAD3 file");
 					return NULL;

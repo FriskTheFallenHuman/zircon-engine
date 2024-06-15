@@ -28,6 +28,14 @@ typedef int	string_t;
 
 typedef enum etype_e {ev_void, ev_string, ev_float, ev_vector, ev_entity, ev_field, ev_function, ev_pointer} etype_t;
 
+#define ev_string_1		ev_string
+#define ev_float_2		ev_float
+#define ev_vector_3		ev_vector
+#define ev_entity_4		ev_entity
+#define ev_field_5		ev_field
+#define ev_function_6	ev_function
+#define ev_pointer_7	ev_pointer		// Baker: Level of support in DP uncertain, DarkPlaces 2014 does have it
+
 
 #define	OFS_NULL		0
 #define	OFS_RETURN		1

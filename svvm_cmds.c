@@ -267,12 +267,12 @@ static void VM_SV_setorigin(prvm_prog_t *prog)
 	e = PRVM_G_EDICT(OFS_PARM0);
 	if (e == prog->edicts)
 	{
-		VM_Warning(prog, "setorigin: can not modify world entity\n");
+		VM_WarningLinef (prog, "setorigin: can not modify world entity");
 		return;
 	}
 	if (e->free)
 	{
-		VM_Warning(prog, "setorigin: can not modify free entity\n");
+		VM_WarningLinef (prog, "setorigin: can not modify free entity");
 		return;
 	}
 	VectorCopy(PRVM_G_VECTOR(OFS_PARM1), PRVM_serveredictvector(e, origin));
@@ -318,12 +318,12 @@ static void VM_SV_setsize(prvm_prog_t *prog)
 	e = PRVM_G_EDICT(OFS_PARM0);
 	if (e == prog->edicts)
 	{
-		VM_Warning(prog, "setsize: can not modify world entity\n");
+		VM_WarningLinef (prog, "setsize: can not modify world entity");
 		return;
 	}
 	if (e->free)
 	{
-		VM_Warning(prog, "setsize: can not modify free entity\n");
+		VM_WarningLinef (prog, "setsize: can not modify free entity");
 		return;
 	}
 	VectorCopy(PRVM_G_VECTOR(OFS_PARM1), mins);
@@ -348,15 +348,15 @@ void VMX_SV_setmodel (prvm_prog_t *prog, prvm_edict_t *e, const char *s_model)
 
 	if (e == prog->edicts)
 	{
-		VM_Warning(prog, "setmodel: can not modify world entity\n");
+		VM_WarningLinef (prog, "setmodel: can not modify world entity");
 		return;
 	}
 	if (e->free)
 	{
-		VM_Warning(prog, "setmodel: can not modify free entity\n");
+		VM_WarningLinef (prog, "setmodel: can not modify free entity");
 		return;
 	}
-	i = SV_ModelIndex (s_model, /*precache mode*/ 1);
+	i = SV_ModelIndex (s_model, PRECACHE_MODE_1);
 	PRVM_serveredictstring(e, model) = PRVM_SetEngineString(prog, sv.model_precache[i]);
 	PRVM_serveredictfloat(e, modelindex) = i;
 
@@ -365,9 +365,9 @@ void VMX_SV_setmodel (prvm_prog_t *prog, prvm_edict_t *e, const char *s_model)
 	if (mod)
 	{
 		if (mod->type != mod_alias || sv_gameplayfix_setmodelrealbox.integer)
-			SetMinMaxSize(prog, e, mod->normalmins, mod->normalmaxs, true);
+			SetMinMaxSize(prog, e, mod->normalmins, mod->normalmaxs, /*rotate?*/ true);
 		else
-			SetMinMaxSize(prog, e, quakemins, quakemaxs, true);
+			SetMinMaxSize(prog, e, quakemins, quakemaxs, /*rotate?*/ true);
 	}
 	else
 		SetMinMaxSize(prog, e, vec3_origin, vec3_origin, true);
@@ -384,15 +384,15 @@ static void VM_SV_setmodel(prvm_prog_t *prog)
 	e = PRVM_G_EDICT(OFS_PARM0);
 	if (e == prog->edicts)
 	{
-		VM_Warning(prog, "setmodel: can not modify world entity\n");
+		VM_WarningLinef (prog, "setmodel: can not modify world entity");
 		return;
 	}
 	if (e->free)
 	{
-		VM_Warning(prog, "setmodel: can not modify free entity\n");
+		VM_WarningLinef (prog, "setmodel: can not modify free entity");
 		return;
 	}
-	i = SV_ModelIndex(PRVM_G_STRING(OFS_PARM1), 1);
+	i = SV_ModelIndex(PRVM_G_STRING(OFS_PARM1), PRECACHE_MODE_1);
 	PRVM_serveredictstring(e, model) = PRVM_SetEngineString(prog, sv.model_precache[i]);
 	PRVM_serveredictfloat(e, modelindex) = i;
 
@@ -438,7 +438,7 @@ static void VM_SV_sprint(prvm_prog_t *prog)
 
 	if (entnum < 1 || entnum > svs.maxclients || !svs.clients[entnum-1].active)
 	{
-		VM_Warning(prog, "tried to centerprint to a non-client\n");
+		VM_WarningLinef (prog, "tried to centerprint to a non-client");
 		return;
 	}
 
@@ -472,7 +472,7 @@ static void VM_SV_centerprint(prvm_prog_t *prog)
 
 	if (entnum < 1 || entnum > svs.maxclients || !svs.clients[entnum-1].active)
 	{
-		VM_Warning(prog, "tried to centerprint to a non-client\n");
+		VM_WarningLinef (prog, "tried to centerprint to a non-client");
 		return;
 	}
 
@@ -597,7 +597,7 @@ static void VM_SV_sound(prvm_prog_t *prog)
 	nvolume = (int)(PRVM_G_FLOAT(OFS_PARM3) * 255);
 	if (prog->argc < 5)
 	{
-		Con_DPrintf ("VM_SV_sound: given only 4 parameters, expected 5, assuming attenuation = ATTN_NORMAL\n");
+		Con_DPrintLinef ("VM_SV_sound: given only 4 parameters, expected 5, assuming attenuation = ATTN_NORMAL");
 		attenuation = 1;
 	}
 	else
@@ -631,7 +631,7 @@ static void VM_SV_sound(prvm_prog_t *prog)
 	// if (entnum > 0 && entnum <= svs.maxclients) {
 	// How get host_client from entnum
 	// host_client = svs.clients .. svs.clients[i]
-	if (sv_allow_zircon_move.integer && String_Does_Match (sample, "ambience/windfly.wav")) {
+	if (sv_allow_zircon_move.integer && String_Match (sample, "ambience/windfly.wav")) {
 		int other_entnum = PRVM_serverglobaledict(other);
 		int client_idnum = other_entnum - 1; // World is 0
 		if (in_range_beyond (0, client_idnum, svs.maxclients)) {
@@ -642,13 +642,13 @@ static void VM_SV_sound(prvm_prog_t *prog)
 
 	if (nvolume < 0 || nvolume > 255)
 	{
-		VM_Warning(prog, "SV_StartSound: volume must be in range 0-1\n");
+		VM_WarningLinef (prog, "SV_StartSound: volume must be in range 0-1");
 		return;
 	}
 
 	if (attenuation < 0 || attenuation > 4)
 	{
-		VM_Warning(prog, "SV_StartSound: attenuation must be in range 0-4\n");
+		VM_WarningLinef (prog, "SV_StartSound: attenuation must be in range 0-4");
 		return;
 	}
 
@@ -656,7 +656,7 @@ static void VM_SV_sound(prvm_prog_t *prog)
 
 	if (!IS_CHAN(channel))
 	{
-		VM_Warning(prog, "SV_StartSound: channel must be in range 0-127\n");
+		VM_WarningLinef (prog, "SV_StartSound: channel must be in range 0-127");
 		return;
 	}
 
@@ -691,13 +691,13 @@ static void VM_SV_pointsound(prvm_prog_t *prog)
 
 	if (nvolume < 0 || nvolume > 255)
 	{
-		VM_Warning(prog, "SV_StartPointSound: volume must be in range 0-1\n");
+		VM_WarningLinef (prog, "SV_StartPointSound: volume must be in range 0-1");
 		return;
 	}
 
 	if (attenuation < 0 || attenuation > 4)
 	{
-		VM_Warning(prog, "SV_StartPointSound: attenuation must be in range 0-4\n");
+		VM_WarningLinef (prog, "SV_StartPointSound: attenuation must be in range 0-4");
 		return;
 	}
 
@@ -778,8 +778,12 @@ static void VM_SV_tracebox(prvm_prog_t *prog)
 	move = (int)PRVM_G_FLOAT(OFS_PARM4);
 	ent = PRVM_G_EDICT(OFS_PARM5);
 
+	// Baker: Visual Studio does not necessarily have isnan
+	// Baker: This macro casts and checks bytes
+	// since the storage of floats/double is a standard
+	// this macro should be fine everywhere.
 	if (VEC_IS_NAN(v1[0]) || VEC_IS_NAN(v1[1]) || VEC_IS_NAN(v1[2]) || VEC_IS_NAN(v2[0]) || VEC_IS_NAN(v2[1]) || VEC_IS_NAN(v2[2]))
-		prog->error_cmd("%s: NAN errors detected in tracebox('%f %f %f', '%f %f %f', '%f %f %f', '%f %f %f', %d, entity %d)\n", prog->name, v1[0], v1[1], v1[2], m1[0], m1[1], m1[2], m2[0], m2[1], m2[2], v2[0], v2[1], v2[2], move, PRVM_EDICT_TO_PROG(ent));
+		prog->error_cmd ("%s: NAN errors detected in tracebox('%f %f %f', '%f %f %f', '%f %f %f', '%f %f %f', %d, entity %d)\n", prog->name, v1[0], v1[1], v1[2], m1[0], m1[1], m1[2], m2[0], m2[1], m2[2], v2[0], v2[1], v2[2], move, PRVM_EDICT_TO_PROG(ent));
 
 	trace = SV_TraceBox(v1, m1, m2, v2, move, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendtraceboxlength.value);
 
@@ -846,7 +850,7 @@ static void VM_SV_tracetoss(prvm_prog_t *prog)
 	ent = PRVM_G_EDICT(OFS_PARM0);
 	if (ent == prog->edicts)
 	{
-		VM_Warning(prog, "tracetoss: can not use world entity\n");
+		VM_WarningLinef (prog, "tracetoss: can not use world entity");
 		return;
 	}
 	ignore = PRVM_G_EDICT(OFS_PARM1);
@@ -858,8 +862,12 @@ static void VM_SV_tracetoss(prvm_prog_t *prog)
 
 //============================================================================
 
+static unsigned char *checkpvs;
+#if 1 // June 2
+#else
 static int checkpvsbytes;
-static unsigned char checkpvs[MAX_MAP_LEAFS/8];
+static unsigned char checkpvs[MAX_MAP_LEAFS_65536/8];
+#endif
 
 static int VM_SV_newcheckclient(prvm_prog_t *prog, int check)
 {
@@ -893,9 +901,18 @@ static int VM_SV_newcheckclient(prvm_prog_t *prog, int check)
 
 // get the PVS for the entity
 	VectorAdd(PRVM_serveredictvector(ent, origin), PRVM_serveredictvector(ent, view_ofs), org);
+#if 1 // June 2
+#else
 	checkpvsbytes = 0;
+#endif
 	if (sv.worldmodel && sv.worldmodel->brush.FatPVS)
-		checkpvsbytes = sv.worldmodel->brush.FatPVS(sv.worldmodel, org, 0, checkpvs, sizeof(checkpvs), false);
+#if 1 // June 2
+		sv.worldmodel->brush.FatPVS(sv.worldmodel, org, 0, &checkpvs, sv_mempool, false);
+	else
+		checkpvs = NULL;
+#else
+		checkpvsbytes = sv.worldmodel->brush.FatPVS(sv.worldmodel, org, 0, checkpvs, sizeof(checkpvs), false);		
+#endif
 
 	return i;
 }
@@ -941,7 +958,11 @@ static void VM_SV_checkclient(prvm_prog_t *prog)
 	// if current entity can't possibly see the check entity, return 0
 	self = PRVM_PROG_TO_EDICT(PRVM_serverglobaledict(self));
 	VectorAdd(PRVM_serveredictvector(self, origin), PRVM_serveredictvector(self, view_ofs), view);
+#if 1 // June 2
+	if (sv.worldmodel && checkpvs && !sv.worldmodel->brush.BoxTouchingPVS(sv.worldmodel, checkpvs, view, view))
+#else
 	if (sv.worldmodel && checkpvsbytes && !sv.worldmodel->brush.BoxTouchingPVS(sv.worldmodel, checkpvs, view, view))
+#endif
 	{
 		c_notvis++;
 		VM_RETURN_EDICT(prog->edicts);
@@ -972,8 +993,12 @@ static void VM_SV_checkpvs(prvm_prog_t *prog)
 #if 1
 	unsigned char *pvs;
 #else
-	int fatpvsbytes;
-	unsigned char fatpvs[MAX_MAP_LEAFS/8];
+	#if 1 // June 2
+		unsigned char *fatpvs = NULL;
+	#else
+		int fatpvsbytes;
+		unsigned char fatpvs[MAX_MAP_LEAFS_65536/8];
+	#endif
 #endif
 
 	VM_SAFEPARMCOUNT(2, VM_SV_checkpvs);
@@ -982,7 +1007,7 @@ static void VM_SV_checkpvs(prvm_prog_t *prog)
 
 	if (viewee->free)
 	{
-		VM_Warning(prog, "checkpvs: can not check free entity\n");
+		VM_WarningLinef (prog, "checkpvs: can not check free entity");
 		PRVM_G_FLOAT(OFS_RETURN) = 4;
 		return;
 	}
@@ -1012,8 +1037,13 @@ static void VM_SV_checkpvs(prvm_prog_t *prog)
 		PRVM_G_FLOAT(OFS_RETURN) = 3;
 		return;
 	}
+#if 1 // June 2
+	sv.worldmodel->brush.FatPVS(sv.worldmodel, viewpos, 8, &fatpvs, sv_mempool, false);
+	if(!fatpvs)
+#else
 	fatpvsbytes = sv.worldmodel->brush.FatPVS(sv.worldmodel, viewpos, 8, fatpvs, sizeof(fatpvs), false);
 	if (!fatpvsbytes)
+#endif
 	{
 		// viewpos isn't in any PVS... darn
 		PRVM_G_FLOAT(OFS_RETURN) = 2;
@@ -1046,7 +1076,7 @@ static void VM_SV_stuffcmd(prvm_prog_t *prog)
 	entnum = PRVM_G_EDICTNUM(OFS_PARM0);
 	if (entnum < 1 || entnum > svs.maxclients || !svs.clients[entnum-1].active)
 	{
-		VM_Warning(prog, "Can't stuffcmd to a non-client\n");
+		VM_WarningLinef (prog, "Can't stuffcmd to a non-client");
 		return;
 	}
 
@@ -1102,7 +1132,7 @@ static void VM_SV_findradius(prvm_prog_t *prog)
 	if (numtouchedicts > MAX_EDICTS_32768)
 	{
 		// this never happens
-		Con_Printf ("SV_EntitiesInBox returned %d edicts, max was %d\n", numtouchedicts, MAX_EDICTS_32768);
+		Con_PrintLinef ("SV_EntitiesInBox returned %d edicts, max was %d", numtouchedicts, MAX_EDICTS_32768);
 		numtouchedicts = MAX_EDICTS_32768;
 	}
 	for (i = 0;i < numtouchedicts;i++)
@@ -1158,7 +1188,7 @@ static void VM_SV_findbox(prvm_prog_t *prog)
 	else
 		chainfield = prog->fieldoffsets.chain;
 	if (chainfield < 0)
-		prog->error_cmd("VM_SV_findbox: %s doesnt have the specified chain field !", prog->name);
+		prog->error_cmd ("VM_SV_findbox: %s doesnt have the specified chain field !", prog->name);
 
 	chain = (prvm_edict_t *)prog->edicts;
 
@@ -1166,10 +1196,10 @@ static void VM_SV_findbox(prvm_prog_t *prog)
 	if (numtouchedicts > MAX_EDICTS_32768)
 	{
 		// this never happens
-		Con_Printf ("SV_EntitiesInBox returned %d edicts, max was %d\n", numtouchedicts, MAX_EDICTS_32768);
+		Con_PrintLinef ("SV_EntitiesInBox returned %d edicts, max was %d", numtouchedicts, MAX_EDICTS_32768);
 		numtouchedicts = MAX_EDICTS_32768;
 	}
-	for (i = 0; i < numtouchedicts; ++i)
+	for (i = 0; i < numtouchedicts; i ++)
 	{
 		prog->xfunction->builtinsprofile++;
 		PRVM_EDICTFIELDEDICT(touchedicts[i], chainfield) = PRVM_EDICT_TO_PROG(chain);
@@ -1185,17 +1215,19 @@ static void VM_SV_precache_sound(prvm_prog_t *prog)
 	PRVM_G_FLOAT(OFS_RETURN) = SV_SoundIndex(PRVM_G_STRING(OFS_PARM0), 2);
 }
 
+// #20 void(string s) precache_model (QUAKE)
+// #75 string(string s) precache_model2 (QUAKE)
 static void VM_SV_precache_model(prvm_prog_t *prog)
 {
 	VM_SAFEPARMCOUNT(1, VM_SV_precache_model);
-	SV_ModelIndex(PRVM_G_STRING(OFS_PARM0), 2);
+	SV_ModelIndex(PRVM_G_STRING(OFS_PARM0), PRECACHE_MODEL_CMD_MODE_2);
 	PRVM_G_INT(OFS_RETURN) = PRVM_G_INT(OFS_PARM0);
 }
 
+WARP_X_ (SV_ShowModel_f)
 void VMX_SV_precache_model (prvm_prog_t *prog, const char *s_model)
 {
-	SV_ModelIndex (s_model, /*precache mode*/ 2);
-//	PRVM_G_INT(OFS_RETURN) = PRVM_G_INT(OFS_PARM0);
+	SV_ModelIndex (s_model, PRECACHE_MODEL_CMD_MODE_2);
 }
 
 /*
@@ -1220,14 +1252,13 @@ static void VM_SV_walkmove(prvm_prog_t *prog)
 	PRVM_G_FLOAT(OFS_RETURN) = 0;
 
 	ent = PRVM_PROG_TO_EDICT(PRVM_serverglobaledict(self));
-	if (ent == prog->edicts)
-	{
-		VM_Warning(prog, "walkmove: can not modify world entity\n");
+	if (ent == prog->edicts) {
+		VM_WarningLinef (prog, "walkmove: can not modify world entity");
 		return;
 	}
-	if (ent->free)
-	{
-		VM_Warning(prog, "walkmove: can not modify free entity\n");
+
+	if (ent->free) {
+		VM_WarningLinef (prog, "walkmove: can not modify free entity");
 		return;
 	}
 	yaw = PRVM_G_FLOAT(OFS_PARM0);
@@ -1248,7 +1279,6 @@ static void VM_SV_walkmove(prvm_prog_t *prog)
 	oldself = PRVM_serverglobaledict(self);
 
 	PRVM_G_FLOAT(OFS_RETURN) = SV_movestep(ent, move, true, false, settrace);
-
 
 // restore program state
 	prog->xfunction = oldf;
@@ -1276,14 +1306,13 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 	PRVM_G_FLOAT(OFS_RETURN) = 0;
 
 	ent = PRVM_PROG_TO_EDICT(PRVM_serverglobaledict(self));
-	if (ent == prog->edicts)
-	{
-		VM_Warning(prog, "droptofloor: can not modify world entity\n");
+	if (ent == prog->edicts) {
+		VM_Warningf(prog, "droptofloor: can not modify world entity" NEWLINE);
 		return;
 	}
-	if (ent->free)
-	{
-		VM_Warning(prog, "droptofloor: can not modify free entity\n");
+
+	if (ent->free) {
+		VM_Warningf(prog, "droptofloor: can not modify free entity" NEWLINE);
 		return;
 	}
 
@@ -1378,12 +1407,12 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 	ent = PRVM_PROG_TO_EDICT(PRVM_serverglobaledict(self));
 	if (ent == prog->edicts)
 	{
-		VM_Warning(prog, "droptofloor: can not modify world entity\n");
+		VM_WarningLinef (prog, "droptofloor: can not modify world entity");
 		return;
 	}
 	if (ent->free)
 	{
-		VM_Warning(prog, "droptofloor: can not modify free entity\n");
+		VM_WarningLinef (prog, "droptofloor: can not modify free entity");
 		return;
 	}
 
@@ -1391,9 +1420,9 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 	{
 		int n = PHYS_NudgeOutOfSolid(prog, ent);
 		if (!n)
-			VM_Warning(prog, "droptofloor at \"%f %f %f\": sv_gameplayfix_droptofloorstartsolid_nudgetocorrect COULD NOT FIX badly placed entity " QUOTED_S " before drop\n", PRVM_gameedictvector(ent, origin)[0], PRVM_gameedictvector(ent, origin)[1], PRVM_gameedictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)));
+			VM_WarningLinef (prog, "droptofloor at \"%f %f %f\": sv_gameplayfix_droptofloorstartsolid_nudgetocorrect COULD NOT FIX badly placed entity " QUOTED_S " before drop", PRVM_gameedictvector(ent, origin)[0], PRVM_gameedictvector(ent, origin)[1], PRVM_gameedictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)));
 		else if (n > 0)
-			VM_Warning(prog, "droptofloor at \"%f %f %f\": sv_gameplayfix_droptofloorstartsolid_nudgetocorrect FIXED badly placed entity " QUOTED_S " before drop\n", PRVM_gameedictvector(ent, origin)[0], PRVM_gameedictvector(ent, origin)[1], PRVM_gameedictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)));
+			VM_WarningLinef (prog, "droptofloor at \"%f %f %f\": sv_gameplayfix_droptofloorstartsolid_nudgetocorrect FIXED badly placed entity " QUOTED_S " before drop", PRVM_gameedictvector(ent, origin)[0], PRVM_gameedictvector(ent, origin)[1], PRVM_gameedictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)));
 	}
 
 	VectorCopy (PRVM_serveredictvector(ent, origin), end);
@@ -1427,10 +1456,10 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 			trace = SV_TraceLine(org, end, MOVE_NORMAL, ent, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value);
 			if (droptofloor_bsp_failcond(&trace))
 			{
-				VM_Warning(prog, "droptofloor at \"%f %f %f\": sv_gameplayfix_droptofloorstartsolid COULD NOT FIX badly placed entity " QUOTED_S "\n", PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)));
+				VM_WarningLinef (prog, "droptofloor at \"%f %f %f\": sv_gameplayfix_droptofloorstartsolid COULD NOT FIX badly placed entity " QUOTED_S, PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)));
 				return;
 			}
-			VM_Warning(prog, "droptofloor at \"%f %f %f\": sv_gameplayfix_droptofloorstartsolid FIXED badly placed entity " QUOTED_S "\n", PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)));
+			VM_WarningLinef (prog, "droptofloor at \"%f %f %f\": sv_gameplayfix_droptofloorstartsolid FIXED badly placed entity " QUOTED_S, PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)));
 			VectorSubtract(trace.endpos, offset, PRVM_serveredictvector(ent, origin));
 
 			// only because we dropped it without considering its bbox
@@ -1439,7 +1468,7 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 		}
 		else
 		{
-			VM_Warning(prog, "droptofloor at \"%f %f %f\": badly placed entity " QUOTED_S ", startsolid: %d allsolid: %d\n", PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)), trace.startsolid, trace.allsolid);
+			VM_WarningLinef (prog, "droptofloor at \"%f %f %f\": badly placed entity " QUOTED_S ", startsolid: %d allsolid: %d", PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)), trace.startsolid, trace.allsolid);
 			return;
 		}
 	}
@@ -1474,21 +1503,19 @@ static void VM_SV_lightstyle(prvm_prog_t *prog)
 	style = (int)PRVM_G_FLOAT(OFS_PARM0);
 	val = PRVM_G_STRING(OFS_PARM1);
 
-	if ( (unsigned) style >= MAX_LIGHTSTYLES_256 ) {
-		prog->error_cmd( "PF_lightstyle: style: %d >= 64", style );
+	if ((unsigned) style >= MAX_LIGHTSTYLES_256 ) {
+		prog->error_cmd ("PF_lightstyle: style: %d >= 64", style);
 	}
 
 // change the string in sv
-	strlcpy(sv.lightstyles[style], val, sizeof(sv.lightstyles[style]));
+	c_strlcpy(sv.lightstyles[style], val); // , sizeof(sv.lightstyles[style]));
 
 // send message to all clients on this server
 	if (sv.state != ss_active)
 		return;
 
-	for (j = 0, client = svs.clients;j < svs.maxclients;j++, client++)
-	{
-		if (client->active && client->netconnection)
-		{
+	for (j = 0, client = svs.clients;j < svs.maxclients; j++, client++) {
+		if (client->active && client->netconnection) {
 			MSG_WriteChar (&client->netconnection->message, svc_lightstyle);
 			MSG_WriteChar (&client->netconnection->message,style);
 			MSG_WriteString (&client->netconnection->message, val);
@@ -1548,12 +1575,12 @@ static void VM_SV_aim(prvm_prog_t *prog)
 	ent = PRVM_G_EDICT(OFS_PARM0);
 	if (ent == prog->edicts)
 	{
-		VM_Warning(prog, "aim: can not use world entity\n");
+		VM_WarningLinef (prog, "aim: can not use world entity");
 		return;
 	}
 	if (ent->free)
 	{
-		VM_Warning(prog, "aim: can not use free entity\n");
+		VM_WarningLinef (prog, "aim: can not use free entity");
 		return;
 	}
 	//speed = PRVM_G_FLOAT(OFS_PARM1);
@@ -1579,9 +1606,8 @@ static void VM_SV_aim(prvm_prog_t *prog)
 	bestent = NULL;
 
 	check = PRVM_NEXT_EDICT(prog->edicts);
-	for (i=1 ; i<prog->num_edicts ; i++, check = PRVM_NEXT_EDICT(check) )
-	{
-		prog->xfunction->builtinsprofile++;
+	for (i = 1; i < prog->num_edicts; i ++, check = PRVM_NEXT_EDICT(check) ) {
+		prog->xfunction->builtinsprofile ++;
 		if (PRVM_serveredictfloat(check, takedamage) != DAMAGE_AIM)
 			continue;
 		if (check == ent)
@@ -1650,24 +1676,24 @@ static sizebuf_t *WriteDest(prvm_prog_t *prog)
 		entnum = PRVM_NUM_FOR_EDICT(ent);
 		if (entnum < 1 || entnum > svs.maxclients)
 		{
-			VM_Warning(prog, "WriteDest: tried to write to non-client\n");
+			VM_WarningLinef (prog, "WriteDest: tried to write to non-client");
 			return &sv.reliable_datagram;
 		}
 		else if (!svs.clients[entnum-1].active)
 		{
-			VM_Warning(prog, "WriteDest: tried to write to a disconnected client\n");
+			VM_WarningLinef (prog, "WriteDest: tried to write to a disconnected client");
 			return &sv.reliable_datagram;
 		}
 		else if (!svs.clients[entnum-1].netconnection)
 		{
-			VM_Warning(prog, "WriteDest: tried to write to a bot client\n");
+			VM_WarningLinef (prog, "WriteDest: tried to write to a bot client");
 			return &sv.reliable_datagram;
 		}
 		else
 			return &svs.clients[entnum-1].netconnection->message;
 
 	default:
-		VM_Warning(prog, "WriteDest: bad destination\n");
+		VM_WarningLinef (prog, "WriteDest: bad destination");
 	case MSG_ALL:
 		return &sv.reliable_datagram;
 
@@ -1773,6 +1799,7 @@ static void VM_SV_WritePicture(prvm_prog_t *prog)
 
 //////////////////////////////////////////////////////////
 WARP_X_ (CL_ParseStatic)
+// Baker: Zircon extended static entities ...
 void Maybe_Prestore_Extra_Static_Attributes (prvm_prog_t *prog, prvm_edict_t *ent)
 {
 	int extra_effects = 0;
@@ -1876,12 +1903,12 @@ static void VM_SV_makestatic(prvm_prog_t *prog)
 		ent = PRVM_PROG_TO_EDICT(PRVM_serverglobaledict(self));
 	if (ent == prog->edicts)
 	{
-		VM_Warning(prog, "makestatic: can not modify world entity" NEWLINE);
+		VM_Warningf(prog, "makestatic: can not modify world entity" NEWLINE);
 		return;
 	}
 	if (ent->free)
 	{
-		VM_Warning(prog, "makestatic: can not modify free entity" NEWLINE);
+		VM_Warningf(prog, "makestatic: can not modify free entity" NEWLINE);
 		return;
 	}
 
@@ -2127,7 +2154,7 @@ typedef struct
 	int		fieldoffset;
 }customstat_t;
 
-static customstat_t vm_customstats[MAX_CL_STATS]; // matches the regular stat numbers, but only MIN_VM_STAT_32 to MAX_VM_STAT_220 range is used if things are working properly (can register stats from MAX_VM_STAT_220 to MAX_CL_STATS but will warn)
+static customstat_t vm_customstats[MAX_CL_STATS_256]; // matches the regular stat numbers, but only MIN_VM_STAT_32 to MAX_VM_STAT_220 range is used if things are working properly (can register stats from MAX_VM_STAT_220 to MAX_CL_STATS_256 but will warn)
 static int vm_customstats_last;
 
 void VM_CustomStats_Clear (void)
@@ -2146,8 +2173,8 @@ void VM_SV_UpdateCustomStats (client_t *client, prvm_edict_t *ent, sizebuf_t *ms
 		float f;
 	} u;
 
-	for(i=MIN_VM_STAT_32; i<=vm_customstats_last ;i++)
-	{
+	// Baker: If no custom stats, vm_customstats_last is -1 and loop does not run
+	for (i = MIN_VM_STAT_32; i <= vm_customstats_last; i ++) {
 		if (!vm_customstats[i].type)
 			continue;
 		switch(vm_customstats[i].type)
@@ -2198,42 +2225,50 @@ static void VM_SV_AddStat(prvm_prog_t *prog)
 
 	switch (type)
 	{
-	case 1:
-	case 2:
-	case 8:
+	case 1:	// EV_STRING
+	case 2: // EV_FLOAT
+	case 3: // EV_VECTOR
+	case 4: // 
+	case 8: // EV_INTEGER
 		break;
 	default:
-		VM_Warning(prog, "PF_SV_AddStat: unrecognized type %d - supported types are 1 (string up to 16 bytes, takes 4 stat slots), 2 (truncate to int32), 8 (send as float)", type);
+		VM_WarningLinef (prog, "PF_SV_AddStat: unrecognized type %d - supported types are:" NEWLINE
+			"1 - EV_STRING  (string up to 16 bytes, takes 4 stat slots)" NEWLINE
+			"2 - EV_FLOAT   (truncate to int32)" NEWLINE
+			"3 - EV_VECTOR  (takes 4 stat slots)" NEWLINE
+			"8 - EV_INTEGER (send as float)", type);
 		return;
 	}
 
-	if (i < 0)
-	{
-		VM_Warning(prog, "PF_SV_AddStat: index (%d) may not be less than %d\n", i, MIN_VM_STAT_32);
+	if (i < 0) {
+		VM_WarningLinef (prog, "PF_SV_AddStat: index (%d) may not be less than %d", i, MIN_VM_STAT_32);
 		return;
 	}
 
-	if (i >= MAX_CL_STATS)
-	{
-		VM_Warning(prog, "PF_SV_AddStat: index (%d) >= MAX_CL_STATS (%d), not supported by protocol, and AddStat beyond MAX_VM_STAT_220 (%d) conflicts with engine MOVEVARS\n", i, MAX_CL_STATS, MAX_VM_STAT_220);
+	if (i >= MAX_CL_STATS_256) {
+		VM_WarningLinef (prog, "PF_SV_AddStat: index (%d) >= MAX_CL_STATS_256 (%d), not supported by protocol, and AddStat beyond MAX_VM_STAT_220 (%d) conflicts with engine MOVEVARS", i, MAX_CL_STATS_256, MAX_VM_STAT_220);
 		return;
 	}
 
-	if (i > (MAX_CL_STATS - 4) && type == 1)
+	if (i > (MAX_CL_STATS_256 - 4) && type == ev_string_1)
 	{
-		VM_Warning(prog, "PF_SV_AddStat: index (%d) > (MAX_CL_STATS (%d) - 4) with string type won't fit in the protocol, and AddStat beyond MAX_VM_STAT_220 conflicts with engine MOVEVARS\n", i, MAX_CL_STATS);
+		VM_WarningLinef (prog, "PF_SV_AddStat: index (%d) > (MAX_CL_STATS_256 (%d) - 4) with string type won't fit in the protocol, and AddStat beyond MAX_VM_STAT_220 conflicts with engine MOVEVARS", i, MAX_CL_STATS_256);
 		return;
 	}
 
 	// these are hazardous to override but sort of allowed if one wants to be adventurous...  and enjoys warnings.
-	if (i < MIN_VM_STAT_32)
-		VM_Warning(prog, "PF_SV_AddStat: index (%d) < MIN_VM_STAT_32 (%d) may conflict with engine stats - allowed, but this may break things\n", i, MIN_VM_STAT_32);
+	if (i < MIN_VM_STAT_32) {
+		// Baker: Quake 1.5 uses stat 0
+		// "clientstat(0, EV_FLOAT, health);"
+		// This is the same as #define STAT_HEALTH 0
+		Con_DPrintLinef ("PF_SV_AddStat: index (%d) < MIN_VM_STAT_32 (%d) may conflict with engine stats - allowed, but this may break things", i, MIN_VM_STAT_32);
+	}
 	else if (i >= MAX_VM_STAT_220 && !sv_gameplayfix_customstats.integer)
-		VM_Warning(prog, "PF_SV_AddStat: index (%d) >= MAX_VM_STAT_220 (%d) conflicts with engine stats - allowed, but this may break slowmo and stuff\n", i, MAX_VM_STAT_220);
+		VM_WarningLinef (prog, "PF_SV_AddStat: index (%d) >= MAX_VM_STAT_220 (%d) conflicts with engine stats - allowed, but this may break slowmo and stuff", i, MAX_VM_STAT_220);
 	else if (i > (MAX_VM_STAT_220 - 4) && type == 1 && !sv_gameplayfix_customstats.integer)
-		VM_Warning(prog, "PF_SV_AddStat: index (%d) >= MAX_VM_STAT_220 (%d) - 4 with string type won't fit within MAX_VM_STAT_220, thus conflicting with engine stats - allowed, but this may break slowmo and stuff\n", i, MAX_VM_STAT_220);
+		VM_WarningLinef (prog, "PF_SV_AddStat: index (%d) >= MAX_VM_STAT_220 (%d) - 4 with string type won't fit within MAX_VM_STAT_220, thus conflicting with engine stats - allowed, but this may break slowmo and stuff", i, MAX_VM_STAT_220);
 
-	vm_customstats[i].type		= type;
+	vm_customstats[i].type			= type;
 	vm_customstats[i].fieldoffset	= off;
 	if (vm_customstats_last < i)
 		vm_customstats_last = i;
@@ -2255,23 +2290,23 @@ static void VM_SV_copyentity(prvm_prog_t *prog)
 	in = PRVM_G_EDICT(OFS_PARM0);
 	if (in == prog->edicts)
 	{
-		VM_Warning(prog, "copyentity: can not read world entity\n");
+		VM_Warningf(prog, "copyentity: can not read world entity\n");
 		return;
 	}
 	if (in->free)
 	{
-		VM_Warning(prog, "copyentity: can not read free entity\n");
+		VM_Warningf(prog, "copyentity: can not read free entity\n");
 		return;
 	}
 	out = PRVM_G_EDICT(OFS_PARM1);
 	if (out == prog->edicts)
 	{
-		VM_Warning(prog, "copyentity: can not modify world entity\n");
+		VM_Warningf(prog, "copyentity: can not modify world entity\n");
 		return;
 	}
 	if (out->free)
 	{
-		VM_Warning(prog, "copyentity: can not modify free entity\n");
+		VM_Warningf(prog, "copyentity: can not modify free entity\n");
 		return;
 	}
 	memcpy(out->fields.fp, in->fields.fp, prog->entityfields * sizeof(prvm_vec_t));
@@ -2337,26 +2372,26 @@ static void VM_SV_effect(prvm_prog_t *prog)
 	s = PRVM_G_STRING(OFS_PARM1);
 	if (!s[0])
 	{
-		VM_Warning(prog, "effect: no model specified\n");
+		VM_Warningf(prog, "effect: no model specified" NEWLINE);
 		return;
 	}
 
-	i = SV_ModelIndex(s, 1);
+	i = SV_ModelIndex(s, PRECACHE_MODE_1);
 	if (!i)
 	{
-		VM_Warning(prog, "effect: model not precached\n");
+		VM_Warningf(prog, "effect: model not precached" NEWLINE);
 		return;
 	}
 
 	if (PRVM_G_FLOAT(OFS_PARM3) < 1)
 	{
-		VM_Warning(prog, "effect: framecount < 1\n");
+		VM_Warningf(prog, "effect: framecount < 1\n");
 		return;
 	}
 
 	if (PRVM_G_FLOAT(OFS_PARM4) < 1)
 	{
-		VM_Warning(prog, "effect: framerate < 1\n");
+		VM_Warningf(prog, "effect: framerate < 1\n");
 		return;
 	}
 
@@ -2864,12 +2899,12 @@ static void VM_SV_setattachment(prvm_prog_t *prog)
 
 	if (e == prog->edicts)
 	{
-		VM_Warning(prog, "setattachment: can not modify world entity\n");
+		VM_Warningf(prog, "setattachment: can not modify world entity\n");
 		return;
 	}
 	if (e->free)
 	{
-		VM_Warning(prog, "setattachment: can not modify free entity\n");
+		VM_Warningf(prog, "setattachment: can not modify free entity\n");
 		return;
 	}
 
@@ -2891,8 +2926,8 @@ static void VM_SV_setattachment(prvm_prog_t *prog)
 			Con_DPrintf ("setattachment(edict %d, edict %d, string " QUOTED_S "): tried to find tag named " QUOTED_S " on entity %d but it has no model\n", PRVM_NUM_FOR_EDICT(e), PRVM_NUM_FOR_EDICT(tagentity), tagname, tagname, PRVM_NUM_FOR_EDICT(tagentity));
 	}
 
-	PRVM_serveredictedict(e, tag_entity) = PRVM_EDICT_TO_PROG(tagentity);
-	PRVM_serveredictfloat(e, tag_index) = tagindex;
+	PRVM_serveredictedict(e, tag_entity) = PRVM_EDICT_TO_PROG(tagentity); // TAGX
+	PRVM_serveredictfloat(e, tag_index) = tagindex; // TAGX
 }
 
 /////////////////////////////////////////
@@ -3047,24 +3082,24 @@ static void VM_SV_gettagindex(prvm_prog_t *prog)
 
 	if (ent == prog->edicts)
 	{
-		VM_Warning(prog, "VM_SV_gettagindex(entity #%d): can't affect world entity\n", PRVM_NUM_FOR_EDICT(ent));
+		VM_WarningLinef (prog, "VM_SV_gettagindex(entity #%d): can't affect world entity", PRVM_NUM_FOR_EDICT(ent));
 		return;
 	}
 	if (ent->free)
 	{
-		VM_Warning(prog, "VM_SV_gettagindex(entity #%d): can't affect free entity\n", PRVM_NUM_FOR_EDICT(ent));
+		VM_WarningLinef (prog, "VM_SV_gettagindex(entity #%d): can't affect free entity", PRVM_NUM_FOR_EDICT(ent));
 		return;
 	}
 
 	tag_index = 0;
 	if (!SV_GetModelFromEdict(ent))
-		Con_DPrintf ("VM_SV_gettagindex(entity #%d): null or non-precached model\n", PRVM_NUM_FOR_EDICT(ent));
+		Con_DPrintLinef ("VM_SV_gettagindex(entity #%d): null or non-precached model", PRVM_NUM_FOR_EDICT(ent));
 	else
 	{
-		tag_index = SV_GetTagIndex(prog, ent, tag_name);
+		tag_index = SV_GetTagIndex(prog, ent, tag_name); // TAGX
 		if (tag_index == 0)
 			if (developer_extra.integer)
-				Con_DPrintf ("VM_SV_gettagindex(entity #%d): tag " QUOTED_S " not found\n", PRVM_NUM_FOR_EDICT(ent), tag_name);
+				Con_DPrintLinef ("VM_SV_gettagindex(entity #%d): tag " QUOTED_S " not found", PRVM_NUM_FOR_EDICT(ent), tag_name);
 	}
 	PRVM_G_FLOAT(OFS_RETURN) = tag_index;
 }
@@ -3110,10 +3145,10 @@ static void VM_SV_gettaginfo(prvm_prog_t *prog)
 	switch(returncode)
 	{
 		case 1:
-			VM_Warning(prog, "gettagindex: can't affect world entity\n");
+			VM_Warningf(prog, "gettagindex: can't affect world entity\n");
 			break;
 		case 2:
-			VM_Warning(prog, "gettagindex: can't affect free entity\n");
+			VM_Warningf(prog, "gettagindex: can't affect free entity\n");
 			break;
 		case 3:
 			Con_DPrintf ("SV_GetTagMatrix(entity #%d): null or non-precached model\n", PRVM_NUM_FOR_EDICT(e));
@@ -3136,12 +3171,12 @@ static void VM_SV_dropclient(prvm_prog_t *prog)
 	clientnum = PRVM_G_EDICTNUM(OFS_PARM0) - 1;
 	if (clientnum < 0 || clientnum >= svs.maxclients)
 	{
-		VM_Warning(prog, "dropclient: not a client\n");
+		VM_Warningf(prog, "dropclient: not a client\n");
 		return;
 	}
 	if (!svs.clients[clientnum].active)
 	{
-		VM_Warning(prog, "dropclient: that client slot is not connected\n");
+		VM_Warningf(prog, "dropclient: that client slot is not connected\n");
 		return;
 	}
 	oldhostclient = host_client;
@@ -3216,23 +3251,23 @@ static void VM_SV_setmodelindex(prvm_prog_t *prog)
 	e = PRVM_G_EDICT(OFS_PARM0);
 	if (e == prog->edicts)
 	{
-		VM_Warning(prog, "setmodelindex: can not modify world entity\n");
+		VM_Warningf(prog, "setmodelindex: can not modify world entity\n");
 		return;
 	}
 	if (e->free)
 	{
-		VM_Warning(prog, "setmodelindex: can not modify free entity\n");
+		VM_Warningf(prog, "setmodelindex: can not modify free entity\n");
 		return;
 	}
 	i = (int)PRVM_G_FLOAT(OFS_PARM1);
 	if (i <= 0 || i >= MAX_MODELS_8192)
 	{
-		VM_Warning(prog, "setmodelindex: invalid modelindex\n");
+		VM_Warningf(prog, "setmodelindex: invalid modelindex\n");
 		return;
 	}
 	if (!sv.model_precache[i][0])
 	{
-		VM_Warning(prog, "setmodelindex: model not precached\n");
+		VM_Warningf(prog, "setmodelindex: model not precached\n");
 		return;
 	}
 
@@ -3263,12 +3298,12 @@ static void VM_SV_modelnameforindex(prvm_prog_t *prog)
 	i = (int)PRVM_G_FLOAT(OFS_PARM0);
 	if (i <= 0 || i >= MAX_MODELS_8192)
 	{
-		VM_Warning(prog, "modelnameforindex: invalid modelindex\n");
+		VM_Warningf(prog, "modelnameforindex: invalid modelindex\n");
 		return;
 	}
 	if (!sv.model_precache[i][0])
 	{
-		VM_Warning(prog, "modelnameforindex: model not precached\n");
+		VM_Warningf(prog, "modelnameforindex: model not precached\n");
 		return;
 	}
 
@@ -3408,8 +3443,8 @@ static void VM_SV_skel_build(prvm_prog_t *prog)
 	int numblends;
 	int bonenum;
 	int blendindex;
-	framegroupblend_t framegroupblend[MAX_FRAMEGROUPBLENDS];
-	frameblend_t frameblend[MAX_FRAMEBLENDS];
+	framegroupblend_t framegroupblend[MAX_FRAMEGROUPBLENDS_4];
+	frameblend_t frameblend[MAX_FRAMEBLENDS_8];
 	matrix4x4_t bonematrix;
 	matrix4x4_t matrix;
 	PRVM_G_FLOAT(OFS_RETURN) = 0;
@@ -3420,7 +3455,7 @@ static void VM_SV_skel_build(prvm_prog_t *prog)
 	lastbone = min(lastbone, skeleton->model->num_bones - 1);
 	VM_GenerateFrameGroupBlend(prog, framegroupblend, ed);
 	VM_FrameBlendFromFrameGroupBlend(frameblend, framegroupblend, model, sv.time);
-	for (numblends = 0;numblends < MAX_FRAMEBLENDS && frameblend[numblends].lerp;numblends++)
+	for (numblends = 0;numblends < MAX_FRAMEBLENDS_8 && frameblend[numblends].rlerp;numblends++)
 		;
 	for (bonenum = firstbone;bonenum <= lastbone;bonenum++)
 	{
@@ -3428,7 +3463,7 @@ static void VM_SV_skel_build(prvm_prog_t *prog)
 		for (blendindex = 0;blendindex < numblends;blendindex++)
 		{
 			Matrix4x4_FromBonePose7s(&matrix, model->num_posescale, model->data_poses7s + 7 * (frameblend[blendindex].subframe * model->num_bones + bonenum));
-			Matrix4x4_Accumulate(&bonematrix, &matrix, frameblend[blendindex].lerp);
+			Matrix4x4_Accumulate(&bonematrix, &matrix, frameblend[blendindex].rlerp);
 		}
 		Matrix4x4_Normalize3(&bonematrix, &bonematrix);
 		Matrix4x4_Interpolate(&skeleton->relativetransforms[bonenum], &bonematrix, &skeleton->relativetransforms[bonenum], retainfrac);
@@ -3655,7 +3690,7 @@ static void VM_SV_frameforname(prvm_prog_t *prog)
 		return;
 	for (i = 0;i < model->numframes;i++)
 	{
-		if (String_Does_Match_Caseless(model->animscenes[i].name, name))
+		if (String_Match_Caseless(model->animscenes[i].name, name))
 		{
 			PRVM_G_FLOAT(OFS_RETURN) = i;
 			break;

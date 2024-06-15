@@ -494,9 +494,9 @@ static unsigned char *decode_image(downloadinfo *di, const char *content_type)
 	if (data)
 	{
 		int mip = 0;
-		if (String_Does_Match(content_type, "image/jpeg"))
+		if (String_Match(content_type, "image/jpeg"))
 			pixels = JPEG_LoadImage_BGRA(data, filesize, &mip);
-		else if (String_Does_Match(content_type, "image/png"))
+		else if (String_Match(content_type, "image/png"))
 			pixels = PNG_LoadImage_BGRA(data, filesize, &mip);
 		else if (filesize >= 7 && !strncmp((char *) data, "\xFF\xD8", 7))
 			pixels = JPEG_LoadImage_BGRA(data, filesize, &mip);
@@ -803,13 +803,13 @@ static void CheckPendingDownloads(void)
 
 /*
 ====================
-Curl_Init
+Curl_InitOnce
 
 this function MUST be called before using anything else in this file.
 On Win32, this must be called AFTER WSAStartup has been done!
 ====================
 */
-void Curl_Init(void)
+void Curl_InitOnce(void)
 {
 	CURL_OpenLibrary();
 	if (!curl_dll)
@@ -858,7 +858,7 @@ static downloadinfo *Curl_Find(const char *filename)
 	if (!curl_dll)
 		return NULL;
 	List_For_Each_Entry(di, &downloads, downloadinfo, list)
-		if (String_Does_Match_Caseless(di->filename, filename))
+		if (String_Match_Caseless(di->filename, filename))
 			return di;
 	return NULL;
 }
@@ -1449,11 +1449,11 @@ static void Curl_Curl_f(cmd_state_t *cmd)
 
 	for(i = 1; i != end; ++i) {
 		const char *s_arg = Cmd_Argv(cmd, i);
-		if (String_Does_Match(s_arg, "--info")) {
+		if (String_Match(s_arg, "--info")) {
 			Curl_Info_f(cmd);
 			return;
 		}
-		else if (String_Does_Match(s_arg, "--cancel")) {
+		else if (String_Match(s_arg, "--cancel")) {
 			if (i == end - 1) // last argument
 				Curl_CancelAll();
 			else
@@ -1466,17 +1466,17 @@ static void Curl_Curl_f(cmd_state_t *cmd)
 			}
 			return;
 		}
-		else if (String_Does_Match(s_arg, "--pak"))
+		else if (String_Match(s_arg, "--pak"))
 		{
 			loadtype = LOADTYPE_PAK;
 		}
-		else if (String_Does_Match(s_arg, "--cachepic")) {
+		else if (String_Match(s_arg, "--cachepic")) {
 			loadtype = LOADTYPE_CACHEPIC;
 		}
-		else if (String_Does_Match(s_arg, "--skinframe")) {
+		else if (String_Match(s_arg, "--skinframe")) {
 			loadtype = LOADTYPE_SKINFRAME;
 		}
-		else if (String_Does_Match(s_arg, "--for")) { // must be last option
+		else if (String_Match(s_arg, "--for")) { // must be last option
 			for(i = i + 1; i != end - 1; ++i) {
 				if (!FS_FileExists(Cmd_Argv(cmd, i)))
 					goto needthefile; // why can't I have s_arg "double break"?
@@ -1484,23 +1484,23 @@ static void Curl_Curl_f(cmd_state_t *cmd)
 			// if we get here, we have all the files...
 			return;
 		}
-		else if (String_Does_Match(s_arg, "--forthismap")) {
+		else if (String_Match(s_arg, "--forthismap")) {
 			forthismap = true;
 		}
-		else if (String_Does_Match(s_arg, "--as")) { // Baker: ?
+		else if (String_Match(s_arg, "--as")) { // Baker: ?
 			if (i < end - 1)
 			{
 				++i;
 				name = Cmd_Argv(cmd, i);
 			}
 		}
-		else if (String_Does_Match(s_arg, "--clear_autodownload")) {
+		else if (String_Match(s_arg, "--clear_autodownload")) {
 			// mark all running downloads as "not for this map", so if they
 			// fail, it does not matter
 			Curl_Clear_forthismap();
 			return;
 		}
-		else if (String_Does_Match(s_arg, "--finish_autodownload")) {
+		else if (String_Match(s_arg, "--finish_autodownload")) {
 			if (numdownloads_added) {
 				char donecommand[256];
 				if (cls.netcon) {
@@ -1519,7 +1519,7 @@ static void Curl_Curl_f(cmd_state_t *cmd)
 			}
 			return;
 		}
-		else if (String_Does_Start_With_Caseless_PRE (s_arg, "--maxspeed="/*, 11*/)) {
+		else if (String_Starts_With_Caseless_PRE (s_arg, "--maxspeed="/*, 11*/)) {
 			maxspeed = atof(s_arg + 11);
 		}
 		else if (*s_arg == '-')
@@ -1551,12 +1551,12 @@ void Curl_CurlCat_f(cmd_state_t *cmd)
 
 /*
 ====================
-Curl_Init_Commands
+Curl_InitOnce_Commands
 
 loads the commands and cvars this library uses
 ====================
 */
-void Curl_Init_Commands(void)
+void Curl_InitOnce_Commands(void)
 {
 	Cvar_RegisterVariable (&curl_enabled);
 	Cvar_RegisterVariable (&curl_maxdownloads);
@@ -1639,7 +1639,7 @@ Curl_downloadinfo_t *Curl_GetDownloadInfo(int *nDownloads, const char **addition
 		{
 			if (!strncmp(command_when_done, "connect ", 8))
 				dpsnprintf(addinfo, addinfolength, "(will join %s when done)", command_when_done + 8);
-			else if (String_Does_Match(command_when_done, "cl_begindownloads"))
+			else if (String_Match(command_when_done, "cl_begindownloads"))
 				dpsnprintf(addinfo, addinfolength, "(will enter the game when done)");
 			else
 				dpsnprintf(addinfo, addinfolength, "(will do '%s' when done)", command_when_done);

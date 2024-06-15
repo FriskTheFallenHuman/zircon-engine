@@ -152,7 +152,7 @@ static void M_UnbindCommand (const char *command)
 		b = keybindings[0][j];
 		if (!b)
 			continue;
-		if (String_Does_Match (b, command))
+		if (String_Match (b, command))
 			Key_SetBinding (j, 0, "");
 	} // j
 }
@@ -187,7 +187,7 @@ static void M_Keys_Draw (void)
 			// Baker: Blank space with 0 sized hotspot
 			// We need a unhittable hotspot to keep
 			// the index right, we can't skip an index
-			Hotspots_Add (menu_x + 16, menu_y + y, /*wh*/ 0, 0, 1, hotspottype_slider); // Au 15
+			Hotspots_Add (menu_x + 16, menu_y + y, /*wh*/ 0, 0, 1, hotspottype_slider, q_force_scale_0); // Au 15
 			continue;
 		}
 		else if (bindnames[i][0][0] == 0) {
@@ -195,7 +195,7 @@ static void M_Keys_Draw (void)
 			// This is the old way that prints a special character instead of just leaving a blank line
 			M_PrintRed (4, y, "\x0D");  // #13 is the little arrow pointing to the right
 			M_PrintRed (16, y, bindnames[i][1]);
-			Hotspots_Add (menu_x + 16, menu_y + y, /*wh*/ 0, 0, 1, hotspottype_slider); // Au 15
+			Hotspots_Add (menu_x + 16, menu_y + y, /*wh*/ 0, 0, 1, hotspottype_slider, q_force_scale_0); // Au 15
 			continue;
 		}
 		else
@@ -224,7 +224,7 @@ static void M_Keys_Draw (void)
 				} // if key != -1
 			} // for j
 		} // if keys[0] == -1
-		Hotspots_Add (menu_x + 16, menu_y + y, (40 * 8) /*360*/, 8, 1, hotspottype_slider);
+		Hotspots_Add (menu_x + 16, menu_y + y, (40 * 8) /*360*/, 8, 1, hotspottype_slider, q_force_scale_0);
 		M_Print(150, y, keystring);
 	}
 

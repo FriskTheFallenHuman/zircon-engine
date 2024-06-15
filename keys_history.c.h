@@ -1,7 +1,7 @@
 // keys_history.c.h
 
 // Baker: 
-WARP_X_CALLERS_ (Host_Init -> CL_Init (blocks dedicated from coming here) -> Key_Init )
+WARP_X_CALLERS_ (Host_InitOnce -> CL_InitOnce (blocks dedicated from coming here) -> Key_InitOnce )
 static void Key_History_Init(void)
 {
 	qfile_t *historyfile;
@@ -89,7 +89,7 @@ void Key_History_Push_String (const char *stext)
 	if (lastline != -1) {
 		char sdupchek[MAX_INPUTLINE_16384] = {0};
 		c_strlcpy (sdupchek, ConBuffer_GetLine (&history, lastline));
-		if (String_Does_Match (sline, sdupchek))
+		if (String_Match (sline, sdupchek))
 			return; // BACK-TO-BACK duplicate
 	} // if
 
@@ -101,9 +101,9 @@ static void Key_History_Push(void)
 {
 	// Baker: This is an endless if statement
 	if (key_line[1] != NULL_CHAR_0) // don't mark empty lines as history
-		if (String_Does_Start_With(key_line, "]quit") == false) // putting these into the history just sucks
-		if (String_Does_Match(key_line, "]rcon_password")==false) // putting these into the history just sucks
-		if (String_Does_Start_With(key_line, "]rcon_password ")==false) // putting these into the history just sucks
+		if (String_Starts_With(key_line, "]quit") == false) // putting these into the history just sucks
+		if (String_Match(key_line, "]rcon_password")==false) // putting these into the history just sucks
+		if (String_Starts_With(key_line, "]rcon_password ")==false) // putting these into the history just sucks
 			Key_History_Push_String (&key_line[1]);
 			//ConBuffer_AddLine(&history, key_line + 1, (int)strlen(key_line) - 1, CON_MASK_NONE_0);
 
@@ -293,7 +293,7 @@ static void Key_History_f(cmd_state_t *cmd)
 
 	if (Cmd_Argc (cmd) > 1)
 	{
-		if (String_Does_Match(Cmd_Argv(cmd, 1), "-c"))
+		if (String_Match(Cmd_Argv(cmd, 1), "-c"))
 		{
 			ConBuffer_Clear(&history);
 			return;
@@ -312,7 +312,7 @@ static void Key_History_f(cmd_state_t *cmd)
 
 
 static int	key_bmap, key_bmap2;
-static unsigned char keydown[MAX_KEYS];	// 0 = up, 1 = down, 2 = repeating
+unsigned char keydown[MAX_KEYS_44032];	// 0 = up, 1 = down, 2 = repeating
 
 typedef struct keyname_s
 {
@@ -658,11 +658,11 @@ int GetKeyboardList_Count (const char *s_prefix)
 	for (int idx = 0; idx < array_count; idx++) {
 		const char *s =  keynames[idx].name;
 		if (s == NULL) continue;	// yay!  the last entry is bad
-		if (String_Does_Start_With_Caseless (s, "KP_"))		continue;	// do not want JOY, Xbox live for now
-		if (String_Does_Start_With_Caseless (s, "AUX"))		continue;	// do not want
-		if (String_Does_Start_With_Caseless (s, "MIDI"))	continue;	// do not want
+		if (String_Starts_With_Caseless (s, "KP_"))		continue;	// do not want JOY, Xbox live for now
+		if (String_Starts_With_Caseless (s, "AUX"))		continue;	// do not want
+		if (String_Starts_With_Caseless (s, "MIDI"))	continue;	// do not want
 			
-		if (String_Does_Start_With_Caseless (s, s_prefix) == false)
+		if (String_Starts_With_Caseless (s, s_prefix) == false)
 			continue;
 
 		stringlistappend (&matchedSet, s);		
@@ -675,7 +675,7 @@ int GetKeyboardList_Count (const char *s_prefix)
 
 	for (int idx = 0; idx < matchedSet.numstrings; idx ++) {
 		char *sxy = matchedSet.strings[idx];
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 			continue;
 
 		SPARTIAL_EVAL_

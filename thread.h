@@ -35,7 +35,7 @@ typedef struct {int value;} Thread_Atomic;
 #define Thread_AtomicLock(lock)           (_Thread_AtomicLock(lock, __FILE__, __LINE__))
 #define Thread_AtomicUnlock(lock)         (_Thread_AtomicUnlock(lock, __FILE__, __LINE__))
 
-int Thread_Init(void);
+int Thread_InitOnce(void);
 void Thread_Shutdown(void);
 qbool Thread_HasThreads(void);
 void *_Thread_CreateMutex(const char *filename, int fileline);

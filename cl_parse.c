@@ -435,19 +435,19 @@ void CL_ParseEntityLump(char *entdata)
 		if (!COM_ParseToken_Simple(&data, false, false, true))
 			return; // error
 		c_strlcpy (value, com_token);
-		if (String_Does_Match("sky", key)) {
+		if (String_Match("sky", key)) {
 			loadedsky = true;
 			R_SetSkyBox(value);
 		}
-		else if (String_Does_Match("skyname", key)) { // non-standard, introduced by QuakeForge... sigh.
+		else if (String_Match("skyname", key)) { // non-standard, introduced by QuakeForge... sigh.
 			loadedsky = true;
 			R_SetSkyBox(value);
 		}
-		else if (String_Does_Match("qlsky", key)) { // non-standard, introduced by QuakeLives (EEK)
+		else if (String_Match("qlsky", key)) { // non-standard, introduced by QuakeLives (EEK)
 			loadedsky = true;
 			R_SetSkyBox(value);
 		}
-		else if (String_Does_Match("fog", key)) {
+		else if (String_Match("fog", key)) {
 			FOG_clear(); // so missing values get good defaults
 			r_refdef.fog_start = 0;
 			r_refdef.fog_alpha = 1;
@@ -478,25 +478,25 @@ void CL_ParseEntityLump(char *entdata)
 				r_refdef.fog_density = r_refdef.fog_density0;
 			}
 		}
-		else if (String_Does_Match("fog_density", key))
+		else if (String_Match("fog_density", key))
 			r_refdef.fog_density = atof(value);
-		else if (String_Does_Match("fog_red", key))
+		else if (String_Match("fog_red", key))
 			r_refdef.fog_red = atof(value);
-		else if (String_Does_Match("fog_green", key))
+		else if (String_Match("fog_green", key))
 			r_refdef.fog_green = atof(value);
-		else if (String_Does_Match("fog_blue", key))
+		else if (String_Match("fog_blue", key))
 			r_refdef.fog_blue = atof(value);
-		else if (String_Does_Match("fog_alpha", key))
+		else if (String_Match("fog_alpha", key))
 			r_refdef.fog_alpha = atof(value);
-		else if (String_Does_Match("fog_start", key))
+		else if (String_Match("fog_start", key))
 			r_refdef.fog_start = atof(value);
-		else if (String_Does_Match("fog_end", key))
+		else if (String_Match("fog_end", key))
 			r_refdef.fog_end = atof(value);
-		else if (String_Does_Match("fog_height", key))
+		else if (String_Match("fog_height", key))
 			r_refdef.fog_height = atof(value);
-		else if (String_Does_Match("fog_fadedepth", key))
+		else if (String_Match("fog_fadedepth", key))
 			r_refdef.fog_fadedepth = atof(value);
-		else if (String_Does_Match("fog_heighttexture", key))
+		else if (String_Match("fog_heighttexture", key))
 		{
 			FOG_clear(); // so missing values get good defaults
 #if _MSC_VER >= 1400
@@ -516,11 +516,48 @@ void CL_ParseEntityLump(char *entdata)
 extern cvar_t con_chatsound_team_file;
 static const vec3_t defaultmins = {-4096, -4096, -4096};
 static const vec3_t defaultmaxs = {4096, 4096, 4096};
+
+WARP_X_CALLERS_ (CL_BeginDownloads_DP QW_CL_RequestNextDownload)
 static void CL_SetupWorldModel(void)
 {
 	prvm_prog_t *prog = CLVM_prog;
+
+#if 1
+	WARP_X_ (CL_RESETNEWMAP_0)
+
+	extern cvar_t r_lockpvs;
+	extern cvar_t r_lockvisibility;
+
+	Cvar_SetValueQuick	(&r_lockpvs, 0);			// Baker: June 6 2024, this was crashing us.
+	Cvar_SetValueQuick	(&r_lockvisibility, 0);		// Baker: June 6 2024, I bet this is nearly the same
+	Cvar_SetValueQuick	(&tool_inspector, 0);		// Baker r0106: tool inspector
+	Cvar_SetValueQuick	(&tool_marker, 0);			// Baker r0109: tool marker
+	
+	// Baker r7084 - gamecommand clear cl
+	extern cvar_t prvm_cl_gamecommands;
+	extern cvar_t prvm_cl_progfields;
+
+	Cvar_SetQuick(&prvm_cl_gamecommands, ""); // newmap
+	Cvar_SetQuick(&prvm_cl_progfields, ""); // newmap
+#endif
+
 	// update the world model
 	cl.entities[0].render.model = cl.worldmodel = CL_GetModelByIndex(1);
+
+#if 1 // LEVELSHOTS
+	va_super (levelshotname_tga, MAX_QPATHX2_256, "levelshots/%s.tga", cl.worldbasename);
+	int have_levelshot = FS_FileExists (levelshotname_tga);
+	if (have_levelshot) {
+		c_strlcpy (cl.levelshotsname, levelshotname_tga);
+	} else {
+		va_super (levelshotname_jpg, MAX_QPATHX2_256, "levelshots/%s.jpg", cl.worldbasename);
+		have_levelshot = FS_FileExists (levelshotname_jpg);
+		if (have_levelshot) {
+			c_strlcpy (cl.levelshotsname, levelshotname_jpg);
+		}
+	}
+#endif
+
 	CL_UpdateRenderEntity(&cl.entities[0].render);
 
 	// make sure the cl.worldname and related cvars are set up now that we know the world model name
@@ -528,7 +565,7 @@ static void CL_SetupWorldModel(void)
 	if (cl.worldmodel) {
 		c_strlcpy (cl.worldname, cl.worldmodel->model_name);
 		FS_StripExtension(cl.worldname, cl.worldnamenoextension, sizeof(cl.worldnamenoextension));
-		c_strlcpy (cl.worldbasename, String_Does_Start_With_PRE (cl.worldnamenoextension, "maps/") ? 
+		c_strlcpy (cl.worldbasename, String_Starts_With_PRE (cl.worldnamenoextension, "maps/") ? 
 			cl.worldnamenoextension + 5 : cl.worldnamenoextension);
 		Cvar_SetQuick(&cl_worldmessage, cl.worldmessage);
 		Cvar_SetQuick(&cl_worldname, cl.worldname);
@@ -538,14 +575,9 @@ static void CL_SetupWorldModel(void)
 	}
 	else
 	{
-		// Baker r7084 - gamecommand clear cl
-		cvar_t prvm_cl_gamecommands;
-		cvar_t prvm_cl_progfields;
 		Cvar_SetQuick(&cl_worldmessage, cl.worldmessage);
 		Cvar_SetQuick(&cl_worldnamenoextension, "");
 		Cvar_SetQuick(&cl_worldbasename, "");
-		Cvar_SetQuick(&prvm_cl_gamecommands, ""); // newmap
-		Cvar_SetQuick(&prvm_cl_progfields, ""); // newmap
 
 		World_SetSize(&cl.world, "", defaultmins, defaultmaxs, prog);
 	}
@@ -608,7 +640,7 @@ static qbool QW_CL_CheckOrDownloadFile(const char *filename)
 	int was_lit = cls.asking_for_lit == 1;
 
 
-	if (was_lit == false && String_Does_End_With_Caseless (filename, ".bsp")) {
+	if (was_lit == false && String_Ends_With_Caseless (filename, ".bsp")) {
 		// We will ask for lit first
 		// ezQuake #d0
 		// Baker_CL_Download_Start_QW_SetName
@@ -765,7 +797,7 @@ void QW_CL_FindModelNumbers (void)
 
 		for (int monster_idx = 0; monster_idx < (int)ARRAY_COUNT (qw_monsters); monster_idx ++)  {
 			char *s_this_monster = qw_monsters[monster_idx];
-			if (false == String_Does_Match (s_this, s_this_monster))
+			if (false == String_Match (s_this, s_this_monster))
 				continue;
 
 			// Add to indexes
@@ -843,13 +875,13 @@ static void QW_CL_RequestNextDownload(void)
 			// skip submodels
 			if (cl.model_name[cls.qw_downloadnumber][0] == '*')
 				continue;
-			if (String_Does_Match(cl.model_name[cls.qw_downloadnumber], "progs/spike.mdl"))
+			if (String_Match(cl.model_name[cls.qw_downloadnumber], "progs/spike.mdl"))
 				cl.qw_modelindex_spike = cls.qw_downloadnumber;
-			if (String_Does_Match(cl.model_name[cls.qw_downloadnumber], "progs/player.mdl"))
+			if (String_Match(cl.model_name[cls.qw_downloadnumber], "progs/player.mdl"))
 				cl.qw_modelindex_player = cls.qw_downloadnumber;
-			if (String_Does_Match(cl.model_name[cls.qw_downloadnumber], "progs/flag.mdl"))
+			if (String_Match(cl.model_name[cls.qw_downloadnumber], "progs/flag.mdl"))
 				cl.qw_modelindex_flag = cls.qw_downloadnumber;
-			if (String_Does_Match(cl.model_name[cls.qw_downloadnumber], "progs/s_explod.spr"))
+			if (String_Match(cl.model_name[cls.qw_downloadnumber], "progs/s_explod.spr"))
 				cl.qw_modelindex_s_explod = cls.qw_downloadnumber;
 			// check if we need to download the file, and return if so
 			if (!QW_CL_CheckOrDownloadFile(cl.model_name[cls.qw_downloadnumber]))
@@ -961,6 +993,43 @@ static void QW_CL_RequestNextDownload(void)
 	default:
 		Con_PrintLinef ("Unknown download type.");
 	}
+}
+
+void CL_Models_Query (feed_fn_t myfeed_shall_stop)
+{
+	if (!r_refdef.scene.worldmodel)
+		return;
+
+	for (int j = 1; j < MAX_MODELS_8192 && cl.model_name[j][0]; j ++) {
+
+		qbool shall_stop = myfeed_shall_stop (-1, cl.model_name[j], "", NULL, NULL, NULL, j, 1, 2);
+		if (shall_stop)
+			return;
+	} // for
+
+	//cl.model_precache
+	//model_t		*m = r_refdef.scene.worldmodel;
+	//texture_t	*t;
+	//int j;
+	//for (j = 0, t = m->data_textures; j < m->num_textures; j++, t++) {
+	//	if (!t->name[0]) continue;
+	//	if (String_Contains_Caseless(t->name, "NO TEXTURE FOUND")) continue;
+		
+}
+ 
+WARP_X_ ()
+void CL_Sounds_Query (feed_fn_t myfeed_shall_stop)
+{
+	if (!r_refdef.scene.worldmodel)
+		return;
+
+	for (int j = 1; j < MAX_SOUNDS_4096 && cl.sound_name[j][0]; j ++) {
+
+		qbool shall_stop = myfeed_shall_stop (-1, cl.sound_name[j], "", NULL, NULL, NULL, j, 1, 2);
+		if (shall_stop)
+			return;
+	} // for
+		
 }
 
 #include "cl_parse_chunked.c.h"
@@ -1357,7 +1426,7 @@ static void CL_UpdateItemsAndWeapon(void)
 extern cvar_t cl_topcolor;
 extern cvar_t cl_bottomcolor;
 static void CL_SignonReply_SIGNON_1_SendPlayerInfo(void)
-{
+{ // CROSSX
 	char vabuf[1024];
 	MSG_WriteByte (&cls.netcon->message, clc_stringcmd);
 	MSG_WriteString (&cls.netcon->message, va(vabuf, sizeof(vabuf), "name " QUOTED_S, cl_name.string));
@@ -1714,7 +1783,7 @@ gamedir_change:
 		c_strlcpy(cl.worldname, cl.model_name[1]);
 		FS_StripExtension(cl.worldname, cl.worldnamenoextension, sizeof(cl.worldnamenoextension));
 		c_strlcpy(cl.worldbasename,
-			String_Does_Start_With_PRE(cl.worldnamenoextension, "maps/") ? cl.worldnamenoextension + 5 : cl.worldnamenoextension);
+			String_Starts_With_PRE(cl.worldnamenoextension, "maps/") ? cl.worldnamenoextension + 5 : cl.worldnamenoextension);
 		Cvar_SetQuick(&cl_worldmessage, cl.worldmessage);
 		Cvar_SetQuick(&cl_worldname, cl.worldname);
 		Cvar_SetQuick(&cl_worldnamenoextension, cl.worldnamenoextension);
@@ -1848,7 +1917,7 @@ void CL_MoveLerpEntityStates(entity_t *ent)
 		VectorCopy(ent->state_current.origin, ent->persistent.neworigin);
 		VectorCopy(ent->state_current.angles, ent->persistent.newangles);
 		// reset animation interpolation as well
-		ent->render.framegroupblend[0].frame = ent->render.framegroupblend[1].frame = ent->state_current.frame;
+		ent->render.framegroupblend[0].fb_frame = ent->render.framegroupblend[1].fb_frame = ent->state_current.frame;
 		ent->render.framegroupblend[0].start = ent->render.framegroupblend[1].start = cl.time;
 		ent->render.framegroupblend[0].lerp = 1;ent->render.framegroupblend[1].lerp = 0;
 		ent->render.shadertime = cl.time;
@@ -1872,7 +1941,7 @@ void CL_MoveLerpEntityStates(entity_t *ent)
 		// teleport bit is only used if an animation restart, or a jump, is necessary
 		// so it should be always harmless to do this
 		{
-			ent->render.framegroupblend[0].frame = ent->render.framegroupblend[1].frame = ent->state_current.frame;
+			ent->render.framegroupblend[0].fb_frame = ent->render.framegroupblend[1].fb_frame = ent->state_current.frame;
 			ent->render.framegroupblend[0].start = ent->render.framegroupblend[1].start = cl.time;
 			ent->render.framegroupblend[0].lerp = 1;ent->render.framegroupblend[1].lerp = 0;
 		}
@@ -1884,14 +1953,14 @@ void CL_MoveLerpEntityStates(entity_t *ent)
 	{
 		ent->render.framegroupblend[1] = ent->render.framegroupblend[0];
 		ent->render.framegroupblend[1].lerp = 1;
-		ent->render.framegroupblend[0].frame = ent->state_current.frame;
+		ent->render.framegroupblend[0].fb_frame = ent->state_current.frame;
 		ent->render.framegroupblend[0].start = cl.time;
 		ent->render.framegroupblend[0].lerp = 0;
 	}
 	else if (DotProduct(odelta, odelta) > 1000*1000
 		|| (cl.fixangle[0] && !cl.fixangle[1])
 		|| (ent->state_previous.tagindex != ent->state_current.tagindex)
-		|| (ent->state_previous.tagentity != ent->state_current.tagentity))
+		|| (ent->state_previous.tagxentity != ent->state_current.tagxentity)) // TAGX CL PARSE LERP
 	{
 		// don't interpolate the move
 		// (the fixangle[] check detects teleports, but not constant fixangles
@@ -1926,14 +1995,14 @@ void CL_MoveLerpEntityStates(entity_t *ent)
 		VectorCopy(ent->state_current.angles, ent->persistent.newangles);
 	}
 	// trigger muzzleflash effect if necessary
-	if (ent->state_current.effects & EF_MUZZLEFLASH_2)
+	if (Have_Flag (ent->state_current.effects, EF_MUZZLEFLASH_2))
 		ent->persistent.muzzleflash = 1;
 
 	// restart animation bit
 	if ((ent->state_previous.effects & EF_RESTARTANIM_BIT) != (ent->state_current.effects & EF_RESTARTANIM_BIT)) {
 		ent->render.framegroupblend[1] = ent->render.framegroupblend[0];
 		ent->render.framegroupblend[1].lerp = 1;
-		ent->render.framegroupblend[0].frame = ent->state_current.frame;
+		ent->render.framegroupblend[0].fb_frame = ent->state_current.frame;
 		ent->render.framegroupblend[0].start = cl.time;
 		ent->render.framegroupblend[0].lerp = 0;
 	}
@@ -2240,13 +2309,13 @@ static void CL_ParseStatic (int is_large_model_index, int fitz_version)
 
 // copy it to the current state
 	ent->render.model = CL_GetModelByIndex(ent->state_baseline.modelindex);
-	ent->render.framegroupblend[0].frame = ent->state_baseline.frame;
+	ent->render.framegroupblend[0].fb_frame = ent->state_baseline.frame;
 	ent->render.framegroupblend[0].lerp = 1;
 	// make torchs play out of sync
 	ent->render.framegroupblend[0].start = lhrandom(-10, -1);
 	ent->render.skinnum = ent->state_baseline.skin;
 	ent->render.effects = ent->state_baseline.effects;
-	ent->render.alpha = ent->state_baseline.alpha * (1.0f / 255.0f);
+	ent->render.ralpha = ent->state_baseline.alpha * (1.0f / 255.0f);
 
 	// Baker: alpha and scale?  At least for FitzQuake?   What about colormap?
 	// Have we investigated Flint Ridge and the Hotel?
@@ -2830,7 +2899,7 @@ static void CL_IPLog_Add(const char *address, const char *name, qbool checkexist
 	{
 		for (j = 0;j < cl_iplog_numitems;j++)
 		{
-			if (String_Does_Match(cl_iplog_items[j].address, address) && String_Does_Match(cl_iplog_items[j].name, name))
+			if (String_Match(cl_iplog_items[j].address, address) && String_Match(cl_iplog_items[j].name, name))
 			{
 				if (developer_extra.integer)
 					Con_DPrintLinef ("... found existing " QUOTED_S " " QUOTED_S, cl_iplog_items[j].address, cl_iplog_items[j].name);
@@ -2968,7 +3037,7 @@ static qbool CL_ExaminePrintString(const char *text)
 	int len;
 	const char *t;
 	char temp[MAX_INPUTLINE_16384];
-	if (String_Does_Match(text, "Client ping times:\n")) {
+	if (String_Match(text, "Client ping times:\n")) {
 		cl.parsingtextmode = CL_PARSETEXTMODE_PING;
 		// hide ping reports in demos
 		if (cls.demoplayback)
@@ -2985,7 +3054,7 @@ static qbool CL_ExaminePrintString(const char *text)
 		return !cl.parsingtextexpectingpingforscores;
 	}
 
-	if (String_Does_Start_With(text, "host:    " /*, 9*/)) {
+	if (String_Starts_With(text, "host:    " /*, 9*/)) {
 		// cl.parsingtextexpectingpingforscores = false; // really?
 		cl.parsingtextmode = CL_PARSETEXTMODE_STATUS;
 		cl.parsingtextplayerindex = 0;
@@ -3027,7 +3096,7 @@ static qbool CL_ExaminePrintString(const char *text)
 						return !expected;
 					}
 				}
-				if (String_Does_Start_With_PRE(t, "unconnected\n"/*, 12*/)) {
+				if (String_Starts_With_PRE(t, "unconnected\n"/*, 12*/)) {
 					// just ignore
 					cl.parsingtextmode = CL_PARSETEXTMODE_PING;
 					cl.parsingtextexpectingpingforscores = expected;
@@ -3040,7 +3109,7 @@ static qbool CL_ExaminePrintString(const char *text)
 	}
 
 	if (cl.parsingtextmode == CL_PARSETEXTMODE_STATUS) {
-		if (String_Does_Start_With_PRE(text, "players: " /*, 9*/)) {
+		if (String_Starts_With_PRE(text, "players: " /*, 9*/)) {
 			cl.parsingtextmode = CL_PARSETEXTMODE_STATUS_PLAYERID;
 			cl.parsingtextplayerindex = 0;
 			return true;
@@ -3080,7 +3149,7 @@ static qbool CL_ExaminePrintString(const char *text)
 			temp[len] = 0;
 			// botclient is perfectly valid, but we don't care about bots
 			// also don't try to look up the name of an invalid player index
-			if (String_Does_Match(temp, "botclient") == false   //  strcmp(temp, "botclient")
+			if (String_Match(temp, "botclient") == false   //  strcmp(temp, "botclient")
 			 && cl.parsingtextplayerindex >= 0
 			 && cl.parsingtextplayerindex < cl.maxclients
 			 && cl.scores[cl.parsingtextplayerindex].name[0]) {
@@ -3237,16 +3306,65 @@ static void CL_NetworkTimeReceived(double newtime)
 
 #define SHOWNET(x) if (cl_shownet.integer==2)Con_PrintLinef ("%3d:%s(%d)", cl_message.readcount-1, x, cmd);
 
+WARP_X_CALLERS_ (CL_OBJModelAdjust2_f)
+
+
+void Tokenize_Console_16384_FreeContents (tokenize_console_s *tcx)
+{
+	int max_argc2 = (int)ARRAY_COUNT(tcx->tokens_za);
+	for (int j = 0; j < max_argc2; j ++) {
+		if (tcx->tokens_za[j]) {
+			mfreenull_ (tcx->tokens_za[j]);
+		}
+	} // for
+
+	int sizeof_tcx = sizeof(*tcx);
+	memset (tcx, 0, sizeof(*tcx));
+}
+
+int Tokenize_Console_16384_Za_Return_Argc (tokenize_console_s *tcx, ccs *s)
+{
+	Tokenize_Console_16384_FreeContents (tcx);
+
+	c_strlcpy (tcx->tokenize_string, s);
+	
+	const char *p = tcx->tokenize_string;
+	//int max_argc = (int)(sizeof(tokens)/sizeof(tokens[0]));
+	int max_argc2 = (int)ARRAY_COUNT(tcx->tokens_za);
+	tcx->num_tokens = 0;
+	for (;;) {
+		if (tcx->num_tokens >= max_argc2)
+			break;
+
+		// skip whitespace here to find token start pos
+		while(*p && ISWHITESPACE(*p))
+			++p;
+
+		tcx->tokens_startpos[tcx->num_tokens] = p - tcx->tokenize_string;
+		if (!COM_ParseToken_Console(&p))
+			break;
+		
+		tcx->tokens_endpos[tcx->num_tokens] = p - tcx->tokenize_string;
+		tcx->tokens_za[tcx->num_tokens] = Z_StrDup (com_token);
+		tcx->num_tokens ++;
+	}
+
+	int argc = tcx->num_tokens;
+	return argc;
+}
+
+
 static	char	ztoken_string[MAX_INPUTLINE_16384];
 static	char *	ztoken_argv[MAX_INPUTLINE_16384 / 2];
 static	int		ztoken_argc = 0;
 
+WARP_X_CALLERS_ (CL_ParseHint)
 int ztokenize_console_argc (const char *s_yourline)
 {
 	char *p;
 
 	char *z_startpos[sizeof(ztoken_string) / 2];
-	char *z_endpos[sizeof(ztoken_string) / 2];
+	//char *z_endpos[sizeof(ztoken_string) / 2];
 	int z_max_count = ARRAY_COUNT(ztoken_argv);
 
 	c_strlcpy (ztoken_string, s_yourline);
@@ -3337,15 +3455,15 @@ void CL_ParseHint (const char *str)
 		scursor[0] = 0; // null after cmd
 		const char	*scmd_arg1 = &scursor[1];
 
-		     if (String_Does_Match (scmd_arg0, "skill"))	{ cl.skill_level_p1 = atoi(scmd_arg1) + 1;	}
-		else if (String_Does_Match (scmd_arg0, "qex"))		{ cl.is_qex = atoi(scmd_arg1);				} // AURA 1.1
-		else if (String_Does_Match (scmd_arg0, "zircon_ext"))	{ // ZIRCON_PEXT
+		     if (String_Match (scmd_arg0, "skill"))	{ cl.skill_level_p1 = atoi(scmd_arg1) + 1;	}
+		else if (String_Match (scmd_arg0, "qex"))		{ cl.is_qex = atoi(scmd_arg1);				} // AURA 1.1
+		else if (String_Match (scmd_arg0, "zircon_ext"))	{ // ZIRCON_PEXT
 			WARP_X_ (CLIENT_SUPPORTED_ZIRCON_EXT, SV_Zircon_Extensions_Send,  CL_BeginDownloads_Prespawn_Zircon_Extensions_Send)
 			cls.zirconprotocolextensions = atoi (scmd_arg1);
 			if (developer_zext.integer)
 				Con_PrintLinef ("CL_StuffText: Server reporting shared zirconprotocolextensions %d", cls.zirconprotocolextensions);
 		}
-		else if (String_Does_Match (scmd_arg0, "stor"))	{
+		else if (String_Match (scmd_arg0, "stor"))	{
 			// ZIRCON_EXT_STATIC_ENT_ALPHA_COLORMOD_SCALE_32
 			// stor [number of units max is 14]
 			int c = ztokenize_console_argc(scmd_arg1);
@@ -3365,13 +3483,13 @@ void CL_ParseHint (const char *str)
 
 			} // c
 		}
-		else if (String_Does_Match (scmd_arg0, "game"))		{
+		else if (String_Match (scmd_arg0, "game"))		{
 			/* todo */
 			char gamedir[1][MAX_QPATH_128];
   			//gamedir_change:
 			const char *s_base = fs_numgamedirs ? fs_gamedirs[0] : gamedirname1;
 			c_strlcpy(gamedir[0], scmd_arg1);
-			if (false == String_Does_Match ( s_base, gamedir[0]) && cls.signon < SIGNONS_4) {
+			if (false == String_Match ( s_base, gamedir[0]) && cls.signon < SIGNONS_4) {
 				if (!FS_ChangeGameDirs(1, gamedir /*gamedir*/, q_tx_complain_true, q_fail_on_missing_false))
 					Host_Error_Line ("CL_ParseServerInfo: unable to switch to server specified gamedir");
 			} // Game change
@@ -3614,7 +3732,7 @@ void CL_ParseServerMessage(void)
 			}
 
 			// Baker r8191 - cls.signon is what? SIGNON_1
-			if (String_Does_Start_With (str, HINT_MESSAGE_PREFIX)) {
+			if (String_Starts_With (str, HINT_MESSAGE_PREFIX)) {
 				Con_DPrintLinef ("Received server hint: %s", str);
 				str += strlen (HINT_MESSAGE_PREFIX);
 				CL_ParseHint (str);
@@ -3867,14 +3985,14 @@ svc_spawnstatic2_ugly: // AURA 13.2
 
 		case svc_updatestat:
 			j = MSG_ReadByte(&cl_message);
-			if (j < 0 || j >= MAX_CL_STATS)
+			if (j < 0 || j >= MAX_CL_STATS_256)
 				Host_Error_Line ("svc_updatestat: %d is invalid", j);
 			cl.stats[j] = MSG_ReadLong(&cl_message);
 			break;
 
 		case svc_updatestatubyte:
 			j = MSG_ReadByte(&cl_message);
-			if (j < 0 || j >= MAX_CL_STATS)
+			if (j < 0 || j >= MAX_CL_STATS_256)
 				Host_Error_Line ("svc_updatestat: %d is invalid", j);
 			cl.stats[j] = MSG_ReadByte(&cl_message);
 			break;
@@ -3900,9 +4018,9 @@ svc_spawnstatic2_ugly: // AURA 13.2
 			cl.looptrack = MSG_ReadByte(&cl_message);
 
 			if ( (cls.demoplayback || cls.demorecording) && (cls.forcetrack != -1) )
-				CDAudio_Play ((unsigned char)cls.forcetrack, true);
+				CDAudio_Play ((unsigned char)cls.forcetrack, q_looping_true);
 			else
-				CDAudio_Play ((unsigned char)cl.cdtrack, true);
+				CDAudio_Play ((unsigned char)cl.cdtrack, q_looping_true);
 
 			break;
 

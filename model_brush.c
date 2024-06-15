@@ -1611,7 +1611,7 @@ static void Mod_Q1BSP_LoadTextures(sizebuf_t *sb)
 			for (j = (int)strlen(name); j < 16; j++)
 				name[j] = 0;
 
-			if (String_Does_Start_With_PRE (name, "sky") /*!strncmp(name, "sky", 3)*/) // Q1SKY
+			if (String_Starts_With_PRE (name, "sky") /*!strncmp(name, "sky", 3)*/) // Q1SKY
 				numsky++;
 		}
 
@@ -1682,7 +1682,7 @@ static void Mod_Q1BSP_LoadTextures(sizebuf_t *sb)
 	}
 
 	s = loadmodel->model_name;
-	if (String_Does_Start_With_Caseless (s, "maps/"))
+	if (String_Starts_With_Caseless (s, "maps/"))
 		s += 5;
 	FS_StripExtension (s, mapname, sizeof(mapname));
 
@@ -1749,7 +1749,7 @@ static void Mod_Q1BSP_LoadTextures(sizebuf_t *sb)
 
 // BAKER BAKER
 		// /* HACK */  Tries to load non-sky textures from shader.
-		if (name[0] && String_Does_Start_With(name, "sky") == false &&
+		if (name[0] && String_Starts_With(name, "sky") == false &&
 				Mod_LoadTextureFromQ3Shader(loadmodel->mempool, loadmodel->model_name,
 				loadmodel->data_textures + i,
 				name, q_tx_complain_false, q_tx_fallback_notexture_false,
@@ -1795,7 +1795,7 @@ sky_skip:
 				tx->surfaceflags = mod_q1bsp_texture_water.surfaceflags;
 			}
 		}
-		else if (String_Does_Start_With(tx->name, "sky"))
+		else if (String_Starts_With(tx->name, "sky"))
 		{
 			tx->supercontents = mod_q1bsp_texture_sky.supercontents;
 			tx->surfaceflags = mod_q1bsp_texture_sky.surfaceflags;
@@ -1831,7 +1831,7 @@ regularo:
 
 			// HACK: It loads custom skybox textures as a wall if loaded as a skinframe.
 			if (!skinframe
-				|| String_Does_Start_With(tx->name, "sky") /*!strncmp(tx->name, "sky", 3)*/)
+				|| String_Starts_With(tx->name, "sky") /*!strncmp(tx->name, "sky", 3)*/)
 			{
 				// did not find external texture via shader loading, load it from the bsp or wad3
 				skinframe = R_SkinFrame_LoadExternal(
@@ -1863,7 +1863,7 @@ regularo:
 						Mem_Free(freepixels);
 				}
 				// Sky split procedure
-				else if (String_Does_Start_With (tx->name, "sky") /*!strncmp(tx->name, "sky", 3)*/
+				else if (String_Starts_With (tx->name, "sky") /*!strncmp(tx->name, "sky", 3)*/
 					&& mtwidth == mtheight * 2)
 				{
 					// Q1 SKY SPLIT
@@ -1885,7 +1885,7 @@ regularo:
 				}
 				else if (mtdata) { // texture included
 					// Baker r1210:  shot1sid shotgun shells texture fix, in most Quake engines since 2000 (look at shotgun shells on DM3 bridge)
-					if (String_Does_Match(tx->name, "shot1sid") && tx->width == 32 && tx->height == 32) {
+					if (String_Match(tx->name, "shot1sid") && tx->width == 32 && tx->height == 32) {
 						int	 pixelcount = tx->width * tx->height;
 						if (CRC_Block(mtdata, pixelcount) == 65393) {
 							// This texture in b_shell1.bsp has some of the first 32 pixels painted white.
@@ -1899,9 +1899,9 @@ regularo:
 				}
 				// if mtdata is NULL, the "missing" texture has already been assigned to this
 				// LadyHavoc: some Tenebrae textures get replaced by black
-				if (String_Does_Start_With (tx->name, "*glassmirror")) // Tenebrae
+				if (String_Starts_With (tx->name, "*glassmirror")) // Tenebrae
 					tx->materialshaderpass->skinframes[0] = R_SkinFrame_LoadInternalBGRA(tx->name, TEXF_MIPMAP | TEXF_ALPHA, zerotrans, 1, 1, 0, 0, 0, q_tx_convertsrgb_false, q_is_sky_load_false);
-				else if (String_Does_Start_With(tx->name, "mirror")) // Tenebrae
+				else if (String_Starts_With(tx->name, "mirror")) // Tenebrae
 					tx->materialshaderpass->skinframes[0] = R_SkinFrame_LoadInternalBGRA(tx->name, 0, zeroopaque, 1, 1, 0, 0, 0, q_tx_convertsrgb_false, q_is_sky_load_false);
 			} // !skinframe, !sky
 			else
@@ -1935,7 +1935,7 @@ regularo:
 		}
 		else if (!strncmp(tx->name, "sky", 3))
 			tx->basematerialflags = MATERIALFLAG_SKY;
-		else if (String_Does_Match(tx->name, "caulk"))
+		else if (String_Match(tx->name, "caulk"))
 			tx->basematerialflags = MATERIALFLAG_NODRAW | MATERIALFLAG_NOSHADOW;
 		else if (tx->currentskinframe != NULL && tx->currentskinframe->hasalpha)
 			tx->basematerialflags |= MATERIALFLAG_ALPHA | MATERIALFLAG_BLENDED | MATERIALFLAG_NOSHADOW;
@@ -2189,7 +2189,7 @@ static void Mod_Q1BSP_ParseWadsFromEntityLump(const char *data)
 		if (!COM_ParseToken_Simple(&data, false, false, true))
 			return; // error
 		dpsnprintf(value, sizeof(value), "%s", com_token);
-		if (String_Does_Match("wad", key)) // for HalfLife maps
+		if (String_Match("wad", key)) // for HalfLife maps
 		{
 			if (loadmodel->brush.ishlbsp)
 			{
@@ -2758,9 +2758,9 @@ static void Mod_Q1BSP_LoadFaces(sizebuf_t *sb)
 				loadmodel->brushq3.num_mergedlightmaps = lightmapnumber + 1;
 				loadmodel->brushq3.data_lightmaps = (rtexture_t **)Mem_Realloc(loadmodel->mempool, loadmodel->brushq3.data_lightmaps, loadmodel->brushq3.num_mergedlightmaps * sizeof(loadmodel->brushq3.data_lightmaps[0]));
 				loadmodel->brushq3.data_deluxemaps = (rtexture_t **)Mem_Realloc(loadmodel->mempool, loadmodel->brushq3.data_deluxemaps, loadmodel->brushq3.num_mergedlightmaps * sizeof(loadmodel->brushq3.data_deluxemaps[0]));
-				loadmodel->brushq3.data_lightmaps[lightmapnumber] = lightmaptexture = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "lightmap%d", lightmapnumber), lightmapsize, lightmapsize, NULL, TEXTYPE_BGRA, TEXF_FORCELINEAR | TEXF_ALLOWUPDATES, -1, NULL);
+				loadmodel->brushq3.data_lightmaps[lightmapnumber] = lightmaptexture = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "lightmap%d", lightmapnumber), lightmapsize, lightmapsize, NULL, TEXTYPE_BGRA, TEXF_FORCELINEAR | TEXF_ALLOWUPDATES, q_tx_miplevel_neg1, q_tx_palette_NULL);
 				if (loadmodel->brushq1.nmaplightdata)
-					loadmodel->brushq3.data_deluxemaps[lightmapnumber] = deluxemaptexture = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "deluxemap%d", lightmapnumber), lightmapsize, lightmapsize, NULL, TEXTYPE_BGRA, TEXF_FORCELINEAR | TEXF_ALLOWUPDATES, -1, NULL);
+					loadmodel->brushq3.data_deluxemaps[lightmapnumber] = deluxemaptexture = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "deluxemap%d", lightmapnumber), lightmapsize, lightmapsize, NULL, TEXTYPE_BGRA, TEXF_FORCELINEAR | TEXF_ALLOWUPDATES, q_tx_miplevel_neg1, q_tx_palette_NULL);
 				lightmapnumber++;
 				Mod_AllocLightmap_Reset(&allocState);
 				Mod_AllocLightmap_Block(&allocState, ssize, tsize, &lightmapx, &lightmapy);
@@ -3784,6 +3784,30 @@ static void Mod_BSP_FatPVS_RecursiveBSPNode(model_t *model, const vec3_t org, ve
 
 //Calculates a PVS that is the inclusive or of all leafs within radius pixels
 //of the given point.
+#if 1 // June 2
+static size_t Mod_BSP_FatPVS(model_t *model, const vec3_t org, vec_t radius, unsigned char **pvsbuffer, mempool_t *pool, qbool merge)
+{
+	size_t bytes = model->brush.num_pvsclusterbytes;
+
+	if (!*pvsbuffer || bytes != Mem_Size(*pvsbuffer))
+	{
+//		Con_Printf("^4FatPVS: allocating a%s ^4buffer in pool %s, old size %zu new size %zu\n", *pvsbuffer == NULL ? " ^5NEW" : "", pool->name, *pvsbuffer != NULL ? Mem_Size(*pvsbuffer) : 0, bytes);
+		if (*pvsbuffer)
+			Mem_Free(*pvsbuffer); // don't reuse stale data when the worldmodel changes
+		*pvsbuffer = Mem_AllocType(pool, unsigned char, bytes);
+	}
+
+	if (r_novis.integer || r_trippy.integer || !model->brush.num_pvsclusters || !Mod_BSP_GetPVS(model, org))
+	{
+		memset(*pvsbuffer, 0xFF, bytes);
+		return bytes;
+	}
+	if (!merge)
+		memset(*pvsbuffer, 0, bytes);
+	Mod_BSP_FatPVS_RecursiveBSPNode(model, org, radius, *pvsbuffer, bytes, model->brush.data_nodes + model->brushq1.hulls[0].firstclipnode);
+	return bytes;
+}
+#else
 static int Mod_BSP_FatPVS(model_t *model, const vec3_t org, vec_t radius, unsigned char *pvsbuffer, int pvsbufferlength, qbool merge)
 {
 	int bytes = model->brush.num_pvsclusterbytes;
@@ -3798,6 +3822,7 @@ static int Mod_BSP_FatPVS(model_t *model, const vec3_t org, vec_t radius, unsign
 	Mod_BSP_FatPVS_RecursiveBSPNode(model, org, radius, pvsbuffer, bytes, model->brush.data_nodes + model->brushq1.hulls[0].firstclipnode);
 	return bytes;
 }
+#endif
 
 static void Mod_Q1BSP_RoundUpToHullSize(model_t *cmodel, const vec3_t inmins, const vec3_t inmaxs, vec3_t outmins, vec3_t outmaxs)
 {
@@ -4153,7 +4178,7 @@ int Mod_Q1BSP_Load(model_t *mod, void *buffer, void *bufferend)
 		{
 			// LadyHavoc: empty submodel(lacrima.bsp has such a glitch)
 			// Baker: This happens a lot
-			Con_PrintLinef (CON_WARN "warning: empty submodel *%d in %s", i+1, loadmodel->model_name);
+			Con_DPrintLinef (CON_WARN "warning: empty submodel *%d in %s", i+1, loadmodel->model_name);
 		}
 		//mod->brushq1.num_visleafs = bm->visleafs;
 
@@ -4364,7 +4389,7 @@ static void Mod_Q2BSP_LoadTexinfo(sizebuf_t *sb)
 		// find an existing match for the texture if possible
 		dpsnprintf(filename, sizeof(filename), "textures/%s.wal", out->q2texture);
 		for (j = 0;j < loadmodel->num_texturesperskin;j++)
-			if (String_Does_Match(filename, loadmodel->data_textures[j].name)
+			if (String_Match(filename, loadmodel->data_textures[j].name)
 			 && out->q2flags == loadmodel->data_textures[j].q2flags
 			 && out->q2value == loadmodel->data_textures[j].q2value)
 				break;
@@ -5080,7 +5105,7 @@ static void Mod_Q2BSP_Load(model_t *mod, void *buffer, void *bufferend)
 		else
 		{
 			// Baker: This happens a lot
-			Con_PrintLinef (CON_WARN "warning: empty submodel *%d in %s", i+1, loadmodel->model_name);
+			Con_DPrintLinef (CON_WARN "warning: empty submodel *%d in %s", i+1, loadmodel->model_name);
 		}
 		//mod->brushq1.num_visleafs = bm->visleafs;
 
@@ -5139,7 +5164,7 @@ static void Mod_Q3BSP_LoadEntities(lump_t *l)
 			if (!COM_ParseToken_Simple(&data, false, false, true))
 				break; // error
 			strlcpy(value, com_token, sizeof(value));
-			if (String_Does_Match_Caseless("gridsize", key)) // this one is case insensitive to 100% match q3map2
+			if (String_Match_Caseless("gridsize", key)) // this one is case insensitive to 100% match q3map2
 			{
 #if _MSC_VER >= 1400
 #define sscanf sscanf_s
@@ -5155,14 +5180,14 @@ static void Mod_Q3BSP_LoadEntities(lump_t *l)
 					VectorCopy(v, loadmodel->brushq3.num_lightgrid_cellsize);
 #endif
 			}
-			else if (String_Does_Match("deluxeMaps", key))
+			else if (String_Match("deluxeMaps", key))
 			{
-				if (String_Does_Match(com_token, "1"))
+				if (String_Match(com_token, "1"))
 				{
 					loadmodel->brushq3.deluxemapping = true;
 					loadmodel->brushq3.deluxemapping_modelspace = true;
 				}
-				else if (String_Does_Match(com_token, "2"))
+				else if (String_Match(com_token, "2"))
 				{
 					loadmodel->brushq3.deluxemapping = true;
 					loadmodel->brushq3.deluxemapping_modelspace = false;
@@ -5712,7 +5737,7 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 		if (((realindex + 1) & (mergedrowsxcolumns - 1)) == 0 || (realindex + 1) == realcount)
 		{
 			if (loadmodel->brushq3.deluxemapping && (i & 1))
-				loadmodel->brushq3.data_deluxemaps[lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "deluxemap%04i", lightmapindex), mergedwidth, mergedheight, mergeddeluxepixels, TEXTYPE_BGRA, TEXF_FORCELINEAR | (gl_texturecompression_q3bspdeluxemaps.integer ? TEXF_COMPRESS : 0), -1, NULL);
+				loadmodel->brushq3.data_deluxemaps[lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "deluxemap%04i", lightmapindex), mergedwidth, mergedheight, mergeddeluxepixels, TEXTYPE_BGRA, TEXF_FORCELINEAR | (gl_texturecompression_q3bspdeluxemaps.integer ? TEXF_COMPRESS : 0), q_tx_miplevel_neg1, q_tx_palette_NULL);
 			else
 			{
 				if (mod_q3bsp_sRGBlightmaps.integer)
@@ -5725,13 +5750,13 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 					}
 					else
 						t = TEXTYPE_SRGB_BGRA; // normally, we upload lightmaps in sRGB form (possibly downconverted to linear)
-					loadmodel->brushq3.data_lightmaps [lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "lightmap%04i", lightmapindex), mergedwidth, mergedheight, mergedpixels, t, TEXF_FORCELINEAR | (gl_texturecompression_q3bsplightmaps.integer ? TEXF_COMPRESS : 0), -1, NULL);
+					loadmodel->brushq3.data_lightmaps [lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "lightmap%04i", lightmapindex), mergedwidth, mergedheight, mergedpixels, t, TEXF_FORCELINEAR | (gl_texturecompression_q3bsplightmaps.integer ? TEXF_COMPRESS : 0), q_tx_miplevel_neg1, q_tx_palette_NULL);
 				}
 				else
 				{
 					if (vid_sRGB.integer && vid_sRGB_fallback.integer && !vid.sRGB3D)
 						Image_MakesRGBColorsFromLinear_Lightmap(mergedpixels, mergedpixels, mergedwidth * mergedheight);
-					loadmodel->brushq3.data_lightmaps [lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "lightmap%04i", lightmapindex), mergedwidth, mergedheight, mergedpixels, TEXTYPE_BGRA, TEXF_FORCELINEAR | (gl_texturecompression_q3bsplightmaps.integer ? TEXF_COMPRESS : 0), -1, NULL);
+					loadmodel->brushq3.data_lightmaps [lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "lightmap%04i", lightmapindex), mergedwidth, mergedheight, mergedpixels, TEXTYPE_BGRA, TEXF_FORCELINEAR | (gl_texturecompression_q3bsplightmaps.integer ? TEXF_COMPRESS : 0), q_tx_miplevel_neg1, q_tx_palette_NULL);
 				}
 			}
 		}
@@ -6333,9 +6358,12 @@ static void Mod_Q3BSP_LoadLeafs(lump_t *l)
 		out->areaindex = LittleLong(in->areaindex);
 		for (j = 0;j < 3;j++)
 		{
-			// yes the mins/maxs are ints
-			out->mins[j] = LittleLong(in->mins[j]) - 1;
-			out->maxs[j] = LittleLong(in->maxs[j]) + 1;
+			//// yes the mins/maxs are ints
+			//out->mins[j] = LittleLong(in->mins[j]) - 1;
+			//out->maxs[j] = LittleLong(in->maxs[j]) + 1;
+			// bones_was_here: the cast prevents signed underflow with poon-wood.bsp
+			out->mins[j] = (vec_t)LittleLong(in->mins[j]) - 1;
+			out->maxs[j] = (vec_t)LittleLong(in->maxs[j]) + 1;
 		}
 		n = LittleLong(in->firstleafface);
 		c = LittleLong(in->numleaffaces);
@@ -7725,6 +7753,7 @@ int Mod_OBJ_Load(model_t *mod, void *buffer, void *bufferend)
 	int *submodelfirstsurface;
 	msurface_t *tempsurface;
 	msurface_t *tempsurfaces;
+	int idx;
 
 	memset(&vfirst, 0, sizeof(vfirst));
 	memset(&vprev, 0, sizeof(vprev));
@@ -7786,8 +7815,15 @@ int Mod_OBJ_Load(model_t *mod, void *buffer, void *bufferend)
 	loadmodel->brush.numsubmodels = 1;
 
 	// parse the OBJ text now
-	for(;;)
-	{
+	for(;;) {
+		// Baker: Used are 
+		// "usemtl" "o" or "g"
+		// "v" "vt" "vn" "f"
+		// 
+		// Ignored: "s" "mtllib"
+		// Baker:
+		// tagname propellor_topz -50.2 0.0 26.8
+		// tagname propellor_rear 102.8 0.7 20.6
 		static char emptyarg[1] = "";
 		if (!*text)
 			break;
@@ -7822,15 +7858,16 @@ int Mod_OBJ_Load(model_t *mod, void *buffer, void *bufferend)
 			continue;
 		if (argv[0][0] == '#')
 			continue;
-		if (String_Does_Match(argv[0], "v"))
-		{
+		if (String_Match(argv[0], "v")) {
 			if (maxv <= numv)
 			{
 				maxv = max(maxv * 2, 1024);
 				obj_v = (float *)Mem_Realloc(tempmempool, obj_v, maxv * sizeof(float[3]));
 			}
-			if (mod_obj_orientation.integer)
-			{
+			if (mod_obj_orientation.integer /*d: 1*/) {
+				// Baker: This is the norm
+				// For v xxx yyy zzz
+				// switch the yyy and zzz for Quake
 				obj_v[numv*3+0] = atof(argv[1]);
 				obj_v[numv*3+2] = atof(argv[2]);
 				obj_v[numv*3+1] = atof(argv[3]);
@@ -7843,10 +7880,38 @@ int Mod_OBJ_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 			numv++;
 		}
-		else if (String_Does_Match(argv[0], "vt"))
-		{
-			if (maxvt <= numvt)
-			{
+		// Baker: modification "tagname"
+		else if (String_Match(argv[0], "tagname")) {
+		// tagname propellor_topz -50.2 0.0 26.8
+		// tagname propellor_rear 102.8 0.7 20.6
+		// TAGALIASX 
+			loadmodel->num_tagframes = 1; // loadmodel->numframes; // Just 1 right?
+			idx = loadmodel->num_tags ++;
+			loadmodel->data_tags = 
+				(aliastag_t *)Mem_Realloc(loadmodel->mempool, loadmodel->data_tags, 
+					loadmodel->num_tagframes * loadmodel->num_tags * sizeof(aliastag_t));
+
+			c_strlcpy (loadmodel->data_tags[idx].name, argv[1]);
+
+			loadmodel->data_tags[idx].matrixgl[9] = atof(argv[2]);
+			loadmodel->data_tags[idx].matrixgl[10] = atof(argv[3]);
+			loadmodel->data_tags[idx].matrixgl[11] = atof(argv[4]);
+
+			// Baker: Throw an identity matrix in there for now, is this right?
+			loadmodel->data_tags[idx].matrixgl[0] = 1;
+			loadmodel->data_tags[idx].matrixgl[1] = 0;
+			loadmodel->data_tags[idx].matrixgl[2] = 0;
+
+			loadmodel->data_tags[idx].matrixgl[3] = 0;
+			loadmodel->data_tags[idx].matrixgl[4] = 1;
+			loadmodel->data_tags[idx].matrixgl[5] = 0;
+
+			loadmodel->data_tags[idx].matrixgl[6] = 0;
+			loadmodel->data_tags[idx].matrixgl[7] = 0;
+			loadmodel->data_tags[idx].matrixgl[8] = 1;
+
+		} else if (String_Match(argv[0], "vt")) {
+			if (maxvt <= numvt) {
 				maxvt = max(maxvt * 2, 1024);
 				obj_vt = (float *)Mem_Realloc(tempmempool, obj_vt, maxvt * sizeof(float[2]));
 			}
@@ -7854,7 +7919,7 @@ int Mod_OBJ_Load(model_t *mod, void *buffer, void *bufferend)
 			obj_vt[numvt*2+1] = 1-atof(argv[2]);
 			numvt++;
 		}
-		else if (String_Does_Match(argv[0], "vn"))
+		else if (String_Match(argv[0], "vn"))
 		{
 			if (maxvn <= numvn)
 			{
@@ -7875,7 +7940,7 @@ int Mod_OBJ_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 			numvn++;
 		}
-		else if (String_Does_Match(argv[0], "f"))
+		else if (String_Match(argv[0], "f"))
 		{
 			if (!numtextures)
 			{
@@ -7958,15 +8023,20 @@ int Mod_OBJ_Load(model_t *mod, void *buffer, void *bufferend)
 				vprev = vcurrent;
 			}
 		}
-		else if (String_Does_Match(argv[0], "o") || String_Does_Match(argv[0], "g"))
+		
+		else if (String_Match(argv[0], "o") || String_Match(argv[0], "g"))
 		{
+			// Baker: ? we are changing the brush.numsubmodels based on "g" or "o"
+			// Which usually does not even have a number for arg1?
+			// Baker: This is expand only
+			// For my helicopter, it gets 0 every time and then sets 1 again
+			// What about KleskBY stuff?
 			submodelindex = atof(argv[1]);
 			loadmodel->brush.numsubmodels = max(submodelindex + 1, loadmodel->brush.numsubmodels);
 		}
-		else if (String_Does_Match(argv[0], "usemtl"))
-		{
+		else if (String_Match(argv[0], "usemtl")) {
 			for (i = 0;i < numtextures;i++)
-				if (String_Does_Match(texturenames+i*MAX_QPATH_128, argv[1]))
+				if (String_Match(texturenames+i * MAX_QPATH_128, argv[1]))
 					break;
 			if (i < numtextures)
 				textureindex = i;
@@ -7978,9 +8048,11 @@ int Mod_OBJ_Load(model_t *mod, void *buffer, void *bufferend)
 					texturenames = (char *)Mem_Realloc(loadmodel->mempool, texturenames, maxtextures * MAX_QPATH_128);
 				}
 				textureindex = numtextures++;
-				strlcpy(texturenames + textureindex*MAX_QPATH_128, argv[1], MAX_QPATH_128);
+				strlcpy (texturenames + textureindex*MAX_QPATH_128, argv[1], MAX_QPATH_128);
 			}
 		}
+
+		// Baker: DarkPlaces ignores mtllib, treats o and g the same
 	}
 
 	// now that we have the OBJ data loaded as-is, we can convert it

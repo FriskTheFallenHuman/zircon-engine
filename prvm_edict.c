@@ -32,11 +32,11 @@ prvm_eval_t prvm_badvalue; // used only for error returns
 cvar_t prvm_language = {CF_CLIENT | CF_SERVER | CF_ARCHIVE, "prvm_language", "", "when set, loads PROGSFILE.LANGUAGENAME.po and common.LANGUAGENAME.po for string translations; when set to dump, PROGSFILE.pot is written from the strings in the progs"};
 
 // Baker r7084: gamecommand autocomplete
-cvar_t prvm_sv_gamecommands = {CF_SERVER, "prvm_sv_gamecommands", "", "Space delimited list of GameCommands for SV.  Set via progs to provide engine information for console autocomplete of sv_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
-cvar_t prvm_sv_progfields = {CF_SERVER, "prvm_sv_progfields", "", "Space delimited list of SV prog fieldnames.  Set via progs to provide engine information for console autocomplete of sv_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
+cvar_t prvm_sv_gamecommands = {CF_SERVER | SV_RESETNEWMAP_0, "prvm_sv_gamecommands", "", "Space delimited list of GameCommands for SV.  Set via progs to provide engine information for console autocomplete of sv_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
+cvar_t prvm_sv_progfields = {CF_SERVER | SV_RESETNEWMAP_0, "prvm_sv_progfields", "", "Space delimited list of SV prog fieldnames.  Set via progs to provide engine information for console autocomplete of sv_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
 
-cvar_t prvm_cl_gamecommands = {CF_CLIENT, "prvm_cl_gamecommands", "", "Space delimited list of GameCommands for CL.  Set via progs to provide engine information for console autocomplete of cl_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
-cvar_t prvm_cl_progfields = {CF_CLIENT, "prvm_cl_progfields", "", "Space delimited list of CL prog fieldnames.  Set via progs to provide engine information for console autocomplete of cl_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
+cvar_t prvm_cl_gamecommands = {CF_CLIENT | CL_RESETNEWMAP_0, "prvm_cl_gamecommands", "", "Space delimited list of GameCommands for CL.  Set via progs to provide engine information for console autocomplete of cl_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
+cvar_t prvm_cl_progfields = {CF_CLIENT | CL_RESETNEWMAP_0, "prvm_cl_progfields", "", "Space delimited list of CL prog fieldnames.  Set via progs to provide engine information for console autocomplete of cl_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
 
 //cvar_t prvm_menu_gamecommands = {CF_MENU, "prvm_menu_gamecommands", "", "Space delimited list of GameCommands for MENU.  Set via progs to provide engine information for console autocomplete of menu_cmd [Zircon]"};
 
@@ -120,6 +120,7 @@ void PRVM_MEM_IncreaseEdicts(prvm_prog_t *prog)
 	prog->max_edicts = min(prog->max_edicts + 256, prog->limit_edicts);
 
 	prog->entityfieldsarea = prog->entityfields * prog->max_edicts;
+	size_t szthis = sizeof(prvm_vec_t);
 	prog->edictsfields.fp = (prvm_vec_t*)Mem_Realloc(prog->progs_mempool, (void *)prog->edictsfields.fp, prog->entityfieldsarea * sizeof(prvm_vec_t));
 	prog->edictprivate = (void *)Mem_Realloc(prog->progs_mempool, (void *)prog->edictprivate, prog->max_edicts * prog->edictprivate_size);
 
@@ -170,12 +171,12 @@ PRVM_ProgFromString
 */
 prvm_prog_t *PRVM_ProgFromString(const char *str)
 {
-	if (String_Does_Match(str, "server"))
+	if (String_Match(str, "server"))
 		return SVVM_prog;
-	if (String_Does_Match(str, "client"))
+	if (String_Match(str, "client"))
 		return CLVM_prog;
 #ifdef CONFIG_MENU
-	if (String_Does_Match(str, "menu"))
+	if (String_Match(str, "menu"))
 		return MVM_prog;
 #endif
 	return NULL;
@@ -385,7 +386,7 @@ mdef_t *PRVM_ED_FindField (prvm_prog_t *prog, const char *name)
 	for (i = 0;i < prog->numfielddefs;i++)
 	{
 		def = &prog->fielddefs[i];
-		if (String_Does_Match(PRVM_GetString(prog, def->s_name), name))
+		if (String_Match(PRVM_GetString(prog, def->s_name), name))
 			return def;
 	}
 	return NULL;
@@ -404,7 +405,7 @@ mdef_t *PRVM_ED_FindGlobal (prvm_prog_t *prog, const char *name)
 	for (i = 0;i < prog->numglobaldefs;i++)
 	{
 		def = &prog->globaldefs[i];
-		if (String_Does_Match(PRVM_GetString(prog, def->s_name), name))
+		if (String_Match(PRVM_GetString(prog, def->s_name), name))
 			return def;
 	}
 	return NULL;
@@ -434,7 +435,7 @@ mfunction_t *PRVM_ED_FindFunction (prvm_prog_t *prog, const char *name)
 	for (i = 0;i < prog->numfunctions;i++)
 	{
 		func = &prog->functions[i];
-		if (String_Does_Match(PRVM_GetString(prog, func->s_name), name))
+		if (String_Match(PRVM_GetString(prog, func->s_name), name))
 			return func;
 	}
 	return NULL;
@@ -547,6 +548,9 @@ char *PRVM_UglyValueString (prvm_prog_t *prog, etype_t type, prvm_eval_t *val, c
 				line[i++] = '\\';
 				line[i++] = 'r';
 			}
+			// Baker: It is said this problematic.  SLASHX
+			// However, on read how would it discover newlines in a string otherwise?
+			// But also does it work currently with newlines?
 			else if (*s == '\\')
 			{
 				line[i++] = '\\';
@@ -704,7 +708,7 @@ void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, co
 			if (j == prvm_type_size[type])
 				continue;
 
-			if (String_Does_Contain (name, s_fieldname_partial /*"targetname"*/)) {
+			if (String_Contains (name, s_fieldname_partial /*"targetname"*/)) {
 				name = PRVM_ValueString(prog, (etype_t)d->type, val, valuebuf, sizeof(valuebuf));
 
 				if (strlen(name) > sizeof(tempstring2)-4) {
@@ -714,7 +718,7 @@ void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, co
 					name = tempstring2;
 				}
 				c_strlcat(tempstring, name);
-				if (String_Does_Contain (tempstring, s_fieldvalue_partial) == false) {
+				if (String_Contains (tempstring, s_fieldvalue_partial) == false) {
 					// disqual
 					//return;
 
@@ -1289,7 +1293,7 @@ static void PRVM_GameCommand(cmd_state_t *cmd, const char *whichprogs, const cha
 	prvm_prog_t *prog;
 	if (Cmd_Argc(cmd) < 1)
 	{
-		Con_Printf ("%s text...\n", whichcmd);
+		Con_PrintLinef ("%s text...", whichcmd);
 		return;
 	}
 
@@ -1298,7 +1302,7 @@ static void PRVM_GameCommand(cmd_state_t *cmd, const char *whichprogs, const cha
 
 	if (!PRVM_allfunction(GameCommand))
 	{
-		Con_Printf ("%s program do not support GameCommand!\n", whichprogs);
+		Con_PrintLinef ("%s program do not support GameCommand!", whichprogs);
 	}
 	else
 	{
@@ -1457,7 +1461,7 @@ ed should be a properly initialized empty edict.
 Used for initial level load and for savegames.
 ====================
 */
-const char *PRVM_ED_ParseEdict (prvm_prog_t *prog, const char *data, prvm_edict_t *ent)
+const char *PRVM_ED_ParseEdict (prvm_prog_t *prog, const char *data, prvm_edict_t *ent, qbool is_saveload)
 {
 	mdef_t *key;
 	qbool anglehack;
@@ -1471,7 +1475,8 @@ const char *PRVM_ED_ParseEdict (prvm_prog_t *prog, const char *data, prvm_edict_
 	while (1)
 	{
 	// parse key
-		if (!COM_ParseToken_Simple(&data, false, false, true))
+		//if (!COM_ParseToken_Simple(&data, false, false, true))
+		if (!COM_ParseToken_Simple(&data, false, is_saveload, true)) // ITK #6
 			prog->error_cmd("PRVM_ED_ParseEdict: EOF without closing brace");
 		if (developer_entityparsing.integer)
 			Con_Printf ("Key: " QUOTED_S, com_token);
@@ -1480,7 +1485,7 @@ const char *PRVM_ED_ParseEdict (prvm_prog_t *prog, const char *data, prvm_edict_
 
 		// anglehack is to allow QuakeEd to write single scalar angles
 		// and allow them to be turned into vectors. (FIXME...)
-		if (String_Does_Match(com_token, "angle"))
+		if (String_Match(com_token, "angle"))
 		{
 			strlcpy (com_token, "angles", sizeof(com_token));
 			anglehack = true;
@@ -1489,7 +1494,7 @@ const char *PRVM_ED_ParseEdict (prvm_prog_t *prog, const char *data, prvm_edict_
 			anglehack = false;
 
 		// FIXME: change light to _light to get rid of this hack
-		if (String_Does_Match(com_token, "light"))
+		if (String_Match(com_token, "light"))
 			strlcpy (com_token, "light_lev", sizeof(com_token));	// hack for single light def
 
 		strlcpy (keyname, com_token, sizeof(keyname));
@@ -1620,11 +1625,26 @@ qbool PRVM_ED_CallSpawnFunction(prvm_prog_t *prog, prvm_edict_t *ent, const char
 			}
 			else
 			{
-				Con_PrintLinef (CON_WARN "No spawn function for:");
-				//if (developer.integer > 0) // don't confuse non-developers with errors
-					PRVM_ED_Print(prog, ent, q_vm_printfree_true, q_vm_wildcard_NULL, 
-					q_vm_classname_NULL, q_vm_targetname_NULL);
-
+				//                                                              1 = ALWAYS  : 0 = NEVER
+				qbool shall_player_print = developer_spawnfunction_warnings.integer ? true : false;
+				if (developer_spawnfunction_warnings.integer == -3) {
+					// War
+					qbool is_non_quake1 = sv_mapformat_is_quake2.integer ||
+						sv_mapformat_is_quake3.integer || halflifebsp.integer;
+					//                                   Q3      Q1
+					shall_player_print = is_non_quake1 ? false : true;
+				}
+				if (shall_player_print) {
+					Con_PrintLinef (CON_WARN "No spawn function for:");
+					//if (developer.integer > 0) // don't confuse non-developers with errors
+						PRVM_ED_Print(prog, ent, q_vm_printfree_true, q_vm_wildcard_NULL,
+						q_vm_classname_NULL, q_vm_targetname_NULL);
+				} else {
+					Con_DPrintLinef (CON_WARN "No spawn function for:");
+					if (developer.integer > 0) // don't confuse non-developers with errors
+						PRVM_ED_Print(prog, ent, q_vm_printfree_true, q_vm_wildcard_NULL,
+						q_vm_classname_NULL, q_vm_targetname_NULL);
+				}
 				PRVM_ED_Free (prog, ent);
 				return false; // not included in "inhibited" count
 			}
@@ -1706,7 +1726,7 @@ void PRVM_ED_LoadFromFile (prvm_prog_t *prog, const char *data)
 		if (ent != prog->edicts)	// hack
 			memset (ent->fields.fp, 0, prog->entityfields * sizeof(prvm_vec_t));
 
-		data = PRVM_ED_ParseEdict (prog, data, ent);
+		data = PRVM_ED_ParseEdict (prog, data, ent, q_is_saveload_false); // ITK #3
 		parsed++;
 
 		// remove the entity ?
@@ -2076,7 +2096,7 @@ static const char *PRVM_PO_Lookup(po_t *po, const char *str)
 	po_string_t *p = po->hashtable[hashindex];
 	while(p)
 	{
-		if (String_Does_Match(str, p->key))
+		if (String_Match(str, p->key))
 			return p->value;
 		p = p->nextonhashchain;
 	}
@@ -2714,8 +2734,8 @@ const char *PRVM_Prog_Load(prvm_prog_t *prog, const char * filename, unsigned ch
 				}
 			}
 		}
-		
-		if (String_Does_Match(prvm_language.string, "dump")) {
+
+		if (String_Match(prvm_language.string, "dump")) {
 			qfile_t *f = FS_OpenRealFile(va(vabuf, sizeof(vabuf), "%s.pot", realfilename), "w", fs_quiet_FALSE); // WRITEON - prog dump (DONE)
 			Con_PrintLinef ("Dumping to %s.pot", realfilename);
 			if (f)
@@ -2886,7 +2906,7 @@ fail:
 		;
 	}
 
-	prog->loaded = true;
+	SET___ prog->loaded = true;
 
 	PRVM_UpdateBreakpoints(prog);
 
@@ -3154,7 +3174,7 @@ static debug_data_t debug_data[PRVM_PROG_MAX_3];
 void PRVM_Breakpoint(prvm_prog_t *prog, int stack_index, const char *text)
 {
 	char vabuf[1024];
-	Con_Printf ("PRVM_Breakpoint: %s\n", text);
+	Con_PrintLinef ("PRVM_Breakpoint: %s", text);
 	PRVM_PrintState(prog, stack_index);
 	if (prvm_breakpointdump.integer)
 		SV_Savegame_to(prog, q_savestring_NULL, va(vabuf, sizeof(vabuf), "breakpoint-%s.dmp", prog->name), q_is_siv_write_false, /*totaltimeatlastexit*/ 0);
@@ -3372,7 +3392,7 @@ const char *PRVM_GetString(prvm_prog_t *prog, int num)
 	{
 		// invalid
 		if (prvm_stringdebug.integer)
-			VM_Warning(prog, "PRVM_GetString: Invalid string offset (%d < 0)\n", num);
+			VM_Warningf(prog, "PRVM_GetString: Invalid string offset (%d < 0)\n", num);
 		return "";
 	}
 	else if (num < prog->stringssize)
@@ -3389,7 +3409,7 @@ const char *PRVM_GetString(prvm_prog_t *prog, int num)
 		else
 		{
 			if (prvm_stringdebug.integer)
-				VM_Warning(prog, "PRVM_GetString: Invalid temp-string offset (%d >= %d prog->tempstringsbuf.cursize)\n", num, prog->tempstringsbuf.cursize);
+				VM_Warningf(prog, "PRVM_GetString: Invalid temp-string offset (%d >= %d prog->tempstringsbuf.cursize)\n", num, prog->tempstringsbuf.cursize);
 			return "";
 		}
 	}
@@ -3402,7 +3422,7 @@ const char *PRVM_GetString(prvm_prog_t *prog, int num)
 			if (!prog->knownstrings[num])
 			{
 				if (prvm_stringdebug.integer)
-					VM_Warning(prog, "PRVM_GetString: Invalid zone-string offset (%d has been freed)\n", num);
+					VM_Warningf(prog, "PRVM_GetString: Invalid zone-string offset (%d has been freed)\n", num);
 				return "";
 			}
 			// refresh the garbage collection on the string - this guards
@@ -3415,7 +3435,7 @@ const char *PRVM_GetString(prvm_prog_t *prog, int num)
 		else
 		{
 			if (prvm_stringdebug.integer)
-				VM_Warning(prog, "PRVM_GetString: Invalid zone-string offset (%d >= %d)\n", num, prog->numknownstrings);
+				VM_Warningf(prog, "PRVM_GetString: Invalid zone-string offset (%d >= %d)\n", num, prog->numknownstrings);
 			return "";
 		}
 	}
@@ -3423,7 +3443,7 @@ const char *PRVM_GetString(prvm_prog_t *prog, int num)
 	{
 		// invalid string offset
 		if (prvm_stringdebug.integer)
-			VM_Warning(prog, "PRVM_GetString: Invalid constant-string offset (%d >= %d prog->stringssize)\n", num, prog->stringssize);
+			VM_Warningf(prog, "PRVM_GetString: Invalid constant-string offset (%d >= %d prog->stringssize)\n", num, prog->stringssize);
 		return "";
 	}
 }
@@ -3696,7 +3716,7 @@ static qbool PRVM_IsEdictReferenced(prvm_prog_t *prog, prvm_edict_t *edict, int 
 		{
 			const char *target = PRVM_GetString(prog, PRVM_serveredictstring(ed, target));
 			if (target)
-				if (String_Does_Match(target, targetname))
+				if (String_Match(target, targetname))
 					return true;
 		}
 		for (i=0; i<prog->numfielddefs; ++i)
@@ -3966,10 +3986,10 @@ void PRVM_GarbageCollection(prvm_prog_t *prog)
 
 /*
 ===============
-PRVM_Init
+PRVM_InitOnce
 ===============
 */
-void PRVM_Init (void)
+void PRVM_InitOnce (void)
 {
 	Cmd_AddCommand(CF_SHARED, "prvm_edict", PRVM_ED_PrintEdict_f, "print all data about an entity number in the selected VM (server, client, menu)");
 	Cmd_AddCommand(CF_SHARED, "prvm_edicts", PRVM_ED_PrintEdicts_f, "prints all data about all entities in the selected VM (server, client, menu)");
@@ -4007,7 +4027,7 @@ void PRVM_Init (void)
 	Cvar_RegisterVariable (&prvm_cl_gamecommands); // Baker r7103 gamecommand autocomplete
 	Cvar_RegisterVariable (&prvm_cl_progfields); // Baker r7103 gamecommand autocomplete
 
-#pragma message ("Baker: At some point revive prvm_menu_gamecommands, lack of CF_MENU is why we stall")
+	// #pragma message ("Baker: At some point revive prvm_menu_gamecommands, lack of CF_MENU is why we stall")
 	// Cvar_RegisterVariable (&prvm_menu_gamecommands);
 	// End
 
@@ -4034,4 +4054,244 @@ void PRVM_Init (void)
 	prvm_runawaycheck = !Sys_CheckParm("-norunaway");
 
 	//VM_Cmd_Init();
+}
+
+
+//void PRVM_ED_PrintEdicts_Feed (prvm_prog_t *prog, const char *s_fieldname_partial, const char *s_fieldvalue_partial)
+//{
+//	int		edict_num;
+//	const char *wildcard_fieldname = NULL;
+//	const char *s_fieldname_partial = "";
+//	const char *s_fieldvalue_partial = "";
+//
+//	if (Cmd_Argc(cmd) == 3) {
+//		// gcc unused ... const char *s_arg1 = Cmd_Argv(cmd, 1);
+//		//int isnumeric = isdigit(s_arg1[0]);
+//		s_fieldname_partial = Cmd_Argv(cmd, 1);
+//		s_fieldvalue_partial = Cmd_Argv(cmd, 2);
+//	}
+//	else if (Cmd_Argc(cmd) == 2) {
+//		s_fieldname_partial = "classname";
+//		s_fieldvalue_partial = Cmd_Argv(cmd, 1);
+//	}
+//
+//	if (Cmd_Argc(cmd) == 3) {
+//		Con_PrintLinef ("%s: entities with field " QUOTED_S " containing " QUOTED_S,
+//			prog->name, s_fieldname_partial, s_fieldvalue_partial);
+//	} else if (Cmd_Argc(cmd) == 2) {
+//		Con_PrintLinef ("%s: entities with classname containing " QUOTED_S, prog->name, s_fieldvalue_partial);
+//	} else {
+//		Con_PrintLinef ("%s: %d entities", prog->name, prog->num_edicts);
+//	}
+//
+//	// Baker: Any search criteria and we don't print "free"
+//	int shall_print_free = !s_fieldname_partial || s_fieldname_partial[0] == NULL_CHAR_0;
+//
+//	for (edict_num = 0 ; edict_num < prog->num_edicts ; edict_num ++)
+//		PRVM_ED_PrintNum (prog, edict_num, shall_print_free, wildcard_fieldname, s_fieldname_partial, s_fieldvalue_partial);
+//}
+
+//typedef int stringlistsort_start_length_cmp(const void *_a, const void *_b)
+
+WARP_X_ (PRVM_ED_FindGlobal)
+void PRVM_Globals_Query (prvm_prog_t *prog, feed_fn_t myfeed_shall_stop)
+{
+	char vabuf[1024];
+	char valuebuf[MAX_INPUTLINE_16384]; // QuakeC values written to this.
+//	int count = 0;
+	for (int idx = 0; idx < prog->numglobaldefs; idx ++) {
+		mdef_t *def = &prog->globaldefs[idx];
+
+		//if (false == String_Match(s, name))
+		//	continue;
+
+		int type = def->type;
+
+		// Baker: Type can be zero -- examples .. "self"
+		const char *s_key = PRVM_GetString(prog, def->s_name);
+
+		if (false == Have_Flag (def->type, DEF_SAVEGLOBAL))
+			continue; // self, other, ...
+
+		int vartype = Flag_Remove(type, DEF_SAVEGLOBAL);
+
+		// Baker: What are the types that are rejected here? .. vector  cause xyz is wriiten
+		// filter _x _y _z
+		if (false == isin4 (vartype, ev_string_1, ev_float_2, ev_vector_3, ev_entity_4))
+			continue;
+
+		// Any of the following suffix we ignore, covered by vector.
+		if (vartype == ev_float_2 && String_Ends_With_Caseless_3 (s_key, "_x", "_y", "_z"))
+			continue;
+
+
+//		if (developer_entityparsing.integer)
+//			Con_PrintLinef ("PRVM_ED_WriteGlobals: at global %s", name);
+
+		// Baker: prog->statestring provides the current action in case of a crash
+		prog->statestring = va(vabuf, sizeof(vabuf), "PRVM_ED_WriteGlobals, name=%s", s_key);
+		PRVM_UglyValueString (prog, (etype_t)vartype, (prvm_eval_t *)&prog->globals.fp[def->ofs], valuebuf, sizeof(valuebuf));
+		prog->statestring = NULL;
+
+		qbool shall_stop = myfeed_shall_stop (idx, s_key, valuebuf, NULL, NULL, NULL, vartype, 1, 2);
+		if (shall_stop)
+			break;
+	}
+//	return count;
+}
+
+WARP_X_ (PRVM_ED_FindField ZDev_Fields_Feed_Shall_Stop_Fn)
+// sendentity is 348 aiment is 101 and 214
+// ammo_cells is 69 and 235
+// 0 is "", model index is 1.
+// There are 77 required vars in quake .. 14 are vectors that would be 3 fields so add 14*2 28 = 105
+// But I still can't figure out the pattern, anyway, check unique.  There are dups
+// The last one is float	modelindex (1 and 318); to string_t	noise3 (119/372);
+WARP_X_ (entvars_s)
+WARP_X_ (VM_numentityfields VM_entityfieldtype)
+void PRVM_Fields_Query (prvm_prog_t *prog, feed_fn_t myfeed_shall_stop)
+{
+	//int count = 0;
+	// For reasons not known at this time
+	// There are system fields ...
+	for (int idx = 0; idx < prog->numfielddefs; idx ++) {
+		mdef_t		*def	= &prog->fielddefs[idx];
+		int			type	= def->type;
+		int			vartype	= Flag_Remove(type, DEF_SAVEGLOBAL);
+		const char	*s_key	= PRVM_GetString(prog, def->s_name);
+
+//		if (false == Have_Flag (def->type, DEF_SAVEGLOBAL))
+//			continue; // helps or not?
+
+		//if (in_range(105,idx,110))
+		//	int k = 4;
+		//if (String_Match(s_key, "modelindex"))
+		//	int j = 4;
+
+		if (vartype == ev_float_2 && String_Ends_With_Caseless_3 (s_key, "_x", "_y", "_z"))
+			continue;
+
+		qbool shall_stop = myfeed_shall_stop (idx, s_key, NULL, NULL, NULL, NULL,
+			vartype, def->type, 2);
+		if (shall_stop)
+			break;
+	}
+
+//	return count;
+}
+
+
+
+WARP_X_ (PRVM_ED_PrintEdicts_Either PRVM_ED_PrintNum PRVM_ED_Print)
+
+// Do whatever save game does.
+void PRVM_Entities_Query_Fieldname (prvm_prog_t *prog, feed2_fn_t myfeed_shall_stop, ccs *s_fieldname_or_null /*like classname*/)
+{
+	WARP_X_ (PRVM_ED_PrintNum)
+	qbool shall_stop = false;
+	for (int edict_num = 0 ; edict_num < prog->num_edicts ; edict_num ++) {
+		prvm_edict_t	*ed = PRVM_EDICT_NUM(edict_num);
+
+		for (int fieldnum = 1; fieldnum < prog->numfielddefs; fieldnum ++) {
+			mdef_t	*d = &prog->fielddefs[fieldnum];
+			const char	*s_key = PRVM_GetString(prog, d->s_name);
+
+			//if (s_key == NULL) {
+			//	int j = 5;
+			//}
+
+			// Baker: No field name?  Return on first field
+			if (s_fieldname_or_null == NULL) {
+				shall_stop = myfeed_shall_stop (prog, edict_num, s_key, "", NULL, NULL, NULL, 0, fieldnum, 2);
+				break; // We want out
+			}
+
+			prvm_eval_t	*val = (prvm_eval_t *)(ed->fields.fp + d->ofs);
+
+		// if the value is still all 0, skip the field
+			int		vartype = Flag_Remove(d->type , DEF_SAVEGLOBAL);//& ~DEF_SAVEGLOBAL;
+			int vector_idx;
+			for (vector_idx = 0; vector_idx < prvm_type_size[vartype]; vector_idx ++) {
+				if (val->ivector[vector_idx])
+					break;
+			}
+
+			if (vector_idx == prvm_type_size[vartype])
+				continue;
+
+			//Flex_Writef (QUOTED_S " ", name);
+			//char vabuf[1024];
+			va_super (crash_location, 1024, "PRVM_ED_Write, ent=%d, name=%s", edict_num, s_key);
+			prog->statestring = crash_location;
+
+			char valuebuf[MAX_INPUTLINE_16384];
+			char *s_value = PRVM_UglyValueString(prog, (etype_t)d->type,
+				val, valuebuf, sizeof(valuebuf));
+
+			if (s_key && s_fieldname_or_null && String_Starts_With (s_key, s_fieldname_or_null)) {
+				shall_stop = myfeed_shall_stop (prog, edict_num, s_key, s_value, NULL, NULL, NULL, vartype, fieldnum, 2);
+				if (shall_stop)
+					break; // Then we break again
+			}
+			prog->statestring = NULL;
+		} // each ? um ..
+
+		if (shall_stop)
+			break;
+
+	} // each entity
+
+
+}
+
+char *PRVM_Entities_Query_EdictNum_ZAlloc (prvm_prog_t *prog, int edict_num, ccs *fieldname)
+{
+	WARP_X_ (PRVM_ED_PrintNum)
+	//for (int edict_num = 0 ; edict_num < prog->num_edicts ; edict_num ++) {
+		prvm_edict_t	*ed = PRVM_EDICT_NUM(edict_num);
+//		PRVM_ED_PrintNum (prog, edict_num, shall_print_free, wildcard_fieldname, s_fieldname_partial, s_fieldvalue_partial);
+
+		for (int fieldnum = 1; fieldnum < prog->numfielddefs; fieldnum ++) {
+			mdef_t	*d = &prog->fielddefs[fieldnum];
+			const char	*s_key = PRVM_GetString(prog, d->s_name);
+
+	#if 0 // Let details decide this?
+			if (strlen(name) > 1 && name[strlen(name)-2] == '_')
+				continue;	// skip _x, _y, _z vars, and ALSO other _? vars as some mods expect them to be never saved (TODO: a gameplayfix for using the "more precise" condition above?)
+	#endif
+
+			prvm_eval_t	*val = (prvm_eval_t *)(ed->fields.fp + d->ofs);
+
+		// if the value is still all 0, skip the field
+			int		vartype = Flag_Remove(d->type , DEF_SAVEGLOBAL);//& ~DEF_SAVEGLOBAL;
+			int vector_idx;
+			for (vector_idx = 0; vector_idx < prvm_type_size[vartype]; vector_idx ++)
+				if (val->ivector[vector_idx])
+					break;
+
+			if (vector_idx == prvm_type_size[vartype])
+				continue;
+
+			//Flex_Writef (QUOTED_S " ", name);
+			//char vabuf[1024];
+			va_super (crash_location, 1024, "PRVM_ED_Write, ent=%d, name=%s", edict_num, s_key);
+			prog->statestring = crash_location;
+
+			char valuebuf[MAX_INPUTLINE_16384];
+			char *s_value = PRVM_UglyValueString(prog, (etype_t)d->type,
+				val, valuebuf, sizeof(valuebuf));
+
+			if (String_Match (s_key, fieldname)) {
+
+				return Z_StrDup (s_value);
+				//qbool shall_stop =
+				//myfeed_shall_stop (edict_num, s_key, s_value, NULL, NULL, NULL, vartype, 1, 2);
+				//if (shall_stop)
+				//	break;
+			}
+			prog->statestring = NULL;
+		} // each ? fieldnum
+//	} // each entity
+
+	return NULL;
 }

@@ -135,7 +135,7 @@ void *bakerjpegdecode_open (clvideo_t *video, char *filename, const char **perro
 	// Folder of jpegs like my_vid_20_fps
 
 	// Not a jpeg folder name, get out
-	if (false == String_Does_End_With (filename, "_fps")) {
+	if (false == String_Ends_With (filename, "_fps")) {
 		return NULL;
 	}
 

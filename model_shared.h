@@ -131,7 +131,7 @@ typedef struct surfmesh_s
 	// morph blending, these are zero if model is skeletal or static
 	int num_morphframes;
 	struct md3vertex_s *data_morphmd3vertex;
-	struct trivertx_s *data_morphmdlvertex;
+	struct trivertx_s *data_morphmdlvertex; // ALIASX MDL
 	struct texvecvertex_s *data_morphtexvecvertex;
 	float *data_morphmd2framesize6f;
 	float num_morphmdlframescale[3];
@@ -479,9 +479,11 @@ typedef struct model_s
 	bih_t			collision_bih;
 	bih_t			render_bih; // if not set, use collision_bih instead for rendering purposes too
 	// for md3 models
-	int				num_tags;
-	int				num_tagframes;
-	aliastag_t		*data_tags;
+	int				num_tags;	// TAGX
+	int				num_tagframes; // Baker: TAGX What is this?  ALIASX Usually loadmodel->numframes
+
+	// Baker: These are allocated
+	aliastag_t		*data_tags; // TAGX - MD3 exclusive
 	// for skeletal models
 	int				num_bones;
 	aliasbone_t		*data_bones;
@@ -590,7 +592,7 @@ extern struct cvar_s mod_q3bsp_lightgrid_texture;
 extern struct cvar_s mod_q3bsp_lightgrid_world_surfaces;
 extern struct cvar_s mod_q3bsp_lightgrid_bsp_surfaces;
 
-void Mod_Init (void);
+void Mod_InitOnce (void);
 void Mod_Reload (void);
 model_t *Mod_LoadModel(model_t *mod, qbool crash, qbool checkdisk);
 model_t *Mod_FindName (const char *name, const char *parentname);
@@ -599,6 +601,8 @@ void Mod_UnloadModel (model_t *mod);
 
 void Mod_ClearUsed(void);
 void Mod_PurgeUnused(void);
+void Mod_PurgeALL(void); // Baker: For gamedir change
+
 void Mod_RemoveStaleWorldModels(model_t *skip); // only used during loading!
 
 extern model_t *loadmodel;
@@ -724,6 +728,7 @@ int Mod_Mesh_IndexForVertex(model_t *mod, msurface_t *surf, float x, float y, fl
 void Mod_Mesh_AddTriangle(model_t *mod, msurface_t *surf, int e0, int e1, int e2);
 void Mod_Mesh_Validate(model_t *mod);
 void Mod_Mesh_Finalize(model_t *mod);
+
 
 // Collision optimization using Bounding Interval Hierarchy
 void Mod_CollisionBIH_TracePoint(model_t *model, const struct frameblend_s *frameblend, const struct skeleton_s *skeleton, struct trace_s *trace, const vec3_t start, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask);

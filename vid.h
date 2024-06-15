@@ -59,12 +59,12 @@ typedef struct viddef_mode_s
 {
 	int width;
 	int height;
-	int bitsperpixel;
+	int bitsperpixel_m;
 	qbool fullscreen;
 	float refreshrate;
 	qbool userefreshrate;
 	qbool stereobuffer;
-	int samples;
+	int samples_aa;
 }
 viddef_mode_t;
 
@@ -231,13 +231,13 @@ void *GL_GetProcAddress(const char *name);
 qbool GL_CheckExtension(const char *name, const char *disableparm, int silent);
 qbool GL_ExtensionSupported(const char *name);
 
-void VID_Shared_Init(void);
+void VID_Shared_InitOnce(void);
 
 void GL_Setup(void);
 
 void VID_ClearExtensions(void);
 
-void VID_Init (void);
+void VID_InitOnce (void);
 // Called at startup
 
 void VID_Shutdown (void);
@@ -287,6 +287,37 @@ void VID_ListModes_f(cmd_state_t *cmd); // Mode list that video menu uses
 void Vid_SetWindowTitlef (const char *fmt, ...); // Baker
 void Vid_GetGlobalMouseState (float *px, float *py);
 
+const byte *Bundle_Pointer (int bundle_idx, /*reply*/ size_t *mem_length);
+
+
+typedef enum {
+//	mousepointer_invalid_0 = 0,
+//
+	mousepointer_arrow_default_0	= 0,		// Default
+	mousepointer_text_beam_1		= 1,		// Text
+	mousepointer_hourglass_2		= 2,		// Hourglass
+	mousepointer_crosshair_3		= 3,		// Think image editor
+	mousepointer_waitarrow_4		= 4,		// Hourglass-ish 
+	mousepointer_size_nwse_5		= 5,		// Size diagonal
+	mousepointer_size_nesw_6		= 6,		// Size diagonal
+	mousepointer_size_weast_7		= 7,		// Size east west
+	mousepointer_size_northso_8		= 8,		// Size north south
+	mousepointer_size_all_move_9	= 9,		// Move something
+	mousepointer_prohibited_10		= 10,		// Button or action, in theory, in practice that's an arrow
+	mousepointer_hand_11			= 11,		// Button or action, in theory, in practice that's an arrow
+	
+//	mousepointer_other_12,				// Text
+	mousepointer_baker_column_20 = 20,	// Column sizing
+
+	mousepointer_COUNT_32 = 32
+} mousepointer_e;
+
+#ifdef CONFIG_MENU
+void Vid_Cursor_Load_To_Slot_Maybe (ccs *imagepath, int slot);
+void Vid_Cursor_Set (mousepointer_e mousepointer_wanted);
+void Vid_Cursor_Reset (void);
+#endif // #ifdef CONFIG_MENU
+extern mousepointer_e mousepointer_lastset;
 
 #endif // ! VID_H
 

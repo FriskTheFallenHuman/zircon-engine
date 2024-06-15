@@ -1250,7 +1250,7 @@ static void R_Shadow_MakeTextures(void)
 	// 1D gradient texture
 	for (x = 0;x < ATTEN1DSIZE;x++)
 		data[x] = R_Shadow_MakeTextures_SamplePoint((x + 0.5f) * (1.0f / ATTEN1DSIZE) * (1.0f / 0.9375), 0, 0);
-	r_shadow_attenuationgradienttexture = R_LoadTexture2D(r_shadow_texturepool, "attenuation1d", ATTEN1DSIZE, 1, (unsigned char *)data, TEXTYPE_BGRA, TEXF_CLAMP | TEXF_ALPHA | TEXF_FORCELINEAR, -1, NULL);
+	r_shadow_attenuationgradienttexture = R_LoadTexture2D(r_shadow_texturepool, "attenuation1d", ATTEN1DSIZE, 1, (unsigned char *)data, TEXTYPE_BGRA, TEXF_CLAMP | TEXF_ALPHA | TEXF_FORCELINEAR, q_tx_miplevel_neg1, q_tx_palette_NULL);
 	Mem_Free(data);
 
 	R_Shadow_MakeTextures_MakeCorona();
@@ -1450,7 +1450,7 @@ static void R_Shadow_MakeVSDCT(void)
 		0,   0, 0x33, 0xFF, // +Z: <0, 0>, <0.5, 2.5>
 		0,   0, 0x99, 0xFF, // -Z: <0, 0>, <1.5, 2.5>
 	};
-	r_shadow_shadowmapvsdcttexture = R_LoadTextureCubeMap(r_shadow_texturepool, "shadowmapvsdct", 1, data, TEXTYPE_RGBA, TEXF_FORCENEAREST | TEXF_CLAMP | TEXF_ALPHA, -1, NULL);
+	r_shadow_shadowmapvsdcttexture = R_LoadTextureCubeMap(r_shadow_texturepool, "shadowmapvsdct", 1, data, TEXTYPE_RGBA, TEXF_FORCENEAREST | TEXF_CLAMP | TEXF_ALPHA, q_tx_miplevel_neg1, q_tx_palette_NULL);
 }
 
 static void R_Shadow_MakeShadowMap(int texturesize)
@@ -1467,7 +1467,7 @@ static void R_Shadow_MakeShadowMap(int texturesize)
 		}
 		else
 		{
-			r_shadow_shadowmap2ddepthtexture = R_LoadTexture2D(r_shadow_texturepool, "shadowmaprendertarget", texturesize, texturesize, NULL, TEXTYPE_COLORBUFFER, TEXF_RENDERTARGET | TEXF_FORCENEAREST | TEXF_CLAMP | TEXF_ALPHA, -1, NULL);
+			r_shadow_shadowmap2ddepthtexture = R_LoadTexture2D(r_shadow_texturepool, "shadowmaprendertarget", texturesize, texturesize, NULL, TEXTYPE_COLORBUFFER, TEXF_RENDERTARGET | TEXF_FORCENEAREST | TEXF_CLAMP | TEXF_ALPHA, q_tx_miplevel_neg1, q_tx_palette_NULL);
 			r_shadow_shadowmap2ddepthbuffer = R_LoadTextureRenderBuffer(r_shadow_texturepool, "shadowmap", texturesize, texturesize, r_shadow_shadowmapdepthbits >= 24 ? TEXTYPE_DEPTHBUFFER24 : TEXTYPE_DEPTHBUFFER16);
 			r_shadow_fbo2d = R_Mesh_CreateFramebufferObject(r_shadow_shadowmap2ddepthbuffer, r_shadow_shadowmap2ddepthtexture, NULL, NULL, NULL);
 		}
@@ -2964,7 +2964,7 @@ void R_Shadow_RenderLighting(int texturenumsurfaces, const msurface_t **textures
 		VectorNegate(specularcolor, specularcolor);
 		GL_BlendEquationSubtract(true);
 	}
-	RSurf_SetupDepthAndCulling();
+	RSurf_SetupDepthAndCulling(q_is_ui_false);
 	switch (r_shadow_rendermode)
 	{
 	case R_SHADOW_RENDERMODE_VISIBLELIGHTING:
@@ -3375,7 +3375,7 @@ static void R_Shadow_DrawWorldLight(int numsurfaces, int *surfacelist, const uns
 		return;
 
 	// set up properties for rendering light onto this entity
-	RSurf_ActiveModelEntity(r_refdef.scene.worldentity, false, false, false);
+	RSurf_ActiveModelEntity(r_refdef.scene.worldentity, q_wants_normals_false, q_wants_tangents_false, q_prepass_false); // RSurf_ActiveModelEntity(r_refdef.scene.worldentity, false, false, false);
 	rsurface.entitytolight = rsurface.rtlight->matrix_worldtolight;
 	Matrix4x4_Concat(&rsurface.entitytoattenuationxyz, &matrix_attenuationxyz, &rsurface.entitytolight);
 	Matrix4x4_Concat(&rsurface.entitytoattenuationz, &matrix_attenuationz, &rsurface.entitytolight);
@@ -4090,9 +4090,9 @@ void R_Shadow_PrepareLights(void)
 			r_shadow_prepass_width = r_fb.screentexturewidth;
 			r_shadow_prepass_height = r_fb.screentextureheight;
 			r_shadow_prepassgeometrydepthbuffer = R_LoadTextureRenderBuffer(r_shadow_texturepool, "prepassgeometrydepthbuffer", r_fb.screentexturewidth, r_fb.screentextureheight, TEXTYPE_DEPTHBUFFER24);
-			r_shadow_prepassgeometrynormalmaptexture = R_LoadTexture2D(r_shadow_texturepool, "prepassgeometrynormalmap", r_fb.screentexturewidth, r_fb.screentextureheight, NULL, TEXTYPE_COLORBUFFER32F, TEXF_RENDERTARGET | TEXF_CLAMP | TEXF_ALPHA | TEXF_FORCENEAREST, -1, NULL);
-			r_shadow_prepasslightingdiffusetexture = R_LoadTexture2D(r_shadow_texturepool, "prepasslightingdiffuse", r_fb.screentexturewidth, r_fb.screentextureheight, NULL, TEXTYPE_COLORBUFFER16F, TEXF_RENDERTARGET | TEXF_CLAMP | TEXF_ALPHA | TEXF_FORCENEAREST, -1, NULL);
-			r_shadow_prepasslightingspeculartexture = R_LoadTexture2D(r_shadow_texturepool, "prepasslightingspecular", r_fb.screentexturewidth, r_fb.screentextureheight, NULL, TEXTYPE_COLORBUFFER16F, TEXF_RENDERTARGET | TEXF_CLAMP | TEXF_ALPHA | TEXF_FORCENEAREST, -1, NULL);
+			r_shadow_prepassgeometrynormalmaptexture = R_LoadTexture2D(r_shadow_texturepool, "prepassgeometrynormalmap", r_fb.screentexturewidth, r_fb.screentextureheight, NULL, TEXTYPE_COLORBUFFER32F, TEXF_RENDERTARGET | TEXF_CLAMP | TEXF_ALPHA | TEXF_FORCENEAREST, q_tx_miplevel_neg1, q_tx_palette_NULL);
+			r_shadow_prepasslightingdiffusetexture = R_LoadTexture2D(r_shadow_texturepool, "prepasslightingdiffuse", r_fb.screentexturewidth, r_fb.screentextureheight, NULL, TEXTYPE_COLORBUFFER16F, TEXF_RENDERTARGET | TEXF_CLAMP | TEXF_ALPHA | TEXF_FORCENEAREST, q_tx_miplevel_neg1, q_tx_palette_NULL);
+			r_shadow_prepasslightingspeculartexture = R_LoadTexture2D(r_shadow_texturepool, "prepasslightingspecular", r_fb.screentexturewidth, r_fb.screentextureheight, NULL, TEXTYPE_COLORBUFFER16F, TEXF_RENDERTARGET | TEXF_CLAMP | TEXF_ALPHA | TEXF_FORCENEAREST, q_tx_miplevel_neg1, q_tx_palette_NULL);
 
 			// set up the geometry pass fbo (depth + normalmap)
 			r_shadow_prepassgeometryfbo = R_Mesh_CreateFramebufferObject(r_shadow_prepassgeometrydepthbuffer, r_shadow_prepassgeometrynormalmaptexture, NULL, NULL, NULL);
@@ -4390,7 +4390,7 @@ static void R_Shadow_DrawModelShadowMaps(void)
 	m[11] = 0.5f - DotProduct(shadoworigin, &m[8]);
 	Matrix4x4_FromArray12FloatD3D(&shadowmatrix, m);
 	Matrix4x4_Invert_Full(&cameramatrix, &shadowmatrix);
-	R_Viewport_InitOrtho(&viewport, &cameramatrix, r_shadow_shadowmapatlas_modelshadows_x, r_shadow_shadowmapatlas_modelshadows_y, r_shadow_shadowmapatlas_modelshadows_size, r_shadow_shadowmapatlas_modelshadows_size, 0, 0, 1, 1, 0, -1, NULL);
+	R_Viewport_InitOrtho(&viewport, &cameramatrix, r_shadow_shadowmapatlas_modelshadows_x, r_shadow_shadowmapatlas_modelshadows_y, r_shadow_shadowmapatlas_modelshadows_size, r_shadow_shadowmapatlas_modelshadows_size, 0, 0, 1, 1, 0, q_tx_miplevel_neg1, q_tx_palette_NULL);
 	R_SetViewport(&viewport);
 
 	VectorMA(shadoworigin, (1.0f - fabs(dot1)) * radius, shadowforward, shadoworigin);
@@ -4586,7 +4586,7 @@ void R_Shadow_DrawCoronas(void)
 				qglGenQueries(r_maxqueries - i, r_queries + i);
 				CHECKGLERROR
 			}
-			RSurf_ActiveModelEntity(r_refdef.scene.worldentity, false, false, false);
+			RSurf_ActiveModelEntity(r_refdef.scene.worldentity, q_wants_normals_false, q_wants_tangents_false, q_prepass_false); // RSurf_ActiveModelEntity(r_refdef.scene.worldentity, false, false, false);
 			GL_BlendFunc(GL_ONE, GL_ZERO);
 			GL_CullFace(GL_NONE);
 			GL_DepthMask(false);
@@ -4711,7 +4711,7 @@ void R_Shadow_ClearWorldLights(void)
 	size_t lightindex;
 	dlight_t *light;
 	size_t range = Mem_ExpandableArray_IndexRange(&r_shadow_worldlightsarray); // checked
-	for (lightindex = 0;lightindex < range;lightindex++)
+	for (lightindex = 0; lightindex < range; lightindex ++)
 	{
 		light = (dlight_t *) Mem_ExpandableArray_RecordAtIndex(&r_shadow_worldlightsarray, lightindex);
 		if (light)
@@ -4895,8 +4895,8 @@ void R_Shadow_LoadWorldLights(void)
 		Con_PrintLinef ("No map loaded.");
 		return;
 	}
-	dpsnprintf(name, sizeof(name), "%s.rtlights", cl.worldnamenoextension);
-	lightsstring = (char *)FS_LoadFile(name, tempmempool, false, fs_size_ptr_null);
+	c_dpsnprintf1 (name, "%s.rtlights", cl.worldnamenoextension);
+	lightsstring = (char *)FS_LoadFile(name, tempmempool, fs_quiet_FALSE, fs_size_ptr_null);
 	if (lightsstring) {
 		s = lightsstring;
 		n = 0;
@@ -4967,7 +4967,7 @@ void R_Shadow_LoadWorldLights(void)
 				VectorClear(angles);
 			if (a < 10)
 				corona = 0;
-			if (a < 9 || String_Does_Match(cubemapname, "\"\""))
+			if (a < 9 || String_Match(cubemapname, "\"\""))
 				cubemapname[0] = 0;
 			// remove quotes on cubemapname
 			if (cubemapname[0] == '"' && cubemapname[strlen(cubemapname) - 1] == '"')
@@ -5164,7 +5164,7 @@ void R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite(void)
 			strlcpy(value, com_token, sizeof(value));
 
 			// now that we have the key pair worked out...
-			if (String_Does_Match("light", key))
+			if (String_Match("light", key))
 			{
 				n = sscanf(value, "%f %f %f %f", &vec[0], &vec[1], &vec[2], &vec[3]);
 				if (n == 1)
@@ -5184,24 +5184,24 @@ void R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite(void)
 					light[3] = vec[3];
 				}
 			}
-			else if (String_Does_Match("delay", key))
+			else if (String_Match("delay", key))
 				type = atoi(value);
-			else if (String_Does_Match("origin", key))
+			else if (String_Match("origin", key))
 				sscanf(value, "%f %f %f", &origin[0], &origin[1], &origin[2]);
-			else if (String_Does_Match("angle", key))
+			else if (String_Match("angle", key))
 				angles[0] = 0, angles[1] = atof(value), angles[2] = 0;
-			else if (String_Does_Match("angles", key))
+			else if (String_Match("angles", key))
 				sscanf(value, "%f %f %f", &angles[0], &angles[1], &angles[2]);
-			else if (String_Does_Match("color", key))
+			else if (String_Match("color", key))
 				sscanf(value, "%f %f %f", &color[0], &color[1], &color[2]);
-			else if (String_Does_Match("wait", key))
+			else if (String_Match("wait", key))
 				fadescale = atof(value);
-			else if (String_Does_Match("classname", key))
+			else if (String_Match("classname", key))
 			{
 				if (!strncmp(value, "light", 5))
 				{
 					islight = true;
-					if (String_Does_Match(value, "light_fluoro"))
+					if (String_Match(value, "light_fluoro"))
 					{
 						originhack[0] = 0;
 						originhack[1] = 0;
@@ -5210,7 +5210,7 @@ void R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite(void)
 						overridecolor[1] = 1;
 						overridecolor[2] = 1;
 					}
-					if (String_Does_Match(value, "light_fluorospark"))
+					if (String_Match(value, "light_fluorospark"))
 					{
 						originhack[0] = 0;
 						originhack[1] = 0;
@@ -5219,7 +5219,7 @@ void R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite(void)
 						overridecolor[1] = 1;
 						overridecolor[2] = 1;
 					}
-					if (String_Does_Match(value, "light_globe"))
+					if (String_Match(value, "light_globe"))
 					{
 						originhack[0] = 0;
 						originhack[1] = 0;
@@ -5228,7 +5228,7 @@ void R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite(void)
 						overridecolor[1] = 0.8;
 						overridecolor[2] = 0.4;
 					}
-					if (String_Does_Match(value, "light_flame_large_yellow"))
+					if (String_Match(value, "light_flame_large_yellow"))
 					{
 						originhack[0] = 0;
 						originhack[1] = 0;
@@ -5237,7 +5237,7 @@ void R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite(void)
 						overridecolor[1] = 0.5;
 						overridecolor[2] = 0.1;
 					}
-					if (String_Does_Match(value, "light_flame_small_yellow"))
+					if (String_Match(value, "light_flame_small_yellow"))
 					{
 						originhack[0] = 0;
 						originhack[1] = 0;
@@ -5246,7 +5246,7 @@ void R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite(void)
 						overridecolor[1] = 0.5;
 						overridecolor[2] = 0.1;
 					}
-					if (String_Does_Match(value, "light_torch_small_white"))
+					if (String_Match(value, "light_torch_small_white"))
 					{
 						originhack[0] = 0;
 						originhack[1] = 0;
@@ -5255,7 +5255,7 @@ void R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite(void)
 						overridecolor[1] = 0.5;
 						overridecolor[2] = 0.1;
 					}
-					if (String_Does_Match(value, "light_torch_small_walltorch"))
+					if (String_Match(value, "light_torch_small_walltorch"))
 					{
 						originhack[0] = 0;
 						originhack[1] = 0;
@@ -5266,19 +5266,19 @@ void R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite(void)
 					}
 				}
 			}
-			else if (String_Does_Match("style", key))
+			else if (String_Match("style", key))
 				style = atoi(value);
-			else if (String_Does_Match("skin", key))
+			else if (String_Match("skin", key))
 				skin = (int)atof(value);
-			else if (String_Does_Match("pflags", key))
+			else if (String_Match("pflags", key))
 				pflags = (int)atof(value);
-			//else if (String_Does_Match("effects", key))
+			//else if (String_Match("effects", key))
 			//	effects = (int)atof(value);
 			else if (cl.worldmodel->type == mod_brushq3)
 			{
-				if (String_Does_Match("scale", key))
+				if (String_Match("scale", key))
 					lightscale = atof(value);
-				if (String_Does_Match("fade", key))
+				if (String_Match("fade", key))
 					fadescale = atof(value);
 			}
 		}
@@ -5373,16 +5373,16 @@ void R_Shadow_EditLights_Reload_f(cmd_state_t *cmd)
 {
 	if (!cl.worldmodel)
 		return;
-	strlcpy(r_shadow_mapname, cl.worldname, sizeof(r_shadow_mapname));
+
+	c_strlcpy (r_shadow_mapname, cl.worldname);
 	R_Shadow_ClearWorldLights();
-	if (r_shadow_realtime_world_importlightentitiesfrommap.integer <= 1)
-	{
+	if (r_shadow_realtime_world_importlightentitiesfrommap.integer <= 1) {
 		R_Shadow_LoadWorldLights();
 		if (!Mem_ExpandableArray_IndexRange(&r_shadow_worldlightsarray))
 			R_Shadow_LoadLightsFile();
 	}
-	if (r_shadow_realtime_world_importlightentitiesfrommap.integer >= 1)
-	{
+
+	if (r_shadow_realtime_world_importlightentitiesfrommap.integer >= 1) {
 		if (!Mem_ExpandableArray_IndexRange(&r_shadow_worldlightsarray))
 			R_Shadow_LoadWorldLightsFromMap_LightArghliteTyrlite();
 	}
@@ -5466,7 +5466,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 	flags = r_shadow_selectedlight->flags;
 	normalmode = (flags & LIGHTFLAG_NORMALMODE) != 0;
 	realtimemode = (flags & LIGHTFLAG_REALTIMEMODE) != 0;
-	if (String_Does_Match(Cmd_Argv(cmd, 1), "origin"))
+	if (String_Match(Cmd_Argv(cmd, 1), "origin"))
 	{
 		if (Cmd_Argc(cmd) != 5)
 		{
@@ -5477,7 +5477,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		origin[1] = atof(Cmd_Argv(cmd, 3));
 		origin[2] = atof(Cmd_Argv(cmd, 4));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "originscale"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "originscale"))
 	{
 		if (Cmd_Argc(cmd) != 5)
 		{
@@ -5488,7 +5488,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		origin[1] *= atof(Cmd_Argv(cmd, 3));
 		origin[2] *= atof(Cmd_Argv(cmd, 4));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "originx"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "originx"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5497,7 +5497,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		origin[0] = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "originy"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "originy"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5506,7 +5506,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		origin[1] = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "originz"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "originz"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5515,7 +5515,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		origin[2] = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "move"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "move"))
 	{
 		if (Cmd_Argc(cmd) != 5)
 		{
@@ -5526,7 +5526,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		origin[1] += atof(Cmd_Argv(cmd, 3));
 		origin[2] += atof(Cmd_Argv(cmd, 4));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "movex"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "movex"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5535,7 +5535,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		origin[0] += atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "movey"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "movey"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5544,7 +5544,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		origin[1] += atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "movez"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "movez"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5553,7 +5553,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		origin[2] += atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "angles"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "angles"))
 	{
 		if (Cmd_Argc(cmd) != 5)
 		{
@@ -5564,7 +5564,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		angles[1] = atof(Cmd_Argv(cmd, 3));
 		angles[2] = atof(Cmd_Argv(cmd, 4));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "anglesx"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "anglesx"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5573,7 +5573,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		angles[0] = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "anglesy"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "anglesy"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5582,7 +5582,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		angles[1] = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "anglesz"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "anglesz"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5591,7 +5591,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		angles[2] = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "color"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "color"))
 	{
 		if (Cmd_Argc(cmd) != 5)
 		{
@@ -5602,7 +5602,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		color[1] = atof(Cmd_Argv(cmd, 3));
 		color[2] = atof(Cmd_Argv(cmd, 4));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "radius"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "radius"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5611,7 +5611,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		radius = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "colorscale"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "colorscale"))
 	{
 		if (Cmd_Argc(cmd) == 3)
 		{
@@ -5632,7 +5632,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 			color[2] *= atof(Cmd_Argv(cmd, 4));
 		}
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "radiusscale") || String_Does_Match(Cmd_Argv(cmd, 1), "sizescale"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "radiusscale") || String_Match(Cmd_Argv(cmd, 1), "sizescale"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5641,7 +5641,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		radius *= atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "style"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "style"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5650,7 +5650,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		style = atoi(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "cubemap"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "cubemap"))
 	{
 		if (Cmd_Argc(cmd) > 3)
 		{
@@ -5662,7 +5662,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		else
 			cubemapname[0] = 0;
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "shadows"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "shadows"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5671,7 +5671,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		shadows = Cmd_Argv(cmd, 2)[0] == 'y' || Cmd_Argv(cmd, 2)[0] == 'Y' || Cmd_Argv(cmd, 2)[0] == 't' || atoi(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "corona"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "corona"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5680,7 +5680,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		corona = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "coronasize"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "coronasize"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5689,7 +5689,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		coronasizescale = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "ambient"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "ambient"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5698,7 +5698,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		ambientscale = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "diffuse"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "diffuse"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5707,7 +5707,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		diffusescale = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "specular"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "specular"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5716,7 +5716,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		specularscale = atof(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "normalmode"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "normalmode"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{
@@ -5725,7 +5725,7 @@ static void R_Shadow_EditLights_Edit_f(cmd_state_t *cmd)
 		}
 		normalmode = Cmd_Argv(cmd, 2)[0] == 'y' || Cmd_Argv(cmd, 2)[0] == 'Y' || Cmd_Argv(cmd, 2)[0] == 't' || atoi(Cmd_Argv(cmd, 2));
 	}
-	else if (String_Does_Match(Cmd_Argv(cmd, 1), "realtimemode"))
+	else if (String_Match(Cmd_Argv(cmd, 1), "realtimemode"))
 	{
 		if (Cmd_Argc(cmd) != 3)
 		{

@@ -184,9 +184,9 @@ void Sys_Shared_Init(void);
 
 // Baker: model_t is defined late in the includes.
 typedef struct {
-	model_t		*modelui;
-	cachepic_t	*pic;
-	texture_t	*tex;
+	model_t		*modelui;		// CL_Mesh_UI (); Mod_Mesh_GetTexture needs a texture so that's why we have this field.
+	cachepic_t	*bpic;
+	texture_t	*btex;
 } dynamic_baker_texture_t;
 
 void Dynamic_Baker_Texture2D_Prep (dynamic_baker_texture_t *fill, int is_dirty, const char *name, bgra4 *vimagedata, int in_pic_width, int in_pic_height);

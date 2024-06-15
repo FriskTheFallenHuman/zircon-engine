@@ -53,8 +53,8 @@ cvar_t r_nearest_conchars = {CF_CLIENT | CF_ARCHIVE, "r_nearest_conchars", "1", 
 //=============================================================================
 /* Support Routines */
 
-static cachepic_t *cachepichash[CACHEPICHASHSIZE];
-static cachepic_t cachepics[MAX_CACHED_PICS];
+static cachepic_t *cachepichash[CACHEPICHASHSIZE_256];
+static cachepic_t cachepics[MAX_CACHED_PICS_2048];
 static int numcachepics;
 
 rtexturepool_t *drawtexturepool;
@@ -87,11 +87,11 @@ cachepic_t *Draw_CachePic_Flags(const char *path, unsigned int cachepicflags)
 
 	// check whether the picture has already been cached
 	crc = CRC_Block((unsigned char *)path, strlen(path));
-	hashkey = ((crc >> 8) ^ crc) % CACHEPICHASHSIZE;
+	hashkey = ((crc >> 8) ^ crc) % CACHEPICHASHSIZE_256;
 
 	for (pic = cachepichash[hashkey];pic;pic = pic->chain)
 	{
-		if (String_Does_Match(path, pic->name))
+		if (String_Match(path, pic->name))
 		{
 			// if it was created (or replaced) by Draw_NewPic, just return it
 			if (!(pic->cacheflags & CACHEPICFLAG_NEWPIC))
@@ -120,9 +120,9 @@ cachepic_t *Draw_CachePic_Flags(const char *path, unsigned int cachepicflags)
 		}
 	}
 
-	if (numcachepics == MAX_CACHED_PICS)
+	if (numcachepics == MAX_CACHED_PICS_2048)
 	{
-		Con_DPrintLinef ("Draw_CachePic(" QUOTED_S "): frame %d: numcachepics == MAX_CACHED_PICS", path, draw_frame);
+		Con_DPrintLinef ("Draw_CachePic(" QUOTED_S "): frame %d: numcachepics == MAX_CACHED_PICS_2048", path, draw_frame);
 		// FIXME: support NULL in callers?
 		return cachepics; // return the first one
 	}
@@ -244,9 +244,9 @@ cachepic_t *Draw_NewPic(const char *picname, int width, int height, unsigned cha
 	cachepic_t *pic;
 
 	crc = CRC_Block((unsigned char *)picname, strlen(picname));
-	hashkey = ((crc >> 8) ^ crc) % CACHEPICHASHSIZE;
+	hashkey = ((crc >> 8) ^ crc) % CACHEPICHASHSIZE_256;
 	for (pic = cachepichash[hashkey];pic;pic = pic->chain)
-		if (String_Does_Match (picname, pic->name))
+		if (String_Match (picname, pic->name))
 			break;
 
 	if (pic)
@@ -263,9 +263,9 @@ cachepic_t *Draw_NewPic(const char *picname, int width, int height, unsigned cha
 	}
 	else
 	{
-		if (numcachepics == MAX_CACHED_PICS)
+		if (numcachepics == MAX_CACHED_PICS_2048)
 		{
-			Con_DPrintLinef ("Draw_NewPic(" QUOTED_S "): frame %d: numcachepics == MAX_CACHED_PICS", picname, draw_frame);
+			Con_DPrintLinef ("Draw_NewPic(" QUOTED_S "): frame %d: numcachepics == MAX_CACHED_PICS_2048", picname, draw_frame);
 			// FIXME: support NULL in callers?
 			return cachepics; // return the first one
 		}
@@ -298,19 +298,116 @@ void Draw_FreePic(const char *picname)
 	cachepic_t *pic;
 	// this doesn't really free the pic, but does free its texture
 	crc = CRC_Block((unsigned char *)picname, strlen(picname));
-	hashkey = ((crc >> 8) ^ crc) % CACHEPICHASHSIZE;
-	for (pic = cachepichash[hashkey];pic;pic = pic->chain) {
-		if (String_Does_Match (picname, pic->name) && pic->skinframe) {
+	hashkey = ((crc >> 8) ^ crc) % CACHEPICHASHSIZE_256;
+	for (pic = cachepichash[hashkey]; pic; pic = pic->chain) {
+		if (String_Match (picname, pic->name) && pic->skinframe) {
 			Con_DPrintLinef ("Draw_FreePic(" QUOTED_S "): frame %d: freeing pic", picname, draw_frame);
 			R_SkinFrame_PurgeSkinFrame (pic->skinframe);
 			return;
 		}
 	}
-}
+} 
 
 static float snap_to_pixel_x(float x, float roundUpAt);
 extern int con_linewidth; // to force rewrapping
-void LoadFontDP(qbool override, const char *name, dp_font_t *fnt, float scale, float voffset)
+
+#include "bundle_font.c.h"
+
+WARP_X_ (VM_loadfont)
+//float loadfont(string fontname, string fontmaps, string sizes, float slot)
+//                   PARM0            PARM 1?         
+//float loadfont(string fontname, string fontmaps, string sizes, float slot)
+//ourfontImpact	= loadfont("user6", "fonts/Anton-Regular.ttf",		"32", -1, 0, 0);
+// 3 duds at end are slot, scale and fontmap
+void LoadFontDPEx (dp_font_t *dpf, /*const char *dpfontusername, */const char *font_ttf_list, const char *sizes_in, const byte *ft_data_in, fs_offset_t ft_datasize)
+{
+	const char *c, *cm;
+	char mainfont[MAX_QPATH_128];
+	if (!sizes_in[0])
+		sizes_in = "10";
+
+
+	memset	(dpf->fallbacks, 0,			sizeof(dpf->fallbacks));
+	memset	(dpf->fallback_faces, 0,	sizeof(dpf->fallback_faces));
+
+	// first font is handled "normally"
+	c = strchr(font_ttf_list, ':');
+	cm = strchr(font_ttf_list, ',');
+	if (c && (!cm || c < cm))
+		dpf->req_face = atoi(c+1);
+	else
+	{
+		dpf->req_face = 0;
+		c = cm;
+	}
+
+	// Check for no separator or length too long
+	if (!c || (c - font_ttf_list) > MAX_QPATH_128)
+		c_strlcpy	(mainfont, font_ttf_list);
+	else
+	{
+		// Baker: This is a length copy with null termination
+		c_strlcpy_size_z (mainfont, font_ttf_list, c - font_ttf_list);
+	}
+
+	// handle fallbacks
+	for (int i = 0; i < MAX_FONT_FALLBACKS_3; ++i) {
+		c = strchr(font_ttf_list, ','); // Find a comma
+		if (!c)
+			break;
+		font_ttf_list = c + 1;
+		if (!*font_ttf_list)
+			break;
+		c = strchr(font_ttf_list, ':');
+		cm = strchr(font_ttf_list, ',');
+		if (c && (!cm || c < cm))
+			dpf->fallback_faces[i] = atoi(c+1);
+		else {
+			dpf->fallback_faces[i] = 0; // dpf->req_face; could make it stick to the default-font's face index
+			c = cm;
+		}
+		if (!c || (c-font_ttf_list) > MAX_QPATH_128) {
+			c_strlcpy (dpf->fallbacks[i], font_ttf_list);
+		}
+		else
+		{
+			c_strlcpy_size_z (dpf->fallbacks[i], font_ttf_list, c - font_ttf_list);
+		}
+	}
+
+	// handle sizes
+	for (int i = 0; i < MAX_FONT_SIZES_16; ++i)
+		dpf->req_sizes[i] = -1;
+
+	int numsizes;
+	for (numsizes = 0, c = sizes_in; ; ) {
+		if (!COM_ParseToken_VM_Tokenize(&c, 0))
+			break;
+		int sz = atof(com_token);
+		// detect crap size
+		if (sz < 0.001f || sz > 1000.0f) {
+			//VM_Warningf (prog, "VM_loadfont: bad font size %s", com_token);
+			continue;
+		}
+
+		// check overflow
+		if (numsizes == MAX_FONT_SIZES_16) {
+			//VM_Warningf(prog, "VM_loadfont: MAX_FONT_SIZES_16 = %d exceeded", MAX_FONT_SIZES_16);
+			break;
+		}
+		dpf->req_sizes[numsizes] = sz;
+		numsizes ++;
+	}
+
+	// load
+	LoadFontDP (/*override?*/ true, mainfont, dpf, scale_1_0, /*voffset*/ 0, ft_data_in, ft_datasize);
+
+	// return index of loaded font
+	//PRVM_G_FLOAT(OFS_RETURN) = (dpf - dp_fonts.dpf);
+}
+
+
+void LoadFontDP (qbool override, const char *name, dp_font_t *fnt, float scale, float voffset, const byte *ft_data_in, fs_offset_t ft_datasize)
 {
 	int i, ch;
 	float maxwidth;
@@ -318,8 +415,7 @@ void LoadFontDP(qbool override, const char *name, dp_font_t *fnt, float scale, f
 	char *widthbuf;
 	fs_offset_t widthbufsize;
 
-	if (override || !fnt->texpath[0])
-	{
+	if (override || !fnt->texpath[0]) {
 		strlcpy(fnt->texpath, name, sizeof(fnt->texpath));
 		// load the cvars when the font is FIRST loader
 		fnt->settings.scale = scale;
@@ -348,10 +444,11 @@ void LoadFontDP(qbool override, const char *name, dp_font_t *fnt, float scale, f
 	}
 
 	if (fnt->req_face != -1) {
-		if (false == Font_LoadFont(fnt->texpath, fnt, DATA_NULL))
+		if (false == Font_LoadFont(fnt->texpath, fnt, ft_data_in, ft_datasize))
 			Con_DPrintLinef ("Failed to load font-file for " QUOTED_S ", it will not support as many characters.", fnt->texpath);
 	}
 
+	// Baker: The upload happens here
 	fnt->pic_font = Draw_CachePic_Flags(fnt->texpath, CACHEPICFLAG_QUIET | CACHEPICFLAG_NOCOMPRESSION |
 		(r_nearest_conchars.integer ? CACHEPICFLAG_NEAREST : 0) |
 		CACHEPICFLAG_FAILONMISSING_256);
@@ -411,13 +508,13 @@ void LoadFontDP(qbool override, const char *name, dp_font_t *fnt, float scale, f
 					ch++;
 					break;
 				default:
-					if (String_Does_Match(com_token, "extraspacing"))
+					if (String_Match(com_token, "extraspacing"))
 					{
 						if (!COM_ParseToken_Simple(&p, false, false, true))
 							return;
 						extraspacing = atof(com_token);
 					}
-					else if (String_Does_Match(com_token, "scale")) // font
+					else if (String_Match(com_token, "scale")) // font
 					{
 						if (!COM_ParseToken_Simple(&p, false, false, true))
 							return;
@@ -458,6 +555,14 @@ void LoadFontDP(qbool override, const char *name, dp_font_t *fnt, float scale, f
 
 	if (fnt == FONT_CONSOLE)
 		con_linewidth = -1; // rewrap console in next frame
+
+	if (fnt->ft2) {
+		// Avoid div by 0
+		if (fnt->ft2->ft_baker_height) {
+			fnt->ft2->ft_baker_descend_pct = abs(fnt->ft2->ft_baker_descend) / (float)fnt->ft2->ft_baker_height;
+			fnt->ft_baker_descend_pct = fnt->ft2->ft_baker_descend_pct;
+		}
+	}
 }
 
 extern cvar_t developer_font;
@@ -467,7 +572,7 @@ dp_font_t *FindFont(const char *title, qbool allocate_new)
 
 	// find font
 	for(i = 0; i < dp_fonts.maxsize_font; ++i)
-		if (String_Does_Match(dp_fonts.f[i].title, title))
+		if (String_Match(dp_fonts.f[i].title, title))
 			return &dp_fonts.f[i];
 	// if not found - try allocate
 	if (allocate_new)
@@ -475,7 +580,7 @@ dp_font_t *FindFont(const char *title, qbool allocate_new)
 		// find any font with empty title
 		for(i = 0; i < dp_fonts.maxsize_font; ++i)
 		{
-			if (String_Does_Match(dp_fonts.f[i].title, ""))
+			if (String_Match(dp_fonts.f[i].title, ""))
 			{
 				strlcpy(dp_fonts.f[i].title, title, sizeof(dp_fonts.f[i].title));
 				return &dp_fonts.f[i];
@@ -627,14 +732,14 @@ static void LoadFont_f(cmd_state_t *cmd)
 		for(sizes = 0, i = 3; i < Cmd_Argc(cmd); ++i)
 		{
 			// special switches
-			if (String_Does_Match(Cmd_Argv(cmd, i), "scale")) // font
+			if (String_Match(Cmd_Argv(cmd, i), "scale")) // font
 			{
 				i++;
 				if (i < Cmd_Argc(cmd))
 					scale = atof(Cmd_Argv(cmd, i));
 				continue;
 			}
-			if (String_Does_Match(Cmd_Argv(cmd, i), "voffset"))
+			if (String_Match(Cmd_Argv(cmd, i), "voffset"))
 			{
 				i++;
 				if (i < Cmd_Argc(cmd))
@@ -669,7 +774,7 @@ static void LoadFont_f(cmd_state_t *cmd)
 		}
 	}
 
-	LoadFontDP (/*override?*/ true, mainfont, f, scale, voffset);
+	LoadFontDP (/*override?*/ true, mainfont, f, scale, voffset, DATA_NULL, DATASIZE_0);
 }
 
 /*
@@ -692,7 +797,7 @@ static void gl_draw_start(void)
 	for(i = 0; i < dp_fonts.maxsize_font; i ++) {
 		if (dp_fonts.f[i].title[0]) {
 			va(vabuf, sizeof(vabuf), "gfx/font_%s", dp_fonts.f[i].title);
-			LoadFontDP (/*override?*/ false, vabuf, &dp_fonts.f[i], scale_1_0, /*voffset*/ 0);
+			LoadFontDP (/*override?*/ false, vabuf, &dp_fonts.f[i], scale_1_0, /*voffset*/ 0, DATA_NULL, DATASIZE_0);
 		}
 	}
 }
@@ -985,7 +1090,8 @@ static int RGBstring_to_colorindex(const char *str)
 }
 
 // NOTE: this function always draws exactly one character if maxwidth <= 0
-float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *maxlen, float w, float h, float sw, float sh, int *outcolor, qbool ignorecolorcodes, const dp_font_t *fnt, float maxwidth)
+// Baker: maxlen works how with unicode?  with colorcodes?
+float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *maxlen, float w, float h, float sw, float sh, int *outcolor, qbool ignorecolorcodes, const dp_font_t *fnt, float maxwidthf)
 {
 	// Baker: renamed to text_start2
 	const char *text_start2 = text;
@@ -995,6 +1101,7 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 	Uchar ch, mapch, nextch;
 	Uchar prevch = 0; // used for kerning
 	float kx;
+	float baker_old_outf;
 	int map_index = 0;
 	size_t bytes_left;
 	ft2_font_map_t *fontmap = NULL;
@@ -1020,7 +1127,7 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 	// find the most fitting size:
 	if (ft2 != NULL)
 	{
-		if (snap)
+		if (snap) // Baker: This appears the norm
 			map_index = Font_IndexForSize(ft2, h, &w, &h);
 		else
 			map_index = Font_IndexForSize(ft2, h, NULL, NULL);
@@ -1041,10 +1148,10 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 	// maxwidth /= fnt->scale; // w and h are multiplied by it already
 	// ftbase_x = snap_to_pixel_x(0);
 
-	if (maxwidth <= 0)
+	if (maxwidthf <= 0) // 0
 	{
 		least_one = true;
-		maxwidth = -maxwidth;
+		maxwidthf = -maxwidthf; // 1
 	}
 
 	//if (snap)
@@ -1063,10 +1170,10 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 		i = text - text_start2;
 		if (!ch)
 			break;
-		if (ch == ' ' && !fontmap)
+		if (ch == ' ' && !fontmap) // Baker: Having a fontmap is the norm
 		{
 			if (!least_one || i0) // never skip the first character
-			if (x_out + width_of[(int) ' '] * dw > maxwidth)
+			if (x_out + width_of[(int) ' '] * dw > maxwidthf) // -2
 			{
 				i = i0;
 				break; // oops, can't draw this
@@ -1074,6 +1181,8 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 			x_out += width_of[(int) ' '] * dw;
 			continue;
 		}
+
+		// Baker: Process color code if specified
 		if (ch == STRING_COLOR_TAG && !ignorecolorcodes && i < *maxlen)
 		{
 			ch = *text; // colors are ascii, so no u8_ needed
@@ -1105,8 +1214,8 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 		}
 		ch = nextch;
 
-		if (!fontmap || (ch <= 0xFF && fontmap->glyphs[ch].image) || (ch >= 0xE000 && ch <= 0xE0FF))
-		{
+		if (!fontmap || (ch <= 0xFF && fontmap->glyphs[ch].image) || (ch >= 0xE000 && ch <= 0xE0FF)) {
+			// Baker: I bet this rarely hits with ascii.
 			if (ch > 0xE000)
 				ch -= 0xE000;
 			if (ch > 0xFF)
@@ -1115,28 +1224,35 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 				map = ft2_oldstyle_map;
 			prevch = 0;
 			if (!least_one || i0) // never skip the first character
-			if (x_out + width_of[ch] * dw > maxwidth)
-			{
+			if (x_out + width_of[ch] * dw > maxwidthf) { // -3
 				i = i0;
 				break; // oops, can't draw this
 			}
 			x_out += width_of[ch] * dw;
 		} else {
+			// Baker: Seems to be the norm for ttf fonts
 			if (!map || map == ft2_oldstyle_map || ch < map->start || ch >= map->start + FONT_CHARS_PER_MAP)
 			{
+				// Baker: I bet unicode maybe even normally comes here
 				map = FontMap_FindForChar(fontmap, ch);
 				if (!map)
 				{
-					if (!Font_LoadMapForIndex(ft2, map_index, ch, &map))
+					if (!Font_LoadMapForIndex(ft2, map_index, ch, &map, &ft2->ft_baker_ascend, &ft2->ft_baker_descend, &ft2->ft_baker_height))
 						break;
 					if (!map)
 						break;
 				}
 			}
 			mapch = ch - map->start;
+			baker_old_outf = x_out;
 			if (prevch && Font_GetKerningForMap(ft2, map_index, w, h, prevch, ch, &kx, NULL))
-				x_out += kx * dw;
+				x_out += kx * dw; // Baker: For roboto this is not hitting
 			x_out += map->glyphs[mapch].advance_x * dw;
+			if (x_out >= maxwidthf) {
+				x_out = baker_old_outf;
+				i --;
+				break;
+			}
 			//prevmap = map;
 			prevch = ch;
 		}
@@ -1150,7 +1266,203 @@ float DrawQ_TextWidth_UntilWidth_TrackColors_Scale(const char *text, size_t *max
 	return x_out;
 }
 
+// Baker: Modified .. maxwidth supports rounding type
+// Some types of mouse selection of text needs certain rounding
+// Like selecting between 2 character, needs the closest match
+// but extending a selection needs rounding towards most text selected.
+float DrawQ_TextWidth_RoundType(const char *text, size_t *maxlen, float w, float h, float sw, float sh, int *outcolor, qbool ignorecolorcodes, const dp_font_t *fnt, float maxwidthf, int roundtype)
+{
+	// Baker: renamed to text_start2
+	const char *text_start2 = text;
+	int colorindex;
+	size_t i;
+	float x_out = 0;
+	Uchar ch, mapch, nextch;
+	Uchar prevch = 0; // used for kerning
+	float kx;
+	float baker_old_outf;
+	int map_index = 0;
+	size_t bytes_left;
+	ft2_font_map_t *fontmap = NULL;
+	ft2_font_map_t *map = NULL;
+	//ft2_font_map_t *prevmap = NULL;
+	ft2_font_t *ft2 = fnt->ft2;
+	// float ftbase_x;
+	qbool snap = true;
+	qbool least_one = false;
+	float dw; // display w
+	//float dh; // display h
+	const float *width_of;
+
+	if (!h) h = w;
+	if (!h) {
+		w = h = 1;
+		snap = false;
+	}
+	// do this in the end
+	w *= fnt->settings.scale;
+	h *= fnt->settings.scale;
+
+	// find the most fitting size:
+	if (ft2 != NULL)
+	{
+		if (snap) // Baker: This appears the norm
+			map_index = Font_IndexForSize(ft2, h, &w, &h);
+		else
+			map_index = Font_IndexForSize(ft2, h, NULL, NULL);
+		fontmap = Font_MapForIndex(ft2, map_index);
+	}
+
+	dw = w * sw;
+	//dh = h * sh;
+
+	if (*maxlen < 1)
+		*maxlen = 1<<30;
+
+	if (!outcolor || *outcolor == -1)
+		colorindex = STRING_COLOR_DEFAULT;
+	else
+		colorindex = *outcolor;
+
+	// maxwidth /= fnt->scale; // w and h are multiplied by it already
+	// ftbase_x = snap_to_pixel_x(0);
+
+	if (maxwidthf <= 0) // 0
+	{
+		least_one = true;
+		maxwidthf = -maxwidthf; // 1
+	}
+
+	//if (snap)
+	//	x_out = snap_to_pixel_x(x_out, 0.4); // haha, it's 0 anyway
+
+	if (fontmap)
+		width_of = fontmap->width_of;
+	else
+		width_of = fnt->width_of;
+
+	i = 0;
+	while (((bytes_left = *maxlen - (text - text_start2)) > 0) && *text)
+	{
+		size_t i0 = i;
+		nextch = ch = u8_getnchar(text, &text, bytes_left);
+		i = text - text_start2;
+		if (!ch)
+			break;
+		if (ch == ' ' && !fontmap) // Baker: Having a fontmap is the norm
+		{
+			if (!least_one || i0) // never skip the first character
+			if (x_out + width_of[(int) ' '] * dw > maxwidthf) // -2
+			{
+				i = i0;
+				break; // oops, can't draw this
+			}
+			x_out += width_of[(int) ' '] * dw;
+			continue;
+		}
+
+		// Baker: Process color code if specified
+		if (ch == STRING_COLOR_TAG && !ignorecolorcodes && i < *maxlen)
+		{
+			ch = *text; // colors are ascii, so no u8_ needed
+			if (ch <= '9' && ch >= '0') // ^[0-9] found
+			{
+				colorindex = ch - '0';
+				++text;
+				++i;
+				continue;
+			}
+			else if (ch == STRING_COLOR_RGB_TAG_CHAR && i + 3 < *maxlen ) // ^x_out found
+			{
+				const char *text_p = &text[1];
+				int tempcolorindex = RGBstring_to_colorindex(text_p);
+				if (tempcolorindex)
+				{
+					colorindex = tempcolorindex;
+					i+=4;
+					text += 4;
+					continue;
+				}
+			}
+			else if (ch == STRING_COLOR_TAG) // ^^ found
+			{
+				i++;
+				text++;
+			}
+			i--;
+		}
+		ch = nextch;
+
+		if (!fontmap || (ch <= 0xFF && fontmap->glyphs[ch].image) || (ch >= 0xE000 && ch <= 0xE0FF)) {
+			// Baker: I bet this rarely hits with ascii.
+			if (ch > 0xE000)
+				ch -= 0xE000;
+			if (ch > 0xFF)
+				continue;
+			if (fontmap)
+				map = ft2_oldstyle_map;
+			prevch = 0;
+			if (!least_one || i0) // never skip the first character
+			if (x_out + width_of[ch] * dw > maxwidthf) { // -3
+				i = i0;
+				break; // oops, can't draw this
+			}
+			x_out += width_of[ch] * dw;
+		} else {
+			// Baker: Seems to be the norm for ttf fonts
+			if (!map || map == ft2_oldstyle_map || ch < map->start || ch >= map->start + FONT_CHARS_PER_MAP)
+			{
+				// Baker: I bet unicode maybe even normally comes here
+				map = FontMap_FindForChar(fontmap, ch);
+				if (!map)
+				{
+					if (!Font_LoadMapForIndex(ft2, map_index, ch, &map, &ft2->ft_baker_ascend, &ft2->ft_baker_descend, &ft2->ft_baker_height))
+						break;
+					if (!map)
+						break;
+				}
+			}
+			mapch = ch - map->start;
+			baker_old_outf = x_out;
+			if (prevch && Font_GetKerningForMap(ft2, map_index, w, h, prevch, ch, &kx, NULL))
+				x_out += kx * dw; // Baker: For roboto this is not hitting
+			
+			float ch_widthf = map->glyphs[mapch].advance_x * dw;
+			x_out += ch_widthf;
+			// Baker: Let's say we hit middle of first character?
+			if (x_out >= maxwidthf) {
+				float deltaf = x_out - baker_old_outf;
+				float distance_lo = abs(maxwidthf - baker_old_outf);
+				float distance_hi = abs(maxwidthf - x_out);
+				float plus_half = baker_old_outf + 0.5 * deltaf;
+
+				if (distance_lo <= distance_hi)
+					i = i - 1; // Round to previous
+				else 
+					i = i; // Round to next
+				//if (plus_half >= maxwidthf) {
+				//	i = i; // Round to next
+				//} else {
+				//	i = i - 1; // Round to previous
+				//}
+				x_out = baker_old_outf;
+				break;
+			}
+			//prevmap = map;
+			prevch = ch;
+		}
+	}
+
+	*maxlen = i;
+
+	if (outcolor)
+		*outcolor = colorindex;
+
+	return x_out;
+} // End DrawQ_TextWidth_RoundType
+
 float DrawQ_Color[4];
+// Baker: What is the return value here?  Looks like x after
 float DrawQ_String_Scale(float startx, float starty, const char *text, size_t maxlen, float w, float h, float sw, float sh, float basered, float basegreen, float baseblue, float basealpha, int flags, int *outcolor, qbool ignorecolorcodes, const dp_font_t *fnt)
 {
 	int shadow, colorindex = STRING_COLOR_DEFAULT;
@@ -1161,7 +1473,7 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 	int map_index = 0;
 	//ft2_font_map_t *prevmap = NULL; // the previous map
 	ft2_font_map_t *map = NULL;     // the currently used map
-	ft2_font_map_t *fontmap = NULL; // the font map for the size
+	ft2_font_map_t *fontmaphere = NULL; // the font map for the size
 	float ftbase_y;
 	const char *text_start = text;
 	float kx, ky;
@@ -1194,7 +1506,7 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 			map_index = Font_IndexForSize(ft2, h, &w, &h);
 		else
 			map_index = Font_IndexForSize(ft2, h, NULL, NULL);
-		fontmap = Font_MapForIndex(ft2, map_index);
+		fontmaphere = Font_MapForIndex(ft2, map_index);
 	}
 
 	dw = w * sw;
@@ -1221,8 +1533,8 @@ float DrawQ_String_Scale(float startx, float starty, const char *text, size_t ma
 	pix_x = vid.width / vid_conwidth.value;
 	pix_y = vid.height / vid_conheight.value;
 
-	if (fontmap)
-		width_of = fontmap->width_of;
+	if (fontmaphere)
+		width_of = fontmaphere->width_of;
 	else
 		width_of = fnt->width_of;
 
@@ -1277,7 +1589,7 @@ baker_font:
 			if (!ch) {
 				break;
 			}
-			if (ch == ' ' && !fontmap)
+			if (ch == ' ' && !fontmaphere)
 			{
 				x += width_of[(int) ' '] * dw;
 				continue;
@@ -1323,13 +1635,13 @@ baker_font:
 				x += 1.0/pix_x * r_textshadow.value;
 				y += 1.0/pix_y * r_textshadow.value;
 			}
-			if (!fontmap || (ch <= 0xFF && fontmap->glyphs[ch].image) || (ch >= 0xE000 && ch <= 0xE0FF))
+			if (!fontmaphere || (ch <= 0xFF && fontmaphere->glyphs[ch].image) || (ch >= 0xE000 && ch <= 0xE0FF))
 			{
 				if (ch >= 0xE000)
 					ch -= 0xE000;
 				if (ch > 0xFF)
 					goto out;
-				if (fontmap)
+				if (fontmaphere)
 					map = ft2_oldstyle_map;
 				prevch = 0;
 				//num = (unsigned char) text[i];
@@ -1362,10 +1674,10 @@ baker_font:
 				if (!map || map == ft2_oldstyle_map || ch < map->start || ch >= map->start + FONT_CHARS_PER_MAP)
 				{
 					// find the new map
-					map = FontMap_FindForChar(fontmap, ch);
+					map = FontMap_FindForChar(fontmaphere, ch);
 					if (!map)
 					{
-						if (!Font_LoadMapForIndex(ft2, map_index, ch, &map))
+						if (!Font_LoadMapForIndex(ft2, map_index, ch, &map, /*pascender descender height*/ NULL, NULL, NULL))
 						{
 							shadow = -1;
 							break;
@@ -1384,8 +1696,7 @@ baker_font:
 
 				//x += ftbase_x;
 				y += ftbase_y;
-				if (prevch && Font_GetKerningForMap(ft2, map_index, w, h, prevch, ch, &kx, &ky))
-				{
+				if (prevch && Font_GetKerningForMap(ft2, map_index, w, h, prevch, ch, &kx, &ky)) {
 					x += kx * dw;
 					y += ky * dh;
 				}
@@ -1711,9 +2022,52 @@ void DrawQ_FlushUI(void)
 	GL_DepthMask(false);
 
 	Mod_Mesh_Finalize(mod);
-	R_DrawModelSurfaces(&cl_meshentities[MESH_UI_1].render, false, false, false, false, false, true);
+	R_DrawModelSurfaces(&cl_meshentities[MESH_UI_1].render, 
+		q_skysurfaces_false, q_write_depth_false, q_depthonly_false, 
+		q_debug_false, q_prepass_false, q_is_ui_true // FFFFFT
+		);
+	//R_DrawModelSurfaces(&cl_meshentities[MESH_UI_1].render, 
+	//	false, false, false, false, false, true // FFFFFT
+	//	);
+
+	
 
 	Mod_Mesh_Reset(mod);
 }
 
 
+
+float Draw_StringWidthf (dp_font_t *dpf, ccs *s, float fontsize)
+{
+	//int slen = strlen(s);
+	size_t maxlen = 0;
+
+	float fwidth = DrawQ_TextWidth_UntilWidth_TrackColors_Scale(
+		s, 
+		&maxlen, fontsize, fontsize, scale_1_0, scale_1_0, q_outcolor_null, q_ignore_color_codes_false, 
+		dpf, /*maxwidth*/ 1000000000)
+		;
+
+	//int j = maxlen; // Number of characters of the string that render
+	return fwidth;
+}
+
+int Draw_StringWidthInt (dp_font_t *dpf, ccs *s, float fontsize)
+{
+	return ceil(Draw_StringWidthf(dpf,s,fontsize));
+}
+
+// This was a failure ...
+//float FontStringSimplex127 (dp_font_t *dpf, ccs *s, float fontsize)
+//{
+//	// Baker: There is an advance field for glyphs, the below will never "work"
+//	// for any of the fonts we are using.
+//	ccs *p = s;
+//	float w = 0;
+//	while (*p) {
+//		int ch = *p++;
+//		if (ch <= 127)
+//			w = dpf->width_of[ch] * fontsize;
+//	}
+//	return w;
+//}

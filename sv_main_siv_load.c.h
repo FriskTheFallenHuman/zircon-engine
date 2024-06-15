@@ -178,7 +178,7 @@ func_t foff;
 
 	c_strlcpy (sv.worldname, modelname);
 	FS_StripExtension(sv.worldname, sv.worldnamenoextension, sizeof(sv.worldnamenoextension));
-	c_strlcpy (sv.worldbasename, String_Does_Start_With_PRE(sv.worldnamenoextension, "maps/"/*, 5*/) ?
+	c_strlcpy (sv.worldbasename, String_Starts_With_PRE(sv.worldnamenoextension, "maps/"/*, 5*/) ?
 		sv.worldnamenoextension + 5 : sv.worldnamenoextension);
 	//Cvar_SetQuick(&sv_worldmessage, sv.worldmessage); // set later after QC is spawned
 	Cvar_SetQuick(&sv_worldname, sv.worldname);
@@ -197,7 +197,7 @@ func_t foff;
 	}
 #endif
 
-#pragma message ("read enties fro siv specifically to get sv_prog progs.dat")
+
 
 #if 0
 	// Baker: Twice for now ... fix in future ...load replacement entity file if found
@@ -301,7 +301,7 @@ intermap_no_load_entities:
 	PRVM_serveredictstring	(ent, model) = PRVM_SetEngineString(prog, sv.worldname);
 	PRVM_serveredictfloat	(ent, modelindex) = 1;		// world model
 	PRVM_serveredictfloat	(ent, solid) = SOLID_BSP_4;
-	PRVM_serveredictfloat	(ent, movetype) = MOVETYPE_PUSH;
+	PRVM_serveredictfloat	(ent, movetype) = MOVETYPE_PUSH_7;
 	VectorCopy				(sv.world.mins, PRVM_serveredictvector(ent, mins));
 	VectorCopy				(sv.world.maxs, PRVM_serveredictvector(ent, maxs));
 	VectorCopy				(sv.world.mins, PRVM_serveredictvector(ent, absmin));

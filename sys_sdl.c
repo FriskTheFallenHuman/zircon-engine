@@ -18,7 +18,7 @@
 // Include this BEFORE darkplaces.h because it breaks wrapping
 // _Static_assert. Cloudwalk has no idea how or why so don't ask.
 
-#if defined(_MSC_VER) && _MSC_VER < 1900
+#if defined(CODEBLOCKS_LINUX_IDE) || (defined(_MSC_VER) && _MSC_VER < 1900)
 	#include <SDL2/SDL.h>
 #else
 	#include <SDL.h>
@@ -143,7 +143,7 @@ void Sys_Error (const char *error, ...)
 	va_end (argptr);
 
 	Con_PrintLinef (CON_ERROR "Engine Error: %s", text);
-	
+
 	if (!nocrashdialog)
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Engine Error", text, NULL);
 
@@ -186,7 +186,7 @@ void Sys_Error (const char *error, ...)
 		{
 			if (sys.outfd < 0)
 				return;
-			
+
 			#define write _write
 
 			while (*text) {
@@ -206,7 +206,7 @@ void Sys_Error (const char *error, ...)
 
 		// BUG: for some reason, NDELAY also affects stdout (1) when used on stdin (0).
 		// this is because both go to /dev/tty by default!
-		
+
 		int origflags = fcntl (sys.outfd, F_GETFL, 0);
 		fcntl (sys.outfd, F_SETFL, origflags & ~O_NONBLOCK);
 
@@ -216,7 +216,7 @@ void Sys_Error (const char *error, ...)
 				break; // sorry, I cannot do anything about this error - without an output
 			text += written;
 		} // while
-				
+
 		fcntl (sys.outfd, F_SETFL, origflags);
 	}
 
@@ -242,7 +242,7 @@ void Sys_PrintToTerminal(const char *text)
 
 HANDLE				hinput, houtput;
 
-void Sys_Console_Init_WinQuake (void)
+void Sys_Console_InitOnce_WinQuake (void)
 {
 	houtput = GetStdHandle (STD_OUTPUT_HANDLE);
 	hinput = GetStdHandle (STD_INPUT_HANDLE);
@@ -297,7 +297,7 @@ char *Sys_ConsoleInput_WinQuake (void)
 
 		if (recs[0].EventType == KEY_EVENT ) {
 			int ch = recs[0].Event.KeyEvent.uChar.AsciiChar;
-			int dws = recs[0].Event.KeyEvent.dwControlKeyState; 
+			int dws = recs[0].Event.KeyEvent.dwControlKeyState;
 			// LEFT_CTRL_PRESSED 0x0008 RIGHT_CTRL_PRESSED 0x0004
 
 			if (recs[0].Event.KeyEvent.bKeyDown == 0) {
@@ -319,7 +319,7 @@ char *Sys_ConsoleInput_WinQuake (void)
 				} // Pastey - Jan 27 2020 - CTRL-V paste hack
 				continue;
 			}
-			
+
 			switch (ch)
 			{
 			case '\r': // Enter via carriage return character
@@ -446,7 +446,7 @@ char *Sys_GetClipboardData_Alloc (void)
 	return data;
 }
 
-char *Sys_GetClipboardData_Unlimited_Alloc (void)
+char *Sys_GetClipboardData_Unlimited_ZAlloc (void)
 {
 	char *data = NULL;
 	char *cliptext;
@@ -480,7 +480,7 @@ int main (int argc, char *argv[])
 	//
     // Baker: zircon_command_line.txt
     //
-    
+
 #ifdef CORE_XCODE // MACOSX
 	// This is to make zircon_command_line.txt work for a Mac .app
     if (strstr(sys.argv[0], ".app/") && strstr(sys.argv[0], "/Xcode/") == NULL) {
@@ -492,25 +492,25 @@ int main (int argc, char *argv[])
         while (split > fs_basedir && *split != '/')
             split--;
         *split = 0;
-        
+
         // Change to dir of .app, should make zircon_command_line.txt work
         chdir (fs_basedir);
     } // if .app in name, should be 100%
 #endif // XCODE
-    
+
 	if (sys.argc == 1 /*only the exe*/) {
 		char	cmdline_fake[MAX_INPUTLINE_16384];
-		
-		const char *s_fp = 
+
+		const char *s_fp =
 #ifdef __ANDROID__
-		
+
 			"/sdcard/zircon/"
 #endif
 			"zircon_command_line.txt";
 
 		if (File_Exists (s_fp)) {
 			size_t s_temp_size = 0; char *s_temp = (char *)File_To_String_Alloc (s_fp, &s_temp_size);
-			if (String_Does_Contain (s_temp, "//")) {
+			if (String_Contains (s_temp, "//")) {
 				char *s_start = (char *)strstr ( s_temp, "//");
 				*s_start = 0; // null it out
 
@@ -519,7 +519,7 @@ int main (int argc, char *argv[])
 			if (s_temp) {
 				c_strlcat (cmdline_fake, s_temp);
 				String_Edit_Whitespace_To_Space (cmdline_fake); // Make tabs, newlines into spaces.
-				
+
 				String_Command_String_To_Argv (/*destructive edit*/ cmdline_fake, &fake_argc, fake_argv, MAX_NUM_Q_ARGVS_50);
 				sys.argc = fake_argc;
 				sys.argv = (const char **)fake_argv;
@@ -538,7 +538,7 @@ int main (int argc, char *argv[])
 	// workflows or something if we show the dialog by default.
 	nocrashdialog = true;
 
-	Sys_ProvideSelfFD();
+	Sys_ProvideSelfFD(); // Baker: windows is setting sys.selffd to 3 so we have a handle
 
 	// COMMANDLINEOPTION: -nocrashdialog disables "Engine Error" crash dialog boxes
 	if (!Sys_CheckParm("-nocrashdialog"))
@@ -565,7 +565,7 @@ int main (int argc, char *argv[])
 	Host_Main();
 
 	Sys_Quit(0);
-	
+
 	return 0;
 }
 
@@ -613,7 +613,7 @@ sys_handle_t System_Process_Create (const char *path_to_file_unix, const char *a
 		// Converted binary path to Unix Slashes
 	}
 
-	if (String_Does_End_With_Caseless (windows_working_dir, "/")) { // TRAILING SLASH REMOVER except we own windows_working_dir
+	if (String_Ends_With_Caseless (windows_working_dir, "/")) { // TRAILING SLASH REMOVER except we own windows_working_dir
 		int slen = (int)strlen (windows_working_dir);
 		if (slen <= (int)sizeof(windows_working_dir /*1024*/)) { // Otherwise it is truncated ... which is bad.
 			windows_working_dir[slen - 1] = 0; // String len is 10, we null at 9 to reduce length to 8.
@@ -629,7 +629,7 @@ sys_handle_t System_Process_Create (const char *path_to_file_unix, const char *a
 
 		// Construct command line ...
 		c_dpsnprintf2 (command_line, QUOTED_S " " "%s", windows_path_to_file, args_not_unix_but_your_os);
-		
+
 		//logd ("Process command line (native format) " QUOTED_S, command_line); // Get rid of this after testing
 		si.cb = sizeof(si);
 		si.wShowWindow = SW_HIDE /*SW_SHOWMINNOACTIVE*/;
@@ -701,17 +701,17 @@ qbool System_Process_Close_Did_Close (sys_handle_t pid)
 #include <shellapi.h>
 qbool Sys_ShellExecute (const char *s)
 {
-	
+
 //	char s_cmd[MAX_INPUTLINE_16384];
 
-	int result = (int)ShellExecute (NULL, 
-             NULL, 
+	size_t result = (size_t)ShellExecute (NULL,
+             NULL,
              s /*"C:\\WINDOWS\\System32\\CALC.EXE"*/,
              NULL,
              NULL,
              SW_SHOWDEFAULT);
 
-	// If the function succeeds, it returns a value greater than 32. 
+	// If the function succeeds, it returns a value greater than 32.
 	return (result > 32);
 
 }
@@ -816,7 +816,7 @@ int Sys_Clipboard_Set_Text (const char *text_to_clipboard)
 	}
 #else // ! _WIN32
 
-	
+
 
 	SBUF___ char *Sys_Getcwd_SBuf (void) // No trailing slash
 

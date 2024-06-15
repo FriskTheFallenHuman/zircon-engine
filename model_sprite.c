@@ -93,16 +93,16 @@ extern cvar_t gl_texturecompression_sprites;
 
 static void Mod_Sprite_SharedSetup(const unsigned char *datapointer, int version, const unsigned int *palette, qbool additive)
 {
-	int					i, j, groupframes, realframes, x, y, origin[2], width, height;
-	qbool			fullbright;
-	dspriteframetype_t	*pinframetype;
-	dspriteframe_t		*pinframe;
-	dspritegroup_t		*pingroup;
-	dspriteinterval_t	*pinintervals;
-	skinframe_t			*skinframe;
-	float				modelradius, interval;
-	char				name[MAX_QPATH_128], fogname[MAX_QPATH_128];
-	const void			*startframes;
+	int                 i, j, groupframes, realframes, x, y, origin[2], width, height;
+	qbool               fullbright;
+	dspriteframetype_t  pinframetype;
+	dspriteframe_t      pinframe;
+	dspritegroup_t      pingroup;
+	dspriteinterval_t   pinintervals;
+	skinframe_t         *skinframe;
+	float               modelradius, interval;
+	char                name[MAX_QPATH_128], fogname[MAX_QPATH_128];
+	const void          *startframes;
 	int                 texflags = (r_mipsprites.integer ? TEXF_MIPMAP : 0) | ((gl_texturecompression.integer && gl_texturecompression_sprites.integer) ? TEXF_COMPRESS : 0) | TEXF_ISSPRITE | TEXF_PICMIP | TEXF_ALPHA | TEXF_CLAMP;
 	modelradius = 0;
 
@@ -117,33 +117,34 @@ static void Mod_Sprite_SharedSetup(const unsigned char *datapointer, int version
 
 //
 // load the frames
+// bones_was_here: memcpy() used here to prevent misaligned access with struct-based parsing
 //
 	startframes = datapointer;
 	realframes = 0;
 	for (i = 0;i < loadmodel->numframes;i++)
 	{
-		pinframetype = (dspriteframetype_t *)datapointer;
+		memcpy(&pinframetype, datapointer, sizeof(dspriteframetype_t));
 		datapointer += sizeof(dspriteframetype_t);
 
-		if (LittleLong (pinframetype->type) == SPR_SINGLE)
+		if (LittleLong (pinframetype.type) == SPR_SINGLE)
 			groupframes = 1;
 		else
 		{
-			pingroup = (dspritegroup_t *)datapointer;
+			memcpy(&pingroup, datapointer, sizeof(dspritegroup_t));
 			datapointer += sizeof(dspritegroup_t);
 
-			groupframes = LittleLong(pingroup->numframes);
+			groupframes = LittleLong(pingroup.numframes);
 
 			datapointer += sizeof(dspriteinterval_t) * groupframes;
 		}
 
 		for (j = 0;j < groupframes;j++)
 		{
-			pinframe = (dspriteframe_t *)datapointer;
+			memcpy(&pinframe, datapointer, sizeof(dspriteframe_t));
 			if (version == SPRITE32_VERSION)
-				datapointer += sizeof(dspriteframe_t) + LittleLong(pinframe->width) * LittleLong(pinframe->height) * 4;
+				datapointer += sizeof(dspriteframe_t) + LittleLong(pinframe.width) * LittleLong(pinframe.height) * 4;
 			else //if (version == SPRITE_VERSION || version == SPRITEHL_VERSION)
-				datapointer += sizeof(dspriteframe_t) + LittleLong(pinframe->width) * LittleLong(pinframe->height);
+				datapointer += sizeof(dspriteframe_t) + LittleLong(pinframe.width) * LittleLong(pinframe.height);
 		}
 		realframes += groupframes;
 	}
@@ -159,25 +160,25 @@ static void Mod_Sprite_SharedSetup(const unsigned char *datapointer, int version
 	realframes = 0;
 	for (i = 0;i < loadmodel->numframes;i++)
 	{
-		pinframetype = (dspriteframetype_t *)datapointer;
+		memcpy(&pinframetype, datapointer, sizeof(dspriteframetype_t));
 		datapointer += sizeof(dspriteframetype_t);
 
-		if (LittleLong (pinframetype->type) == SPR_SINGLE)
+		if (LittleLong (pinframetype.type) == SPR_SINGLE)
 		{
 			groupframes = 1;
 			interval = 0.1f;
 		}
 		else
 		{
-			pingroup = (dspritegroup_t *)datapointer;
+			memcpy(&pingroup, datapointer, sizeof(dspritegroup_t));
 			datapointer += sizeof(dspritegroup_t);
 
-			groupframes = LittleLong(pingroup->numframes);
+			groupframes = LittleLong(pingroup.numframes);
 
-			pinintervals = (dspriteinterval_t *)datapointer;
+			memcpy(&pinintervals, datapointer, sizeof(dspriteinterval_t));
 			datapointer += sizeof(dspriteinterval_t) * groupframes;
 
-			interval = LittleFloat(pinintervals[0].interval);
+			interval = LittleFloat(pinintervals.interval);
 			if (interval < 0.01f)
 				Host_Error_Line ("Mod_Sprite_SharedSetup: invalid interval");
 		}
@@ -190,13 +191,13 @@ static void Mod_Sprite_SharedSetup(const unsigned char *datapointer, int version
 
 		for (j = 0;j < groupframes;j++)
 		{
-			pinframe = (dspriteframe_t *)datapointer;
+			memcpy(&pinframe, datapointer, sizeof(dspriteframe_t));
 			datapointer += sizeof(dspriteframe_t);
 
-			origin[0] = LittleLong (pinframe->origin[0]);
-			origin[1] = LittleLong (pinframe->origin[1]);
-			width = LittleLong (pinframe->width);
-			height = LittleLong (pinframe->height);
+			origin[0] = LittleLong (pinframe.origin[0]);
+			origin[1] = LittleLong (pinframe.origin[1]);
+			width = LittleLong (pinframe.width);
+			height = LittleLong (pinframe.height);
 
 			loadmodel->sprite.sprdata_frames[realframes].left = origin[0];
 			loadmodel->sprite.sprdata_frames[realframes].right = origin[0] + width;
@@ -332,7 +333,7 @@ int Mod_IDSP_Load(model_t *mod, void *buffer, void *bufferend)
 		case SPRHL_ADDITIVE:
 			for (i = 0;i < 256;i++)
 			{
-				palette[i][2] = in[i*3+0]; // PALX
+				palette[i][2] = in[i*3+0];
 				palette[i][1] = in[i*3+1];
 				palette[i][0] = in[i*3+2];
 				palette[i][3] = 255;

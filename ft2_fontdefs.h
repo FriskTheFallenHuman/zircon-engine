@@ -24,28 +24,33 @@ typedef struct glyph_slot_s
 	float advance_y;
 } glyph_slot_t;
 
-struct ft2_font_map_s
+// Baker: This is a DarkPlaces struct, not a freetype2 struct
+struct dp_ft2_font_map_s
 {
-	Uchar                  start;
-	struct ft2_font_map_s *next;
-	float                  size;
+	Uchar						start;
+	struct dp_ft2_font_map_s	*next;
+	float						size;
 	// the actual size used in the freetype code
 	// by convention, the requested size is the height of the font's bounding box.
-	float                  intSize;
-	int                    glyphSize;
+	float						intSize;
+	int							glyphSize;
 
-	cachepic_t            *pic;
-	qbool               static_tex;
-	glyph_slot_t           glyphs[FONT_CHARS_PER_MAP];
+	short						ft_baker_ascender;
+	short						ft_baker_descender;
+	short						ft_baker_height;
+
+	cachepic_t					*pic;
+	qbool						static_tex;
+	glyph_slot_t				glyphs[FONT_CHARS_PER_MAP];
 
 	// contains the kerning information for the first 256 characters
 	// for the other characters, we will lookup the kerning information
-	ft2_kerning_t          kerning;
+	ft2_kerning_t				kerning;
 	// safes us the trouble of calculating these over and over again
-	double                 sfx, sfy;
+	double						sfx, sfy;
 
 	// the width_of for the image-font, pixel-snapped for this size
-	float           width_of[256];
+	float						width_of[256];
 };
 
 struct ft2_attachment_s
@@ -55,7 +60,7 @@ struct ft2_attachment_s
 };
 
 //qbool Font_LoadMapForIndex(ft2_font_t *font, Uchar _ch, ft2_font_map_t **outmap);
-qbool Font_LoadMapForIndex(ft2_font_t *font, int map_index, Uchar _ch, ft2_font_map_t **outmap);
+qbool Font_LoadMapForIndex(ft2_font_t *font, int map_index, Uchar _ch, ft2_font_map_t **outmap, short *pascender, short *pdescender, short *pheight);
 
 void font_start(void);
 void font_shutdown(void);

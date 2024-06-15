@@ -58,7 +58,7 @@ int		gl_filter_min = GL_LINEAR_MIPMAP_LINEAR;
 int		gl_filter_mag = GL_LINEAR;
 
 
-static mempool_t *texturemempool;
+mempool_t *texturemempool;
 static memexpandablearray_t texturearray;
 
 // note: this must not conflict with TEXF_ flags in r_textures.h
@@ -482,7 +482,7 @@ void R_Nearest_Conchars_Action (void)
 		for (pool = gltexturepoolchain; pool; pool = pool->next) {
 			for (glt = pool->gltchain; glt; glt = glt->chain) {
 				// only update already uploaded images
-				if (String_Does_Contain(glt->identifier, "conchars") == false)
+				if (String_Contains(glt->identifier, "conchars") == false)
 					continue;
 
 				if (glt->texnum) {
@@ -519,7 +519,7 @@ void SetFilterNum(int num)
 	GLint oldbindtexnum;
 	gl_filter_min = gl_texture_modes[num].minification;
 	gl_filter_mag = gl_texture_modes[num].magnification;
-//	gl_filter_force = f((Cmd_Argc(cmd) > 2) && String_Does_Match_Caseless(Cmd_Argv(cmd, 2), "force"));
+//	gl_filter_force = f((Cmd_Argc(cmd) > 2) && String_Match_Caseless(Cmd_Argv(cmd, 2), "force"));
 
 	switch(vid.renderpath) {
 	case RENDERPATH_GL32:
@@ -615,7 +615,7 @@ static void GL_TextureMode_f (cmd_state_t *cmd)
 
 	int ac = ARRAY_COUNT (gl_texture_modes);
 	for (i = 0; i < ac; i ++)
-		if (String_Does_Match_Caseless (gl_texture_modes[i].name, Cmd_Argv(cmd, 1) ) )
+		if (String_Match_Caseless (gl_texture_modes[i].name, Cmd_Argv(cmd, 1) ) )
 			break;
 
 	if (i == 6) {
@@ -625,7 +625,7 @@ static void GL_TextureMode_f (cmd_state_t *cmd)
 
 	gl_filter_min = gl_texture_modes[i].minification;
 	gl_filter_mag = gl_texture_modes[i].magnification;
-	gl_filter_force = ((Cmd_Argc(cmd) > 2) && String_Does_Match_Caseless(Cmd_Argv(cmd, 2), "force"));
+	gl_filter_force = ((Cmd_Argc(cmd) > 2) && String_Match_Caseless(Cmd_Argv(cmd, 2), "force"));
 
 	switch(vid.renderpath)
 	{
@@ -813,7 +813,9 @@ static void r_textures_shutdown(void)
 
 #ifdef CONFIG_MENU
 	WARP_X_ (DYNAMICTEX_Q3_END)
-	m_load2_oldload_cursor = -1; m_load2_scroll_is_blocked = false;
+	m_load2_oldload_cursor = -1; m_load2_scroll_is_blocked = false; // DYNX
+	
+	mapeo_oldmaplistcursor = -1; // DYNX
 #endif
 
 	JPEG_CloseLibrary ();
@@ -1603,7 +1605,7 @@ int R_SaveTextureDDSFile(rtexture_t *rt, const char *filename, qbool skipuncompr
 	const char *ddsfourcc;
 	if (!rt)
 		return -1; // NULL pointer
-	if (String_Does_Match(gl_version, "2.0.5885 WinXP Release"))
+	if (String_Match(gl_version, "2.0.5885 WinXP Release"))
 		return -2; // broken driver - crashes on reading internal format
 	if (!qglGetTexLevelParameteriv)
 		return -2;

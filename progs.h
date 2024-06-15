@@ -119,8 +119,8 @@ typedef struct edict_engineprivate_s
 	vec3_t moved_from;
 	vec3_t moved_fromangles;
 
-	framegroupblend_t framegroupblend[MAX_FRAMEGROUPBLENDS];
-	frameblend_t frameblend[MAX_FRAMEBLENDS];
+	framegroupblend_t framegroupblend[MAX_FRAMEGROUPBLENDS_4];
+	frameblend_t frameblend[MAX_FRAMEBLENDS_8];
 	skeleton_t skeleton;
 
 #ifdef USEODE

@@ -265,11 +265,11 @@ static void IN_BestWeapon_Register_f(cmd_state_t *cmd)
 			atoi(Cmd_Argv(cmd, 6))
 		);
 	}
-	else if (Cmd_Argc(cmd) == 2 && String_Does_Match(Cmd_Argv(cmd, 1), "clear"))
+	else if (Cmd_Argc(cmd) == 2 && String_Match(Cmd_Argv(cmd, 1), "clear"))
 	{
 		memset(in_bestweapon_info, 0, sizeof(in_bestweapon_info));
 	}
-	else if (Cmd_Argc(cmd) == 2 && String_Does_Match(Cmd_Argv(cmd, 1), "quake"))
+	else if (Cmd_Argc(cmd) == 2 && String_Match(Cmd_Argv(cmd, 1), "quake"))
 	{
 		IN_BestWeapon_ResetData();
 	}
@@ -294,7 +294,7 @@ static void IN_BestWeapon_f(cmd_state_t *cmd)
 		// figure out which weapon this character refers to
 		for (n = 0;n < IN_BESTWEAPON_MAX && in_bestweapon_info[n].impulse;n++)
 		{
-			if (String_Does_Match(in_bestweapon_info[n].name, t))
+			if (String_Match(in_bestweapon_info[n].name, t))
 			{
 				// we found out what weapon this character refers to
 				// check if the inventory contains the weapon and enough ammo

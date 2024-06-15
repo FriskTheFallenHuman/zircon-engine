@@ -277,7 +277,7 @@ int LHNETADDRESS_FromString(lhnetaddress_t *vaddress, const char *string, int de
 		port = defaultport;
 
 	// handle loopback
-	if (String_Does_Match(name, "local"))
+	if (String_Match(name, "local"))
 	{
 		address->addresstype = LHNETADDRESSTYPE_LOOP;
 		address->port = port;
@@ -309,7 +309,7 @@ int LHNETADDRESS_FromString(lhnetaddress_t *vaddress, const char *string, int de
 		return 1;
 	}
 	for (i = 0;i < MAX_NAMECACHE;i++)
-		if (String_Does_Match(namecache[i].name, name))
+		if (String_Match(namecache[i].name, name))
 			break;
 #ifdef STANDALONETEST
 	if (i < MAX_NAMECACHE)
@@ -413,7 +413,7 @@ int LHNETADDRESS_FromString(lhnetaddress_t *vaddress, const char *string, int de
 	memcpy(name, string, namelen);
 	name[namelen] = 0;
 	// handle loopback
-	if (String_Does_Match(name, "local"))
+	if (String_Match(name, "local"))
 	{
 		address->addresstype = LHNETADDRESSTYPE_LOOP;
 		address->port = port;
@@ -444,7 +444,7 @@ int LHNETADDRESS_FromString(lhnetaddress_t *vaddress, const char *string, int de
 		return 1;
 	}
 	for (i = 0;i < MAX_NAMECACHE;i++)
-		if (String_Does_Match(namecache[i].name, name))
+		if (String_Match(namecache[i].name, name))
 			break;
 #ifdef STANDALONETEST
 	if (i < MAX_NAMECACHE)
@@ -1386,7 +1386,7 @@ int main(int argc, char **argv)
 						LHNETADDRESS_ToString(&receiveaddress, addressstring, sizeof(addressstring), 1);
 						LHNETADDRESS_ToString(LHNET_AddressFromSocket(sock[i]), addressstring2, sizeof(addressstring2), 1);
 						printf("received message " QUOTED_S " from " QUOTED_S " on socket " QUOTED_S NEWLINE, buffer, addressstring, addressstring2);
-						if (String_Does_Match(buffer, "exit"))
+						if (String_Match(buffer, "exit"))
 							break;
 					}
 				}
@@ -1664,7 +1664,7 @@ int UDP6_GetHostNameIP (char *namebuf, size_t namebuf_size, char *ipbuf, size_t 
 		strlcpy (ipbuf, UDP_AddrToString((struct qsockaddr*)local->ai_addr, false), ipbuf_size);
 #if 1
 		length = (int)strlen(ipbuf);
-		if (length > 2 && String_Does_Match(ipbuf + length - 2, ":0"))
+		if (length > 2 && String_Match(ipbuf + length - 2, ":0"))
 			ipbuf[length - 2] = 0;
 #endif
 		freeaddrinfo(local);

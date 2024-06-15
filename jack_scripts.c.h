@@ -114,7 +114,7 @@ void CleanShader (const char *srel) // scripts/mine.shader
 
 	if (!s_sa) goto fail_without_cleanup;
 
-	s_clean_sa = String_Replace_Alloc (s_sa, CARRIAGE_RETURN, "");
+	s_clean_sa = String_Replace_Malloc (s_sa, CARRIAGE_RETURN, "");
 
 	Mem_Free(s_sa);
 
@@ -137,7 +137,7 @@ void CleanShader (const char *srel) // scripts/mine.shader
 		
 		for (int idx = 0; idx < scrub_list_count; idx ++) {
 			const char *s_scrub_this = scrub_list[idx];
-			if (String_Does_Contain_Caseless (s_this_line, s_scrub_this)) {
+			if (String_Contains_Caseless (s_this_line, s_scrub_this)) {
 				is_ok = false;
 				break;
 			} // found shader not recognized by J.A.C.K. do not write
@@ -147,7 +147,7 @@ void CleanShader (const char *srel) // scripts/mine.shader
 		for (int idx = 0; idx < substitute_list_count; idx += 2) {
 			const char *s_replace_this = substitute_list[idx + 0];
 			const char *s_with = substitute_list[idx + 1];
-			if (String_Does_Contain_Caseless (s_this_line, s_replace_this)) {
+			if (String_Contains_Caseless (s_this_line, s_replace_this)) {
 				c_strlcpy (editbuffer,  s_this_line);
 				String_Edit_Replace (editbuffer, sizeof(editbuffer), s_replace_this, s_with); 
 				s_this_line = editbuffer; // Write this instead.
@@ -192,7 +192,7 @@ void Con_Jack_Scripts_f(cmd_state_t *cmd)
 	for (j = 0; j < asearch->numfilenames; j++) {
 		const char *s_file = asearch->filenames[j];
 		Con_PrintLinef ("%s", s_file);
-		//if (String_Does_Contain (s_file, "common") == false)
+		//if (String_Contains (s_file, "common") == false)
 		//	continue;
 
 		CleanShader (asearch->filenames[j]);

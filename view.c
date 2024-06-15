@@ -35,6 +35,7 @@ when crossing a water boudnary.
 cvar_t cl_rollspeed = {CF_CLIENT, "cl_rollspeed", "200", "how much strafing is necessary to tilt the view"};
 cvar_t cl_rollangle = {CF_CLIENT, "cl_rollangle", "2.0", "how much to tilt the view when strafing"};
 
+cvar_t v_viewheight = {CF_CLIENT | CF_ARCHIVE, "v_viewheight", "0", "adjust the vertical position of the view for testing (set to 6 for Half-Life style), the correct way to is set viewheight in QuakeC PutClientInServer with self.view_ofs = [0 0 22]; [Zircon]"};
 cvar_t cl_bob = {CF_CLIENT | CF_ARCHIVE, "cl_bob","0.02", "view bobbing amount"};
 cvar_t cl_bobcycle = {CF_CLIENT | CF_ARCHIVE, "cl_bobcycle","0.6", "view bobbing speed"};
 cvar_t cl_bobup = {CF_CLIENT | CF_ARCHIVE, "cl_bobup","0.5", "view bobbing adjustment that makes the up or down swing of the bob last longer"};
@@ -322,7 +323,11 @@ void V_ParseDamage (void)
 	}
 }
 
-static cshift_t v_cshift;
+#if 0
+	static cshift_t v_cshift; // Baker: No.
+#endif
+
+
 
 /*
 ==================
@@ -331,10 +336,10 @@ V_cshift_f
 */
 static void V_cshift_f(cmd_state_t *cmd)
 {
-	v_cshift.destcolor[0] = atof(Cmd_Argv(cmd, 1));
-	v_cshift.destcolor[1] = atof(Cmd_Argv(cmd, 2));
-	v_cshift.destcolor[2] = atof(Cmd_Argv(cmd, 3));
-	v_cshift.percent = atof(Cmd_Argv(cmd, 4));
+	cl.v_cshift.destcolor[0] = atof(Cmd_Argv(cmd, 1));
+	cl.v_cshift.destcolor[1] = atof(Cmd_Argv(cmd, 2));
+	cl.v_cshift.destcolor[2] = atof(Cmd_Argv(cmd, 3));
+	cl.v_cshift.percent = atof(Cmd_Argv(cmd, 4));
 }
 
 
@@ -766,6 +771,10 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 						gunorg[2] += bob;
 				}
 
+				if (v_viewheight.value) {
+					vieworg[2] += v_viewheight.value;
+				}
+
 				// horizontal view bobbing code
 				if (cl_bob2.value && cl_bob2cycle.value)
 				{
@@ -961,7 +970,8 @@ void V_CalcRefdef (void)
 	entity_t *ent;
 	qbool cldead;
 
-	if (cls.state == ca_connected && cls.signon == SIGNONS_4 && !cl.csqc_server2csqcentitynumber[cl.viewentity]) {
+	if (cls.state == ca_connected && cls.signon == SIGNONS_4 && 
+		!cl.csqc_server2csqcentitynumber[cl.viewentity]) {
 		// ent is the view entity (visible when out of body)
 		ent = &cl.entities[cl.viewentity];
 
@@ -1155,10 +1165,10 @@ void V_CalcViewBlend(void)
 				cl.cshifts[CSHIFT_POWERUP].percent = 0;
 		}
 
-		cl.cshifts[CSHIFT_VCSHIFT].destcolor[0] = v_cshift.destcolor[0];
-		cl.cshifts[CSHIFT_VCSHIFT].destcolor[1] = v_cshift.destcolor[1];
-		cl.cshifts[CSHIFT_VCSHIFT].destcolor[2] = v_cshift.destcolor[2];
-		cl.cshifts[CSHIFT_VCSHIFT].percent = v_cshift.percent;
+		cl.cshifts[CSHIFT_VCSHIFT].destcolor[0] = cl.v_cshift.destcolor[0];
+		cl.cshifts[CSHIFT_VCSHIFT].destcolor[1] = cl.v_cshift.destcolor[1];
+		cl.cshifts[CSHIFT_VCSHIFT].destcolor[2] = cl.v_cshift.destcolor[2];
+		cl.cshifts[CSHIFT_VCSHIFT].percent = cl.v_cshift.percent;
 
 		// LadyHavoc: fixed V_CalcBlend
 		for (j = 0;j < NUM_CSHIFTS;j++) {
@@ -1224,10 +1234,10 @@ void V_CalcViewBlend(void)
 
 /*
 =============
-V_Init
+V_InitOnce
 =============
 */
-void V_Init (void)
+void V_InitOnce (void)
 {
 	Cmd_AddCommand(CF_CLIENT | CF_CLIENT_FROM_SERVER, "v_cshift", V_cshift_f, "sets tint color of view");
 	Cmd_AddCommand(CF_CLIENT | CF_CLIENT_FROM_SERVER, "bf", V_BonusFlash_f, "briefly flashes a bright color tint on view (used when items are picked up); optionally takes R G B [A [alphafade]] arguments to specify how the flash looks");
@@ -1243,29 +1253,29 @@ void V_Init (void)
 	Cvar_RegisterVariable (&v_iroll_level);
 	Cvar_RegisterVariable (&v_ipitch_level);
 
-	Cvar_RegisterVariable(&v_isometric);
-	Cvar_RegisterVariable(&v_isometric_verticalfov);
-	Cvar_RegisterVariable(&v_isometric_xx);
-	Cvar_RegisterVariable(&v_isometric_xy);
-	Cvar_RegisterVariable(&v_isometric_xz);
-	Cvar_RegisterVariable(&v_isometric_yx);
-	Cvar_RegisterVariable(&v_isometric_yy);
-	Cvar_RegisterVariable(&v_isometric_yz);
-	Cvar_RegisterVariable(&v_isometric_zx);
-	Cvar_RegisterVariable(&v_isometric_zy);
-	Cvar_RegisterVariable(&v_isometric_zz);
-	Cvar_RegisterVariable(&v_isometric_tx);
-	Cvar_RegisterVariable(&v_isometric_ty);
-	Cvar_RegisterVariable(&v_isometric_tz);
-	Cvar_RegisterVariable(&v_isometric_rot_pitch);
-	Cvar_RegisterVariable(&v_isometric_rot_yaw);
-	Cvar_RegisterVariable(&v_isometric_rot_roll);
-	Cvar_RegisterVariable(&v_isometric_relx);
-	Cvar_RegisterVariable(&v_isometric_rely);
-	Cvar_RegisterVariable(&v_isometric_relz);
-	Cvar_RegisterVariable(&v_isometric_flipcullface);
-	Cvar_RegisterVariable(&v_isometric_locked_orientation);
-	Cvar_RegisterVariable(&v_isometric_usevieworiginculling);
+	Cvar_RegisterVariable (&v_isometric);
+	Cvar_RegisterVariable (&v_isometric_verticalfov);
+	Cvar_RegisterVariable (&v_isometric_xx);
+	Cvar_RegisterVariable (&v_isometric_xy);
+	Cvar_RegisterVariable (&v_isometric_xz);
+	Cvar_RegisterVariable (&v_isometric_yx);
+	Cvar_RegisterVariable (&v_isometric_yy);
+	Cvar_RegisterVariable (&v_isometric_yz);
+	Cvar_RegisterVariable (&v_isometric_zx);
+	Cvar_RegisterVariable (&v_isometric_zy);
+	Cvar_RegisterVariable (&v_isometric_zz);
+	Cvar_RegisterVariable (&v_isometric_tx);
+	Cvar_RegisterVariable (&v_isometric_ty);
+	Cvar_RegisterVariable (&v_isometric_tz);
+	Cvar_RegisterVariable (&v_isometric_rot_pitch);
+	Cvar_RegisterVariable (&v_isometric_rot_yaw);
+	Cvar_RegisterVariable (&v_isometric_rot_roll);
+	Cvar_RegisterVariable (&v_isometric_relx);
+	Cvar_RegisterVariable (&v_isometric_rely);
+	Cvar_RegisterVariable (&v_isometric_relz);
+	Cvar_RegisterVariable (&v_isometric_flipcullface);
+	Cvar_RegisterVariable (&v_isometric_locked_orientation);
+	Cvar_RegisterVariable (&v_isometric_usevieworiginculling);
 
 	Cvar_RegisterVariable (&v_idlescale);
 	Cvar_RegisterVariable (&crosshair);
@@ -1273,6 +1283,8 @@ void V_Init (void)
 	Cvar_RegisterVariable (&cl_rollspeed);
 	Cvar_RegisterVariable (&cl_rollangle);
 	Cvar_RegisterVariable (&cl_bob);
+	Cvar_RegisterVariable (&v_viewheight);
+
 	Cvar_RegisterVariable (&cl_bobcycle);
 	Cvar_RegisterVariable (&cl_bobup);
 	Cvar_RegisterVariable (&cl_bob2);

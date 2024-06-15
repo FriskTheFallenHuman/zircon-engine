@@ -67,7 +67,7 @@ typedef struct particleeffectinfo_s
 	// originmins to originmaxs (causing them to describe a trail, not a box)
 	float trailspacing;
 	// type of particle to spawn (defines some aspects of behavior)
-	ptype_t particletype;
+	ptype_e particletype;
 	// blending mode used on this particle type
 	pblend_t blendmode;
 	// orientation of this particle type (BILLBOARD, SPARK, BEAM, etc)
@@ -183,7 +183,7 @@ particletexture_t;
 
 static rtexturepool_t *particletexturepool;
 static rtexture_t *particlefonttexture;
-static particletexture_t particletexture[MAX_PARTICLETEXTURES];
+static particletexture_t particletexture[MAX_PARTICLETEXTURES_256];
 skinframe_t *decalskinframe;
 
 // texture numbers in particle font
@@ -192,10 +192,10 @@ static const int tex_bulletdecal[8] = {8, 9, 10, 11, 12, 13, 14, 15};
 static const int tex_blooddecal[8] = {16, 17, 18, 19, 20, 21, 22, 23};
 static const int tex_bloodparticle[8] = {24, 25, 26, 27, 28, 29, 30, 31};
 static const int tex_rainsplash = 32;
-static const int tex_particle = 63;
+static const int tex_beam = 60;
 static const int tex_bubble = 62;
 static const int tex_raindrop = 61;
-static const int tex_beam = 60;
+static const int tex_particle = 63;
 
 particleeffectinfo_t baselineparticleeffectinfo =
 {
@@ -327,7 +327,7 @@ static void CL_Particles_ParseEffectInfo(const char *textstart, const char *text
 		for (;;) {
 			if (!COM_ParseToken_Simple(&text, true, false, true))
 				return;
-			if (String_Does_Match(com_token, "\n"))
+			if (String_Match(com_token, "\n"))
 				break;
 			if (argc < 16) {
 				c_strlcpy (argv[argc], com_token);
@@ -337,14 +337,14 @@ static void CL_Particles_ParseEffectInfo(const char *textstart, const char *text
 		if (argc < 1)
 			continue;
 
-#define checkparms(n)			if (argc != (n)) {Con_Printf ("%s:%d: error while parsing: %s given %d parameters, should be %d parameters\n", filename, linenumber, argv[0], argc, (n));break;}
+#define checkparms(n)			if (argc != (n)) {Con_PrintLinef ("%s:%d: error while parsing: %s given %d parameters, should be %d parameters", filename, linenumber, argv[0], argc, (n));break;}
 #define readints(array, n)		checkparms(n+1);for (arrayindex = 0;arrayindex < argc - 1;arrayindex++) array[arrayindex] = strtol(argv[1+arrayindex], NULL, 0)
 #define readfloats(array, n)	checkparms(n+1);for (arrayindex = 0;arrayindex < argc - 1;arrayindex++) array[arrayindex] = atof(argv[1+arrayindex])
 #define readint(var)			checkparms(2);var = strtol(argv[1], NULL, 0)
 #define readfloat(var)			checkparms(2);var = atof(argv[1])
 #define readbool(var)			checkparms(2);var = strtol(argv[1], NULL, 0) != 0
 
-		if (String_Does_Match(argv[0], "effect")) {
+		if (String_Match(argv[0], "effect")) {
 			int effectnameindex;
 			checkparms(2);
 			if (numparticleeffectinfo >= MAX_PARTICLEEFFECTINFO_8192) {
@@ -353,7 +353,7 @@ static void CL_Particles_ParseEffectInfo(const char *textstart, const char *text
 			}
 			for (effectnameindex = 1;effectnameindex < MAX_PARTICLEEFFECTNAME_4096;effectnameindex++) {
 				if (particleeffectname[effectnameindex][0]) {
-					if (String_Does_Match(particleeffectname[effectnameindex], argv[1]))
+					if (String_Match(particleeffectname[effectnameindex], argv[1]))
 						break;
 				} else {
 					c_strlcpy (particleeffectname[effectnameindex], argv[1]);
@@ -384,87 +384,87 @@ static void CL_Particles_ParseEffectInfo(const char *textstart, const char *text
 			continue;
 		}
 		else if (info == NULL) {
-			Con_Printf ("%s:%d: command %s encountered before effect\n", filename, linenumber, argv[0]);
+			Con_PrintLinef ("%s:%d: command %s encountered before effect", filename, linenumber, argv[0]);
 			break;
 		}
 
 		info->flags |= PARTICLEEFFECT_DEFINED;
-		if (String_Does_Match(argv[0], "countabsolute")) {readfloat(info->countabsolute);}
-		else if (String_Does_Match(argv[0], "count")) {readfloat(info->countmultiplier);}
-		else if (String_Does_Match(argv[0], "type"))
+		if (String_Match(argv[0], "countabsolute")) {readfloat(info->countabsolute);}
+		else if (String_Match(argv[0], "count")) {readfloat(info->countmultiplier);}
+		else if (String_Match(argv[0], "type"))
 		{
 			checkparms(2);
-			if (String_Does_Match(argv[1], "alphastatic"))			info->particletype = pt_alphastatic;
-			else if (String_Does_Match(argv[1], "static"))			info->particletype = pt_static;
-			else if (String_Does_Match(argv[1], "spark"))			info->particletype = pt_spark;
-			else if (String_Does_Match(argv[1], "beam"))			info->particletype = pt_beam;
-			else if (String_Does_Match(argv[1], "rain"))			info->particletype = pt_rain;
-			else if (String_Does_Match(argv[1], "raindecal"))		info->particletype = pt_raindecal;
-			else if (String_Does_Match(argv[1], "snow"))			info->particletype = pt_snow;
-			else if (String_Does_Match(argv[1], "bubble"))			info->particletype = pt_bubble;
-			else if (String_Does_Match(argv[1], "blood")) {
+			if (String_Match(argv[1], "alphastatic"))			info->particletype = pt_alphastatic;
+			else if (String_Match(argv[1], "static"))			info->particletype = pt_static;
+			else if (String_Match(argv[1], "spark"))			info->particletype = pt_spark;
+			else if (String_Match(argv[1], "beam"))			info->particletype = pt_beam;
+			else if (String_Match(argv[1], "rain"))			info->particletype = pt_rain;
+			else if (String_Match(argv[1], "raindecal"))		info->particletype = pt_raindecal;
+			else if (String_Match(argv[1], "snow"))			info->particletype = pt_snow;
+			else if (String_Match(argv[1], "bubble"))			info->particletype = pt_bubble;
+			else if (String_Match(argv[1], "blood")) {
 																	info->particletype = pt_blood;
 																	info->gravity = 1;
 			}
-			else if (String_Does_Match(argv[1], "smoke"))			info->particletype = pt_smoke;
-			else if (String_Does_Match(argv[1], "decal"))			info->particletype = pt_decal;
-			else if (String_Does_Match(argv[1], "entityparticle"))	info->particletype = pt_entityparticle;
+			else if (String_Match(argv[1], "smoke"))			info->particletype = pt_smoke;
+			else if (String_Match(argv[1], "decal"))			info->particletype = pt_decal;
+			else if (String_Match(argv[1], "entityparticle"))	info->particletype = pt_entityparticle;
 			else Con_PrintLinef ("%s:%d: unrecognized particle type %s", filename, linenumber, argv[1]);
 			info->blendmode = particletype[info->particletype].blendmode;
 			info->orientation = particletype[info->particletype].orientation;
 		}
-		else if (String_Does_Match(argv[0], "blend"))
+		else if (String_Match(argv[0], "blend"))
 		{
 			checkparms(2);
-			if (String_Does_Match(argv[1], "alpha"))		info->blendmode = PBLEND_ALPHA;
-			else if (String_Does_Match(argv[1], "add"))		info->blendmode = PBLEND_ADD;
-			else if (String_Does_Match(argv[1], "invmod"))	info->blendmode = PBLEND_INVMOD;
+			if (String_Match(argv[1], "alpha"))		info->blendmode = PBLEND_ALPHA;
+			else if (String_Match(argv[1], "add"))		info->blendmode = PBLEND_ADD;
+			else if (String_Match(argv[1], "invmod"))	info->blendmode = PBLEND_INVMOD;
 			else Con_PrintLinef ("%s:%d: unrecognized blendmode %s", filename, linenumber, argv[1]);
 		}
-		else if (String_Does_Match(argv[0], "orientation"))
+		else if (String_Match(argv[0], "orientation"))
 		{
 			checkparms(2);
-			if (String_Does_Match(argv[1], "billboard"))		info->orientation = PARTICLE_BILLBOARD;
-			else if (String_Does_Match(argv[1], "spark"))		info->orientation = PARTICLE_SPARK;
-			else if (String_Does_Match(argv[1], "oriented"))	info->orientation = PARTICLE_ORIENTED_DOUBLESIDED;
-			else if (String_Does_Match(argv[1], "beam"))		info->orientation = PARTICLE_HBEAM;
+			if (String_Match(argv[1], "billboard"))		info->orientation = PARTICLE_BILLBOARD;
+			else if (String_Match(argv[1], "spark"))		info->orientation = PARTICLE_SPARK;
+			else if (String_Match(argv[1], "oriented"))	info->orientation = PARTICLE_ORIENTED_DOUBLESIDED;
+			else if (String_Match(argv[1], "beam"))		info->orientation = PARTICLE_HBEAM;
 			else Con_PrintLinef ("%s:%d: unrecognized orientation %s", filename, linenumber, argv[1]);
 		}
-		else if (String_Does_Match(argv[0], "color"))					{readints(info->color, 2);}
-		else if (String_Does_Match(argv[0], "tex"))						{readints(info->tex, 2);}
-		else if (String_Does_Match(argv[0], "size"))					{readfloats(info->size, 2);}
-		else if (String_Does_Match(argv[0], "sizeincrease"))			{readfloat(info->size[2]);}
-		else if (String_Does_Match(argv[0], "alpha"))					{readfloats(info->alpha, 3);}
-		else if (String_Does_Match(argv[0], "time"))					{readfloats(info->time, 2);}
-		else if (String_Does_Match(argv[0], "gravity"))					{readfloat(info->gravity);}
-		else if (String_Does_Match(argv[0], "bounce"))					{readfloat(info->bounce);}
-		else if (String_Does_Match(argv[0], "airfriction"))				{readfloat(info->airfriction);}
-		else if (String_Does_Match(argv[0], "liquidfriction"))			{readfloat(info->liquidfriction);}
-		else if (String_Does_Match(argv[0], "originoffset"))			{readfloats(info->originoffset, 3);}
-		else if (String_Does_Match(argv[0], "relativeoriginoffset"))	{readfloats(info->relativeoriginoffset, 3);}
-		else if (String_Does_Match(argv[0], "velocityoffset"))			{readfloats(info->velocityoffset, 3);}
-		else if (String_Does_Match(argv[0], "relativevelocityoffset"))	{readfloats(info->relativevelocityoffset, 3);}
-		else if (String_Does_Match(argv[0], "originjitter"))			{readfloats(info->originjitter, 3);}
-		else if (String_Does_Match(argv[0], "velocityjitter"))			{readfloats(info->velocityjitter, 3);}
-		else if (String_Does_Match(argv[0], "velocitymultiplier"))		{readfloat(info->velocitymultiplier);}
-		else if (String_Does_Match(argv[0], "lightradius"))				{readfloat(info->lightradiusstart);}
-		else if (String_Does_Match(argv[0], "lightradiusfade"))			{readfloat(info->lightradiusfade);}
-		else if (String_Does_Match(argv[0], "lighttime"))				{readfloat(info->lighttime);}
-		else if (String_Does_Match(argv[0], "lightcolor"))				{readfloats(info->lightcolor, 3);}
-		else if (String_Does_Match(argv[0], "lightshadow"))				{readbool(info->lightshadow);}
-		else if (String_Does_Match(argv[0], "lightcubemapnum"))			{readint(info->lightcubemapnum);}
-		else if (String_Does_Match(argv[0], "lightcorona"))				{readints(info->lightcorona, 2);}
-		else if (String_Does_Match(argv[0], "underwater"))				{checkparms(1);info->flags |= PARTICLEEFFECT_UNDERWATER;}
-		else if (String_Does_Match(argv[0], "notunderwater"))			{checkparms(1);info->flags |= PARTICLEEFFECT_NOTUNDERWATER;}
-		else if (String_Does_Match(argv[0], "trailspacing"))			{readfloat(info->trailspacing);if (info->trailspacing > 0) info->countmultiplier = 1.0f / info->trailspacing;}
-		else if (String_Does_Match(argv[0], "stretchfactor"))			{readfloat(info->stretchfactor);}
-		else if (String_Does_Match(argv[0], "staincolor"))				{readints(info->staincolor, 2);}
-		else if (String_Does_Match(argv[0], "stainalpha"))				{readfloats(info->stainalpha, 2);}
-		else if (String_Does_Match(argv[0], "stainsize"))				{readfloats(info->stainsize, 2);}
-		else if (String_Does_Match(argv[0], "staintex"))				{readints(info->staintex, 2);}
-		else if (String_Does_Match(argv[0], "stainless"))				{info->staintex[0] = -2; info->staincolor[0] = (unsigned int)-1; info->staincolor[1] = (unsigned int)-1; info->stainalpha[0] = 1; info->stainalpha[1] = 1; info->stainsize[0] = 2; info->stainsize[1] = 2; }
-		else if (String_Does_Match(argv[0], "rotate"))					{readfloats(info->rotate, 4);}
-		else if (String_Does_Match(argv[0], "forcenearest"))			{checkparms(1);info->flags |= PARTICLEEFFECT_FORCENEAREST;}
+		else if (String_Match(argv[0], "color"))					{readints(info->color, 2);}
+		else if (String_Match(argv[0], "tex"))						{readints(info->tex, 2);}
+		else if (String_Match(argv[0], "size"))					{readfloats(info->size, 2);}
+		else if (String_Match(argv[0], "sizeincrease"))			{readfloat(info->size[2]);}
+		else if (String_Match(argv[0], "alpha"))					{readfloats(info->alpha, 3);}
+		else if (String_Match(argv[0], "time"))					{readfloats(info->time, 2);}
+		else if (String_Match(argv[0], "gravity"))					{readfloat(info->gravity);}
+		else if (String_Match(argv[0], "bounce"))					{readfloat(info->bounce);}
+		else if (String_Match(argv[0], "airfriction"))				{readfloat(info->airfriction);}
+		else if (String_Match(argv[0], "liquidfriction"))			{readfloat(info->liquidfriction);}
+		else if (String_Match(argv[0], "originoffset"))			{readfloats(info->originoffset, 3);}
+		else if (String_Match(argv[0], "relativeoriginoffset"))	{readfloats(info->relativeoriginoffset, 3);}
+		else if (String_Match(argv[0], "velocityoffset"))			{readfloats(info->velocityoffset, 3);}
+		else if (String_Match(argv[0], "relativevelocityoffset"))	{readfloats(info->relativevelocityoffset, 3);}
+		else if (String_Match(argv[0], "originjitter"))			{readfloats(info->originjitter, 3);}
+		else if (String_Match(argv[0], "velocityjitter"))			{readfloats(info->velocityjitter, 3);}
+		else if (String_Match(argv[0], "velocitymultiplier"))		{readfloat(info->velocitymultiplier);}
+		else if (String_Match(argv[0], "lightradius"))				{readfloat(info->lightradiusstart);}
+		else if (String_Match(argv[0], "lightradiusfade"))			{readfloat(info->lightradiusfade);}
+		else if (String_Match(argv[0], "lighttime"))				{readfloat(info->lighttime);}
+		else if (String_Match(argv[0], "lightcolor"))				{readfloats(info->lightcolor, 3);}
+		else if (String_Match(argv[0], "lightshadow"))				{readbool(info->lightshadow);}
+		else if (String_Match(argv[0], "lightcubemapnum"))			{readint(info->lightcubemapnum);}
+		else if (String_Match(argv[0], "lightcorona"))				{readints(info->lightcorona, 2);}
+		else if (String_Match(argv[0], "underwater"))				{checkparms(1);info->flags |= PARTICLEEFFECT_UNDERWATER;}
+		else if (String_Match(argv[0], "notunderwater"))			{checkparms(1);info->flags |= PARTICLEEFFECT_NOTUNDERWATER;}
+		else if (String_Match(argv[0], "trailspacing"))			{readfloat(info->trailspacing);if (info->trailspacing > 0) info->countmultiplier = 1.0f / info->trailspacing;}
+		else if (String_Match(argv[0], "stretchfactor"))			{readfloat(info->stretchfactor);}
+		else if (String_Match(argv[0], "staincolor"))				{readints(info->staincolor, 2);}
+		else if (String_Match(argv[0], "stainalpha"))				{readfloats(info->stainalpha, 2);}
+		else if (String_Match(argv[0], "stainsize"))				{readfloats(info->stainsize, 2);}
+		else if (String_Match(argv[0], "staintex"))				{readints(info->staintex, 2);}
+		else if (String_Match(argv[0], "stainless"))				{info->staintex[0] = -2; info->staincolor[0] = (unsigned int)-1; info->staincolor[1] = (unsigned int)-1; info->stainalpha[0] = 1; info->stainalpha[1] = 1; info->stainsize[0] = 2; info->stainsize[1] = 2; }
+		else if (String_Match(argv[0], "rotate"))					{readfloats(info->rotate, 4);}
+		else if (String_Match(argv[0], "forcenearest"))			{checkparms(1);info->flags |= PARTICLEEFFECT_FORCENEAREST;}
 		else
 			Con_Printf ("%s:%d: skipping unknown command %s\n", filename, linenumber, argv[0]);
 #undef checkparms
@@ -479,7 +479,7 @@ int CL_ParticleEffectIndexForName(const char *name)
 {
 	int i;
 	for (i = 1;i < MAX_PARTICLEEFFECTNAME_4096 && particleeffectname[i][0];i++)
-		if (String_Does_Match(particleeffectname[i], name))
+		if (String_Match(particleeffectname[i], name))
 			return i;
 	return 0;
 }
@@ -575,7 +575,7 @@ int GetEffectList_Count (const char *s_prefix)
 	//	return 0;
 	//}
 
-	// Baker: effectinfo is loaded even in disconnect state, Render_Init starts it up
+	// Baker: effectinfo is loaded even in disconnect state, Render_InitOnce starts it up
 
 	stringlist_t	matchedSet;
 	stringlistinit  (&matchedSet); // this does not allocate
@@ -590,7 +590,7 @@ int GetEffectList_Count (const char *s_prefix)
 
 		char *s_name = particleeffectname[info->effectnameindex];
 
-		if (s_prefix && s_prefix[0] && false == String_Does_Start_With_Caseless (s_name, s_prefix))
+		if (s_prefix && s_prefix[0] && false == String_Starts_With_Caseless (s_name, s_prefix))
 			continue;
 
 		stringlistappend (&matchedSet, s_name);
@@ -604,7 +604,7 @@ int GetEffectList_Count (const char *s_prefix)
 	for (int idx = 0; idx < matchedSet.numstrings; idx ++) {
 		char *sxy = matchedSet.strings[idx];
 
-		if (String_Does_Start_With_Caseless (sxy, s_prefix) == false)
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
 			continue;
 
 		SPARTIAL_EVAL_
@@ -633,15 +633,15 @@ static void CL_EffectInfo_List_f (cmd_state_t *cmd)
 		if (Have_Flag (info->flags, PARTICLEEFFECT_DEFINED) == false)
 			continue;
 		char *s_name = particleeffectname[info->effectnameindex];
-		if (s_effectpartial && false == String_Does_Start_With (s_name, s_effectpartial))
+		if (s_effectpartial && false == String_Starts_With (s_name, s_effectpartial))
 			continue;
 		Con_PrintLinef ("%04d: %s", idx, s_name);
 	} // for
 
 }
 
-#pragma message ("effectinfo_dump EF_ENFORCERLASERIMPACT loses line number sync -- is it comments or what?  Carriage returns?")
-#pragma message ("We can effectinfo_dump with empty string and check for first line # mismatch")
+//#pragma message ("effectinfo_dump EF_ENFORCERLASERIMPACT loses line number sync -- is it comments or what?  Carriage returns?")
+//#pragma message ("We can effectinfo_dump with empty string and check for first line # mismatch")
 
 static void CL_EffectInfo_Dump_f (cmd_state_t *cmd)
 {
@@ -679,7 +679,7 @@ static void CL_EffectInfo_Dump_f (cmd_state_t *cmd)
 		while (1) {
 			if (false == COM_ParseToken_Simple(&text, /*newline?*/ true, /*parse backslash?*/ false, /*parse comments?*/ true))
 				goto donex;
-			if (String_Does_Match(com_token, NEWLINE))
+			if (String_Match(com_token, NEWLINE))
 				break; // exit while
 			if (argc < 16) {
 				c_strlcpy (argv[argc], com_token);
@@ -691,7 +691,7 @@ static void CL_EffectInfo_Dump_f (cmd_state_t *cmd)
 
 		//const char *text1 = text;
 		WARP_X_ (CL_Particles_LoadEffectInfo)
-		if (false == String_Does_Match(argv[0], "effect")) {
+		if (false == String_Match(argv[0], "effect")) {
 			continue;
 		}
 
@@ -727,7 +727,7 @@ static void CL_EffectInfo_Dump_f (cmd_state_t *cmd)
 		const char *s_effectname = argv[1];
 		int is_one_we_want = true;
 		if (s_partial && s_partial[0])
-			is_one_we_want = String_Does_Start_With (s_effectname, s_partial);
+			is_one_we_want = String_Starts_With (s_effectname, s_partial);
 
 		if (is_one_we_want) {
 			c_strlcpy (s_effectname_current, s_effectname);
@@ -792,7 +792,7 @@ CL_InitParticles
 
 WARP_X_ (Mod_OBJ_Load R_ShaderPrint_f SV_ShowModel_f CL_EffectInfo_Dump_f R_Pak_This_Map_f)
 
-// Stage 1, print the file names
+#if 0 // Baker: This did fine for single object obj model with only 1 piece
 void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 {
 	if (Cmd_Argc(cmd) == 1) {
@@ -878,12 +878,12 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 				is_eof = true;
 				break;
 			}
-			if (String_Does_Match(com_token, NEWLINE))
+			if (String_Match(com_token, NEWLINE))
 				break; // exit while
 			switch (argc) {
 			case 0: 
 				argc++;
-				if (String_Does_Match (com_token, "v")) {
+				if (String_Match (com_token, "v")) {
 					is_a_vertex = true;
 					num_vertexs ++;
 					if (text_before_vertex_section == NULL) {
@@ -891,7 +891,7 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 					}
 				} // v
 
-				if (String_Does_Match (com_token, "f")) {
+				if (String_Match (com_token, "f")) {
 					is_a_vertex = false;
 					num_faces ++;
 				} // v
@@ -967,7 +967,7 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 	//Con_PrintLinef ("Center is " VECTOR3_5d1F, VECTOR3_SEND(cent) );
 
 
-	int model_idx = SV_ModelIndex (s_filename, /*precache mode*/ 0); // Baker: 0 means we are not precaching
+	int model_idx = SV_ModelIndex (s_filename, PRECACHE_MODE_0); // Baker: 0 means we are not precaching
 
 	if (model_idx != 0) {
 		model_t	*mod = SV_GetModelByIndex(model_idx);
@@ -1018,14 +1018,13 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 			if (minz[2] > obj_v[idx*3+2]) minz[2] = obj_v[idx*3+2];
 		} // next
 
-
 		sizz[0] = maxz[0] - minz[0];
 		sizz[1] = maxz[1] - minz[1];
 		sizz[2] = maxz[2] - minz[2];
 
 		cent[0] = minz[0] + sizz[0] / 2;
-		cent[1] = maxz[1] + sizz[1] / 2;
-		cent[2] = maxz[2] + sizz[2] / 2;
+		cent[1] = minz[1] + sizz[1] / 2;
+		cent[2] = minz[2] + sizz[2] / 2;
 
 		Con_PrintLinef ("New:");
 		Con_PrintLinef ("======");
@@ -1033,7 +1032,6 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 		Con_PrintLinef ("Maxs   is " VECTOR3_5d1F, VECTOR3_SEND(maxz) );
 		Con_PrintLinef ("Size   is " VECTOR3_5d1F, VECTOR3_SEND(sizz) );
 		Con_PrintLinef ("Center is " VECTOR3_5d1F, VECTOR3_SEND(cent) );
-
 	}
 
 	size_t slen_before = text_before_vertex_section - text_start;
@@ -1068,6 +1066,725 @@ file_open_write_fail:
 	Mem_Free(obj_v);
 	Mem_Free(filedata);
 }
+#endif
+
+typedef struct {
+	char		*sname_za;		// The name of the group
+	char		*susemtl_za;	// The name of the texture
+	int32list_s	 facelist9;		// f  1039/1039/1039 1040/1040/1040 1041/1041/1041 (for triangles)
+	float minz[3];// = { 9999999,  9999999,  9999999}; 
+	float maxz[3];// = {-9999999, -9999999, -9999999}; 
+	float sizz[3];
+	float cent[3];
+} gfaceset_s;
+
+#define MASK_USED_NEG1 -1
+#define MASK_UNUSED_ZERO_0 0
+typedef struct {
+
+	char *mtllib_za;
+
+	gfaceset_s faceset[20];
+	int faceset_count;
+
+	int num_vertexs, num_faces;
+	float minz[3];// = { 9999999,  9999999,  9999999}; 
+	float maxz[3];// = {-9999999, -9999999, -9999999}; 
+	float sizz[3];
+	float cent[3];
+
+	floatlist_s	v3; // v 0.123 0.234 0.345 1.0 v x y z w (yes w)
+	floatlist_s vt3; // vt s t w // (yes w)
+	floatlist_s vn3;
+	int32list_s masklist;
+	int ifilterplus1;	// -1 MEANS EVERYTHING EXCEPT 1  1 MEANS ONLY 1
+
+	gfaceset_s *factive;
+} gobj_s;
+
+void facesetfreecontents (gobj_s *g)
+{
+	for (int n = 0; n < g->faceset_count; n ++) {
+		gfaceset_s *faceitem = &g->faceset[n];
+		mfreenull_ (faceitem->sname_za);
+		mfreenull_ (faceitem->susemtl_za);
+		int32s_freecontents (&faceitem->facelist9);
+	}
+	g->faceset_count = 0;
+	mfreenull_ (g->mtllib_za);
+	floats_freecontents (&g->v3);
+	floats_freecontents (&g->vn3);
+	floats_freecontents (&g->vt3);
+	int32s_freecontents (&g->masklist);
+	g->num_vertexs = 0, g->num_faces = 0;
+	g->minz[0] = g->minz[1] = g->minz[2] = 9999999;
+	g->maxz[0] = g->maxz[1] = g->maxz[2] = -9999999;
+	g->sizz[0] = g->sizz[1] = g->sizz[2] = -1;
+	g->cent[0] = g->cent[1] = g->cent[2] = -1;
+	g->factive = NULL;
+}
+
+void facefill_recalc_face (gobj_s *g, int facegroup)
+{
+	gfaceset_s *facey = &g->faceset[facegroup];
+	//FS_PrintLinef (f, "# group %d of %d", facegroup + 1, g->faceset_count);
+
+	int32list_s *ints;
+	ints = &facey->facelist9;// ccs *stitle = "vn";
+
+	facey->minz[0] = facey->minz[1] = facey->minz[2] = 9999999;
+	facey->maxz[0] = facey->maxz[1] = facey->maxz[2] = -9999999;
+	facey->sizz[0] = facey->sizz[1] = facey->sizz[2] = -1;
+	facey->cent[0] = facey->cent[1] = facey->cent[2] = -1;
+
+	for (int fidx = 0; fidx < ints->count; fidx += 9) {
+		// Grab each vertex and maxify
+		for (int n = 0; n < 9; n += 3) {
+			// vertex_index/texture_index/normal_index
+			int triplet_vertex_id1			= ints->ints[fidx + n + 0]; // from face
+			//int triplet_vertextext_id1	= ints->ints[fidx + n + 1]; // from face
+			//int triplet_vertexnorm_id1	= ints->ints[fidx + n + 2]; // from face
+
+			int triplet_idx0 = UNPLUS1(triplet_vertex_id1);
+			int vertex_idx0 = triplet_idx0 * 3;
+			
+			float f0 = g->v3.floats[vertex_idx0 + 0];
+			float f1 = g->v3.floats[vertex_idx0 + 1];
+			float f2 = g->v3.floats[vertex_idx0 + 2];
+
+			if (facey->maxz[0] < f0) facey->maxz[0] = f0; 
+			if (facey->maxz[1] < f1) facey->maxz[1] = f1; 
+			if (facey->maxz[2] < f2) facey->maxz[2] = f2;
+			if (facey->minz[0] > f0) facey->minz[0] = f0; 
+			if (facey->minz[1] > f1) facey->minz[1] = f1; 
+			if (facey->minz[2] > f2) facey->minz[2] = f2;
+
+		} // for
+	} // fidx
+
+	// Calc size, center
+	facey->sizz[0] = facey->maxz[0] - facey->minz[0], facey->sizz[1] = facey->maxz[1] - facey->minz[1], facey->sizz[2] = facey->maxz[2] - facey->minz[2];	
+	facey->cent[0] = facey->minz[0] + facey->sizz[0] / 2.0, facey->cent[1] = facey->minz[1] + facey->sizz[1] / 2.0, facey->cent[2] = facey->minz[2] + facey->sizz[2] / 2.0;
+}
+
+
+void facefill_from_lines (gobj_s *g, stringlist_t *plines, float scaleup_or_zero)
+{
+	facesetfreecontents (g); // Reset, 99999s
+
+
+
+	tokenize_console_s tcm = {0}, *tcx = &tcm;
+
+	for (int n = 0; n < plines->numstrings; n ++) {
+		char *s = plines->strings[n];
+
+		int argc = Tokenize_Console_16384_Za_Return_Argc (tcx, s); // Clears tcx first
+
+		ccs *arg0 = tcx->tokens_za[0];
+		if (!arg0) 
+			continue;
+
+		ccs *arg1 = tcx->tokens_za[1], *arg2 = tcx->tokens_za[2], *arg3 = tcx->tokens_za[3];
+
+		if (String_Match (arg0, "v") ) { // v 131.965729 -75.185654 -260.450256			
+			float f0 = atof(arg1), f1 = atof(arg2), f2 = atof(arg3);
+			floats_add3 (&g->v3, f0, f1, f2);
+			g->num_vertexs ++;
+			continue;
+		} 
+
+		if (String_Match (arg0, "vt") ) { // vt  0.759000 0.616000 0.000000
+			float f0 = atof(arg1), f1 = atof(arg2), f2 = atof(arg3);
+			floats_add3 (&g->vt3, f0, f1, f2);
+			continue;
+		} 
+
+		if (String_Match (arg0, "vn") ) { // vn  0.000000 -0.000000 -1.000000
+			float f0 = atof(arg1), f1 = atof(arg2), f2 = atof(arg3);
+			floats_add3 (&g->vn3, f0, f1, f2);
+			continue;
+		} 
+
+		if (String_Match (arg0, "f") ) { // f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 ...
+			// We are praying for f  1/1/1 2/2/2 3/3/3 (triangle)
+			if (argc != 4) {
+				Con_PrintLinef ("Line %d", n);
+				Con_PrintLinef ("Text %s", s);
+				Con_PrintLinef ("Face argc != 4");
+				continue;
+			}
+
+			// These are integer values
+			stringlist_t rlist = {0};
+			stringlistappend_split (&rlist, arg1, "/");
+			stringlistappend_split (&rlist, arg2, "/");
+			stringlistappend_split (&rlist, arg3, "/");
+
+			if (rlist.numstrings != 9) {
+				Con_PrintLinef ("Line %d", n);
+				Con_PrintLinef ("Text %s", s);
+				Con_PrintLinef ("rlist.numstrings != 9");
+				stringlistfreecontents (&rlist);
+				continue;
+			}
+
+			ccs *s0 = rlist.strings[0],	*s1 = rlist.strings[1],	*s2 = rlist.strings[2];
+			ccs *s3 = rlist.strings[3],	*s4 = rlist.strings[4],	*s5 = rlist.strings[5];
+			ccs *s6 = rlist.strings[6],	*s7 = rlist.strings[7],	*s8 = rlist.strings[8];
+			int32s_add3 (&g->factive->facelist9, atoi(s0), atoi(s1), atoi(s2));
+			int32s_add3 (&g->factive->facelist9, atoi(s3), atoi(s4), atoi(s5));
+			int32s_add3 (&g->factive->facelist9, atoi(s6), atoi(s7), atoi(s8));
+
+			stringlistfreecontents (&rlist);
+			continue;
+		}
+
+		if (String_Match (arg0, "g") && argc > 1) {
+			Con_PrintLinef ("New group with name %s", arg1);
+			Con_PrintLinef ("Factive was %s %d", g->factive ? g->factive->sname_za : "(NULL)", g->faceset_count - 1);
+			if (g->factive) {
+				Con_PrintLinef ("Closing %s with # faces = %d", g->factive->sname_za, g->factive->facelist9.count);
+				Con_PrintLinef ("Closing %s with # faces / 9 = %f", g->factive->sname_za, g->factive->facelist9.count / 9.0);
+			}
+
+			gfaceset_s *faceitem = g->factive = &g->faceset[g->faceset_count];
+			Con_PrintLinef ("New group with name %s idx %d", arg1, g->faceset_count);
+			g->faceset_count ++;
+			Z_StrDup_Realloc_ (g->factive->sname_za, arg1);
+			
+			// g
+			
+			// 2916
+			continue;
+		}		
+
+		if (String_Match (arg0, "mtllib") && argc > 1) {
+			Z_StrDup_Realloc_ (g->mtllib_za, arg1);
+			continue;
+		}
+
+		if (String_Match (arg0, "usemtl") && argc > 1) {
+			if (g->factive) {
+				Z_StrDup_Realloc_ (g->factive->susemtl_za, arg1);
+				Con_PrintLinef ("usemtl %s for %s", g->factive->susemtl_za, g->factive->sname_za);
+			} else {
+				Con_PrintLinef ("usemtl without factive %s", arg1);
+			}
+			continue;
+		}		
+
+	} // for
+
+	Tokenize_Console_16384_FreeContents (tcx); // CLOSED
+
+	if (g->v3.count modulo 3) {
+		Con_PrintLinef ("Bad verts count not div 3 %d", g->v3.count);
+	}
+
+	// Calc mins, maxs
+	for (int n = 0; n < g->v3.count; n += 3) {
+		float f0 = g->v3.floats[n + 0];
+		float f1 = g->v3.floats[n + 1];
+		float f2 = g->v3.floats[n + 2];
+		if (g->maxz[0] < f0) g->maxz[0] = f0; if (g->maxz[1] < f1) g->maxz[1] = f1; if (g->maxz[2] < f2) g->maxz[2] = f2;
+		if (g->minz[0] > f0) g->minz[0] = f0; if (g->minz[1] > f1) g->minz[1] = f1; if (g->minz[2] > f2) g->minz[2] = f2;
+	} // for
+
+	// Calc size, center
+	g->sizz[0] = g->maxz[0] - g->minz[0], g->sizz[1] = g->maxz[1] - g->minz[1], g->sizz[2] = g->maxz[2] - g->minz[2];	
+	g->cent[0] = g->minz[0] + g->sizz[0] / 2.0, g->cent[1] = g->minz[1] + g->sizz[1] / 2.0, g->cent[2] = g->minz[2] + g->sizz[2] / 2.0;
+
+	// Print summaries
+	
+	Con_PrintLinef ("# Zircon .obj export");
+	Con_PrintLinef ("#");
+	Con_PrintLinef ("mtllib %s", g->mtllib_za);
+	Con_PrintLinef ("g");
+	Con_PrintLinef ("v  count %8d div 3 %f", g->v3.count, g->v3.count / 3.0);
+	Con_PrintLinef ("vt count %8d div 3 %f", g->vt3.count, g->vt3.count / 3.0);
+	Con_PrintLinef ("vn count %8d div 3 %f", g->vn3.count, g->vn3.count / 3.0);
+
+	Con_PrintLinef ("#");
+	Con_PrintLinef ("mins " VECTOR3_5d1F, VECTOR3_SEND(g->minz) );
+	Con_PrintLinef ("maxs " VECTOR3_5d1F, VECTOR3_SEND(g->maxz) );
+	Con_PrintLinef ("size " VECTOR3_5d1F, VECTOR3_SEND(g->sizz) );
+	Con_PrintLinef ("cent " VECTOR3_5d1F, VECTOR3_SEND(g->cent) );
+
+	// Face groups
+	//g Propeller
+	//usemtl models/vehicles/helo1_palette.png
+	//f  1/1/1 2/2/2 3/3/3
+
+	for (int j = 0; j < g->faceset_count; j ++) {
+		gfaceset_s *faceitem = &g->faceset[j];
+		
+		Con_PrintLinef ("g %s // idx %d", faceitem->sname_za, j);
+		Con_PrintLinef ("usemtl %s", faceitem->susemtl_za);
+		Con_PrintLinef ("faces = %d (div 9 = %f)", faceitem->facelist9.count, faceitem->facelist9.count / 9.0);
+
+		// Calc group size
+		// Calc group offset
+	}
+
+	Con_PrintLinef ("Centering verts ...");
+	// Center verts
+	for (int n = 0; n < g->v3.count; n += 3) {
+		float f0 = g->v3.floats[n + 0];
+		float f1 = g->v3.floats[n + 1];
+		float f2 = g->v3.floats[n + 2];
+
+		// Center first ..
+		f0 -= g->cent[0];	f1 -= g->cent[1];	f2 -= g->cent[2];			
+
+		// Then scale
+		if (scaleup_or_zero) {
+			f0 *= scaleup_or_zero;	f1 *= scaleup_or_zero;	f2 *= scaleup_or_zero;
+		}
+
+		g->v3.floats[n + 0] = f0;
+		g->v3.floats[n + 1] = f1;
+		g->v3.floats[n + 2] = f2;
+	} // for
+
+	// Set mask count
+	int32s_count_set (&g->masklist, g->v3.count);
+
+	for (int n = 0; n < g->masklist.count; n ++) {
+		g->masklist.ints[n] = MASK_UNUSED_ZERO_0;
+	}
+
+	for (int facegroup = 0; facegroup < g->faceset_count; facegroup ++) {
+		gfaceset_s *facey = &g->faceset[facegroup];
+
+		facefill_recalc_face (g, facegroup);
+
+		Con_PrintLinef ("Group %d %s:", facegroup + 1, facey->sname_za);
+		Con_PrintLinef ("mins " VECTOR3_5d1F, VECTOR3_SEND(facey->minz) );
+		Con_PrintLinef ("maxs " VECTOR3_5d1F, VECTOR3_SEND(facey->maxz) );
+		Con_PrintLinef ("size " VECTOR3_5d1F, VECTOR3_SEND(facey->sizz) );
+		Con_PrintLinef ("cent " VECTOR3_5d1F, VECTOR3_SEND(facey->cent) );
+	} // for
+
+}
+
+void facefill_from_string (gobj_s *g, ccs *s, float scaleup_or_zero)
+{
+	stringlist_t lines_list = {0};
+	stringlistappend_split_lines_cr_scrub (&lines_list, s);
+
+	facefill_from_lines (g, &lines_list, scaleup_or_zero); // resets
+
+	stringlistfreecontents (&lines_list);
+}
+
+void face_reidx_setplus1(gobj_s *g, int *pd, int junk)
+{
+	int vertex_triplet_idx1 = *pd;
+	int triplet_idx0 = UNPLUS1(vertex_triplet_idx1);
+	int vertex_idx0 = triplet_idx0 * 3;
+	int newidx = g->masklist.ints[vertex_idx0];
+	// f 1/1/1 .. find the re-number.  So 303 becomes maybe 32
+	*pd = newidx;// g->masklist.ints[n + 0]
+}
+
+void facefill_write_to_stream (gobj_s *g, qfile_t *f)
+{
+	// PLAN
+
+	//# Noesis .obj export.
+	//#
+	//mtllib unused.mtl
+	//g
+
+	FS_PrintLinef (f, "# Zircon .obj export");
+	FS_PrintLinef (f, "#");
+	FS_PrintLinef (f, "mtllib %s", g->mtllib_za);
+	FS_PrintLinef (f, "#");
+	FS_PrintLinef (f, "# verts %8d", g->v3.count / 3);
+	FS_PrintLinef (f, "# texco %8d", g->vt3.count / 3);
+	FS_PrintLinef (f, "# norma %8d", g->vn3.count / 3);
+	FS_PrintLinef (f, "#");
+	FS_PrintLinef (f, "# mins   " VECTOR3_5d1F, VECTOR3_SEND(g->minz) );
+	FS_PrintLinef (f, "# maxs   " VECTOR3_5d1F, VECTOR3_SEND(g->maxz) );
+	FS_PrintLinef (f, "# size   " VECTOR3_5d1F, VECTOR3_SEND(g->sizz) );
+	FS_PrintLinef (f, "# center " VECTOR3_5d1F, VECTOR3_SEND(g->cent) );
+	FS_PrintLinef (f, "#");
+	FS_PrintLinef (f, "# Groups = %d", g->faceset_count);
+	int numtriangles = 0;
+	for (int facegroup = 0; facegroup < g->faceset_count; facegroup ++) {
+		gfaceset_s *facey = &g->faceset[facegroup];
+
+		facefill_recalc_face (g, facegroup);
+
+		FS_PrintLinef (f, "# Group %d %s:", facegroup, facey->sname_za);
+		FS_PrintLinef (f, "#  triangles = %d", facey->facelist9.count / 9);
+		FS_PrintLinef (f, "#  mins " VECTOR3_5d1F, VECTOR3_SEND(facey->minz) );
+		FS_PrintLinef (f, "#  maxs " VECTOR3_5d1F, VECTOR3_SEND(facey->maxz) );
+		FS_PrintLinef (f, "#  size " VECTOR3_5d1F, VECTOR3_SEND(facey->sizz) );
+		FS_PrintLinef (f, "#  cent " VECTOR3_5d1F, VECTOR3_SEND(facey->cent) );
+		numtriangles += (facey->facelist9.count / 9);
+	} // for
+	FS_PrintLinef (f, "# Total Triangles = %d", numtriangles);
+	
+	FS_PrintLinef (f, "g");
+	
+	// v 132.761963 -72.606422 -259.659790
+
+	floatlist_s *fs; ccs *stitle;
+
+	fs = &g->v3; stitle = "v";
+	for (int n = 0; n < fs->count; n += 3) {
+		if (g->ifilterplus1 && g->masklist.ints[n + 0] == MASK_UNUSED_ZERO_0)
+			continue; // EXCLUDED
+
+		float f0 = fs->floats[n + 0], f1 = fs->floats[n + 1], f2 = fs->floats[n + 2];
+		FS_PrintLinef (f, "%s %f %f %f", stitle, f0, f1, f2);
+	}
+	fs = &g->vt3; stitle = "vt";
+	for (int n = 0; n < fs->count; n += 3) {
+		if (g->ifilterplus1 && g->masklist.ints[n + 0] == MASK_UNUSED_ZERO_0)
+			continue; // EXCLUDED
+		float f0 = fs->floats[n + 0], f1 = fs->floats[n + 1], f2 = fs->floats[n + 2];
+		FS_PrintLinef (f, "%s %f %f %f", stitle, f0, f1, f2);
+	}
+	fs = &g->vn3; stitle = "vn";
+	for (int n = 0; n < fs->count; n += 3) {
+		if (g->ifilterplus1 && g->masklist.ints[n + 0] == MASK_UNUSED_ZERO_0)
+			continue; // EXCLUDED
+
+		float f0 = fs->floats[n + 0], f1 = fs->floats[n + 1], f2 = fs->floats[n + 2];
+		FS_PrintLinef (f, "%s %f %f %f", stitle, f0, f1, f2);
+	}
+
+	// Face groups
+	//g Propeller
+	//usemtl models/vehicles/helo1_palette.png
+	//f  1/1/1 2/2/2 3/3/3
+
+	for (int facegroup = 0; facegroup < g->faceset_count; facegroup ++) {
+		if (g->ifilterplus1 > 0) {
+			// 1, 2, 3 ... means only that group
+			int filter_idx0 = UNPLUS1(g->ifilterplus1);
+			if (facegroup != filter_idx0)
+				continue; // This group does not match "ONLY" group
+		}
+
+		if (g->ifilterplus1 < 0) {
+			// 1, 2, 3 ... means only that group
+			int filter_idx0 = UNPLUS1(abs(g->ifilterplus1));
+			if (facegroup == filter_idx0)
+				continue; // -GROUP means exclude that group
+		}
+
+		gfaceset_s *facey = &g->faceset[facegroup];
+
+		FS_PrintLinef (f, "# group %d of %d", facegroup + 1, g->faceset_count);
+		FS_PrintLinef (f, "g %s", facey->sname_za);
+		FS_PrintLinef (f, "usemtl %s", facey->susemtl_za);
+	
+		int32list_s *ints;
+		ints = &facey->facelist9;// ccs *stitle = "vn";
+		for (int n = 0; n < ints->count; n += 9) {
+			int d0 = ints->ints[n + 0], d1 = ints->ints[n + 1], d2 = ints->ints[n + 2];
+			int d3 = ints->ints[n + 3], d4 = ints->ints[n + 4], d5 = ints->ints[n + 5];
+			int d6 = ints->ints[n + 6], d7 = ints->ints[n + 7], d8 = ints->ints[n + 8];
+
+
+			if (g->ifilterplus1) {
+				// REIDX
+				// So I have 
+				// f  2542/2542/2542 2543/2543/2543 2544/2544/2544
+				// It probably writes as 1/1/1 2/2/2 3/3/3
+				face_reidx_setplus1(g, &d0, n + 0);
+				face_reidx_setplus1(g, &d1, n + 1);
+				face_reidx_setplus1(g, &d2, n + 2);
+				face_reidx_setplus1(g, &d3, n + 3);
+				face_reidx_setplus1(g, &d4, n + 4);
+				face_reidx_setplus1(g, &d5, n + 5);
+				face_reidx_setplus1(g, &d6, n + 6);
+				face_reidx_setplus1(g, &d7, n + 7);
+				face_reidx_setplus1(g, &d8, n + 8);
+			}
+
+			FS_PrintLinef (f, "f %d/%d/%d %d/%d/%d %d/%d/%d", d0, d1, d2, d3, d4, d5, d6, d7, d8);
+		} // for
+	} // for
+
+	FS_PrintLinef (f, "g");
+}
+
+// Set MASK ONLY
+
+void facefill_calc_filter (gobj_s *g, int filter_idx1)
+{
+
+	int32list_s *ints;
+	for (int facegroup = 0; facegroup < g->faceset_count; facegroup ++) {
+		if (filter_idx1 > 0) {
+			// 1, 2, 3 ... means only that group
+			int filter_idx0 = UNPLUS1(filter_idx1);
+			if (facegroup != filter_idx0)
+				continue; // This group does not match "ONLY" group
+		}
+
+		if (filter_idx1 < 0) {
+			// 1, 2, 3 ... means only that group
+			int filter_idx0 = UNPLUS1(abs(filter_idx1));
+			if (facegroup == filter_idx0)
+				continue; // -GROUP means exclude that group
+		}
+
+		gfaceset_s *facey = &g->faceset[facegroup];
+		ints = &facey->facelist9;// ccs *stitle = "vn";
+
+		for (int fidx = 0; fidx < ints->count; fidx += 9) {
+			// Grab each vertex and maxify
+			for (int n = 0; n < 9; n += 3) {
+				// vertex_index/texture_index/normal_index
+				int triplet_vertex_id1			= ints->ints[fidx + n + 0]; // from face
+				//int triplet_vertextext_id1	= ints->ints[fidx + n + 1]; // from face
+				//int triplet_vertexnorm_id1	= ints->ints[fidx + n + 2]; // from face
+
+				int triplet_idx0 = UNPLUS1(triplet_vertex_id1);
+				int vertex_idx0 = triplet_idx0 * 3;
+
+				g->masklist.ints[vertex_idx0 + 0] = MASK_USED_NEG1;
+				
+				float f0 = g->v3.floats[vertex_idx0 + 0];
+			} // for
+		} // fidx
+	} // facegroup
+
+	// REIDX!
+	int idx1 = 1; // The current value is the NEXT one assigned
+	for (int n = 0; n < g->masklist.count; n += 3) {
+		int ndiv3 = n / 3;
+		if (g->masklist.ints[n + 0] == MASK_USED_NEG1) {
+			g->masklist.ints[n + 0] = idx1; idx1 ++; // ASSIGNED
+		}
+	} // for
+}
+
+
+// objmodelsplit models/vehicles/helo1.obj propeller_2
+void CL_OBJModelSplit_f (cmd_state_t *cmd)
+{
+	if (Cmd_Argc(cmd) < 2) {
+		Con_PrintLinef ("Usage: %s [obj file name] [group to split] [suffix]", Cmd_Argv(cmd, 0));
+		return;
+	}
+
+	int is_write_file = Cmd_Argc(cmd) == 3; // Go
+	ccs *filter = Cmd_Argv(cmd, 2); // If too few args what is this ANSWER ""
+	int ifilterp1 = atoi(filter);//Cmd_Argv(cmd, 2); // If too few args what is this
+
+	//ccs *s_group = Cmd_Argv(cmd, 2); // 
+
+	const char *s_filename = Cmd_Argv(cmd, 1);
+	fs_offset_t filesize;
+	char *filedata_za = (char *)FS_LoadFile (s_filename, tempmempool, fs_quiet_true, &filesize);
+	
+	if (filedata_za == NULL) {
+		Con_PrintLinef ("Couldn't open " QUOTED_S, s_filename);
+		return;
+	}
+
+	gobj_s _g = {0}, *g = &_g;
+
+	facefill_from_string (g, filedata_za, /*scale*/ 0);
+
+	if (is_write_file) {
+		if (ifilterp1) {
+			g->ifilterplus1 = ifilterp1;
+			facefill_calc_filter (g, g->ifilterplus1);
+		}
+
+		char s_filenameout[MAX_QPATH_128];
+		c_strlcpy (s_filenameout, s_filename);
+		File_URL_Edit_Remove_Extension (s_filenameout);	
+		c_strlcat (s_filenameout, "_out");
+		c_strlcat (s_filenameout, ".obj");
+
+		qfile_t *f = FS_OpenRealFile (s_filenameout, "wb", fs_quiet_FALSE); // WRITE-EON obj model adjust
+		if (!f) {
+			Con_PrintLinef ("Couldn't open file " QUOTED_S, s_filenameout);
+			goto file_open_write_fail;
+		}
+
+		facefill_write_to_stream (g, f);
+
+		FS_CloseNULL_ (f);
+	}
+
+file_open_write_fail:
+	facesetfreecontents (g); // Reset, 99999s
+
+	Mem_FreeNull_ (filedata_za);
+}
+
+
+
+// Stage 1, print the file names
+void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
+{
+	if (Cmd_Argc(cmd) == 1) {
+		Con_PrintLinef ("Usage: %s [obj file name] [scale]", Cmd_Argv(cmd, 0));
+		return;
+	}
+
+	int is_write_file = Cmd_Argc(cmd) == 3;
+	float scaleup = 0;
+	if (Cmd_Argc(cmd) == 3) {
+		scaleup = atof (Cmd_Argv(cmd, 2));
+		if (scaleup <= 0) {
+			Con_PrintLinef ("Invalid scale of %f", scaleup);
+			return;
+		}
+		Con_PrintLinef ("Requested scaling: %f", scaleup);
+	}
+
+// New plan ... read every line, if it is a "v" line special action
+	const char *s_filename = Cmd_Argv(cmd, 1);
+	fs_offset_t filesize;
+	char *filedata_za = (char *)FS_LoadFile (s_filename, tempmempool, fs_quiet_true, &filesize);
+	
+	if (filedata_za == NULL) {
+		Con_PrintLinef ("Couldn't open " QUOTED_S, s_filename);
+		return;
+	}
+	
+	char s_filenameout[MAX_QPATH_128];
+	c_strlcpy (s_filenameout, s_filename);
+	File_URL_Edit_Remove_Extension (s_filenameout);	
+	c_strlcat (s_filenameout, "_out");
+	c_strlcat (s_filenameout, ".obj");
+
+	tokenize_console_s tcm = {0}, *tcx = &tcm;
+
+	stringlist_t lines_list = {0};
+	stringlistappend_split_lines_cr_scrub (&lines_list, filedata_za);
+
+	int num_vertexs = 0, num_faces = 0;
+	float minz[3] = { 9999999,  9999999,  9999999}; 
+	float maxz[3] = {-9999999, -9999999, -9999999}; 
+
+	for (int n = 0; n < lines_list.numstrings; n ++) {
+		char *s = lines_list.strings[n];
+		Tokenize_Console_16384_FreeContents (tcx);
+		int argc = Tokenize_Console_16384_Za_Return_Argc (tcx, s);
+
+		ccs *arg0 = tcx->tokens_za[0];
+
+		if (!arg0) continue;
+		ccs *arg1 = tcx->tokens_za[1];
+		ccs *arg2 = tcx->tokens_za[2];
+		ccs *arg3 = tcx->tokens_za[3];
+
+		if (String_Match (arg0, "v") ) {
+			// v
+			float f0 = atof(arg1);
+			float f1 = atof(arg2);
+			float f2 = atof(arg3);
+
+			if (maxz[0] < f0) maxz[0] = f0; if (maxz[1] < f1) maxz[1] = f1; if (maxz[2] < f2) maxz[2] = f2;
+			if (minz[0] > f0) minz[0] = f0; if (minz[1] > f1) minz[1] = f1; if (minz[2] > f2) minz[2] = f2;
+			
+			num_vertexs ++;
+		} else if (String_Match (arg0, "f") ) {
+			// f
+			num_faces ++;
+		} else if (String_Match (arg0, "g") && argc > 1) {
+			// g
+			Con_PrintLinef ("New group with name %s", arg1);
+		}		
+	} // for
+
+	Tokenize_Console_16384_FreeContents (tcx);
+
+	float sizz[3] = {0};
+	float cent[3] = {0};
+	sizz[0] = maxz[0] - minz[0];
+	sizz[1] = maxz[1] - minz[1];
+	sizz[2] = maxz[2] - minz[2];
+
+	cent[0] = minz[0] + sizz[0] / 2;
+	cent[1] = minz[1] + sizz[1] / 2;
+	cent[2] = minz[2] + sizz[2] / 2;
+
+	Con_PrintLinef ("Found %d vertexes", num_vertexs);
+	Con_PrintLinef ("Found %d faces", num_faces);
+
+	Con_PrintLinef ("=======");
+	Con_PrintLinef ("Mins   is " VECTOR3_5d1F, VECTOR3_SEND(minz) );
+	Con_PrintLinef ("Maxs   is " VECTOR3_5d1F, VECTOR3_SEND(maxz) );
+	Con_PrintLinef ("Size   is " VECTOR3_5d1F, VECTOR3_SEND(sizz) );
+	Con_PrintLinef ("Center is " VECTOR3_5d1F, VECTOR3_SEND(cent) );
+	Con_PrintLinef ("=======");
+	
+	Con_PrintLinef ("To center, we subtract " VECTOR3_5d1F, VECTOR3_SEND(cent) );
+
+	int model_idx = SV_ModelIndex (s_filename, PRECACHE_MODE_0); // Baker: 0 means we are not precaching
+
+	if (model_idx != 0) {
+		model_t	*mod = SV_GetModelByIndex(model_idx);
+		Con_PrintLinef ("Model is precached as # %d", model_idx);
+		Con_PrintLinef (" mod->surfmesh.num_triangles:   %d", mod->surfmesh.num_triangles);
+		Con_PrintLinef (" mod->surfmesh.num_vertices:    %d", mod->surfmesh.num_vertices);
+	} else { 
+		Con_PrintLinef ("Model is not precached");
+	}
+	
+	if (is_write_file == false) {
+		Con_PrintLinef ("Skipping file write because scale not specified");
+		goto file_open_write_fail;
+	}
+	
+	qfile_t *f = FS_OpenRealFile (s_filenameout, "wb", fs_quiet_FALSE); // WRITE-EON obj model adjust
+	if (!f) {
+		Con_PrintLinef ("Couldn't open file " QUOTED_S, s_filenameout);
+		goto file_open_write_fail;
+	}
+
+	Con_PrintLinef ("Writing to " QUOTED_S, s_filenameout);
+
+	for (int n = 0; n < lines_list.numstrings; n ++) {
+		char *s = lines_list.strings[n];
+		Tokenize_Console_16384_FreeContents (tcx);
+		int argc = Tokenize_Console_16384_Za_Return_Argc (tcx, s);
+
+		ccs *arg0 = tcx->tokens_za[0];
+		if (argc >= 3 && arg0 && String_Match (arg0, "v") ) {			
+			float f0 = atof(tcx->tokens_za[1]);
+			float f1 = atof(tcx->tokens_za[2]);
+			float f2 = atof(tcx->tokens_za[3]);
+
+			// Center first ..
+			f0 -= cent[0];
+			f1 -= cent[1];
+			f2 -= cent[2];			
+
+			// Then scale
+			f0 *= scaleup;
+			f1 *= scaleup;
+			f2 *= scaleup;
+			
+			FS_Printf (f, "v %f %f %f" NEWLINE, f0, f1, f2);
+		} // "v"
+		else {
+			FS_Printf (f, "%s"  NEWLINE, s);
+		}
+	} // for
+
+	FS_Close (f); f = NULL;	
+
+file_open_write_fail:
+	Tokenize_Console_16384_FreeContents (tcx);
+	stringlistfreecontents (&lines_list);
+	Mem_FreeNull_ (filedata_za);
+}
+
+
 
 void CL_ReadPointFile_f(cmd_state_t *cmd);
 void CL_Particles_Init (void)
@@ -1075,8 +1792,12 @@ void CL_Particles_Init (void)
 	Cmd_AddCommand(CF_CLIENT, "pointfile", CL_ReadPointFile_f, "display point file produced by qbsp when a leak was detected in the map (a line leading through the leak hole, to an entity inside the level)");
 	Cmd_AddCommand(CF_CLIENT, "cl_particles_reloadeffects", CL_Particles_LoadEffectInfo_f, "reloads effectinfo.txt and maps/levelname_effectinfo.txt (where levelname is the current map) if parameter is given, loads from custom file (no levelname_effectinfo are loaded in this case)");
 	Cmd_AddCommand(CF_CLIENT, "effectinfo_dump", CL_EffectInfo_Dump_f, "dumps text of effect, loading text fresh from file effectinfo.txt  [Zircon]");
-	Cmd_AddCommand(CF_CLIENT, "effectinfo_list", CL_EffectInfo_List_f, "displays effectinfo names loaded in client memory even without a map [Zircon]"); // Particles loaded in Render_Init
-	Cmd_AddCommand(CF_CLIENT, "objmodeladjust", CL_OBJModelAdjust_f, "center and scale an obj model [model] [scale]"); // Particles loaded in Render_Init
+	Cmd_AddCommand(CF_CLIENT, "effectinfo_list", CL_EffectInfo_List_f, "displays effectinfo names loaded in client memory even without a map [Zircon]"); // Particles loaded in Render_InitOnce
+
+	// Baker: Move these in #58 to better location
+	Cmd_AddCommand(CF_CLIENT, "objmodeladjust", CL_OBJModelAdjust2_f, "center and scale an obj model [model] [scale]"); // Particles loaded in Render_InitOnce
+	Cmd_AddCommand(CF_CLIENT, "objmodelsplit", CL_OBJModelSplit_f, "split obj [model] [group # or - group#] - splits out a group member by number or excludes a group member (if negative number)"); // Particles loaded in Render_InitOnce
+	//Cmd_AddCommand(CF_CLIENT, "objmodeladjust2", , "center and scale an obj model [model] [scale]"); // Particles loaded in Render_InitOnce
 	
 	Cvar_RegisterVariable (&cl_particles);
 	Cvar_RegisterVariable (&cl_particles_quality);
@@ -1905,7 +2626,7 @@ static void CL_ParticleEffect_Fallback(int effectnameindex, float count, const v
 			ent->persistent.trail_time = len;
 	}
 	else
-		Con_DPrintf ("CL_ParticleEffect_Fallback: no fallback found for effect %s\n", particleeffectname[effectnameindex]);
+		Con_DPrintLinef ("CL_ParticleEffect_Fallback: no fallback found for effect %s", particleeffectname[effectnameindex]);
 }
 
 // this is also called on point effects with spawndlight = true and
@@ -1916,7 +2637,7 @@ static void CL_NewParticlesFromEffectinfo(int effectnameindex, float pcount, con
 	char vabuf[1024];
 	if (effectnameindex < 1 || effectnameindex >= MAX_PARTICLEEFFECTNAME_4096 || !particleeffectname[effectnameindex][0])
 	{
-		Con_DPrintf ("Unknown effect number %d received from server\n", effectnameindex);
+		Con_DPrintLinef ("Unknown effect number %d received from server", effectnameindex);
 		return; // no such effect
 	}
 	if (!cl_particles_quake.integer && particleeffectinfo[0].effectnameindex)
@@ -2236,7 +2957,7 @@ void CL_ReadPointFile_f(cmd_state_t *cmd)
 	}
 	Mem_Free(pointfile);
 	VectorCopy(leakorg, vecorg);
-	Con_Printf ("%d points read (%d particles spawned)\nLeak at %f %f %f\n", c, s, leakorg[0], leakorg[1], leakorg[2]);
+	Con_PrintLinef ("%d points read (%d particles spawned)\nLeak at %f %f %f", c, s, leakorg[0], leakorg[1], leakorg[2]);
 
 	if (c == 0)
 	{
@@ -2284,8 +3005,7 @@ void CL_ParticleExplosion (const vec3_t org)
 {
 	int i;
 	trace_t trace;
-	//vec3_t v;
-	//vec3_t v2;
+
 	R_Stain(org, 96, 40, 40, 40, 64, 88, 88, 88, 64);
 	CL_SpawnDecalParticleForPoint(org, 40, 48, 255, tex_bulletdecal[rand()&7], 0xFFFFFF, 0xFFFFFF);
 
@@ -2293,8 +3013,9 @@ void CL_ParticleExplosion (const vec3_t org)
 	{
 		for (i = 0;i < 1024;i++)
 		{
-			int r, color;
-			r = rand()&3;
+			int color;
+			int r = rand()&3;
+
 			if (i & 1)
 			{
 				color = particlepalette[ramp1[r]];
@@ -2358,7 +3079,7 @@ void CL_ParticleExplosion2 (const vec3_t org, int colorStart, int colorLength)
 	{
 		k = particlepalette[colorStart + (i % colorLength)];
 		if (cl_particles_quake.integer)
-			CL_NewParticle(org, pt_alphastatic, k, k, tex_particle, 1, 0, 255, 0, 0, 0, org[0], org[1], org[2], 0, 0, 0, -4, -4, 16, 256, true, 0.3, 1, PBLEND_ALPHA, PARTICLE_BILLBOARD, -1, -1, -1, 1, 1, 0, 0, NULL);
+			CL_NewParticle(org, pt_alphastatic, k, k, tex_particle, 1, 0, 255, 0, 0, 0, org[0], org[1], org[2], 0, 0, 0, -4, -4, 16, 256, true, 0.3, 1, PBLEND_ALPHA, PARTICLE_BILLBOARD, -1, -1, -1, 1, 1, 0, 0, NULL); // Baker #58 CL_NewQuakeParticle
 		else
 			CL_NewParticle(org, pt_alphastatic, k, k, tex_particle, lhrandom(0.5, 1.5), 0, 255, 512, 0, 0, org[0], org[1], org[2], 0, 0, 0, lhrandom(1.5, 3), lhrandom(1.5, 3), 8, 192, true, 0, 1, PBLEND_ALPHA, PARTICLE_BILLBOARD, -1, -1, -1, 1, 1, 0, 0, NULL);
 	}
@@ -2430,32 +3151,37 @@ void CL_ParticleRain (const vec3_t mins, const vec3_t maxs, const vec3_t dir, in
 	{
 	case 0:
 		if (!cl_particles_rain.integer) break;
+
 		count *= 4; // ick, this should be in the mod or maps?
 
 		while(count--)
 		{
 			k = particlepalette[colorbase + (rand()&3)];
 			VectorSet(org, lhrandom(mins[0], maxs[0]), lhrandom(mins[1], maxs[1]), lhrandom(minz, maxz));
-			if (gamemode == GAME_GOODVSBAD2)
-				CL_NewParticle(org, pt_rain, k, k, tex_particle, 20, 0, lhrandom(32, 64), 0, 0, -1, org[0], org[1], org[2], dir[0], dir[1], dir[2], 0, 0, 0, 0, true, lifetime, 1, PBLEND_ADD, PARTICLE_SPARK, -1, -1, -1, 1, 1, 0, 0, NULL);
-			else
+			// Baker: GAME_GOODVSBAD2 has particle size 20
+			//if (gamemode == GAME_GOODVSBAD2)
+			//	CL_NewParticle(org, pt_rain, k, k, tex_particle, 20, 0, lhrandom(32, 64), 0, 0, -1, org[0], org[1], org[2], dir[0], dir[1], dir[2], 0, 0, 0, 0, true, lifetime, 1, PBLEND_ADD, PARTICLE_SPARK, -1, -1, -1, 1, 1, 0, 0, NULL);
+			//else
 				CL_NewParticle(org, pt_rain, k, k, tex_particle, 0.5, 0, lhrandom(32, 64), 0, 0, -1, org[0], org[1], org[2], dir[0], dir[1], dir[2], 0, 0, 0, 0, true, lifetime, 1, PBLEND_ADD, PARTICLE_SPARK, -1, -1, -1, 1, 1, 0, 0, NULL);
 		}
 		break;
 	case 1:
 		if (!cl_particles_snow.integer) break;
+		// Baker: GAME_GOODVSBAD2, a 2003 long dead multiplayer only mod for DarkPlaces
+		// has particle size 20 here instead of 1
+		
 		while(count--)
 		{
 			k = particlepalette[colorbase + (rand()&3)];
 			VectorSet(org, lhrandom(mins[0], maxs[0]), lhrandom(mins[1], maxs[1]), lhrandom(minz, maxz));
-			if (gamemode == GAME_GOODVSBAD2)
-				CL_NewParticle(org, pt_snow, k, k, tex_particle, 20, 0, lhrandom(64, 128), 0, 0, -1, org[0], org[1], org[2], dir[0], dir[1], dir[2], 0, 0, 0, 0, true, lifetime, 1, PBLEND_ADD, PARTICLE_BILLBOARD, -1, -1, -1, 1, 1, 0, 0, NULL);
-			else
+			//if (gamemode == GAME_GOODVSBAD2)
+			//	CL_NewParticle(org, pt_snow, k, k, tex_particle, 20, 0, lhrandom(64, 128), 0, 0, -1, org[0], org[1], org[2], dir[0], dir[1], dir[2], 0, 0, 0, 0, true, lifetime, 1, PBLEND_ADD, PARTICLE_BILLBOARD, -1, -1, -1, 1, 1, 0, 0, NULL);
+			//else
 				CL_NewParticle(org, pt_snow, k, k, tex_particle, 1, 0, lhrandom(64, 128), 0, 0, -1, org[0], org[1], org[2], dir[0], dir[1], dir[2], 0, 0, 0, 0, true, lifetime, 1, PBLEND_ADD, PARTICLE_BILLBOARD, -1, -1, -1, 1, 1, 0, 0, NULL);
 		}
 		break;
 	default:
-		Con_Printf ("CL_ParticleRain: unknown type %d (0 = rain, 1 = snow)\n", type);
+		Con_PrintLinef ("CL_ParticleRain: unknown type %d (0 = rain, 1 = snow)", type);
 	}
 }
 
@@ -2777,7 +3503,7 @@ static void R_InitParticleTexture (void)
 		Image_WriteTGABGRA ("particles/particlefont.tga", PARTICLEFONTSIZE, PARTICLEFONTSIZE, particletexturedata);
 #endif
 
-		decalskinframe = R_SkinFrame_LoadInternalBGRA("particlefont", TEXF_ALPHA | TEXF_FORCELINEAR | TEXF_RGBMULTIPLYBYALPHA, particletexturedata, PARTICLEFONTSIZE, PARTICLEFONTSIZE, 0, 0, 0, false, /*q1skyload*/ false);
+		decalskinframe = R_SkinFrame_LoadInternalBGRA("particlefont", TEXF_ALPHA | TEXF_FORCELINEAR | TEXF_RGBMULTIPLYBYALPHA, particletexturedata, PARTICLEFONTSIZE, PARTICLEFONTSIZE, 0, 0, 0, q_tx_convertsrgb_false, q_is_sky_load_false);
 		particlefonttexture = decalskinframe->base;
 
 		Mem_Free(particletexturedata);
@@ -2785,7 +3511,7 @@ static void R_InitParticleTexture (void)
 		Mem_Free(noise1);
 		Mem_Free(noise2);
 	}
-	for (i = 0;i < MAX_PARTICLETEXTURES;i++)
+	for (i = 0;i < MAX_PARTICLETEXTURES_256;i++)
 	{
 		CL_Particle_PixelCoordsForTexnum(i, &basex, &basey, &w, &h);
 		particletexture[i].texture = particlefonttexture;
@@ -2819,7 +3545,7 @@ static void R_InitParticleTexture (void)
 #ifdef DUMPPARTICLEFONT
 		Image_WriteTGABGRA ("particles/nexbeam.tga", 64, 64, &data2[0][0][0]);
 #endif
-		particletexture[tex_beam].texture = R_LoadTexture2D(particletexturepool, "nexbeam", 16, 64, &data2[0][0][0], TEXTYPE_BGRA, TEXF_ALPHA | TEXF_FORCELINEAR | TEXF_RGBMULTIPLYBYALPHA, -1, NULL);
+		particletexture[tex_beam].texture = R_LoadTexture2D(particletexturepool, "nexbeam", 16, 64, &data2[0][0][0], TEXTYPE_BGRA, TEXF_ALPHA | TEXF_FORCELINEAR | TEXF_RGBMULTIPLYBYALPHA, q_tx_miplevel_neg1, q_tx_palette_NULL);
 	}
 	particletexture[tex_beam].s1 = 0;
 	particletexture[tex_beam].t1 = 0;
@@ -2836,7 +3562,7 @@ static void R_InitParticleTexture (void)
 		{
 			if (!COM_ParseToken_Simple(&bufptr, true, false, true))
 				break;
-			if (String_Does_Match(com_token, "\n"))
+			if (String_Match(com_token, "\n"))
 				continue; // empty line
 			i = atoi(com_token);
 
@@ -2848,7 +3574,7 @@ static void R_InitParticleTexture (void)
 
 			if (COM_ParseToken_Simple(&bufptr, true, false, true) && strcmp(com_token, "\n"))
 			{
-				strlcpy(texturename, com_token, sizeof(texturename));
+				c_strlcpy(texturename, com_token); //, sizeof(texturename));
 				s1 = atof(com_token);
 				if (COM_ParseToken_Simple(&bufptr, true, false, true) && strcmp(com_token, "\n"))
 				{
@@ -2860,9 +3586,9 @@ static void R_InitParticleTexture (void)
 						if (COM_ParseToken_Simple(&bufptr, true, false, true) && strcmp(com_token, "\n"))
 						{
 							t2 = atof(com_token);
-							strlcpy(texturename, "particles/particlefont.tga", sizeof(texturename));
+							c_strlcpy(texturename, "particles/particlefont.tga"); //, sizeof(texturename));
 							if (COM_ParseToken_Simple(&bufptr, true, false, true) && strcmp(com_token, "\n"))
-								strlcpy(texturename, com_token, sizeof(texturename));
+								c_strlcpy(texturename, com_token); //, sizeof(texturename));
 						}
 					}
 				}
@@ -2874,9 +3600,9 @@ static void R_InitParticleTexture (void)
 				Con_Printf ("particles/particlefont.txt: syntax should be texnum x1 y1 x2 y2 texturename or texnum x1 y1 x2 y2 or texnum texturename\n");
 				continue;
 			}
-			if (i < 0 || i >= MAX_PARTICLETEXTURES)
+			if (i < 0 || i >= MAX_PARTICLETEXTURES_256)
 			{
-				Con_Printf ("particles/particlefont.txt: texnum %d outside valid range (0 to %d)\n", i, MAX_PARTICLETEXTURES);
+				Con_PrintLinef ("particles/particlefont.txt: texnum %d outside valid range (0 to %d)", i, MAX_PARTICLETEXTURES_256);
 				continue;
 			}
 			sf = R_SkinFrame_LoadExternal(texturename, TEXF_ALPHA | TEXF_FORCELINEAR | TEXF_RGBMULTIPLYBYALPHA, true, true); // note: this loads as sRGB if sRGB is active!
@@ -3232,6 +3958,10 @@ void R_DrawParticles (void)
 	int hitent;
 	trace_t trace;
 	qbool update;
+#if 0 // Baker May 31 2024 - From DarkPlaces Beta
+	float pt_explode_frame_interval, pt_explode2_frame_interval;
+	int color;
+#endif
 
 	frametime = bound(0, cl.time - cl.particles_updatetime, 1);
 	cl.particles_updatetime = bound(cl.time - 1, cl.particles_updatetime + frametime, cl.time + 1);
@@ -3240,6 +3970,11 @@ void R_DrawParticles (void)
 	if (!cl.num_particles)
 		return;
 
+#if 0 // Baker May 31 2024 - From DarkPlaces Beta
+	// Handling of the colour ramp for pt_explode and pt_explode2
+	pt_explode_frame_interval = frametime * 10;
+	pt_explode2_frame_interval = frametime * 15;
+#endif
 	minparticledist_start = DotProduct(r_refdef.view.origin, r_refdef.view.forward) + r_drawparticles_nearclip_min.value;
 	gravity = frametime * cl.movevars_gravity;
 	update = frametime > 0;
@@ -3411,6 +4146,34 @@ void R_DrawParticles (void)
 					if (a & (SUPERCONTENTS_SOLID | SUPERCONTENTS_LIQUIDSMASK))
 						goto killparticle;
 					break;
+#if 0 // May 31 2024 - from DarkPlaces Beta
+				case pt_explode:
+					// Progress the particle colour up the ramp
+					p->time2 += pt_explode_frame_interval;
+					if (p->time2 >= 8)
+						p->die = -1;
+					else
+					{
+						color = particlepalette[ramp1[(int)p->time2]];
+						p->color[0] = color >> 16;
+						p->color[1] = color >>  8;
+						p->color[2] = color >>  0;
+					}
+					break;
+				case pt_explode2:
+					// Progress the particle colour up the ramp
+					p->time2 += pt_explode2_frame_interval;
+					if (p->time2 >= 8)
+						p->die = -1;
+					else
+					{
+						color = particlepalette[ramp2[(int)p->time2]];
+						p->color[0] = color >> 16;
+						p->color[1] = color >>  8;
+						p->color[2] = color >>  0;
+					}
+					break;
+#endif
 				default:
 					break;
 				}

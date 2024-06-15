@@ -18,6 +18,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+// render.h
+
 #ifndef RENDER_H
 #define RENDER_H
 
@@ -41,8 +43,8 @@ glsl_attrib;
 
 typedef enum shaderlanguage_e
 {
-	SHADERLANGUAGE_GLSL,
-	SHADERLANGUAGE_COUNT
+	SHADERLANGUAGE_GLSL_0,
+	SHADERLANGUAGE_COUNT_1
 }
 shaderlanguage_t;
 
@@ -66,7 +68,7 @@ typedef enum shadermode_e
 	SHADERMODE_WATER, ///< refract background and reflection (the material is rendered normally after this pass)
 	SHADERMODE_DEFERREDGEOMETRY, ///< (deferred) render material properties to screenspace geometry buffers
 	SHADERMODE_DEFERREDLIGHTSOURCE, ///< (deferred) use directional pixel shading from light source (rtlight) on screenspace geometry buffers
-	SHADERMODE_COUNT
+	SHADERMODE_COUNT_17
 }
 shadermode_t;
 
@@ -330,8 +332,11 @@ typedef struct r_refdef_viewcache_s
 {
 	// updated by gl_main_newmap()
 	int maxentities;
+#if 1 // June 2
+#else
 	int world_numclusters;
 	int world_numclusterbytes;
+#endif
 	int world_numleafs;
 	int world_numsurfaces;
 
@@ -734,7 +739,7 @@ typedef struct rsurfacestate_s
 	float matrixscale;
 	float inversematrixscale;
 	// animation blending state from entity
-	frameblend_t frameblend[MAX_FRAMEBLENDS];
+	frameblend_t frameblend[MAX_FRAMEBLENDS_8];
 	skeleton_t *skeleton;
 	// view location in model space
 	vec3_t localvieworigin;
@@ -786,7 +791,7 @@ void R_HDR_UpdateIrisAdaptation(const vec3_t point);
 
 void RSurf_ActiveModelEntity(const entity_render_t *ent, qbool wantnormals, qbool wanttangents, qbool prepass);
 void RSurf_ActiveCustomEntity(const matrix4x4_t *matrix, const matrix4x4_t *inversematrix, int entflags, double shadertime, float r, float g, float b, float a, int numvertices, const float *vertex3f, const float *texcoord2f, const float *normal3f, const float *svector3f, const float *tvector3f, const float *color4f, int numtriangles, const int *element3i, const unsigned short *element3s, qbool wantnormals, qbool wanttangents);
-void RSurf_SetupDepthAndCulling(void);
+void RSurf_SetupDepthAndCulling (qbool is_ui);
 
 extern int r_textureframe; ///< used only by R_GetCurrentTexture, incremented per view and per UI render
 texture_t *R_GetCurrentTexture(texture_t *t);
@@ -869,7 +874,11 @@ typedef struct r_waterstate_waterplane_s
 	r_rendertarget_t *rt_camera; // MATERIALFLAG_CAMERA
 	mplane_t plane;
 	int materialflags; // combined flags of all water surfaces on this plane
-	unsigned char pvsbits[(MAX_MAP_LEAFS+7)>>3]; // FIXME: buffer overflow on huge maps
+#if 1 // June 2
+	unsigned char *pvsbits;
+#else
+	unsigned char pvsbits[(MAX_MAP_LEAFS_65536+7)>>3]; // FIXME: buffer overflow on huge maps
+#endif
 	qbool pvsvalid;
 	int camera_entity;
 	vec3_t mins, maxs;
@@ -882,9 +891,9 @@ typedef struct r_waterstate_s
 	int texturewidth, textureheight;
 	int camerawidth, cameraheight;
 
-	int maxwaterplanes; // same as MAX_WATERPLANES
+	int maxwaterplanes; // same as MAX_WATERPLANES_16
 	int numwaterplanes;
-	r_waterstate_waterplane_t waterplanes[MAX_WATERPLANES];
+	r_waterstate_waterplane_t waterplanes[MAX_WATERPLANES_16];
 
 	float screenscale[2];
 	float screencenter[2];
@@ -998,15 +1007,21 @@ void R_BuildLightMap(const entity_render_t *ent, msurface_t *surface, int combin
 void R_Water_AddWaterPlane(msurface_t *surface, int entno);
 int R_Shadow_GetRTLightInfo(unsigned int lightindex, float *origin, float *radius, float *color);
 dp_font_t *FindFont(const char *title, qbool allocate_new);
-void LoadFontDP(qbool override, const char *name, dp_font_t *fnt, float scale, float voffset);
+void LoadFontDP(qbool override, const char *name, dp_font_t *fnt, float scale, float voffset, const byte *ft_data_in, fs_offset_t ft_datasize);
+
+// Baker: Allocate a dp_font_t, send it here.
+// LoadFontDPEx (dpf, "fonts/Roboto-Medium.ttf", "10 24 36 72");
+void LoadFontDPEx (dp_font_t *dpf, /*const char *dpfontusername, */ const char *font_ttf_list, const char *sizes_in, const byte *ft_data_in, fs_offset_t ft_datasize);
+
+void GoogleRobotoFont_Check(void);
 
 #if 123
 	void VM_CL_AddPolygonsToMeshQueue(struct prvm_prog_s *prog);
 #endif // 123
 
-void Render_Init(void);
+void Render_InitOnce(void);
 
-// these are called by Render_Init
+// these are called by Render_InitOnce
 void R_Textures_Init(void);
 void GL_Draw_Init(void);
 void GL_Main_Init(void);
@@ -1024,5 +1039,9 @@ void Font_Init(void);
 qbool R_CompileShader_CheckStaticParms(void);
 void R_GLSL_Restart_f(cmd_state_t *cmd);
 
+extern char g_skyname[MAX_QPATH_128];
+
+void R_Shadow_ClearWorldLights(void); // Baker: For gamedir reset.
+extern char r_shadow_mapname[MAX_QPATH_128];
 
 #endif // ! RENDER_H

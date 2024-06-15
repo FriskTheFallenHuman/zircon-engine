@@ -94,7 +94,7 @@ static void Con_Pos_f(cmd_state_t *cmd)
 
 void Con_LogCenterPrint (const char *str)
 {
-	if (String_Does_Match(str, cl.lastcenterstring))
+	if (String_Match(str, cl.lastcenterstring))
 		return; //ignore duplicates
 
 	if (cl.gametype == GAME_DEATHMATCH && con_logcenterprint.value < 2) // default 1
@@ -741,7 +741,7 @@ CONSOLE
 */
 
 // Baker: Where does key_dest get set to console?
-void Con_ToggleConsole (void)
+void Con_ToggleConsole (void) // Method "kill" uses is Con_CloseConsole_If_Client(); // Baker r1003: close console for map/load/etc.
 {
 	if (Sys_CheckParm ("-noconsole"))
 		if (Have_Flag (key_consoleactive, KEY_CONSOLEACTIVE_USER_1) == false)
@@ -988,12 +988,12 @@ void Con_Copy_f(cmd_state_t *cmd)
 {
 	int j;
 
-	if (Cmd_Argc(cmd) == 2 && String_Does_Match_Caseless(Cmd_Argv(cmd, 1), "ents")) {
+	if (Cmd_Argc(cmd) == 2 && String_Match_Caseless(Cmd_Argv(cmd, 1), "ents")) {
 		Con_Copy_Ents_f();
 		return;
 	}
 
-	if (Cmd_Argc(cmd) == 2 && String_Does_Match_Caseless(Cmd_Argv(cmd, 1), "tex")) {
+	if (Cmd_Argc(cmd) == 2 && String_Match_Caseless(Cmd_Argv(cmd, 1), "tex")) {
 		Con_Copy_Tex_f();
 		return;
 	}
@@ -1005,7 +1005,7 @@ void Con_Copy_f(cmd_state_t *cmd)
 
 	if (con_mutex) Thread_LockMutex(con_mutex);
 #if 1
-	baker_string_t *k_console = BakerString_Create_Alloc ("");
+	baker_string_t *k_console = BakerString_Create_Malloc ("");
 	char sanitized_msg_buf[MAX_INPUTLINE_16384];
 	for (j = 0; j < CON_LINES_COUNT; ++j) {
 		// sanitize msg
@@ -1077,7 +1077,7 @@ void Consel_Copy (void)
 {
 	if (con_mutex) Thread_LockMutex(con_mutex);
 
-	baker_string_t *k_console = BakerString_Create_Alloc ("");
+	baker_string_t *k_console = BakerString_Create_Malloc ("");
 	char sanitized_msg_buf[MAX_INPUTLINE_16384];
 	for (int j = 0; j < CON_LINES_COUNT; j ++) {
 		// sanitize msg
@@ -1998,7 +1998,7 @@ baker_font_setup_here:
 
 	// draw a cursor on top of this
 	// Baker: Faster blink easier to identify position of cursor when typing quickly
-	if ((int)(host.realtime*con_cursorspeed) & 1) {
+	if ((int)(host.realtime*con_cursorspeed) & 1) { // BLINK
 		// cursor is visible
 		if (utf8_enable.integer == 0) {
 			text[0] = 11 + 130 * key_insert;	// either solid or triangle facing right
@@ -3048,8 +3048,8 @@ int Con_CompleteCommandLine_Zircon(cmd_state_t *cmd, qbool is_console, qbool is_
 	const char **list[4] = {0, 0, 0, 0};
 	const char *s_match = "";
 
-	#pragma message ("Baker: So many string functions and actions here are likely not UTF8 safe")
-	#pragma message ("and neither is the standard DarkPlaces autocomplete, but ours does more and uses more functions")
+	//#pragma message ("Baker: So many string functions and actions here are likely not UTF8 safe")
+	//#pragma message ("and neither is the standard DarkPlaces autocomplete, but ours does more and uses more functions")
 
 	// We are continuing a previous autocomplete
 	if (ac->s_search_partial_a)
@@ -3140,24 +3140,28 @@ exit_possible:
 			else if (String_Isin1 (command, "cl_cmd") /**/)							ac->searchtype = 12;
 //			else if (String_Isin1 (command, "menu_cmd") /**/)						ac->searchtype = 13;
 			else if (String_Isin2 (command, "modelprecache","modeldecompile" ) )	ac->searchtype = 14;
-			else if (String_Isin1 (command, "play") /**/)							ac->searchtype = 15;
+			else if (String_Isin2 (command, "play","playvol") /**/)					ac->searchtype = 15;
 			else if (String_Isin1 (command, "r_replacemaptexture") /**/)			ac->searchtype = 16;
 			else if (String_Isin2 (command, "bind","unbind") /**/)					ac->searchtype = 17;
 			else if (String_Isin4 (command, "folder","dir","ls", "jpegsplit") /**/)	ac->searchtype = 18;
 			else if (String_Isin1 (command, "cvarlist") /**/)						ac->searchtype = 20;
 			else if (String_Isin1 (command, "sv_protocolname") /**/)				ac->searchtype = 21;
 			else if (String_Isin1 (command, "loadfont"))							ac->searchtype = 22;
-			else if (String_Isin2 (command, "showmodel", "objmodeladjust") /**/)	ac->searchtype = 23;
+			else if (String_Isin3 (command, "showmodel", "objmodeladjust", "objmodelsplit") /**/)	ac->searchtype = 23;
 			else if (String_Isin1 (command, "envmap") /**/)							ac->searchtype = 24;
 			else if (String_Isin1 (command, "zipinfo") /**/)						ac->searchtype = 25;
 			else if (String_Isin1 (command, "parse") /**/)							ac->searchtype = 26;
 			else if (String_Isin1 (command, "shaderprint") /**/)					ac->searchtype = 27;
 			else if (String_Isin2 (command, "effectinfo_dump", "effectinfo_list"))	ac->searchtype = 28;
 			else if (String_Isin1 (command, "playvideo"))							ac->searchtype = 29;
+			else if (String_Isin1 (command, "zf"))								ac->searchtype = 31;
+//			else if (String_Isin1 (command, "loadfont"))							
+//				ac->searchtype = 30;
 		}
 		else if (ac->s_command0_a) {
 			// We are 2nd argument or further down (or someone typed multiple spaces that's on them)
 		         if (String_Isin1 (command, "r_replacemaptexture") /**/)			ac->searchtype = 19;
+			else if (String_Isin1 (command, "loadfont") /**/)						ac->searchtype = 30;
 			 // end
 		}
 
@@ -3214,6 +3218,10 @@ autocomplete_go:
 		case 27: GetShaderList_Count	(s); break;
 		case 28: GetEffectList_Count	(s); break;
 		case 29: GetVideoList_Count		(s /*".gif;*.jpg;*.dpv"*/); break;
+		case 30: GetFileList_Count		
+					 (/*folder*/ NULL, s, ".ttf", q_strip_exten_false); break;
+		case 31: GetFileList_Count		
+					 ("engine/", s, ".txt", q_strip_exten_false); break;
 		} // switch
 
 		if (ac->s_match_alphatop_a == NULL) {
@@ -3320,7 +3328,7 @@ one_match_skip:
 
 		// if there is only one match, add a space after it
 		int is_only_one = oldspartial == NULL
-			&& String_Does_Match (ac->s_match_alphalast_a, ac->s_match_alphatop_a);
+			&& String_Match (ac->s_match_alphalast_a, ac->s_match_alphatop_a);
 		if (key_linepos < (int)sizeof(key_line) - 1 && is_only_one) {
 			// Only first partial complete shall do this
 //			key_line[key_linepos ++] = ' ';
@@ -3418,7 +3426,7 @@ int Con_CompleteCommandLine(cmd_state_t *cmd, qbool is_console)
 		if (patterns && !*patterns)
 			patterns = NULL; // get rid of the empty string
 
-		if (String_Does_Match(command, "map") || String_Does_Match(command, "changelevel") || (patterns && String_Does_Match(patterns, "map"))) {
+		if (String_Match(command, "map") || String_Match(command, "changelevel") || (patterns && String_Match(patterns, "map"))) {
 			//maps search
 			char t[MAX_QPATH_128];
 			if (GetMapList(s, t, sizeof(t), q_is_menu_fill_false, q_is_zautocomplete_false, q_is_suppress_print_false)) {
@@ -3702,14 +3710,14 @@ void Con_Shutdown (void)
 
 /*
 ================
-Con_Init
+Con_InitOnce
 ================
 */
 
 #include "jack_scripts.c.h"
 
 
-void Con_Init (void)
+void Con_InitOnce (void)
 {
 	con_linewidth = 80;
 	ConBuffer_Init(&con, CON_TEXTSIZE_1_MB, CON_MAXLINES_16384, zonemempool);

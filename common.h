@@ -90,7 +90,7 @@ unsigned char COM_BlockSequenceCRCByteQW(unsigned char *base, int length, int se
 unsigned Com_BlockChecksum (void *buffer, int length);
 void Com_BlockFullChecksum (void *buffer, int len, unsigned char *outbuf);
 
-void COM_Init_Commands(void);
+void COM_InitOnce_Commands(void);
 
 
 //============================================================================
@@ -183,7 +183,7 @@ WARP_X_ (DEFS: ZIRCON_PEXT ZIRCON_EXT_CHUNKED_2)
 // Reason: This might too early to read server extensions.
 // How do we know if we get chunks?
 // SV: --> "cl_downloadbegin 3232323 maps/aerowalk.bsp deflate chunked"
-// CL_DownloadBegin_DP_f: Cmd_Argc(cmd) >= 4 && String_Does_Match(Cmd_Argv(cmd, 3), "chunked")
+// CL_DownloadBegin_DP_f: Cmd_Argc(cmd) >= 4 && String_Match(Cmd_Argv(cmd, 3), "chunked")
 
 // Q: Does server ever disallow chunked downloads?
 
@@ -486,28 +486,34 @@ float Com_CalcRoll (const vec3_t angles, const vec3_t velocity, const vec_t angl
 
 // Optimize these 2 for speed rather than debugging convenience ...
 
-#define String_Does_Match_Caseless(s1,s2)				(!strcasecmp(s1, s2))
-#define String_Does_NOT_Match_Caseless(s1,s2)			(!!strcasecmp(s1, s2))
-#define String_Does_Match(s1,s2)						(!strcmp(s1, s2))
-#define String_Does_NOT_Match(s1,s2)					(!!strcmp(s1, s2))
+#define String_Match_Caseless(s1,s2)				(!strcasecmp(s1, s2))
+#define String_NOT_Match_Caseless(s1,s2)			(!!strcasecmp(s1, s2))
+#define String_Match(s1,s2)							(!strcmp(s1, s2))
+#define String_NOT_Match(s1,s2)						(!!strcmp(s1, s2))
+
+#define String_Is_Quoted(s, slen) \
+	(s[0] == CHAR_DQUOTE_34 && slen >= 2 && s[slen - 1] == CHAR_DQUOTE_34) // Ender
 
 
-#define String_Isin1(sthis,s0)							( String_Does_Match(sthis, s0) )
-#define String_Isin2(sthis,s0,s1)						( String_Does_Match(sthis, s0) || String_Does_Match(sthis, s1) )
-#define String_Isin3(sthis,s0,s1,s2)					( String_Does_Match(sthis, s0) || String_Does_Match(sthis, s1) || String_Does_Match(sthis, s2) )
-#define String_Isin4(sthis,s0,s1,s2,s3)					( String_Does_Match(sthis, s0) || String_Does_Match(sthis, s1) || String_Does_Match(sthis, s2) || String_Does_Match(sthis, s3) )
+#define String_Isin1(sthis,s0)							( String_Match(sthis, s0) )
+#define String_Isin2(sthis,s0,s1)						( String_Match(sthis, s0) || String_Match(sthis, s1) )
+#define String_Isin3(sthis,s0,s1,s2)					( String_Match(sthis, s0) || String_Match(sthis, s1) || String_Match(sthis, s2) )
+#define String_Isin4(sthis,s0,s1,s2,s3)					( String_Match(sthis, s0) || String_Match(sthis, s1) || String_Match(sthis, s2) || String_Match(sthis, s3) )
 
-#define String_Isin1_Caseless(sthis,s0)					( String_Does_Match_Caseless(sthis, s0) )
-#define String_Isin2_Caseless(sthis,s0,s1)				( String_Does_Match_Caseless(sthis, s0) || String_Does_Match_Caseless(sthis, s1) )
-#define String_Isin3_Caseless(sthis,s0,s1,s2)			( String_Does_Match_Caseless(sthis, s0) || String_Does_Match_Caseless(sthis, s1) || String_Does_Match_Caseless(sthis, s2) )
+#define String_Isin1_Caseless(sthis,s0)					( String_Match_Caseless(sthis, s0) )
+#define String_Isin2_Caseless(sthis,s0,s1)				( String_Match_Caseless(sthis, s0) || String_Match_Caseless(sthis, s1) )
+#define String_Isin3_Caseless(sthis,s0,s1,s2)			( String_Match_Caseless(sthis, s0) || String_Match_Caseless(sthis, s1) || String_Match_Caseless(sthis, s2) )
 
-#define String_Does_Start_With(s,s_prefix)				(!strncmp(s, s_prefix, strlen(s_prefix)))
-#define String_Does_Start_With_Caseless(s,s_prefix)		(!strncasecmp(s, s_prefix, strlen(s_prefix)))
+#define String_Ends_With_Caseless_3(sthis,s0,s1,s2)	( String_Ends_With_Caseless(sthis, s0) || String_Ends_With_Caseless(sthis, s1) || String_Ends_With_Caseless(sthis, s2) )
 
-#define String_Does_Start_With_PRE(s,s_prefix)					(!strncmp(s, s_prefix, sizeof(s_prefix) - 1 ))
-#define String_Does_NOT_Start_With_PRE(s,s_prefix)				(!!strncmp(s, s_prefix, sizeof(s_prefix) - 1 ))
-#define String_Does_Start_With_Caseless_PRE(s,s_prefix)			(!strncasecmp(s, s_prefix, sizeof(s_prefix) - 1 ))
-#define String_Does_NOT_Start_With_Caseless_PRE(s,s_prefix)		(!!strncasecmp(s, s_prefix, sizeof(s_prefix) - 1 ))
+
+#define String_Starts_With(s,s_prefix)					(!strncmp(s, s_prefix, strlen(s_prefix)))
+#define String_Starts_With_Caseless(s,s_prefix)			(!strncasecmp(s, s_prefix, strlen(s_prefix)))
+
+#define String_Starts_With_PRE(s,s_prefix)				(!strncmp(s, s_prefix, sizeof(s_prefix) - 1 ))
+#define String_NOT_Start_With_PRE(s,s_prefix)			(!!strncmp(s, s_prefix, sizeof(s_prefix) - 1 ))
+#define String_Starts_With_Caseless_PRE(s,s_prefix)		(!strncasecmp(s, s_prefix, sizeof(s_prefix) - 1 ))
+#define String_NOT_Start_With_Caseless_PRE(s,s_prefix)	(!!strncasecmp(s, s_prefix, sizeof(s_prefix) - 1 ))
 
 #define STRINGLEN(s_literal) (sizeof(s_literal) - 1)
 
@@ -518,12 +524,14 @@ char *String_Find_End (const char *s); // Returns pointer to last character of s
 
 char *String_Skip_WhiteSpace_Excluding_Space (const char *s);
 char *String_Skip_WhiteSpace_Including_Space (const char *s);
-char *String_Replace_Len_Count_Alloc (const char *s, const char *s_find, const char *s_replace, /*reply*/ int *created_length, replyx size_t *created_bufsize, replyx int *replace_count);
+char *String_Replace_Len_Count_Malloc (const char *s, const char *s_find, const char *s_replace, /*reply*/ int *created_length, replyx size_t *created_bufsize, replyx int *replace_count);
 char *String_Range_Find_Char (const char *s_start, const char *s_end, int ch_findchar);
 char *String_Edit_Whitespace_To_Space (char *s_edit);
+char *String_Edit_Unquote (char *s_edit);
+#define String_Edit_DeQuote String_Edit_Unquote
 char *String_Edit_Trim (char *s_edit);
 char *String_Edit_Replace (char *s_edit, size_t s_size, const char *s_find, const char *s_replace); // no alloc
-char *String_Replace_Alloc (const char *s, const char *s_find, const char *s_replace);
+char *String_Replace_Malloc (const char *s, const char *s_find, const char *s_replace);
 char *String_Edit_RTrim_Whitespace_Including_Spaces (char *s_edit);
 
 int String_Edit_Remove_This_Trailing_Character (char *s_edit, int ch);
@@ -539,21 +547,24 @@ char *String_Worldspawn_Value_For_Key_Sbuf (const char *s_entities_string, const
 // returns number of keys printed
 int String_Worldspawn_Value_For_Key_Con_PrintLine (const char *s_entities_string);
 
-// String_Does_End_With is too complex for PRE (preprocessed version) .. move along ...
-int String_Does_End_With (const char *s, const char *s_suffix); 
+
+qbool String_Is_All_AlphaNumeric_Underscore(ccs *s);
+
+// String_Ends_With is too complex for PRE (preprocessed version) .. move along ...
+int String_Ends_With (const char *s, const char *s_suffix); 
 
 #define		String_Is_Dot(s)	(s[0] == '.' && s[1] == NULL_CHAR_0)
 #define		String_Is_DotDot(s)	(s[0] == '.' && s[1] == '.' && s[2] == NULL_CHAR_0)
 
 #if 1
-	#define String_Does_Contain(s,s_find) (!!strstr(s,s_find))
+	#define String_Contains(s,s_find) (!!strstr(s,s_find))
 #else
-	int String_Does_Contain (const char *s, const char *s_find);
+	int String_Contains (const char *s, const char *s_find);
 #endif
 
-int String_Does_Contain_Caseless (const char *s, const char *s_find);
-int String_Does_End_With_Caseless (const char *s, const char *s_suffix);
-int String_Does_Have_Uppercase (const char *s);
+int String_Contains_Caseless (const char *s, const char *s_find);
+int String_Ends_With_Caseless (const char *s, const char *s_suffix);
+int String_Has_Uppercase (const char *s);
 char *String_Find_Skip_Past (const char *s, const char *s_find);
 
 void String_Command_String_To_Argv (char *cmdline, int *numargc, char **argvz, int maxargs);
@@ -584,7 +595,7 @@ int File_Is_Existing_File (const char *path_to_file);
 #define File_To_String_Alloc(FILENAME, REPLY_BYTES_OPTIONAL_SIZE_T) File_To_Memory_Alloc (FILENAME, REPLY_BYTES_OPTIONAL_SIZE_T) // Reply is a blob.
 
 int String_Count_Char (const char *s, int ch_findchar);
-char *String_Instance_Alloc_Base1 (const char *s, int ch_delim, int nth_instance, replyx int *len);
+char *String_Instance_Malloc_Base1 (const char *s, int ch_delim, int nth_instance, replyx int *len);
 
 int Folder_Open (const char *path_to_file);
 
@@ -648,7 +659,7 @@ typedef struct {
 
 //baker_string_t *BakerString_Destroy (/*modify*/ baker_string_t *dst);
 void BakerString_Destroy_And_Null_It (baker_string_t **pdst);
-baker_string_t *BakerString_Create_Alloc (const char *s);
+baker_string_t *BakerString_Create_Malloc (const char *s);
 
 
 void BakerString_Set (baker_string_t *dst, int s_len, const char *s);
@@ -685,10 +696,62 @@ char *_length_vsnprintf (qbool just_test, /*reply*/ int *created_length, /*reply
 
 void *core_memdup_z (const void *src, size_t len, /*optional*/ size_t *bufsize_made);
 
-void *z_memdup_z (const void *src, size_t len); // null terminated z_malloc //Z_Free(s); to free
+void *Z_MemDup_Z (const void *src, size_t len); // null terminated z_malloc //Z_Free(s); to free
+
+#define Z_StrDup_Len_Z(s,slen) (char *)Z_MemDup_Z (s,slen)
+
+#define Z_StrDup_Realloc_(var, s) \
+	if (var) { \
+		Z_FreeNull_ (var); \
+	} \
+	var = Z_StrDup (s)  // Ender
+
 
 double File_Time (const char *path_to_file);
 
 char *String_Edit_Replace_Char (char *s_edit, int ch_find, int ch_replace, replyx int *outcount);
+
+char *Z_StrDupf (const char *fmt, ...) DP_FUNC_PRINTF(1);
+void Z_StrDupf_Realloc (char **ps, const char *fmt, ...) DP_FUNC_PRINTF(2);
+void Z_StrDup_Len_Z_Realloc (char **ps, const char *s, int slen);
+
+char *_c_strlcpy_size_z (char *dst, size_t dst_sizeof, const char *src, size_t src_length);
+#define c_strlcpy_size_z(dst,src,len)  _c_strlcpy_size_z(dst, sizeof(dst), src, len)
+
+void *Mem_DupZ (mempool_t *mempool, const void *src, size_t len);
+
+typedef struct {
+	byte	*buf_malloc;
+	int		cursor;
+	size_t	filesize;
+	int		did_malloc; // Baker: If we didn't malloc the data, we did malloc the bakerbuf_t
+} bakerbuf_t;
+
+
+int baker_read (bakerbuf_t *bb, void *dst, size_t readsize);
+int baker_lseek(bakerbuf_t *bb, int offset, int whence);
+unsigned short baker_read_usshort(bakerbuf_t *bb);
+bakerbuf_t *baker_close (bakerbuf_t *bb);
+qbool baker_open_actual_file_is_ok (bakerbuf_t *bb, const char *path);
+qbool baker_open_from_memory_is_ok (bakerbuf_t *bb, const void *data, size_t datalen);
+
+// Baker: Doesn't malloc the buffer (references it), but does malloc a bakerbuf_t
+// So yeah poorly named for now.
+bakerbuf_t *baker_open_from_memory_NO_MALLOC_is_ok (const void *data, size_t datalen);
+
+#define return_if_msg_(cond,msg) \
+	if (cond) { \
+		Con_PrintLinef (msg); \
+		return; \
+	} // Ender
+
+
+void File_URL_Edit_Default_Extension (char *path_to_file, const char *dot_new_extension, size_t bufsize);
+const char *File_URL_GetExtension (const char *path_to_file);
+// Returns extension with . (like .png) after last slash if exists, returns NULL if nothing found.
+ccs *File_URL_GetExtensionEx (ccs *path_to_file);
+
+
+char *String_Edit_Replace_Memory_Constant (char *s_edit, size_t s_size, const char *s_find, const char *s_replace);
 
 #endif // ! COMMON_H

@@ -65,17 +65,20 @@ struct qfile_s;
 
 typedef struct cvar_s {
 	int flags;
+	
+	const char		*name;
 
-	const char *name;
-
-	const char *string;
-	const char *description;
-	int integer;
-	float value;
+	const char		*string; // Baker: Cvars are read before cvar_Registervariable!
+							// example: *log_dest_udp.string
+	const char		*description;
+	int				integer;
+	float			value;
 	float fvector[3];
 
-	const char *defstring;
-
+	const char		*engine_string;
+	//const char	*string;
+	const char		*defstring;
+	
 	void (*callback)(struct cvar_s *var);
 
 	char **aliases;
@@ -95,11 +98,11 @@ typedef struct cvar_hash_s
 	struct cvar_hash_s *next;
 } cvar_hash_t;
 
-
 typedef struct cvar_state_s {
 	cvar_t *vars;
 	cvar_hash_t *hashtable[CVAR_HASHSIZE_65536];
-} cvar_state_t;
+} cvar_state_t; // cvars_all
+
 
 #define HashInt16ForString(s) \
 	(CRC_Block((const unsigned char *)s, strlen(s)) % CVAR_HASHSIZE_65536)
@@ -190,7 +193,7 @@ const char **Cvar_CompleteBuildList(cvar_state_t *cvars, const char *partial, in
 // Thanks to taniwha
 
 /// Prints a list of Cvars including a count of them to the user console
-/// Referenced in cmd.c in Cmd_Init hence it's inclusion here.
+/// Referenced in cmd.c in Cmd_InitOnce hence it's inclusion here.
 /// Added by EvilTypeGuy eviltypeguy@qeradiant.com
 /// Thanks to Matthias "Maddes" Buecher, http://www.inside3d.com/qip/
 void Cvar_List_f(struct cmd_state_s *cmd);

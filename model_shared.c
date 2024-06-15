@@ -47,7 +47,7 @@ static modloader_t loader[] =
 	{"obj", NULL, 0, Mod_OBJ_Load},
 	{NULL, "IDPO", 4, Mod_IDP0_Load},
 	{NULL, "IDP2", 4, Mod_IDP2_Load},
-	{NULL, "IDP3", 4, Mod_IDP3_Load},
+	{NULL, "IDP3", 4, Mod_IDP3_Load},	// IDP3 md3?
 	{NULL, "IDSP", 4, Mod_IDSP_Load}, // Baker: SPRITE
 	{NULL, "IDS2", 4, Mod_IDS2_Load},
 	{NULL, "\035", 1, Mod_Q1BSP_Load},
@@ -73,11 +73,11 @@ typedef struct q3shader_hash_entry_s
   shader_t shader;
   struct q3shader_hash_entry_s* chain;
 } q3shader_hash_entry_t;
-#define Q3SHADER_HASH_SIZE  1021
+#define Q3SHADER_HASH_SIZE_1021  1021
 typedef struct q3shader_data_s
 {
   memexpandablearray_t hash_entries;
-  q3shader_hash_entry_t hash[Q3SHADER_HASH_SIZE];
+  q3shader_hash_entry_t hash[Q3SHADER_HASH_SIZE_1021];
   memexpandablearray_t char_ptrs;
 } q3shader_data_t;
 static q3shader_data_t *q3shader_data;
@@ -128,8 +128,9 @@ static void mod_shutdown(void)
 
 	// Baker r9003: Clear models/sounds on gamedir change
 	if (is_game_switch) {
-		Mod_PurgeUnused (); // Baker .. loadmodel: stuff from prior gamedir persisted
-		S_PurgeUnused();
+		//Mod_PurgeUnused (); // Baker .. loadmodel: stuff from prior gamedir persisted
+		Mod_PurgeALL ();
+		S_PurgeALL (); //S_PurgeUnused();
 		is_game_switch = false; // Baker r9062: This is where.
 	} else {
 		// Could be ALT-TAB or vid restart
@@ -179,14 +180,14 @@ static void mod_newmap(void)
 
 /*
 ===============
-Mod_Init
+Mod_InitOnce
 ===============
 */
 static void Mod_Print_f(cmd_state_t *cmd);
 static void Mod_Precache_f(cmd_state_t *cmd);
 static void Mod_Decompile_f(cmd_state_t *cmd);
 static void Mod_GenerateLightmaps_f(cmd_state_t *cmd);
-void Mod_Init (void)
+void Mod_InitOnce (void)
 {
 	mod_mempool = Mem_AllocPool("modelinfo", 0, NULL);
 	Mem_ExpandableArray_NewArray(&models, mod_mempool, sizeof(model_t), 16);
@@ -290,13 +291,13 @@ static int Mod_FrameGroupify_ParseGroups(const char *buf, mod_framegroupify_pars
 		COM_ParseToken_Simple(&bufptr, true, false, true);
 		if (!bufptr)
 			break; // end of file
-		if (String_Does_Match(com_token, "\n"))
+		if (String_Match(com_token, "\n"))
 			continue; // empty line
 		start = atoi(com_token);
 
 		// REQUIRED: fetch length
 		COM_ParseToken_Simple(&bufptr, true, false, true);
-		if (!bufptr || String_Does_Match(com_token, "\n"))
+		if (!bufptr || String_Match(com_token, "\n"))
 		{
 			Con_Printf ("framegroups file: missing number of frames\n");
 			continue;
@@ -427,7 +428,7 @@ model_t *Mod_LoadModel(model_t *mod, qbool crash, qbool checkdisk)
 	if (mod->model_name[0] == '*') // submodel
 		return mod;
 
-	if (String_Does_Match(mod->model_name, "null")) {
+	if (String_Match(mod->model_name, "null")) {
 		if (mod->loaded)
 			return mod;
 
@@ -526,15 +527,15 @@ model_t *Mod_LoadModel(model_t *mod, qbool crash, qbool checkdisk)
 		mod->mempool = Mem_AllocPool(mod->model_name, 0, NULL);
 
 		// We need to have a reference to the base model in case we're parsing submodels
-		loadmodel = mod;
+		loadmodel = mod; // (Mod_IDP0_Load)
 
 		// Call the appropriate loader. Try matching magic bytes.
 		for (i = 0; loader[i].Load; i++) {
 			// Headerless formats can just load based on extension. Otherwise match the magic string.
-			if ((loader[i].extension && String_Does_Match_Caseless(ext, loader[i].extension) && !loader[i].header) ||
+			if ((loader[i].extension && String_Match_Caseless(ext, loader[i].extension) && !loader[i].header) ||
 			   (loader[i].header && !memcmp(buf, loader[i].header, loader[i].headersize)))
 			{
-				size_t mod_sz = sizeof(*mod);
+				//size_t mod_sz = sizeof(*mod);
 				model_t mod_fallback = *mod;
 
 				// Matched. Load it.
@@ -568,7 +569,7 @@ other_failure:
 	}
 	else if (crash) {
 
-		if (String_Does_Match(mod->model_name, "progs/beam.mdl")) {
+		if (String_Match(mod->model_name, "progs/beam.mdl")) {
 			// Baker r1461: beam.mdl quit printing this thing nothing uses ...
 			Con_DPrintLinef (CON_ERROR "Mod_LoadModel: %s not found", mod->model_name);
 		} else {
@@ -609,6 +610,20 @@ void Mod_PurgeUnused(void)
 	} // for
 }
 
+void Mod_PurgeALL(void)
+{
+	int i;
+	int nummodels = (int)Mem_ExpandableArray_IndexRange(&models);
+	model_t *mod;
+	for (i = 0;i < nummodels; i++) {
+		if ((mod = (model_t*) Mem_ExpandableArray_RecordAtIndex(&models, i)) && 
+			mod->model_name[0] /*&& !mod->used*/) {
+			Mod_UnloadModel(mod);
+			Mem_ExpandableArray_FreeRecord(&models, mod);
+		} // if
+	} // for
+}
+
 /*
 ==================
 Mod_FindName
@@ -631,7 +646,7 @@ model_t *Mod_FindName(const char *name, const char *parentname)
 
 	// search the currently loaded models
 	for (i = 0; i < nummodels; i++) {
-		if ((mod = (model_t*) Mem_ExpandableArray_RecordAtIndex(&models, i)) && mod->model_name[0] && String_Does_Match(mod->model_name, name) && ((!mod->brush.parentmodel && !parentname[0]) || (mod->brush.parentmodel && parentname[0] && String_Does_Match(mod->brush.parentmodel->model_name, parentname)))) {
+		if ((mod = (model_t*) Mem_ExpandableArray_RecordAtIndex(&models, i)) && mod->model_name[0] && String_Match(mod->model_name, name) && ((!mod->brush.parentmodel && !parentname[0]) || (mod->brush.parentmodel && parentname[0] && String_Match(mod->brush.parentmodel->model_name, parentname)))) {
 			mod->used = true;
 			return mod;
 		}
@@ -1065,15 +1080,20 @@ void Mod_ShadowMesh_AddMesh(shadowmesh_t *mesh, const float *vertex3f, int numtr
 
 	for (i = 0;i < numtris;i++)
 	{
-#if 1 // Signed-off-by: bones_was_here <bones_was_here@xonotic.au>
+#if 1 // June 2
+		// Baker: A nice macro bones wrote to simplify this ...
+		if ((mesh->numtriangles * 3 + 2) * sizeof(int) + 1 >= Mem_Size(mesh->element3i))
+#else
+		// Signed-off-by: bones_was_here <bones_was_here@xonotic.au>
 		if ((mesh->numtriangles * 3 + 2) * sizeof(int) + 1 >=
 			((memheader_t *)((unsigned char *)mesh->element3i - sizeof(memheader_t)))->size)
+#endif
 		{
 			// FIXME: we didn't allocate enough space for all the tris, see R_Mod_CompileShadowMap
 			Con_PrintLinef (CON_WARN "Mod_ShadowMesh_AddMesh: insufficient memory allocated!");
 			return;
 		}
-#endif
+
 		mesh->element3i[mesh->numtriangles * 3 + 0] = Mod_ShadowMesh_AddVertex(mesh, vertex3f + 3 * element3i[i * 3 + 0]);
 		mesh->element3i[mesh->numtriangles * 3 + 1] = Mod_ShadowMesh_AddVertex(mesh, vertex3f + 3 * element3i[i * 3 + 1]);
 		mesh->element3i[mesh->numtriangles * 3 + 2] = Mod_ShadowMesh_AddVertex(mesh, vertex3f + 3 * element3i[i * 3 + 2]);
@@ -1232,7 +1252,7 @@ void Mod_CreateCollisionMesh(model_t *mod)
 	for (k = mod->submodelsurfaces_start;k < mod->submodelsurfaces_end;k++)
 	{
 		surface = mod->data_surfaces + k;
-		if (String_Does_Match(surface->texture->name, "collision") || String_Does_Match(surface->texture->name, "collisionconvex")) // found collision mesh
+		if (String_Match(surface->texture->name, "collision") || String_Match(surface->texture->name, "collisionconvex")) // found collision mesh
 		{
 			usesinglecollisionmesh = true;
 			numcollisionmeshtriangles = surface->num_triangles;
@@ -1413,13 +1433,13 @@ static int Mod_LoadQ3Shaders_EnumerateWaveFunc(const char *s)
 		if (*s)
 			++s;
 	}
-	if (String_Does_Match_Caseless(s, "sin"))             return offset | Q3WAVEFUNC_SIN;
-	if (String_Does_Match_Caseless(s, "square"))          return offset | Q3WAVEFUNC_SQUARE;
-	if (String_Does_Match_Caseless(s, "triangle"))        return offset | Q3WAVEFUNC_TRIANGLE;
-	if (String_Does_Match_Caseless(s, "sawtooth"))        return offset | Q3WAVEFUNC_SAWTOOTH;
-	if (String_Does_Match_Caseless(s, "inversesawtooth")) return offset | Q3WAVEFUNC_INVERSESAWTOOTH;
-	if (String_Does_Match_Caseless(s, "noise"))           return offset | Q3WAVEFUNC_NOISE;
-	if (String_Does_Match_Caseless(s, "none"))            return offset | Q3WAVEFUNC_NONE;
+	if (String_Match_Caseless(s, "sin"))             return offset | Q3WAVEFUNC_SIN;
+	if (String_Match_Caseless(s, "square"))          return offset | Q3WAVEFUNC_SQUARE;
+	if (String_Match_Caseless(s, "triangle"))        return offset | Q3WAVEFUNC_TRIANGLE;
+	if (String_Match_Caseless(s, "sawtooth"))        return offset | Q3WAVEFUNC_SAWTOOTH;
+	if (String_Match_Caseless(s, "inversesawtooth")) return offset | Q3WAVEFUNC_INVERSESAWTOOTH;
+	if (String_Match_Caseless(s, "noise"))           return offset | Q3WAVEFUNC_NOISE;
+	if (String_Match_Caseless(s, "none"))            return offset | Q3WAVEFUNC_NONE;
 	Con_DPrintf ("Mod_LoadQ3Shaders: unknown wavefunc %s\n", s);
 	return offset | Q3WAVEFUNC_NONE;
 }
@@ -1432,11 +1452,11 @@ void Mod_FreeQ3Shaders(void)
 static void Q3Shader_AddToHash (shader_t *shader)
 {
 	unsigned short hash = CRC_Block_CaseInsensitive ((const unsigned char *)shader->name, strlen (shader->name));
-	q3shader_hash_entry_t *entry = q3shader_data->hash + (hash % Q3SHADER_HASH_SIZE);
+	q3shader_hash_entry_t *entry = q3shader_data->hash + (hash % Q3SHADER_HASH_SIZE_1021);
 	q3shader_hash_entry_t *lastEntry = NULL;
 	do
 	{
-		if (String_Does_Match_Caseless (entry->shader.name, shader->name))
+		if (String_Match_Caseless (entry->shader.name, shader->name))
 		{
 			// redeclaration
 			if (shader->dpshaderkill)
@@ -1560,23 +1580,23 @@ void Mod_LoadQ3Shaders(void)
 	if ((text = f = (char *)FS_LoadFile("scripts/custinfoparms.txt", tempmempool, fs_quiet_FALSE, fs_size_ptr_null)) != NULL)
 	{
 		//if (!COM_ParseToken_QuakeC(&text, false) || strcasecmp(com_token, "{"))
-		if (!COM_ParseToken_QuakeC(&text, false) || String_Does_NOT_Match(com_token, "{")) {
+		if (!COM_ParseToken_QuakeC(&text, false) || String_NOT_Match(com_token, "{")) {
 			Con_DPrintLinef ("scripts/custinfoparms.txt: contentflags section parsing error - expected " 
 								QUOTED_STR("{") ", found " QUOTED_S, com_token);
 		}
 		else
 		{
 			while (COM_ParseToken_QuakeC(&text, false))
-				if (String_Does_Match_Caseless(com_token, "}"))
+				if (String_Match_Caseless(com_token, "}"))
 					break;
 			// custom surfaceflags section
 			//if (!COM_ParseToken_QuakeC(&text, false) || strcasecmp(com_token, "{"))
-			if (!COM_ParseToken_QuakeC(&text, false) || false == String_Does_NOT_Match(com_token, "{"))
+			if (!COM_ParseToken_QuakeC(&text, false) || false == String_NOT_Match(com_token, "{"))
 				Con_DPrintLinef ("scripts/custinfoparms.txt: surfaceflags section parsing error - expected " QUOTED_STR("{") ", found " QUOTED_S, com_token);
 			else
 			{
 				while(COM_ParseToken_QuakeC(&text, false)) {
-					if (String_Does_Match_Caseless(com_token, "}"))
+					if (String_Match_Caseless(com_token, "}"))
 						break;
 					// register surfaceflag
 					if (numcustsurfaceflags >= 256) {
@@ -1647,7 +1667,7 @@ void Mod_LoadQ3Shaders(void)
 			// JUST GREP FOR "specularscalemod = 1".
 
 			c_strlcpy(shader.name, com_token);
-			if (!COM_ParseToken_QuakeC(&text, false) || String_Does_NOT_Match(com_token, "{")) {
+			if (!COM_ParseToken_QuakeC(&text, false) || String_NOT_Match(com_token, "{")) {
 				Con_DPrintLinef ("%s parsing error - expected " QUOTED_STR ("{") ", found " QUOTED_S, search->filenames[fileindex], com_token);
 				break;
 			}
@@ -1681,9 +1701,9 @@ shader_t *Mod_LookupQ3Shader(const char *name)
 		Mod_LoadQ3Shaders();
 
 	hash = CRC_Block_CaseInsensitive ((const unsigned char *)name, strlen (name));
-	entry = q3shader_data->hash + (hash % Q3SHADER_HASH_SIZE);
+	entry = q3shader_data->hash + (hash % Q3SHADER_HASH_SIZE_1021);
 	while (entry != NULL) {
-		if (String_Does_Start_With_Caseless (entry->shader.name, name))
+		if (String_Starts_With_Caseless (entry->shader.name, name))
 			return &entry->shader;
 		entry = entry->chain;
 	} // while
@@ -1851,7 +1871,7 @@ nothing                GL_ZERO GL_ONE
 			int firstpostlayer = 0;
 			int shaderpassindex = 0;
 			for (i = 0; i < shader->numlayers; i ++) {
-				if (shader->layers[i].sh_ptexturename != NULL && String_Does_Match_Caseless(shader->layers[i].sh_ptexturename[0], "$lightmap"))
+				if (shader->layers[i].sh_ptexturename != NULL && String_Match_Caseless(shader->layers[i].sh_ptexturename[0], "$lightmap"))
 					lightmaplayer = i;
 				if (shader->layers[i].rgbgen.rgbgen == Q3RGBGEN_VERTEX)
 					rgbgenvertexlayer = i;
@@ -2041,14 +2061,14 @@ nothing                GL_ZERO GL_ONE
 		if (shader->dpshaderkill && developer_extra.integer)
 			Con_DPrintLinef ("^1%s:^7 killing shader ^3" QUOTED_S " because of cvar", modelname, name);
 	} // End shader
-	else if (String_Does_Match(texture->name, "noshader") || !texture->name[0])
+	else if (String_Match(texture->name, "noshader") || !texture->name[0])
 	{
 		if (developer_extra.integer)
 			Con_DPrintLinef ("^1%s:^7 using fallback noshader material for ^3" QUOTED_S, modelname, name);
 		texture->basematerialflags = defaultmaterialflags;
 		texture->supercontents = SUPERCONTENTS_SOLID | SUPERCONTENTS_OPAQUE;
 	}
-	else if (String_Does_Match(texture->name, "common/nodraw") || String_Does_Match(texture->name, "textures/common/nodraw"))
+	else if (String_Match(texture->name, "common/nodraw") || String_Match(texture->name, "textures/common/nodraw"))
 	{
 		if (developer_extra.integer)
 			Con_DPrintLinef ("^1%s:^7 using fallback nodraw material for ^3" QUOTED_S, modelname, name);
@@ -2253,7 +2273,7 @@ tag_torso,
 			// parse line
 			if (!COM_ParseToken_QuakeC(&data, true))
 				break;
-			if (String_Does_Match(com_token, "\n"))
+			if (String_Match(com_token, "\n"))
 				continue;
 			words = 0;
 			wordsoverflow = false;
@@ -2264,13 +2284,15 @@ tag_torso,
 				else
 					wordsoverflow = true;
 			}
-			while (COM_ParseToken_QuakeC(&data, true) && String_Does_NOT_Match(com_token, NEWLINE));
+			while (COM_ParseToken_QuakeC(&data, true) && String_NOT_Match(com_token, NEWLINE));
 			if (wordsoverflow) {
-				Con_PrintLinef ("Mod_LoadSkinFiles: parsing error in file \"%s_%d.skin\" on line #%d: line with too many statements, skipping", loadmodel->model_name, i, line);
+				Con_PrintLinef (
+					"Mod_LoadSkinFiles: parsing error in file \"%s_%d.skin\" on line #%d: line with too many statements, skipping", 
+					loadmodel->model_name, i, line);
 				continue;
 			}
 			// words is always >= 1
-			if (String_Does_Match(word[0], "replace"))
+			if (String_Match(word[0], "replace"))
 			{
 				if (words == 3)
 				{
@@ -2279,18 +2301,19 @@ tag_torso,
 					skinfileitem = (skinfileitem_t *)Mem_Alloc(loadmodel->mempool, sizeof(skinfileitem_t));
 					skinfileitem->next = skinfile->items;
 					skinfile->items = skinfileitem;
-					strlcpy (skinfileitem->name, word[1], sizeof (skinfileitem->name));
-					strlcpy (skinfileitem->replacement, word[2], sizeof (skinfileitem->replacement));
+					c_strlcpy (skinfileitem->name, word[1]); //, sizeof (skinfileitem->name));
+					c_strlcpy (skinfileitem->replacement, word[2]); //, sizeof (skinfileitem->replacement));
 				}
 				else
 					Con_PrintLinef ("Mod_LoadSkinFiles: parsing error in file \"%s_%d.skin\" on line #%d: wrong number of parameters to command " QUOTED_S ", see documentation in DP_GFX_SKINFILES extension in dpextensions.qc", loadmodel->model_name, i, line, word[0]);
 			}
-			else if (words >= 2 && !strncmp(word[0], "tag_", 4))
+			//else if (words >= 2 && !strncmp(word[0], "tag_", 4))
+			else if (words >= 2 && String_Starts_With_PRE(word[0], "tag_"))
 			{
 				// tag name, like "tag_weapon,"
 				// not used for anything (not even in Quake3)
 			}
-			else if (words >= 2 && String_Does_Match(word[1], ","))
+			else if (words >= 2 && String_Match(word[1], ","))
 			{
 				// mesh shader name, like "U_RArm,models/players/Legoman/BikerA1.tga"
 				if (developer_loading.integer)
@@ -2298,8 +2321,8 @@ tag_torso,
 				skinfileitem = (skinfileitem_t *)Mem_Alloc(loadmodel->mempool, sizeof(skinfileitem_t));
 				skinfileitem->next = skinfile->items;
 				skinfile->items = skinfileitem;
-				strlcpy (skinfileitem->name, word[0], sizeof (skinfileitem->name));
-				strlcpy (skinfileitem->replacement, word[2], sizeof (skinfileitem->replacement));
+				c_strlcpy (skinfileitem->name, word[0]);//, sizeof (skinfileitem->name));
+				c_strlcpy (skinfileitem->replacement, word[2]);//, sizeof (skinfileitem->replacement));
 			}
 			else
 				Con_PrintLinef ("Mod_LoadSkinFiles: parsing error in file \"%s_%d.skin\" on line #%d: does not look like tag or mesh specification, or replace command, see documentation in DP_GFX_SKINFILES extension in dpextensions.qc", loadmodel->model_name, i, line);
@@ -2315,11 +2338,9 @@ void Mod_FreeSkinFiles(skinfile_t *skinfile)
 {
 	skinfile_t *next;
 	skinfileitem_t *skinfileitem, *nextitem;
-	for (;skinfile;skinfile = next)
-	{
+	for (; skinfile;skinfile = next) {
 		next = skinfile->next;
-		for (skinfileitem = skinfile->items;skinfileitem;skinfileitem = nextitem)
-		{
+		for (skinfileitem = skinfile->items;skinfileitem;skinfileitem = nextitem) {
 			nextitem = skinfileitem->next;
 			Mem_Free(skinfileitem);
 		}
@@ -2465,6 +2486,7 @@ void Mod_MakeSortedSurfaces(model_t *mod)
 	Mem_Free(info);
 }
 
+WARP_X_CALLERS_ (Mod_LoadModel)
 void Mod_BuildVBOs(void)
 {
 	if (cls.state == ca_dedicated)
@@ -2473,14 +2495,12 @@ void Mod_BuildVBOs(void)
 	if (!loadmodel->surfmesh.num_vertices)
 		return;
 
-	if (gl_paranoid.integer && loadmodel->surfmesh.data_element3s && loadmodel->surfmesh.data_element3i)
-	{
+	if (gl_paranoid.integer && loadmodel->surfmesh.data_element3s && loadmodel->surfmesh.data_element3i) {
 		int i;
-		for (i = 0;i < loadmodel->surfmesh.num_triangles*3;i++)
-		{
-			if (loadmodel->surfmesh.data_element3s[i] != loadmodel->surfmesh.data_element3i[i])
-			{
-				Con_Printf ("Mod_BuildVBOs: element %u is incorrect (%u should be %u)\n", i, loadmodel->surfmesh.data_element3s[i], loadmodel->surfmesh.data_element3i[i]);
+		for (i = 0;i < loadmodel->surfmesh.num_triangles*3;i++) {
+			if (loadmodel->surfmesh.data_element3s[i] != loadmodel->surfmesh.data_element3i[i]) {
+				Con_PrintLinef ("Mod_BuildVBOs: element %u is incorrect (%u should be %u)", i, 
+					loadmodel->surfmesh.data_element3s[i], loadmodel->surfmesh.data_element3i[i]);
 				loadmodel->surfmesh.data_element3s[i] = loadmodel->surfmesh.data_element3i[i];
 			}
 		}
@@ -2534,14 +2554,23 @@ void Mod_BuildVBOs(void)
 }
 
 extern cvar_t mod_obj_orientation;
-static void Mod_Decompile_OBJ(model_t *model, const char *filename, const char *mtlfilename, const char *originalfilename)
+// Baker: If connected ...
+// We need to find an entity for RSurf_ActiveModelEntity
+// To get it to do:
+// 	memcpy(rsurface.frameblend, ent->frameblend, sizeof(ent->frameblend)); // ALIASXPRIME!
+// model->AnimateVertices
+WARP_X_ (RSurf_ActiveModelEntity Mod_MDL_AnimateVertices ALIASXPRIME Mod_IDP0_Load)
+
+// Baker: It must be precached.
+WARP_X_CALLERS_ (Mod_Decompile_f)
+static void Mod_Decompile_OBJ (model_t *model, const char *rawname, const char *filename, const char *mtlfilename, const char *originalfilename, int framenumz)
 {
 	int submodelindex, vertexindex, surfaceindex, triangleindex, textureindex, countvertices = 0, countsurfaces = 0, countfaces = 0, counttextures = 0;
 	int a, b, c;
 	const char *texname;
 	const int *e;
 	const float *v, *vn, *vt;
-	size_t l;
+	size_t jj;
 	size_t outbufferpos = 0;
 	size_t outbuffermax = 0x100000;
 	char *outbuffer = (char *) Z_Malloc(outbuffermax), *oldbuffer;
@@ -2551,17 +2580,19 @@ static void Mod_Decompile_OBJ(model_t *model, const char *filename, const char *
 	model_t *submodel;
 
 	// construct the mtllib file
-	l = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "# mtllib for %s exported by darkplaces engine\n", originalfilename);
-	if (l > 0)
-		outbufferpos += l;
-	for (surfaceindex = 0, surface = model->data_surfaces;surfaceindex < model->num_surfaces;surfaceindex++, surface++)
-	{
+	jj = dpsnprintf (outbuffer + outbufferpos, outbuffermax - outbufferpos, 
+		"# mtllib for %s exported by darkplaces engine" NEWLINE, originalfilename);
+
+	if (jj > 0)
+		outbufferpos += jj;
+
+	for (surfaceindex = 0, surface = model->data_surfaces;surfaceindex < model->num_surfaces;surfaceindex++, surface++) {
 		countsurfaces++;
 		countvertices += surface->num_vertices;
 		countfaces += surface->num_triangles;
 		texname = (surface->texture && surface->texture->name[0]) ? surface->texture->name : "default";
 		for (textureindex = 0;textureindex < counttextures;textureindex++)
-			if (String_Does_Match(texturenames + textureindex * MAX_QPATH_128, texname))
+			if (String_Match(texturenames + textureindex * MAX_QPATH_128, texname))
 				break;
 		if (textureindex < counttextures)
 			continue; // already wrote this material entry
@@ -2569,62 +2600,166 @@ static void Mod_Decompile_OBJ(model_t *model, const char *filename, const char *
 			continue; // just a precaution
 		textureindex = counttextures++;
 		strlcpy(texturenames + textureindex * MAX_QPATH_128, texname, MAX_QPATH_128);
-		if (outbufferpos >= outbuffermax >> 1)
-		{
+		if (outbufferpos >= outbuffermax >> 1) {
 			outbuffermax *= 2;
 			oldbuffer = outbuffer;
 			outbuffer = (char *) Z_Malloc(outbuffermax);
 			memcpy(outbuffer, oldbuffer, outbufferpos);
 			Z_Free(oldbuffer);
 		}
-		l = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "newmtl %s\nNs 96.078431\nKa 0 0 0\nKd 0.64 0.64 0.64\nKs 0.5 0.5 0.5\nNi 1\nd 1\nillum 2\nmap_Kd %s%s\n\n", texname, texname, strstr(texname, ".tga") ? "" : ".tga");
-		if (l > 0)
-			outbufferpos += l;
+
+		jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, 
+			"newmtl %s"			NEWLINE 
+			"Ns 96.078431"		NEWLINE 
+			"Ka 0 0 0"			NEWLINE 
+			"Kd 0.64 0.64 0.64" NEWLINE 
+			"Ks 0.5 0.5 0.5"	NEWLINE 
+			"Ni 1"				NEWLINE 
+			"d 1"				NEWLINE 
+			"illum 2"			NEWLINE 
+			"map_Kd %s%s"		NEWLINE NEWLINE, texname, texname, strstr(texname, ".tga") ? "" : ".tga"
+		);
+
+		if (jj > 0)
+			outbufferpos += jj;
 	}
 
 	// write the mtllib file
-	FS_WriteFile(mtlfilename, outbuffer, outbufferpos);
+	FS_WriteFile (mtlfilename, outbuffer, outbufferpos);
 
-	// construct the obj file
+	// construct the obj file - ALIASX
 	outbufferpos = 0;
-	l = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "# model exported from %s by darkplaces engine\n# %d vertices, %d faces, %d surfaces\nmtllib %s\n", originalfilename, countvertices, countfaces, countsurfaces, mtlfilename);
-	if (l > 0)
-		outbufferpos += l;
+	jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "# model exported from %s by darkplaces engine\n# %d vertices, %d faces, %d surfaces\nmtllib %s\n", originalfilename, countvertices, countfaces, countsurfaces, mtlfilename);
+	if (jj > 0)
+		outbufferpos += jj;
+	
+	float *freevertex3f = NULL;
 
-	for (vertexindex = 0, v = model->surfmesh.data_vertex3f, vn = model->surfmesh.data_normal3f, vt = model->surfmesh.data_texcoordtexture2f;vertexindex < model->surfmesh.num_vertices;vertexindex++, v += 3, vn += 3, vt += 2)
+	if (framenumz > 0 && isin1(model->type, mod_alias) ) {
+		WARP_X_ (Mod_MDLMD2MD3_TraceLine Mod_Alias_MorphMesh_CompileFrames)
+
+		frameblend_t frameblend[MAX_FRAMEBLENDS_8] = {0};
+
+		freevertex3f = (float *)Mem_Alloc(tempmempool, model->surfmesh.num_vertices * sizeof(float[3]));
+
+		//memcpy (freevertex3f, 
+
+		frameblend[0].subframe = framenumz;
+		frameblend[1].subframe = framenumz;
+		frameblend[0].rlerp = 0;
+		frameblend[1].rlerp = 1;
+
+		//model->AnimateVertices (model, frameblend, NULL, freevertex3f, NULL, NULL, NULL); // Mod_MDL_AnimateVertices - TRACELINE
+
+		model->AnimateVertices(model, frameblend, NULL, freevertex3f, NULL, NULL, NULL); // Mod_MDL_AnimateVertices - TRACELINE
+	}
+
+	while (0) {
+		// Baker: Not sure if model->num_frames is always same as num_poses
+		// because there are framegroups (rare) and not familiar with all the various model types
+		int numframes = model->num_poses; 
+		int trinum = 184;
+		//if (loadmodel->surfmesh.data_element3s)
+		//	for (i = 0; i < loadmodel->surfmesh.num_triangles * 3; i ++)
+		//		loadmodel->surfmesh.data_element3s[i] = loadmodel->surfmesh.data_element3i[i];*/
+		// We should output to a text file.
+		char filename[MAX_QPATH_128];
+		c_strlcpy (filename, rawname);
+		//File_URL_Edit_Remove_Extension (filename);
+		c_strlcat (filename, ".md3tags");
+
+		//va_super (filename, MAX_QPATH_128, "
+		qfile_t *f = FS_OpenRealFile(filename, "wb", fs_quiet_FALSE); // WRITE-EON -- Baker: CleanShader for jack_scripts
+
+		if (!f) {
+			Con_PrintLinef ("ERROR: couldn't open " QUOTED_S, filename);
+			break;
+		}
+
+		// PHASE 1 - print triangles for frame 0
+		FS_PrintLinef (f, "// " QUOTED_S, rawname);
+		FS_PrintLinef (f, "// ");
+		FS_PrintLinef (f, "// Triangles ");
+
+		const int *etri;
+		surface = model->data_surfaces;
+		// How many triangles?  For feral model = 293 (294 because 0-293)
+		for (triangleindex = 0, etri = model->surfmesh.data_element3i + surface->num_firsttriangle * 3;
+			triangleindex < surface->num_triangles; triangleindex ++, etri += 3) {
+			// TAGALIASX
+			int a = etri[0]+1, b = etri[1]+1, c = etri[2]+1;
+
+			vec3_t p0, p1, p2;
+			vec3_t center;
+		
+			WARP_X_ (NORMAL Collision_CalcPlanesForTriangleBrushFloat Mod_IDP0_Load)
+
+			VectorCopy(model->surfmesh.data_vertex3f + 3*model->surfmesh.data_element3i[triangleindex*3+0], p0);
+			VectorCopy(model->surfmesh.data_vertex3f + 3*model->surfmesh.data_element3i[triangleindex*3+1], p2);
+			VectorCopy(model->surfmesh.data_vertex3f + 3*model->surfmesh.data_element3i[triangleindex*3+2], p1);
+
+			FS_PrintLinef (f, "// #%4d " VECTOR9_5d1F, 
+				triangleindex,
+				VECTOR3_SEND (p0),
+				VECTOR3_SEND (p1),
+				VECTOR3_SEND (p2)
+			);
+		}
+
+		FS_CloseNULL_ (f);
+
+		
+		//	FS_OpenRealFile
+		break;
+	} // while 1
+	
+	float *vertex3ff = freevertex3f ? freevertex3f : model->surfmesh.data_vertex3f;
+
+	int shall_invert_y = isin1(model->type, mod_alias) ? false : true; // isin3(model->type, mod_brushq1, mod_brushq2, mod_brushq3);
+
+	for (vertexindex = 0, v = framenumz ? vertex3ff : model->surfmesh.data_vertex3f, 
+		vn = model->surfmesh.data_normal3f, 
+		vt = model->surfmesh.data_texcoordtexture2f;
+		vertexindex < model->surfmesh.num_vertices;vertexindex++, v += 3, vn += 3, vt += 2)
 	{
-		if (outbufferpos >= outbuffermax >> 1)
-		{
+		if (outbufferpos >= outbuffermax >> 1) {
 			outbuffermax *= 2;
 			oldbuffer = outbuffer;
 			outbuffer = (char *) Z_Malloc(outbuffermax);
 			memcpy(outbuffer, oldbuffer, outbufferpos);
 			Z_Free(oldbuffer);
 		}
-		if (mod_obj_orientation.integer)
-			l = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "v %f %f %f\nvn %f %f %f\nvt %f %f\n", v[0], v[2], v[1], vn[0], vn[2], vn[1], vt[0], 1-vt[1]);
+		if (mod_obj_orientation.integer /*d: 1*/) {
+			// This is the norm
+			jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, 
+			"v %f %f %f"	NEWLINE
+			"vn %f %f %f"	NEWLINE
+			"vt %f %f"		NEWLINE, 
+			v[0], v[2], v[1], vn[0], vn[2], vn[1], vt[0], shall_invert_y ? 1-vt[1] : vt[1]  );
+		}
 		else
-			l = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "v %f %f %f\nvn %f %f %f\nvt %f %f\n", v[0], v[1], v[2], vn[0], vn[1], vn[2], vt[0], 1-vt[1]);
-		if (l > 0)
-			outbufferpos += l;
+			jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, 
+			"v %f %f %f"	NEWLINE 
+			"vn %f %f %f"	NEWLINE 
+			"vt %f %f"		NEWLINE, 
+			v[0], v[1], v[2], vn[0], vn[1], vn[2], vt[0], shall_invert_y ? 1-vt[1] : vt[1]  );
+		if (jj > 0)
+			outbufferpos += jj;
 	}
 
-	for (submodelindex = 0;submodelindex < max(1, model->brush.numsubmodels);submodelindex++)
-	{
-		l = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "o %d\n", submodelindex);
-		if (l > 0)
-			outbufferpos += l;
+	for (submodelindex = 0;submodelindex < max(1, model->brush.numsubmodels);submodelindex++) {
+		jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "o %d\n", submodelindex);
+		if (jj > 0)
+			outbufferpos += jj;
 		submodel = model->brush.numsubmodels ? model->brush.submodels[submodelindex] : model;
-		for (surfaceindex = submodel->submodelsurfaces_start;surfaceindex < submodel->submodelsurfaces_end;surfaceindex++)
-		{
+		for (surfaceindex = submodel->submodelsurfaces_start;surfaceindex < submodel->submodelsurfaces_end;surfaceindex++) {
 			surface = model->data_surfaces + surfaceindex;
-			l = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "usemtl %s\n", (surface->texture && surface->texture->name[0]) ? surface->texture->name : "default");
-			if (l > 0)
-				outbufferpos += l;
-			for (triangleindex = 0, e = model->surfmesh.data_element3i + surface->num_firsttriangle * 3;triangleindex < surface->num_triangles;triangleindex++, e += 3)
-			{
-				if (outbufferpos >= outbuffermax >> 1)
-				{
+			jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "usemtl %s\n", (surface->texture && surface->texture->name[0]) ? surface->texture->name : "default");
+			if (jj > 0)
+				outbufferpos += jj;
+			for (triangleindex = 0, e = model->surfmesh.data_element3i + surface->num_firsttriangle * 3;
+				triangleindex < surface->num_triangles;triangleindex++, e += 3) {
+				if (outbufferpos >= outbuffermax >> 1) {
 					outbuffermax *= 2;
 					oldbuffer = outbuffer;
 					outbuffer = (char *) Z_Malloc(outbuffermax);
@@ -2634,12 +2769,16 @@ static void Mod_Decompile_OBJ(model_t *model, const char *filename, const char *
 				a = e[0]+1;
 				b = e[1]+1;
 				c = e[2]+1;
-				if (mod_obj_orientation.integer)
-					l = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "f %d/%d/%d %d/%d/%d %d/%d/%d\n", a,a,a,b,b,b,c,c,c);
+				if (mod_obj_orientation.integer /*d: 1*/) {
+					// Baker: This is the norm
+					jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, 
+					"f %d/%d/%d %d/%d/%d %d/%d/%d" NEWLINE, a,a,a,b,b,b,c,c,c);
+				}
 				else
-					l = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "f %d/%d/%d %d/%d/%d %d/%d/%d\n", a,a,a,c,c,c,b,b,b);
-				if (l > 0)
-					outbufferpos += l;
+					jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, 
+					"f %d/%d/%d %d/%d/%d %d/%d/%d" NEWLINE, a,a,a,c,c,c,b,b,b);
+				if (jj > 0)
+					outbufferpos += jj;
 			}
 		}
 	}
@@ -2650,6 +2789,10 @@ static void Mod_Decompile_OBJ(model_t *model, const char *filename, const char *
 	// clean up
 	Z_Free(outbuffer);
 	Z_Free(texturenames);
+
+	if (freevertex3f)
+		Mem_Free(freevertex3f);
+
 
 	// print some stats
 	Con_Printf ("Wrote %s (%d bytes, %d vertices, %d faces, %d surfaces with %d distinct textures)\n", filename, (int)outbufferpos, countvertices, countfaces, countsurfaces, counttextures);
@@ -2819,9 +2962,11 @@ Mod_Decompile_f
 decompiles a model to editable files
 ================
 */
+
+// RSurf_ActiveModelEntity
 static void Mod_Decompile_f(cmd_state_t *cmd)
 {
-	int i, j, k, l, first, count;
+	int i, j, k, first, count;
 	model_t *mod;
 	char inname[MAX_QPATH_128];
 	char outname[MAX_QPATH_128];
@@ -2837,53 +2982,54 @@ static void Mod_Decompile_f(cmd_state_t *cmd)
 	int framegroupstextsize = 0;
 	char vabuf[1024];
 
-	if (Cmd_Argc(cmd) != 2)
-	{
-		Con_Print("usage: modeldecompile <filename>\n");
+	if (Cmd_Argc(cmd) > 3) {
+		Con_PrintLinef ("usage: modeldecompile <filename> [framenum]");
 		return;
 	}
 
-	strlcpy(inname, Cmd_Argv(cmd, 1), sizeof(inname));
+	c_strlcpy (inname, Cmd_Argv(cmd, 1));
 	FS_StripExtension(inname, basename, sizeof(basename));
 
 	mod = Mod_ForName(inname, false, true, inname[0] == '*' ? cl.model_name[1] : NULL);
-	if (!mod)
-	{
-		Con_Print("No such model\n");
+
+	if (!mod) {
+		Con_PrintLinef ("No such model");
 		return;
 	}
-	if (mod->brush.submodel)
-	{
+
+	if (mod->brush.submodel) {
 		// if we're decompiling a submodel, be sure to give it a proper name based on its parent
 		FS_StripExtension(cl.model_name[1], outname, sizeof(outname));
-		dpsnprintf(basename, sizeof(basename), "%s/%s", outname, mod->model_name);
+		c_dpsnprintf2 (basename, "%s/%s", outname, mod->model_name);
 		dpreplacechar (basename, '*', '_'); // Baker r7061: Model decompile, windows will not allow * in a file name
 		outname[0] = 0;
 	}
+
 	if (!mod->surfmesh.num_triangles) {
 		Con_PrintLinef ("Empty model (or sprite)");
 		return;
 	}
 
 	// export OBJ if possible (not on sprites)
-	if (mod->surfmesh.num_triangles)
-	{
-		dpsnprintf(outname, sizeof(outname), "%s_decompiled.obj", basename);
-		dpsnprintf(mtlname, sizeof(mtlname), "%s_decompiled.mtl", basename);
-		Mod_Decompile_OBJ(mod, outname, mtlname, inname);
+obj_export:
+	if (mod->surfmesh.num_triangles) {
+		// [0] modeldecompile [1]progs/player.mdl [2] framenum
+		ccs *arg2 = Cmd_Argv (cmd, 2);
+		int framenumz = atoi(arg2);
+		c_dpsnprintf1 (outname, "%s_decompiled.obj", basename);
+		c_dpsnprintf1 (mtlname, "%s_decompiled.mtl", basename);
+		Mod_Decompile_OBJ (mod, inname, outname, mtlname, inname,framenumz);
 	}
 
 	// export SMD if possible (only for skeletal models)
-	if (mod->surfmesh.num_triangles && mod->num_bones)
-	{
+	if (mod->surfmesh.num_triangles && mod->num_bones) {
 		dpsnprintf(outname, sizeof(outname), "%s_decompiled/ref1.smd", basename);
 		Mod_Decompile_SMD(mod, outname, 0, 1, true);
-		l = dpsnprintf(zymtextbuffer + zymtextsize, sizeof(zymtextbuffer) - zymtextsize, "output out.zym\nscale 1\norigin 0 0 0\nmesh ref1.smd\n");
-		if (l > 0) zymtextsize += l;
-		l = dpsnprintf(dpmtextbuffer + dpmtextsize, sizeof(dpmtextbuffer) - dpmtextsize, "outputdir .\nmodel out\nscale 1\norigin 0 0 0\nscene ref1.smd\n");
-		if (l > 0) dpmtextsize += l;
-		for (i = 0;i < mod->numframes;i = j)
-		{
+		int jj = dpsnprintf(zymtextbuffer + zymtextsize, sizeof(zymtextbuffer) - zymtextsize, "output out.zym\nscale 1\norigin 0 0 0\nmesh ref1.smd\n");
+		if (jj > 0) zymtextsize += jj;
+		jj = dpsnprintf(dpmtextbuffer + dpmtextsize, sizeof(dpmtextbuffer) - dpmtextsize, "outputdir .\nmodel out\nscale 1\norigin 0 0 0\nscene ref1.smd\n");
+		if (jj > 0) dpmtextsize += jj;
+		for (i = 0; i < mod->numframes; i = j) {
 			strlcpy(animname, mod->animscenes[i].name, sizeof(animname));
 			first = mod->animscenes[i].firstframe;
 			if (mod->animscenes[i].framecount > 1)
@@ -2896,9 +3042,9 @@ static void Mod_Decompile_f(cmd_state_t *cmd)
 			{
 				// individual frame
 				// check for additional frames with same name
-				for (l = 0, k = (int)strlen(animname);animname[l];l++)
-					if (animname[l] < '0' || animname[l] > '9')
-						k = l + 1;
+				for (jj = 0, k = (int)strlen(animname);animname[jj];jj++)
+					if (animname[jj] < '0' || animname[jj] > '9')
+						k = jj + 1;
 				if (k > 0 && animname[k-1] == '_')
 					--k;
 				animname[k] = 0;
@@ -2906,9 +3052,9 @@ static void Mod_Decompile_f(cmd_state_t *cmd)
 				for (j = i + 1;j < mod->numframes;j++)
 				{
 					strlcpy(animname2, mod->animscenes[j].name, sizeof(animname2));
-					for (l = 0, k = (int)strlen(animname2);animname2[l];l++)
-						if (animname2[l] < '0' || animname2[l] > '9')
-							k = l + 1;
+					for (jj = 0, k = (int)strlen(animname2);animname2[jj];jj++)
+						if (animname2[jj] < '0' || animname2[jj] > '9')
+							k = jj + 1;
 					if (k > 0 && animname[k-1] == '_')
 						--k;
 					animname2[k] = 0;
@@ -2927,18 +3073,18 @@ static void Mod_Decompile_f(cmd_state_t *cmd)
 			Mod_Decompile_SMD(mod, outname, first, count, false);
 			if (zymtextsize < (int)sizeof(zymtextbuffer) - 100)
 			{
-				l = dpsnprintf(zymtextbuffer + zymtextsize, sizeof(zymtextbuffer) - zymtextsize, "scene %s.smd fps %g %s\n", animname, mod->animscenes[i].framerate, mod->animscenes[i].loop ? "" : " noloop");
-				if (l > 0) zymtextsize += l;
+				jj = dpsnprintf(zymtextbuffer + zymtextsize, sizeof(zymtextbuffer) - zymtextsize, "scene %s.smd fps %g %s\n", animname, mod->animscenes[i].framerate, mod->animscenes[i].loop ? "" : " noloop");
+				if (jj > 0) zymtextsize += jj;
 			}
 			if (dpmtextsize < (int)sizeof(dpmtextbuffer) - 100)
 			{
-				l = dpsnprintf(dpmtextbuffer + dpmtextsize, sizeof(dpmtextbuffer) - dpmtextsize, "scene %s.smd fps %g %s\n", animname, mod->animscenes[i].framerate, mod->animscenes[i].loop ? "" : " noloop");
-				if (l > 0) dpmtextsize += l;
+				jj = dpsnprintf(dpmtextbuffer + dpmtextsize, sizeof(dpmtextbuffer) - dpmtextsize, "scene %s.smd fps %g %s\n", animname, mod->animscenes[i].framerate, mod->animscenes[i].loop ? "" : " noloop");
+				if (jj > 0) dpmtextsize += jj;
 			}
 			if (framegroupstextsize < (int)sizeof(framegroupstextbuffer) - 100)
 			{
-				l = dpsnprintf(framegroupstextbuffer + framegroupstextsize, sizeof(framegroupstextbuffer) - framegroupstextsize, "%d %d %f %d // %s\n", first, count, mod->animscenes[i].framerate, mod->animscenes[i].loop, animname);
-				if (l > 0) framegroupstextsize += l;
+				jj = dpsnprintf(framegroupstextbuffer + framegroupstextsize, sizeof(framegroupstextbuffer) - framegroupstextsize, "%d %d %f %d // %s\n", first, count, mod->animscenes[i].framerate, mod->animscenes[i].loop, animname);
+				if (jj > 0) framegroupstextsize += jj;
 			}
 		}
 		if (zymtextsize)
@@ -3843,8 +3989,8 @@ static void Mod_GenerateLightmaps_CreateLightmaps(model_t *model)
 
 	for (lightmapindex = 0;lightmapindex < model->brushq3.num_mergedlightmaps;lightmapindex++)
 	{
-		model->brushq3.data_lightmaps[lightmapindex] = R_LoadTexture2D(model->texturepool, va(vabuf, sizeof(vabuf), "lightmap%d", lightmapindex), lm_texturesize, lm_texturesize, lightmappixels + lightmapindex * lm_texturesize * lm_texturesize * 4, TEXTYPE_BGRA, TEXF_FORCELINEAR, -1, NULL);
-		model->brushq3.data_deluxemaps[lightmapindex] = R_LoadTexture2D(model->texturepool, va(vabuf, sizeof(vabuf), "deluxemap%d", lightmapindex), lm_texturesize, lm_texturesize, deluxemappixels + lightmapindex * lm_texturesize * lm_texturesize * 4, TEXTYPE_BGRA, TEXF_FORCELINEAR, -1, NULL);
+		model->brushq3.data_lightmaps[lightmapindex] = R_LoadTexture2D(model->texturepool, va(vabuf, sizeof(vabuf), "lightmap%d", lightmapindex), lm_texturesize, lm_texturesize, lightmappixels + lightmapindex * lm_texturesize * lm_texturesize * 4, TEXTYPE_BGRA, TEXF_FORCELINEAR, q_tx_miplevel_neg1, q_tx_palette_NULL);
+		model->brushq3.data_deluxemaps[lightmapindex] = R_LoadTexture2D(model->texturepool, va(vabuf, sizeof(vabuf), "deluxemap%d", lightmapindex), lm_texturesize, lm_texturesize, deluxemappixels + lightmapindex * lm_texturesize * lm_texturesize * 4, TEXTYPE_BGRA, TEXF_FORCELINEAR, q_tx_miplevel_neg1, q_tx_palette_NULL);
 	}
 
 	if (lightmappixels)
@@ -3987,7 +4133,7 @@ texture_t *Mod_Mesh_GetTexture(model_t *mod, const char *name, int defaultdrawfl
 
 	// Is it existing?
 	for (i = 0, t = mod->data_textures; i < mod->num_textures; i++, t++)
-		if (String_Does_Match(t->name, name) && t->mesh_drawflag == drawflag 
+		if (String_Match(t->name, name) && t->mesh_drawflag == drawflag 
 			&& t->mesh_defaulttexflags == defaulttexflags 
 			&& t->mesh_defaultmaterialflags == defaultmaterialflags)
 			return t;
@@ -4300,4 +4446,22 @@ void Mod_Mesh_Finalize(model_t *mod)
 	if (!r_refdef.draw2dstage)
 		Mod_BuildTextureVectorsFromNormals(0, mod->surfmesh.num_vertices, mod->surfmesh.num_triangles, mod->surfmesh.data_vertex3f, mod->surfmesh.data_texcoordtexture2f, mod->surfmesh.data_normal3f, mod->surfmesh.data_element3i, mod->surfmesh.data_svector3f, mod->surfmesh.data_tvector3f, true);
 	Mod_Mesh_UploadDynamicBuffers(mod);
+}
+
+WARP_X_ (PRVM_Globals_Query)
+void Mod_Shaders_Query (feed_fn_t myfeed_shall_stop)
+{
+	if (!q3shaders_mem)
+		return;
+
+	int count = 0;
+
+	for (unsigned short hash = 0; hash < Q3SHADER_HASH_SIZE_1021; hash ++) {
+		q3shader_hash_entry_t *entry = q3shader_data->hash + (hash % Q3SHADER_HASH_SIZE_1021);
+		for (/*nada*/ ; entry; entry = entry->chain) {
+			qbool shall_stop = myfeed_shall_stop (-1, entry->shader.name, "", NULL, NULL, NULL, 0, 1, 2);
+			if (shall_stop)
+				return;
+		} // for entry
+	} // for hash
 }

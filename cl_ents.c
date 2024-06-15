@@ -101,7 +101,7 @@ void EntityState_ReadFields(entity_state_t *e, unsigned int bits)
 			e->sflags = MSG_ReadByte(&cl_message);
 	if (bits & E_TAGATTACHMENT)
 	{
-		e->tagentity = (unsigned short) MSG_ReadShort(&cl_message);
+		e->tagxentity = (unsigned short) MSG_ReadShort(&cl_message);
 		e->tagindex = MSG_ReadByte(&cl_message);
 	}
 	if (bits & E_LIGHT)
@@ -159,7 +159,7 @@ void EntityState_ReadFields(entity_state_t *e, unsigned int bits)
 			Con_Printf (" E_LIGHTPFLAGS %d", e->lightpflags);
 
 		if (bits & E_TAGATTACHMENT)
-			Con_Printf (" E_TAGATTACHMENT e%d:%d", e->tagentity, e->tagindex);
+			Con_Printf (" E_TAGATTACHMENT e%d:%d", e->tagxentity, e->tagindex);
 		if (bits & E_LIGHTSTYLE)
 			Con_Printf (" E_LIGHTSTYLE %d", e->lightstyle);
 		Con_Print("\n");

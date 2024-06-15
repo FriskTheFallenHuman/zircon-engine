@@ -43,7 +43,7 @@ void Con_Rcon_Redirect_Abort(void);
 
 /// If the line width has changed, reformat the buffer.
 void Con_CheckResize (void);
-void Con_Init (void);
+void Con_InitOnce (void);
 void Con_Init_Commands (void);
 void Con_Shutdown (void);
 void Con_DrawConsole (int lines);

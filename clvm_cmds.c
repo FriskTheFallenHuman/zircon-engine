@@ -47,12 +47,12 @@ static void VM_CL_setorigin (prvm_prog_t *prog)
 	e = PRVM_G_EDICT(OFS_PARM0);
 	if (e == prog->edicts)
 	{
-		VM_Warning(prog, "setorigin: can not modify world entity\n");
+		VM_WarningLinef (prog, "setorigin: can not modify world entity");
 		return;
 	}
 	if (e->free)
 	{
-		VM_Warning(prog, "setorigin: can not modify free entity\n");
+		VM_WarningLinef (prog, "setorigin: can not modify free entity");
 		return;
 	}
 	org = PRVM_G_VECTOR(OFS_PARM1);
@@ -103,7 +103,7 @@ static void VM_CL_setmodel (prvm_prog_t *prog)
 	m = PRVM_G_STRING(OFS_PARM1);
 	mod = NULL;
 	for (i = 0; i < MAX_MODELS_8192 && cl.csqc_model_precache[i]; i++) {
-		if (String_Does_Match(cl.csqc_model_precache[i]->model_name, m)) {
+		if (String_Match(cl.csqc_model_precache[i]->model_name, m)) {
 			mod = cl.csqc_model_precache[i];
 			PRVM_clientedictstring(e, model) = PRVM_SetEngineString(prog, mod->model_name);
 			PRVM_clientedictfloat(e, modelindex) = -(i+1);
@@ -115,7 +115,7 @@ static void VM_CL_setmodel (prvm_prog_t *prog)
 		for (i = 0;i < MAX_MODELS_8192;i++)
 		{
 			mod = cl.model_precache[i];
-			if (mod && String_Does_Match(mod->model_name, m)) {
+			if (mod && String_Match(mod->model_name, m)) {
 				PRVM_clientedictstring(e, model) = PRVM_SetEngineString(prog, mod->model_name);
 				PRVM_clientedictfloat(e, modelindex) = i;
 				break;
@@ -131,7 +131,7 @@ static void VM_CL_setmodel (prvm_prog_t *prog)
 	else
 	{
 		SetMinMaxSize (prog, e, vec3_origin, vec3_origin);
-		VM_Warning(prog, "setmodel: model '%s' not precached\n", m);
+		VM_WarningLinef (prog, "setmodel: model '%s' not precached", m);
 	}
 }
 
@@ -145,12 +145,12 @@ static void VM_CL_setsize (prvm_prog_t *prog)
 	e = PRVM_G_EDICT(OFS_PARM0);
 	if (e == prog->edicts)
 	{
-		VM_Warning(prog, "setsize: can not modify world entity\n");
+		VM_WarningLinef (prog, "setsize: can not modify world entity");
 		return;
 	}
 	if (e->free)
 	{
-		VM_Warning(prog, "setsize: can not modify free entity\n");
+		VM_WarningLinef (prog, "setsize: can not modify free entity");
 		return;
 	}
 	VectorCopy(PRVM_G_VECTOR(OFS_PARM1), mins);
@@ -164,17 +164,17 @@ static void VM_CL_setsize (prvm_prog_t *prog)
 // #8 void(entity e, float chan, string samp, float volume, float atten[, float pitchchange[, float flags]]) sound
 static void VM_CL_sound (prvm_prog_t *prog)
 {
-	const char			*sample;
-	int					channel;
-	prvm_edict_t		*entity;
-	float 				fvolume;
-	float				attenuation;
-	float pitchchange;
-	float				startposition;
-	int flags;
-	vec3_t				org;
+	const char		*sample;
+	int				channel;
+	prvm_edict_t	*entity;
+	float 			fvolume;
+	float			attenuation;
+	float			pitchchange;
+	float			startposition;
+	int				flags;
+	vec3_t			org;
 
-	VM_SAFEPARMCOUNTRANGE(5, 7, VM_CL_sound);
+	VM_SAFEPARMCOUNTRANGE (5, 7, VM_CL_sound);
 
 	entity = PRVM_G_EDICT(OFS_PARM0);
 	channel = (int)PRVM_G_FLOAT(OFS_PARM1);
@@ -182,15 +182,15 @@ static void VM_CL_sound (prvm_prog_t *prog)
 	fvolume = PRVM_G_FLOAT(OFS_PARM3);
 	attenuation = PRVM_G_FLOAT(OFS_PARM4);
 
-	if (fvolume < 0 || fvolume > 1)
-	{
-		VM_Warning(prog, "VM_CL_sound: volume must be in range 0-1\n");
+	//if (fvolume < 0 || fvolume > 1) {
+	if (in_range (0, fvolume, 1) == false) {
+		VM_WarningLinef (prog, "VM_CL_sound: volume must be in range 0-1");
 		return;
 	}
 
-	if (attenuation < 0 || attenuation > 4)
-	{
-		VM_Warning(prog, "VM_CL_sound: attenuation must be in range 0-4\n");
+	//if (attenuation < 0 || attenuation > 4) {
+	if (in_range (0, attenuation, 4) == false) {
+		VM_WarningLinef (prog, "VM_CL_sound: attenuation must be in range 0-4");
 		return;
 	}
 
@@ -216,9 +216,8 @@ static void VM_CL_sound (prvm_prog_t *prog)
 	else
 		startposition = 0;
 
-	if (!IS_CHAN(channel))
-	{
-		VM_Warning(prog, "VM_CL_sound: channel must be in range 0-127\n");
+	if (!IS_CHAN(channel)) {
+		VM_WarningLinef (prog, "VM_CL_sound: channel must be in range 0-127");
 		return;
 	}
 
@@ -241,15 +240,15 @@ static void VM_CL_pointsound(prvm_prog_t *prog)
 	fvolume = PRVM_G_FLOAT(OFS_PARM2);
 	attenuation = PRVM_G_FLOAT(OFS_PARM3);
 
-	if (fvolume < 0 || fvolume > 1)
-	{
-		VM_Warning(prog, "VM_CL_pointsound: volume must be in range 0-1\n");
+	if (false == in_range(0, fvolume, 1)) {
+	//if (fvolume < 0 || fvolume > 1) {
+		VM_WarningLinef (prog, "VM_CL_pointsound: volume must be in range 0-1");
 		return;
 	}
 
-	if (attenuation < 0 || attenuation > 4)
-	{
-		VM_Warning(prog, "VM_CL_pointsound: attenuation must be in range 0-4\n");
+	if (false == in_range(0, attenuation, 4)) {
+	//if (attenuation < 0 || attenuation > 4) {
+		VM_Warningf(prog, "VM_CL_pointsound: attenuation must be in range 0-4");
 		return;
 	}
 
@@ -401,7 +400,7 @@ static void VM_CL_tracetoss (prvm_prog_t *prog)
 	ent = PRVM_G_EDICT(OFS_PARM0);
 	if (ent == prog->edicts)
 	{
-		VM_Warning(prog, "tracetoss: can not use world entity\n");
+		VM_WarningLinef (prog, "tracetoss: can not use world entity");
 		return;
 	}
 	ignore = PRVM_G_EDICT(OFS_PARM1);
@@ -423,7 +422,7 @@ static void VM_CL_precache_model (prvm_prog_t *prog)
 
 	name = PRVM_G_STRING(OFS_PARM0);
 	for (i = 0;i < MAX_MODELS_8192 && cl.csqc_model_precache[i];i++) {
-		if (String_Does_Match(cl.csqc_model_precache[i]->model_name, name)) {
+		if (String_Match(cl.csqc_model_precache[i]->model_name, name)) {
 			PRVM_G_FLOAT(OFS_RETURN) = -(i+1);
 			return;
 		}
@@ -438,10 +437,10 @@ static void VM_CL_precache_model (prvm_prog_t *prog)
 				return;
 			}
 		}
-		VM_Warning(prog, "VM_CL_precache_model: no free models\n");
+		VM_WarningLinef (prog, "VM_CL_precache_model: no free models");
 		return;
 	}
-	VM_Warning(prog, "VM_CL_precache_model: model " QUOTED_S " not found\n", name);
+	VM_WarningLinef (prog, "VM_CL_precache_model: model " QUOTED_S " not found", name);
 }
 
 // #22 entity(vector org, float rad) findradius
@@ -532,10 +531,9 @@ static void VM_CL_findbox (prvm_prog_t *prog)
 	chain = (prvm_edict_t *)prog->edicts;
 
 	numtouchedicts = World_EntitiesInBox(&cl.world, PRVM_G_VECTOR(OFS_PARM0), PRVM_G_VECTOR(OFS_PARM1), MAX_EDICTS_32768, touchedicts);
-	if (numtouchedicts > MAX_EDICTS_32768)
-	{
+	if (numtouchedicts > MAX_EDICTS_32768) {
 		// this never happens	//[515]: for what then ?
-		Con_Printf ("World_EntitiesInBox returned %d edicts, max was %d\n", numtouchedicts, MAX_EDICTS_32768);
+		Con_PrintLinef ("World_EntitiesInBox returned %d edicts, max was %d", numtouchedicts, MAX_EDICTS_32768);
 		numtouchedicts = MAX_EDICTS_32768;
 	}
 	for (i = 0; i < numtouchedicts; ++i)
@@ -562,11 +560,11 @@ static void VM_CL_droptofloor (prvm_prog_t *prog)
 	ent = PRVM_PROG_TO_EDICT(PRVM_clientglobaledict(self));
 
 	if (ent == prog->edicts) {
-		VM_Warning(prog, "droptofloor: can not modify world entity\n");
+		VM_WarningLinef (prog, "droptofloor: can not modify world entity");
 		return;
 	}
 	if (ent->free) {
-		VM_Warning(prog, "droptofloor: can not modify free entity\n");
+		VM_WarningLinef (prog, "droptofloor: can not modify free entity");
 		return;
 	}
 
@@ -610,7 +608,7 @@ static void VM_CL_lightstyle (prvm_prog_t *prog)
 	c = PRVM_G_STRING(OFS_PARM1);
 	if (i >= cl.max_lightstyle)
 	{
-		VM_Warning(prog, "VM_CL_lightstyle >= MAX_LIGHTSTYLES_256\n");
+		VM_WarningLinef (prog, "VM_CL_lightstyle >= MAX_LIGHTSTYLES_256");
 		return;
 	}
 	strlcpy (cl.lightstyle[i].map, c, sizeof (cl.lightstyle[i].map));
@@ -866,7 +864,7 @@ static void VM_CL_R_SetView (prvm_prog_t *prog)
 			PRVM_G_FLOAT(OFS_RETURN) = r_refdef.view.height;
 			break;
 		case VF_VIEWPORT:
-			VM_Warning(prog, "VM_CL_R_GetView : VF_VIEWPORT can't be retrieved, use VF_MIN/VF_SIZE instead\n");
+			VM_WarningLinef (prog, "VM_CL_R_GetView : VF_VIEWPORT can't be retrieved, use VF_MIN/VF_SIZE instead");
 			break;
 		case VF_FOV:
 			VectorSet(PRVM_G_VECTOR(OFS_RETURN), r_refdef.view.ortho_x, r_refdef.view.ortho_y, 0);
@@ -968,7 +966,7 @@ static void VM_CL_R_SetView (prvm_prog_t *prog)
 			break;
 		default:
 			PRVM_G_FLOAT(OFS_RETURN) = 0;
-			VM_Warning(prog, "VM_CL_R_GetView : unknown parm %d\n", c);
+			VM_WarningLinef (prog, "VM_CL_R_GetView : unknown parm %d", c);
 			return;
 		}
 		return;
@@ -1121,7 +1119,7 @@ static void VM_CL_R_SetView (prvm_prog_t *prog)
 		break;
 	default:
 		PRVM_G_FLOAT(OFS_RETURN) = 0;
-		VM_Warning(prog, "VM_CL_R_SetView : unknown parm %d\n", c);
+		VM_WarningLinef (prog, "VM_CL_R_SetView : unknown parm %d", c);
 		return;
 	}
 	PRVM_G_FLOAT(OFS_RETURN) = 1;
@@ -1159,7 +1157,7 @@ static void VM_CL_R_AddDynamicLight (prvm_prog_t *prog)
 		style = (int)PRVM_G_FLOAT(OFS_PARM3);
 		if (style >= MAX_LIGHTSTYLES_256)
 		{
-			Con_DPrintf ("VM_CL_R_AddDynamicLight: out of bounds lightstyle index %d\n", style);
+			Con_DPrintLinef ("VM_CL_R_AddDynamicLight: out of bounds lightstyle index %d", style);
 			style = -1;
 		}
 	}
@@ -1368,7 +1366,7 @@ void VM_drawcharacter(prvm_prog_t *prog)
 	if (character == 0)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -1;
-		VM_Warning(prog, "VM_drawcharacter: %s passed null character !\n",prog->name);
+		VM_WarningLinef (prog, "VM_drawcharacter: %s passed null character !",prog->name);
 		return;
 	}
 
@@ -1380,17 +1378,17 @@ void VM_drawcharacter(prvm_prog_t *prog)
 	if (flag < DRAWFLAG_NORMAL_0 || flag >=DRAWFLAG_NUMFLAGS)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -2;
-		VM_Warning(prog, "VM_drawcharacter: %s: wrong DRAWFLAG %d !\n",prog->name,flag);
+		VM_WarningLinef (prog, "VM_drawcharacter: %s: wrong DRAWFLAG %d !",prog->name,flag);
 		return;
 	}
 
 	if (pos[2] || scale[2])
-		VM_Warning(prog, "VM_drawcharacter: z value%c from %s discarded\n",(pos[2] && scale[2]) ? 's' : 0,((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
+		VM_WarningLinef (prog, "VM_drawcharacter: z value%c from %s discarded",(pos[2] && scale[2]) ? 's' : 0,((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
 
 	if (!scale[0] || !scale[1])
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -3;
-		VM_Warning(prog, "VM_drawcharacter: scale %s is null !\n", (scale[0] == 0) ? ((scale[1] == 0) ? "x and y" : "x") : "y");
+		VM_WarningLinef (prog, "VM_drawcharacter: scale %s is null !", (scale[0] == 0) ? ((scale[1] == 0) ? "x and y" : "x") : "y");
 		return;
 	}
 
@@ -1496,19 +1494,19 @@ void VM_drawcolorcodedstring(prvm_prog_t *prog)
 	if (flag < DRAWFLAG_NORMAL_0 || flag >= DRAWFLAG_NUMFLAGS)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -2;
-		VM_Warning(prog, "VM_drawcolorcodedstring: %s: wrong DRAWFLAG %d !\n",prog->name,flag);
+		VM_WarningLinef (prog, "VM_drawcolorcodedstring: %s: wrong DRAWFLAG %d !",prog->name,flag);
 		return;
 	}
 
 	if (!scale[0] || !scale[1])
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -3;
-		VM_Warning(prog, "VM_drawcolorcodedstring: scale %s is null !\n", (scale[0] == 0) ? ((scale[1] == 0) ? "x and y" : "x") : "y");
+		VM_WarningLinef (prog, "VM_drawcolorcodedstring: scale %s is null !", (scale[0] == 0) ? ((scale[1] == 0) ? "x and y" : "x") : "y");
 		return;
 	}
 
 	if (pos[2] || scale[2])
-		VM_Warning(prog, "VM_drawcolorcodedstring: z value%s from %s discarded\n",(pos[2] && scale[2]) ? "s" : " ",((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
+		VM_WarningLinef (prog, "VM_drawcolorcodedstring: z value%s from %s discarded",(pos[2] && scale[2]) ? "s" : " ",((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
 
 	getdrawfontscale(prog, &sx, &sy);
 	DrawQ_String_Scale(pos[0], pos[1], string, 0, scale[0], scale[1], sx, sy, rgb[0], rgb[1], rgb[2], alpha, flag, NULL, false, getdrawfont(prog));
@@ -1589,7 +1587,7 @@ static float getdrawfontnum(const char *fontname)
 	int i;
 
 	for(i = 0; i < dp_fonts.maxsize_font; ++i)
-		if (String_Does_Match(dp_fonts.f[i].title, fontname))
+		if (String_Match(dp_fonts.f[i].title, fontname))
 			return i;
 	return -1;
 }
@@ -1600,13 +1598,6 @@ void VM_findfont(prvm_prog_t *prog)
 	PRVM_G_FLOAT(OFS_RETURN) = getdrawfontnum(PRVM_G_STRING(OFS_PARM0));
 }
 
-/*
-=========
-VM_loadfont
-
-float loadfont(string fontname, string fontmaps, string sizes, float slot)
-=========
-*/
 
 void VM_loadfont(prvm_prog_t *prog)
 {
@@ -1614,7 +1605,7 @@ void VM_loadfont(prvm_prog_t *prog)
 	char mainfont[MAX_QPATH_128];
 	int i, numsizes;
 	float sz, scale, voffset;
-	dp_font_t *f;
+	dp_font_t *dpf;
 
 	VM_SAFEPARMCOUNTRANGE(3,6,VM_loadfont);
 
@@ -1631,33 +1622,33 @@ void VM_loadfont(prvm_prog_t *prog)
 		sizes = "10";
 
 	// find a font
-	f = NULL;
+	dpf = NULL;
 	if (prog->argc >= 4) {
 		i = PRVM_G_FLOAT(OFS_PARM3);
 		if (i >= 0 && i < dp_fonts.maxsize_font) {
-			f = &dp_fonts.f[i];
-			c_strlcpy(f->title, fontname); // replace name
+			dpf = &dp_fonts.f[i];
+			c_strlcpy(dpf->title, fontname); // replace name
 		}
 	}
-	if (!f)
-		f = FindFont(fontname, true);
-	if (!f)
+	if (!dpf)
+		dpf = FindFont(fontname, true);
+	if (!dpf)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -1;
 		return; // something go wrong
 	}
 
-	memset(f->fallbacks, 0, sizeof(f->fallbacks));
-	memset(f->fallback_faces, 0, sizeof(f->fallback_faces));
+	memset(dpf->fallbacks, 0, sizeof(dpf->fallbacks));
+	memset(dpf->fallback_faces, 0, sizeof(dpf->fallback_faces));
 
 	// first font is handled "normally"
 	c = strchr(filelist, ':');
 	cm = strchr(filelist, ',');
 	if (c && (!cm || c < cm))
-		f->req_face = atoi(c+1);
+		dpf->req_face = atoi(c+1);
 	else
 	{
-		f->req_face = 0;
+		dpf->req_face = 0;
 		c = cm;
 	}
 	if (!c || (c - filelist) > MAX_QPATH_128)
@@ -1680,26 +1671,26 @@ void VM_loadfont(prvm_prog_t *prog)
 		c = strchr(filelist, ':');
 		cm = strchr(filelist, ',');
 		if (c && (!cm || c < cm))
-			f->fallback_faces[i] = atoi(c+1);
+			dpf->fallback_faces[i] = atoi(c+1);
 		else
 		{
-			f->fallback_faces[i] = 0; // f->req_face; could make it stick to the default-font's face index
+			dpf->fallback_faces[i] = 0; // dpf->req_face; could make it stick to the default-font's face index
 			c = cm;
 		}
 		if (!c || (c-filelist) > MAX_QPATH_128)
 		{
-			strlcpy(f->fallbacks[i], filelist, sizeof(mainfont));
+			strlcpy(dpf->fallbacks[i], filelist, sizeof(mainfont));
 		}
 		else
 		{
-			memcpy(f->fallbacks[i], filelist, c - filelist);
-			f->fallbacks[i][c - filelist] = 0;
+			memcpy(dpf->fallbacks[i], filelist, c - filelist);
+			dpf->fallbacks[i][c - filelist] = 0;
 		}
 	}
 
 	// handle sizes
 	for(i = 0; i < MAX_FONT_SIZES_16; ++i)
-		f->req_sizes[i] = -1;
+		dpf->req_sizes[i] = -1;
 	for (numsizes = 0,c = sizes;;)
 	{
 		if (!COM_ParseToken_VM_Tokenize(&c, 0))
@@ -1708,16 +1699,16 @@ void VM_loadfont(prvm_prog_t *prog)
 		// detect crap size
 		if (sz < 0.001f || sz > 1000.0f)
 		{
-			VM_Warning(prog, "VM_loadfont: crap size %s", com_token);
+			VM_Warningf(prog, "VM_loadfont: crap size %s", com_token);
 			continue;
 		}
 		// check overflow
 		if (numsizes == MAX_FONT_SIZES_16)
 		{
-			VM_Warning(prog, "VM_loadfont: MAX_FONT_SIZES_16 = %d exceeded", MAX_FONT_SIZES_16);
+			VM_Warningf(prog, "VM_loadfont: MAX_FONT_SIZES_16 = %d exceeded", MAX_FONT_SIZES_16);
 			break;
 		}
-		f->req_sizes[numsizes] = sz;
+		dpf->req_sizes[numsizes] = sz;
 		numsizes++;
 	}
 
@@ -1734,10 +1725,10 @@ void VM_loadfont(prvm_prog_t *prog)
 		voffset = PRVM_G_FLOAT(OFS_PARM5);
 
 	// load
-	LoadFontDP (/*override?*/ true, mainfont, f, scale, voffset);
+	LoadFontDP (/*override?*/ true, mainfont, dpf, scale, voffset, DATA_NULL, DATASIZE_0);
 
 	// return index of loaded font
-	PRVM_G_FLOAT(OFS_RETURN) = (f - dp_fonts.f);
+	PRVM_G_FLOAT(OFS_RETURN) = (dpf - dp_fonts.f);
 }
 
 /*
@@ -1765,7 +1756,7 @@ void VM_drawpic(prvm_prog_t *prog)
 	if (!1)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -4;
-		VM_Warning(prog, "VM_drawpic: %s: %s not cached !\n", prog->name, picname);
+		VM_WarningLinef (prog, "VM_drawpic: %s: %s not cached !", prog->name, picname);
 		return;
 	}
 
@@ -1778,12 +1769,12 @@ void VM_drawpic(prvm_prog_t *prog)
 	if (flag < DRAWFLAG_NORMAL_0 || flag >=DRAWFLAG_NUMFLAGS)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -2;
-		VM_Warning(prog, "VM_drawpic: %s: wrong DRAWFLAG %d !\n",prog->name,flag);
+		VM_WarningLinef (prog, "VM_drawpic: %s: wrong DRAWFLAG %d !",prog->name,flag);
 		return;
 	}
 
 	if (pos[2] || size[2])
-		VM_Warning(prog, "VM_drawpic: z value%s from %s discarded\n",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
+		VM_WarningLinef (prog, "VM_drawpic: z value%s from %s discarded",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
 
 	DrawQ_Pic(pos[0], pos[1], Draw_CachePic_Flags (picname, CACHEPICFLAG_NOTPERSISTENT), size[0], size[1], rgb[0], rgb[1], rgb[2], PRVM_G_FLOAT(OFS_PARM4), flag);
 	PRVM_G_FLOAT(OFS_RETURN) = 1;
@@ -1813,7 +1804,7 @@ void VM_drawrotpic(prvm_prog_t *prog)
 	if (!1)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -4;
-		VM_Warning(prog, "VM_drawrotpic: %s: %s not cached !\n", prog->name, picname);
+		VM_WarningLinef (prog, "VM_drawrotpic: %s: %s not cached !", prog->name, picname);
 		return;
 	}
 
@@ -1826,12 +1817,12 @@ void VM_drawrotpic(prvm_prog_t *prog)
 	if (flag < DRAWFLAG_NORMAL_0 || flag >=DRAWFLAG_NUMFLAGS)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -2;
-		VM_Warning(prog, "VM_drawrotpic: %s: wrong DRAWFLAG %d !\n",prog->name,flag);
+		VM_WarningLinef (prog, "VM_drawrotpic: %s: wrong DRAWFLAG %d !",prog->name,flag);
 		return;
 	}
 
 	if (pos[2] || size[2] || org[2])
-		VM_Warning(prog, "VM_drawrotpic: z value from pos/size/org discarded\n");
+		VM_WarningLinef (prog, "VM_drawrotpic: z value from pos/size/org discarded");
 
 	DrawQ_RotPic(pos[0], pos[1], Draw_CachePic_Flags(picname, CACHEPICFLAG_NOTPERSISTENT), size[0], size[1], org[0], org[1], PRVM_G_FLOAT(OFS_PARM4), rgb[0], rgb[1], rgb[2], PRVM_G_FLOAT(OFS_PARM6), flag);
 	PRVM_G_FLOAT(OFS_RETURN) = 1;
@@ -1862,7 +1853,7 @@ void VM_drawsubpic(prvm_prog_t *prog)
 	if (!1)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -4;
-		VM_Warning(prog, "VM_drawsubpic: %s: %s not cached !\n", prog->name, picname);
+		VM_WarningLinef (prog, "VM_drawsubpic: %s: %s not cached !", prog->name, picname);
 		return;
 	}
 
@@ -1877,12 +1868,12 @@ void VM_drawsubpic(prvm_prog_t *prog)
 	if (flag < DRAWFLAG_NORMAL_0 || flag >=DRAWFLAG_NUMFLAGS)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -2;
-		VM_Warning(prog, "VM_drawsubpic: %s: wrong DRAWFLAG %d !\n",prog->name,flag);
+		VM_Warningf(prog, "VM_drawsubpic: %s: wrong DRAWFLAG %d !\n",prog->name,flag);
 		return;
 	}
 
 	if (pos[2] || size[2])
-		VM_Warning(prog, "VM_drawsubpic: z value%s from %s discarded\n",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
+		VM_WarningLinef (prog, "VM_drawsubpic: z value%s from %s discarded",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
 
 	DrawQ_SuperPic(pos[0], pos[1], Draw_CachePic_Flags (picname, CACHEPICFLAG_NOTPERSISTENT),
 		size[0], size[1],
@@ -1919,12 +1910,12 @@ void VM_drawfill(prvm_prog_t *prog)
 	if (flag < DRAWFLAG_NORMAL_0 || flag >=DRAWFLAG_NUMFLAGS)
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = -2;
-		VM_Warning(prog, "VM_drawfill: %s: wrong DRAWFLAG %d !\n",prog->name,flag);
+		VM_WarningLinef (prog, "VM_drawfill: %s: wrong DRAWFLAG %d !",prog->name,flag);
 		return;
 	}
 
 	if (pos[2] || size[2])
-		VM_Warning(prog, "VM_drawfill: z value%s from %s discarded\n",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
+		VM_WarningLinef (prog, "VM_drawfill: z value%s from %s discarded",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
 
 	DrawQ_Fill(pos[0], pos[1], size[0], size[1], rgb[0], rgb[1], rgb[2], PRVM_G_FLOAT(OFS_PARM3), flag);
 	PRVM_G_FLOAT(OFS_RETURN) = 1;
@@ -2004,34 +1995,47 @@ void VM_getimagesize(prvm_prog_t *prog)
 //#330 float(float stnum) getstatf (EXT_CSQC)
 static void VM_CL_getstatf (prvm_prog_t *prog)
 {
-	int i;
-	union
-	{
+	union {
 		float f;
 		int l;
-	}dat;
-	VM_SAFEPARMCOUNT(1, VM_CL_getstatf);
-	i = (int)PRVM_G_FLOAT(OFS_PARM0);
-	if (i < 0 || i >= MAX_CL_STATS)
-	{
-		VM_Warning(prog, "VM_CL_getstatf: index>=MAX_CL_STATS or index<0\n");
+	} dat;
+
+	VM_SAFEPARMCOUNT (1, VM_CL_getstatf);
+	int index = (int)PRVM_G_FLOAT(OFS_PARM0);
+
+	if (in_range_beyond(0, index, MAX_CL_STATS_256) == false) {
+		PRVM_G_FLOAT(OFS_RETURN) = 0;
+		VM_WarningLinef (prog, "VM_CL_getstati: index>= MAX_CL_STATS_256 or index < 0");
 		return;
 	}
-	dat.l = cl.stats[i];
+	dat.l = cl.stats[index];
 	PRVM_G_FLOAT(OFS_RETURN) =  dat.f;
 }
 
 //#331 float(float stnum) getstati (EXT_CSQC)
+// Quake 1.5:
+//	items = getstati(STAT_ITEMS, 0, 23);
+//	items2 = getstati(STAT_ITEMS, 23, 9);
+
+// Baker: getstati has bitshift field as optional arg2
+// getstati STAT, optional firstbit, optional bitcount
+// float(float stnum, optional firstbit, optional bitcount) getstati = #331;
+
 static void VM_CL_getstati (prvm_prog_t *prog)
 {
-	int i, index;
-	int firstbit, bitcount;
+	int /*index, */ firstbit, bitcount;
 
 	VM_SAFEPARMCOUNTRANGE(1, 3, VM_CL_getstati);
 
-	index = (int)PRVM_G_FLOAT(OFS_PARM0);
-	if (prog->argc > 1)
-	{
+	int index = (int)PRVM_G_FLOAT(OFS_PARM0);
+
+	if (in_range_beyond(0, index, MAX_CL_STATS_256) == false) {
+		PRVM_G_FLOAT(OFS_RETURN) = 0;
+		VM_WarningLinef (prog, "VM_CL_getstati: index>= MAX_CL_STATS_256 or index < 0");
+		return;
+	}
+
+	if (prog->argc > 1) {
 		firstbit = (int)PRVM_G_FLOAT(OFS_PARM1);
 		if (prog->argc > 2)
 			bitcount = (int)PRVM_G_FLOAT(OFS_PARM2);
@@ -2040,35 +2044,29 @@ static void VM_CL_getstati (prvm_prog_t *prog)
 	}
 	else
 	{
-		firstbit = 0;
+		firstbit = 0; // 1 arg
 		bitcount = 32;
 	}
 
-	if (index < 0 || index >= MAX_CL_STATS)
-	{
-		VM_Warning(prog, "VM_CL_getstati: index>=MAX_CL_STATS or index<0\n");
-		return;
-	}
-	i = cl.stats[index];
-	if (bitcount != 32)	//32 causes the mask to overflow, so there's nothing to subtract from.
-		i = (((unsigned int)i)&(((1<<bitcount)-1)<<firstbit))>>firstbit;
-	PRVM_G_FLOAT(OFS_RETURN) = i;
+	if (bitcount < 32)	//32 causes the mask to overflow, so there's nothing to subtract from.
+		PRVM_G_FLOAT(OFS_RETURN) = cl.stats[index]>>firstbit & ((1<<bitcount)-1);
+	else
+		PRVM_G_FLOAT(OFS_RETURN) = cl.stats[index];
 }
 
 //#332 string(float firststnum) getstats (EXT_CSQC)
 static void VM_CL_getstats (prvm_prog_t *prog)
 {
-	int i;
 	char t[17];
-	VM_SAFEPARMCOUNT(1, VM_CL_getstats);
-	i = (int)PRVM_G_FLOAT(OFS_PARM0);
-	if (i < 0 || i > MAX_CL_STATS-4)
-	{
-		PRVM_G_INT(OFS_RETURN) = OFS_NULL;
-		VM_Warning(prog, "VM_CL_getstats: index>MAX_CL_STATS-4 or index<0\n");
+	VM_SAFEPARMCOUNT (1, VM_CL_getstats);
+	int index = (int)PRVM_G_FLOAT(OFS_PARM0);
+
+	if (in_range_beyond(0, index, MAX_CL_STATS_256) == false) {
+		PRVM_G_FLOAT(OFS_RETURN) = 0;
+		VM_WarningLinef (prog, "VM_CL_getstati: index>= MAX_CL_STATS_256 or index < 0");
 		return;
 	}
-	c_strlcpy(t, (char *)&cl.stats[i]);
+	c_strlcpy(t, (char *)&cl.stats[index]);
 	PRVM_G_INT(OFS_RETURN) = PRVM_SetTempString(prog, t);
 }
 
@@ -2094,7 +2092,7 @@ static void VM_CL_setmodelindex (prvm_prog_t *prog)
 	model = CL_GetModelByIndex(i);
 	if (!model)
 	{
-		VM_Warning(prog, "VM_CL_setmodelindex: null model\n");
+		VM_WarningLinef (prog, "VM_CL_setmodelindex: null model");
 		return;
 	}
 	PRVM_clientedictstring(t, model) = PRVM_SetEngineString(prog, model->model_name);
@@ -2404,34 +2402,34 @@ static void VM_CL_getplayerkey (prvm_prog_t *prog)
 
 	t[0] = 0;
 
-	if (String_Does_Match_Caseless(c, "name"))
+	if (String_Match_Caseless(c, "name"))
 		strlcpy(t, cl.scores[i].name, sizeof(t));
 	else
-		if (String_Does_Match_Caseless(c, "frags"))
+		if (String_Match_Caseless(c, "frags"))
 			dpsnprintf(t, sizeof(t), "%d", cl.scores[i].frags);
 	else
-		if (String_Does_Match_Caseless(c, "ping"))
+		if (String_Match_Caseless(c, "ping"))
 			dpsnprintf(t, sizeof(t), "%d", cl.scores[i].qw_ping);
 	else
-		if (String_Does_Match_Caseless(c, "pl"))
+		if (String_Match_Caseless(c, "pl"))
 			dpsnprintf(t, sizeof(t), "%d", cl.scores[i].qw_packetloss);
 	else
-		if (String_Does_Match_Caseless(c, "movementloss"))
+		if (String_Match_Caseless(c, "movementloss"))
 			dpsnprintf(t, sizeof(t), "%d", cl.scores[i].qw_movementloss);
 	else
-		if (String_Does_Match_Caseless(c, "entertime"))
+		if (String_Match_Caseless(c, "entertime"))
 			dpsnprintf(t, sizeof(t), "%f", cl.scores[i].qw_entertime);
 	else
-		if (String_Does_Match_Caseless(c, "colors"))
+		if (String_Match_Caseless(c, "colors"))
 			dpsnprintf(t, sizeof(t), "%d", cl.scores[i].colors);
 	else
-		if (String_Does_Match_Caseless(c, "topcolor"))
+		if (String_Match_Caseless(c, "topcolor"))
 			dpsnprintf(t, sizeof(t), "%d", cl.scores[i].colors & 0xf0);
 	else
-		if (String_Does_Match_Caseless(c, "bottomcolor"))
+		if (String_Match_Caseless(c, "bottomcolor"))
 			dpsnprintf(t, sizeof(t), "%d", (cl.scores[i].colors &15)<<4);
 	else
-		if (String_Does_Match_Caseless(c, "viewentity"))
+		if (String_Match_Caseless(c, "viewentity"))
 			dpsnprintf(t, sizeof(t), "%d", i+1);
 	if (!t[0])
 		return;
@@ -2572,12 +2570,12 @@ static void VM_CL_makestatic (prvm_prog_t *prog)
 	ent = PRVM_G_EDICT(OFS_PARM0);
 	if (ent == prog->edicts)
 	{
-		VM_Warning(prog, "makestatic: can not modify world entity\n");
+		VM_WarningLinef (prog, "makestatic: can not modify world entity");
 		return;
 	}
 	if (ent->free)
 	{
-		VM_Warning(prog, "makestatic: can not modify free entity\n");
+		VM_WarningLinef (prog, "makestatic: can not modify free entity");
 		return;
 	}
 
@@ -2589,20 +2587,20 @@ static void VM_CL_makestatic (prvm_prog_t *prog)
 		// copy it to the current state
 		memset(staticent, 0, sizeof(*staticent));
 		staticent->render.model = CL_GetModelByIndex((int)PRVM_clientedictfloat(ent, modelindex));
-		staticent->render.framegroupblend[0].frame = (int)PRVM_clientedictfloat(ent, frame);
+		staticent->render.framegroupblend[0].fb_frame = (int)PRVM_clientedictfloat(ent, frame);
 		staticent->render.framegroupblend[0].lerp = 1;
 		// make torchs play out of sync
 		staticent->render.framegroupblend[0].start = lhrandom(-10, -1);
 		staticent->render.skinnum = (int)PRVM_clientedictfloat(ent, skin);
 		staticent->render.effects = (int)PRVM_clientedictfloat(ent, effects);
-		staticent->render.alpha = PRVM_clientedictfloat(ent, alpha);
+		staticent->render.ralpha = PRVM_clientedictfloat(ent, alpha);
 		staticent->render.scale = PRVM_clientedictfloat(ent, scale);
 		VectorCopy(PRVM_clientedictvector(ent, colormod), staticent->render.colormod);
 		VectorCopy(PRVM_clientedictvector(ent, glowmod), staticent->render.glowmod);
 
 		// sanitize values
-		if (!staticent->render.alpha)
-			staticent->render.alpha = 1.0f;
+		if (!staticent->render.ralpha)
+			staticent->render.ralpha = 1.0f;
 		if (!staticent->render.scale)
 			staticent->render.scale = 1.0f;
 		if (!VectorLength2(staticent->render.colormod)) {
@@ -2639,7 +2637,7 @@ static void VM_CL_makestatic (prvm_prog_t *prog)
 				staticent->render.crflags |= RENDER_LIGHT;
 		}
 		// turn off shadows from transparent objects
-		if (!(staticent->render.effects & (EF_NOSHADOW | EF_ADDITIVE_32 | EF_NODEPTHTEST)) && (staticent->render.alpha >= 1))
+		if (!(staticent->render.effects & (EF_NOSHADOW | EF_ADDITIVE_32 | EF_NODEPTHTEST)) && (staticent->render.ralpha >= 1))
 			staticent->render.crflags |= RENDER_SHADOW;
 		if (staticent->render.effects & EF_NODEPTHTEST)
 			staticent->render.crflags |= RENDER_NODEPTHTEST;
@@ -2676,23 +2674,23 @@ static void VM_CL_copyentity (prvm_prog_t *prog)
 	in = PRVM_G_EDICT(OFS_PARM0);
 	if (in == prog->edicts)
 	{
-		VM_Warning(prog, "copyentity: can not read world entity\n");
+		VM_WarningLinef (prog, "copyentity: can not read world entity");
 		return;
 	}
 	if (in->free)
 	{
-		VM_Warning(prog, "copyentity: can not read free entity\n");
+		VM_WarningLinef (prog, "copyentity: can not read free entity");
 		return;
 	}
 	out = PRVM_G_EDICT(OFS_PARM1);
 	if (out == prog->edicts)
 	{
-		VM_Warning(prog, "copyentity: can not modify world entity\n");
+		VM_WarningLinef (prog, "copyentity: can not modify world entity");
 		return;
 	}
 	if (out->free)
 	{
-		VM_Warning(prog, "copyentity: can not modify free entity\n");
+		VM_WarningLinef (prog, "copyentity: can not modify free entity");
 		return;
 	}
 	memcpy(out->fields.fp, in->fields.fp, prog->entityfields * sizeof(prvm_vec_t));
@@ -3144,12 +3142,12 @@ static void VM_CL_setattachment (prvm_prog_t *prog)
 
 	if (e == prog->edicts)
 	{
-		VM_Warning(prog, "setattachment: can not modify world entity\n");
+		VM_WarningLinef (prog, "setattachment: can not modify world entity");
 		return;
 	}
 	if (e->free)
 	{
-		VM_Warning(prog, "setattachment: can not modify free entity\n");
+		VM_WarningLinef (prog, "setattachment: can not modify free entity");
 		return;
 	}
 
@@ -3177,7 +3175,7 @@ static void VM_CL_setattachment (prvm_prog_t *prog)
 /////////////////////////////////////////
 // DP_MD3_TAGINFO extension coded by VorteX
 
-static int CL_GetTagIndex (prvm_prog_t *prog, prvm_edict_t *e, const char *tagname)
+static int CL_GetTagIndex (prvm_prog_t *prog, prvm_edict_t *e, const char *tagname) // TAGX
 {
 	model_t *model = CL_GetModelFromEdict(e);
 	if (model)
@@ -3274,6 +3272,8 @@ static int CL_GetEntityLocalTagMatrix(prvm_prog_t *prog, prvm_edict_t *ent, int 
 extern cvar_t cl_bob;
 extern cvar_t cl_bobcycle;
 extern cvar_t cl_bobup;
+WARP_X_CALLERS_ (VM_CL_gettaginfo, CSQC_AddRenderEdict ) 
+// Baker: gettaginfo (DP_QC_GETTAGINFO)
 int CL_GetTagMatrix (prvm_prog_t *prog, matrix4x4_t *out, prvm_edict_t *ent, int tagindex, prvm_vec_t *returnshadingorigin)
 {
 	int ret;
@@ -3375,24 +3375,24 @@ static void VM_CL_gettagindex (prvm_prog_t *prog)
 	tag_name = PRVM_G_STRING(OFS_PARM1);
 	if (ent == prog->edicts)
 	{
-		VM_Warning(prog, "VM_CL_gettagindex(entity #%d): can't affect world entity\n", PRVM_NUM_FOR_EDICT(ent));
+		VM_WarningLinef (prog, "VM_CL_gettagindex(entity #%d): can't affect world entity", PRVM_NUM_FOR_EDICT(ent));
 		return;
 	}
 	if (ent->free)
 	{
-		VM_Warning(prog, "VM_CL_gettagindex(entity #%d): can't affect free entity\n", PRVM_NUM_FOR_EDICT(ent));
+		VM_WarningLinef (prog, "VM_CL_gettagindex(entity #%d): can't affect free entity", PRVM_NUM_FOR_EDICT(ent));
 		return;
 	}
 
 	tag_index = 0;
 	if (!CL_GetModelFromEdict(ent))
-		Con_DPrintf ("VM_CL_gettagindex(entity #%d): null or non-precached model\n", PRVM_NUM_FOR_EDICT(ent));
+		Con_DPrintLinef ("VM_CL_gettagindex(entity #%d): null or non-precached model", PRVM_NUM_FOR_EDICT(ent));
 	else
 	{
 		tag_index = CL_GetTagIndex(prog, ent, tag_name);
 		if (tag_index == 0)
 			if (developer_extra.integer)
-				Con_DPrintf ("VM_CL_gettagindex(entity #%d): tag " QUOTED_S " not found\n", PRVM_NUM_FOR_EDICT(ent), tag_name);
+				Con_DPrintLinef ("VM_CL_gettagindex(entity #%d): tag " QUOTED_S " not found", PRVM_NUM_FOR_EDICT(ent), tag_name);
 	}
 	PRVM_G_FLOAT(OFS_RETURN) = tag_index;
 }
@@ -3437,19 +3437,19 @@ static void VM_CL_gettaginfo (prvm_prog_t *prog)
 	switch(returncode)
 	{
 		case 1:
-			VM_Warning(prog, "gettagindex: can't affect world entity\n");
+			VM_WarningLinef (prog, "gettagindex: can't affect world entity");
 			break;
 		case 2:
-			VM_Warning(prog, "gettagindex: can't affect free entity\n");
+			VM_WarningLinef (prog, "gettagindex: can't affect free entity");
 			break;
 		case 3:
-			Con_DPrintf ("CL_GetTagMatrix(entity #%d): null or non-precached model\n", PRVM_NUM_FOR_EDICT(e));
+			Con_DPrintLinef ("CL_GetTagMatrix(entity #%d): null or non-precached model", PRVM_NUM_FOR_EDICT(e));
 			break;
 		case 4:
-			Con_DPrintf ("CL_GetTagMatrix(entity #%d): model has no tag with requested index %d\n", PRVM_NUM_FOR_EDICT(e), tagindex);
+			Con_DPrintLinef ("CL_GetTagMatrix(entity #%d): model has no tag with requested index %d", PRVM_NUM_FOR_EDICT(e), tagindex);
 			break;
 		case 5:
-			Con_DPrintf ("CL_GetTagMatrix(entity #%d): runaway loop at attachment chain\n", PRVM_NUM_FOR_EDICT(e));
+			Con_DPrintLinef ("CL_GetTagMatrix(entity #%d): runaway loop at attachment chain", PRVM_NUM_FOR_EDICT(e));
 			break;
 	}
 }
@@ -3644,7 +3644,7 @@ static void VM_CL_ResetParticle (prvm_prog_t *prog)
 	VM_SAFEPARMCOUNT(0, VM_CL_ResetParticle);
 	if (vmpartspawner.verified == false)
 	{
-		VM_Warning(prog, "VM_CL_ResetParticle: particle spawner not initialized\n");
+		VM_WarningLinef (prog, "VM_CL_ResetParticle: particle spawner not initialized");
 		return;
 	}
 	VM_CL_ParticleThemeToGlobals(&vmpartspawner.themes[0], prog);
@@ -3658,19 +3658,19 @@ static void VM_CL_ParticleTheme (prvm_prog_t *prog)
 	VM_SAFEPARMCOUNT(1, VM_CL_ParticleTheme);
 	if (vmpartspawner.verified == false)
 	{
-		VM_Warning(prog, "VM_CL_ParticleTheme: particle spawner not initialized\n");
+		VM_WarningLinef (prog, "VM_CL_ParticleTheme: particle spawner not initialized");
 		return;
 	}
 	themenum = (int)PRVM_G_FLOAT(OFS_PARM0);
 	if (themenum < 0 || themenum >= vmpartspawner.max_themes)
 	{
-		VM_Warning(prog, "VM_CL_ParticleTheme: bad theme number %d\n", themenum);
+		VM_WarningLinef (prog, "VM_CL_ParticleTheme: bad theme number %d", themenum);
 		VM_CL_ParticleThemeToGlobals(&vmpartspawner.themes[0], prog);
 		return;
 	}
 	if (vmpartspawner.themes[themenum].initialized == false)
 	{
-		VM_Warning(prog, "VM_CL_ParticleTheme: theme #%d not exists\n", themenum);
+		VM_WarningLinef (prog, "VM_CL_ParticleTheme: theme #%d not exists", themenum);
 		VM_CL_ParticleThemeToGlobals(&vmpartspawner.themes[0], prog);
 		return;
 	}
@@ -3687,7 +3687,7 @@ static void VM_CL_ParticleThemeSave (prvm_prog_t *prog)
 	VM_SAFEPARMCOUNTRANGE(0, 1, VM_CL_ParticleThemeSave);
 	if (vmpartspawner.verified == false)
 	{
-		VM_Warning(prog, "VM_CL_ParticleThemeSave: particle spawner not initialized\n");
+		VM_WarningLinef (prog, "VM_CL_ParticleThemeSave: particle spawner not initialized");
 		return;
 	}
 	// allocate new theme, save it and return
@@ -3699,9 +3699,9 @@ static void VM_CL_ParticleThemeSave (prvm_prog_t *prog)
 		if (themenum >= vmpartspawner.max_themes)
 		{
 			if (vmpartspawner.max_themes == 2048)
-				VM_Warning(prog, "VM_CL_ParticleThemeSave: no free theme slots\n");
+				VM_WarningLinef (prog, "VM_CL_ParticleThemeSave: no free theme slots");
 			else
-				VM_Warning(prog, "VM_CL_ParticleThemeSave: no free theme slots, try initparticlespawner() with highter max_themes\n");
+				VM_WarningLinef (prog, "VM_CL_ParticleThemeSave: no free theme slots, try initparticlespawner() with highter max_themes");
 			PRVM_G_FLOAT(OFS_RETURN) = -1;
 			return;
 		}
@@ -3714,7 +3714,7 @@ static void VM_CL_ParticleThemeSave (prvm_prog_t *prog)
 	themenum = (int)PRVM_G_FLOAT(OFS_PARM0);
 	if (themenum < 0 || themenum >= vmpartspawner.max_themes)
 	{
-		VM_Warning(prog, "VM_CL_ParticleThemeSave: bad theme number %d\n", themenum);
+		VM_WarningLinef (prog, "VM_CL_ParticleThemeSave: bad theme number %d", themenum);
 		return;
 	}
 	vmpartspawner.themes[themenum].initialized = true;
@@ -3729,19 +3729,19 @@ static void VM_CL_ParticleThemeFree (prvm_prog_t *prog)
 	VM_SAFEPARMCOUNT(1, VM_CL_ParticleThemeFree);
 	if (vmpartspawner.verified == false)
 	{
-		VM_Warning(prog, "VM_CL_ParticleThemeFree: particle spawner not initialized\n");
+		VM_WarningLinef (prog, "VM_CL_ParticleThemeFree: particle spawner not initialized");
 		return;
 	}
 	themenum = (int)PRVM_G_FLOAT(OFS_PARM0);
 	// check parms
 	if (themenum <= 0 || themenum >= vmpartspawner.max_themes)
 	{
-		VM_Warning(prog, "VM_CL_ParticleThemeFree: bad theme number %d\n", themenum);
+		VM_WarningLinef (prog, "VM_CL_ParticleThemeFree: bad theme number %d", themenum);
 		return;
 	}
 	if (vmpartspawner.themes[themenum].initialized == false)
 	{
-		VM_Warning(prog, "VM_CL_ParticleThemeFree: theme #%d already freed\n", themenum);
+		VM_WarningLinef (prog, "VM_CL_ParticleThemeFree: theme #%d already freed", themenum);
 		VM_CL_ParticleThemeToGlobals(&vmpartspawner.themes[0], prog);
 		return;
 	}
@@ -3762,7 +3762,7 @@ static void VM_CL_SpawnParticle (prvm_prog_t *prog)
 	VM_SAFEPARMCOUNTRANGE(2, 3, VM_CL_SpawnParticle);
 	if (vmpartspawner.verified == false)
 	{
-		VM_Warning(prog, "VM_CL_SpawnParticle: particle spawner not initialized\n");
+		VM_WarningLinef (prog, "VM_CL_SpawnParticle: particle spawner not initialized");
 		PRVM_G_FLOAT(OFS_RETURN) = 0;
 		return;
 	}
@@ -3820,7 +3820,7 @@ static void VM_CL_SpawnParticle (prvm_prog_t *prog)
 		themenum = (int)PRVM_G_FLOAT(OFS_PARM2);
 		if (themenum <= 0 || themenum >= vmpartspawner.max_themes)
 		{
-			VM_Warning(prog, "VM_CL_SpawnParticle: bad theme number %d\n", themenum);
+			VM_WarningLinef (prog, "VM_CL_SpawnParticle: bad theme number %d", themenum);
 			PRVM_G_FLOAT(OFS_RETURN) = 0;
 			return;
 		}
@@ -3884,7 +3884,7 @@ static void VM_CL_SpawnParticleDelayed (prvm_prog_t *prog)
 	VM_SAFEPARMCOUNTRANGE(4, 5, VM_CL_SpawnParticleDelayed);
 	if (vmpartspawner.verified == false)
 	{
-		VM_Warning(prog, "VM_CL_SpawnParticleDelayed: particle spawner not initialized\n");
+		VM_WarningLinef (prog, "VM_CL_SpawnParticleDelayed: particle spawner not initialized");
 		PRVM_G_FLOAT(OFS_RETURN) = 0;
 		return;
 	}
@@ -3930,7 +3930,7 @@ static void VM_CL_SpawnParticleDelayed (prvm_prog_t *prog)
 		themenum = (int)PRVM_G_FLOAT(OFS_PARM4);
 		if (themenum <= 0 || themenum >= vmpartspawner.max_themes)
 		{
-			VM_Warning(prog, "VM_CL_SpawnParticleDelayed: bad theme number %d\n", themenum);
+			VM_WarningLinef (prog, "VM_CL_SpawnParticleDelayed: bad theme number %d", themenum);
 			PRVM_G_FLOAT(OFS_RETURN) = 0;
 			return;
 		}
@@ -4033,7 +4033,7 @@ static void VM_CL_GetEntity (prvm_prog_t *prog)
 			VectorCopy(org, PRVM_G_VECTOR(OFS_RETURN));
 			break;
 		case 7: // alpha
-			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].render.alpha;
+			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].render.ralpha;
 			break;
 		case 8: // colormor
 			VectorCopy(cl.entities[entnum].render.colormod, PRVM_G_VECTOR(OFS_RETURN));
@@ -4309,7 +4309,7 @@ static void VM_CL_R_PolygonBegin_Classic (prvm_prog_t *prog)
 		VM_InitPolygons_Classic(polys);
 	if (polys->begin_active)
 	{
-		VM_Warning(prog, "VM_CL_R_PolygonBegin: called twice without VM_CL_R_PolygonBegin after first\n");
+		VM_Warningf(prog, "VM_CL_R_PolygonBegin: called twice without VM_CL_R_PolygonBegin after first\n");
 		return;
 	}
 	picname = PRVM_G_STRING(OFS_PARM0);
@@ -4412,13 +4412,13 @@ static void VM_CL_R_PolygonVertex_Classic (prvm_prog_t *prog)
 
 	if (!polys->begin_active)
 	{
-		VM_Warning(prog, "VM_CL_R_PolygonVertex: VM_CL_R_PolygonBegin wasn't called\n");
+		VM_Warningf(prog, "VM_CL_R_PolygonVertex: VM_CL_R_PolygonBegin wasn't called\n");
 		return;
 	}
 
 	if (polys->begin_vertices >= VMPOLYGONS_MAXPOINTS)
 	{
-		VM_Warning(prog, "VM_CL_R_PolygonVertex: may have %d vertices max\n", VMPOLYGONS_MAXPOINTS);
+		VM_Warningf(prog, "VM_CL_R_PolygonVertex: may have %d vertices max\n", VMPOLYGONS_MAXPOINTS);
 		return;
 	}
 
@@ -4480,7 +4480,7 @@ static void VM_CL_R_PolygonVertex (prvm_prog_t *prog)
 
 	if (!mod)
 	{
-		VM_Warning(prog, "VM_CL_R_PolygonVertex: VM_CL_R_PolygonBegin wasn't called\n");
+		VM_WarningLinef (prog, "VM_CL_R_PolygonVertex: VM_CL_R_PolygonBegin wasn't called");
 		return;
 	}
 
@@ -4511,14 +4511,14 @@ static void VM_CL_R_PolygonEnd_Classic (prvm_prog_t *prog)
 	VM_SAFEPARMCOUNT(0, VM_CL_R_PolygonEnd);
 	if (!polys->begin_active)
 	{
-		VM_Warning(prog, "VM_CL_R_PolygonEnd: VM_CL_R_PolygonBegin wasn't called\n");
+		VM_Warningf(prog, "VM_CL_R_PolygonEnd: VM_CL_R_PolygonBegin wasn't called\n");
 		return;
 	}
 	polys->begin_active = false;
 	if (polys->begin_vertices >= 3)
 		VMPolygons_Store(polys);
 	else
-		VM_Warning(prog, "VM_CL_R_PolygonEnd: %d vertices isn't a good choice\n", polys->begin_vertices);
+		VM_Warningf(prog, "VM_CL_R_PolygonEnd: %d vertices isn't a good choice\n", polys->begin_vertices);
 }
 
 WARP_X_ (SBar2D_PolygonBegin)
@@ -4599,7 +4599,7 @@ static void VM_CL_R_PolygonEnd (prvm_prog_t *prog)
 	//VM_SAFEPARMCOUNT(0, VM_CL_R_PolygonEnd);
 	//if (!mod)
 	//{
-	//	VM_Warning(prog, "VM_CL_R_PolygonEnd: VM_CL_R_PolygonBegin wasn't called\n");
+	//	VM_Warningf(prog, "VM_CL_R_PolygonEnd: VM_CL_R_PolygonBegin wasn't called\n");
 	//	return;
 	//}
 
@@ -4864,12 +4864,12 @@ static void VM_CL_walkmove (prvm_prog_t *prog)
 	ent = PRVM_PROG_TO_EDICT(PRVM_clientglobaledict(self));
 	if (ent == prog->edicts)
 	{
-		VM_Warning(prog, "walkmove: can not modify world entity\n");
+		VM_WarningLinef (prog, "walkmove: can not modify world entity");
 		return;
 	}
 	if (ent->free)
 	{
-		VM_Warning(prog, "walkmove: can not modify free entity\n");
+		VM_WarningLinef (prog, "walkmove: can not modify free entity");
 		return;
 	}
 	yaw = PRVM_G_FLOAT(OFS_PARM0);
@@ -4927,11 +4927,12 @@ static void VM_CL_checkpvs (prvm_prog_t *prog)
 	vec3_t viewpos;
 	prvm_edict_t *viewee;
 	vec3_t mi, ma;
-#if 1
+#if 1 // June 2
 	unsigned char *pvs;
 #else
-	int fatpvsbytes;
-	unsigned char fatpvs[MAX_MAP_LEAFS/8];
+	unsigned char *fatpvs = NULL;
+	//int fatpvsbytes;
+	//unsigned char fatpvs[MAX_MAP_LEAFS_65536/8];
 #endif
 
 	VM_SAFEPARMCOUNT(2, VM_CL_checkpvs);
@@ -4940,7 +4941,7 @@ static void VM_CL_checkpvs (prvm_prog_t *prog)
 
 	if (viewee->free)
 	{
-		VM_Warning(prog, "checkpvs: can not check free entity\n");
+		VM_WarningLinef (prog, "checkpvs: can not check free entity");
 		PRVM_G_FLOAT(OFS_RETURN) = 4;
 		return;
 	}
@@ -4971,8 +4972,13 @@ static void VM_CL_checkpvs (prvm_prog_t *prog)
 		PRVM_G_FLOAT(OFS_RETURN) = 3;
 		return;
 	}
+#if 1 // June 2
+	cl.worldmodel->brush.FatPVS(cl.worldmodel, viewpos, 8, &fatpvs, cls.levelmempool, false);
+	if(!fatpvs)
+#else
 	fatpvsbytes = cl.worldmodel->brush.FatPVS(cl.worldmodel, viewpos, 8, fatpvs, sizeof(fatpvs), false);
 	if (!fatpvsbytes)
+#endif
 	{
 		// viewpos isn't in any PVS... darn
 		PRVM_G_FLOAT(OFS_RETURN) = 2;
@@ -4992,7 +4998,7 @@ static void VM_CL_skel_create(prvm_prog_t *prog)
 	PRVM_G_FLOAT(OFS_RETURN) = 0;
 	if (!model || !model->num_bones)
 		return;
-	for (i = 0;i < MAX_EDICTS_32768;i++)
+	for (i = 0; i < MAX_EDICTS_32768; i ++)
 		if (!prog->skeletons[i])
 			break;
 	if (i == MAX_EDICTS_32768)
@@ -5020,8 +5026,8 @@ static void VM_CL_skel_build(prvm_prog_t *prog)
 	int numblends;
 	int bonenum;
 	int blendindex;
-	framegroupblend_t framegroupblend[MAX_FRAMEGROUPBLENDS];
-	frameblend_t frameblend[MAX_FRAMEBLENDS];
+	framegroupblend_t framegroupblend[MAX_FRAMEGROUPBLENDS_4];
+	frameblend_t frameblend[MAX_FRAMEBLENDS_8];
 	matrix4x4_t bonematrix;
 	matrix4x4_t matrix;
 	PRVM_G_FLOAT(OFS_RETURN) = 0;
@@ -5032,7 +5038,7 @@ static void VM_CL_skel_build(prvm_prog_t *prog)
 	lastbone = min(lastbone, skeleton->model->num_bones - 1);
 	VM_GenerateFrameGroupBlend(prog, framegroupblend, ed);
 	VM_FrameBlendFromFrameGroupBlend(frameblend, framegroupblend, model, cl.time);
-	for (numblends = 0;numblends < MAX_FRAMEBLENDS && frameblend[numblends].lerp;numblends++)
+	for (numblends = 0;numblends < MAX_FRAMEBLENDS_8 && frameblend[numblends].rlerp;numblends++)
 		;
 	for (bonenum = firstbone;bonenum <= lastbone;bonenum++)
 	{
@@ -5040,7 +5046,7 @@ static void VM_CL_skel_build(prvm_prog_t *prog)
 		for (blendindex = 0;blendindex < numblends;blendindex++)
 		{
 			Matrix4x4_FromBonePose7s(&matrix, model->num_posescale, model->data_poses7s + 7 * (frameblend[blendindex].subframe * model->num_bones + bonenum));
-			Matrix4x4_Accumulate(&bonematrix, &matrix, frameblend[blendindex].lerp);
+			Matrix4x4_Accumulate(&bonematrix, &matrix, frameblend[blendindex].rlerp);
 		}
 		Matrix4x4_Normalize3(&bonematrix, &bonematrix);
 		Matrix4x4_Interpolate(&skeleton->relativetransforms[bonenum], &bonematrix, &skeleton->relativetransforms[bonenum], retainfrac);
@@ -5267,7 +5273,7 @@ static void VM_CL_frameforname(prvm_prog_t *prog)
 		return;
 	for (i = 0;i < model->numframes;i++)
 	{
-		if (String_Does_Match_Caseless(model->animscenes[i].name, name))
+		if (String_Match_Caseless(model->animscenes[i].name, name))
 		{
 			PRVM_G_FLOAT(OFS_RETURN) = i;
 			break;

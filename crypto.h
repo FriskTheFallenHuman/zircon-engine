@@ -53,8 +53,8 @@ typedef struct
 }
 crypto_t;
 
-void Crypto_Init(void);
-void Crypto_Init_Commands(void);
+void Crypto_InitOnce(void);
+void Crypto_InitOnce_Commands(void);
 void Crypto_LoadKeys(void); // NOTE: when this is called, the SV_LockThreadMutex MUST be active
 void Crypto_Shutdown(void);
 qbool Crypto_Available(void);

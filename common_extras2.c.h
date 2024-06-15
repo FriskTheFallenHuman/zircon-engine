@@ -73,10 +73,10 @@ int String_Count_First_Word_Length (const char *s)
 }
 
 #if 0 // Baker: favor macro over this
-#undef String_Does_Contain
+#undef String_Contains
 // Short: Returns 1 if string contains string, otherwise returns 0
 // Notes: For reference only, function has no advantage over strstr.
-int String_Does_Contain (const char *s, const char *s_find)
+int String_Contains (const char *s, const char *s_find)
 {
 	if (strstr (s, s_find))
 		return 1;
@@ -85,7 +85,7 @@ int String_Does_Contain (const char *s, const char *s_find)
 }
 #endif
 
-int String_Does_Contain_Caseless (const char *s, const char *s_find)
+int String_Contains_Caseless (const char *s, const char *s_find)
 {
 	if (dpstrcasestr (s, s_find))
 		return 1;
@@ -95,7 +95,7 @@ int String_Does_Contain_Caseless (const char *s, const char *s_find)
 
 // Short: Returns 1 if string contains spaces, otherwise returns 0
 // Notes: Offers no advantage over strchr(s, SPACE_CHAR_32).
-int String_Does_Contain_Spaces (const char *s)
+int String_Contains_Spaces (const char *s)
 {
 	if (strchr(s, SPACE_CHAR_32))
 		return 1;
@@ -136,7 +136,7 @@ int String_Does_List_Delimited_Contain (const char *s, const char *s_find, int c
 
 // Short: Returns 1 if string ends with the suffix -- considering case, otherwise returns 0
 // Notes: None.
-int String_Does_End_With (const char *s, const char *s_suffix)
+int String_Ends_With (const char *s, const char *s_suffix)
 {
 	size_t s_len = strlen(s);
 	size_t s_suffix_len = strlen (s_suffix);
@@ -151,7 +151,7 @@ int String_Does_End_With (const char *s, const char *s_suffix)
 
 // Short: Returns 1 if string ends with the suffix -- ignoring case, otherwise returns 0
 // Notes: None.
-int String_Does_End_With_Caseless (const char *s, const char *s_suffix)
+int String_Ends_With_Caseless (const char *s, const char *s_suffix)
 {
 	size_t s_len = strlen(s);
 	size_t s_suffix_len = strlen (s_suffix);
@@ -166,7 +166,7 @@ int String_Does_End_With_Caseless (const char *s, const char *s_suffix)
 
 // Short: Returns 1 if string contains lower case characters, otherwise returns 0
 // Notes: None.
-int String_Does_Have_Lowercase (const char *s)
+int String_Has_Lowercase (const char *s)
 {
 	if (s)
 	{
@@ -184,18 +184,19 @@ int String_Does_Have_Lowercase (const char *s)
 
 // Short: Returns 1 if string begins with and ends with a quote and has length greater than 1.
 // Note:  A string with length 1 where the only character was a quote would return 0.
-int String_Does_Have_Quotes (const char *s)
-{
-	size_t len = strlen(s);
-	if (len > 1 && s[0] == '\"' && s[len - 1] == '\"')
-		return 1;
-	return 0;
-}
+// Macro for this
+//int String_Is_Quoted (const char *s)
+//{
+//	size_t len = strlen(s);
+//	if (len > 1 && s[0] == CHAR_DQUOTE_34 && s[len - 1] == CHAR_DQUOTE_34)
+//		return 1;
+//	return 0;
+//}
 
 
 // Short: Returns 1 if string contains upper case characters, otherwise returns 0
 // Notes: None.
-int String_Does_Have_Uppercase (const char *s)
+int String_Has_Uppercase (const char *s)
 {
 	if (s)
 	{
@@ -211,19 +212,19 @@ int String_Does_Have_Uppercase (const char *s)
 }
 
 
-#undef String_Does_Match
+#undef String_Match
 // Short: Returns 1 if string is identical --- considering case, otherwise returns 0
 // Notes: Offers no advantage over using !strcmp(s1,s2).
-//int String_Does_Match (const char *s1, const char *s2)
+//int String_Match (const char *s1, const char *s2)
 //{
 //	return !strcmp(s1, s2);
 //}
 
 
-//#undef String_Does_Match_Caseless
+//#undef String_Match_Caseless
 //// Short: Returns 1 if string is identical --- ignoring case, otherwise returns 0
 //// Notes: Offers no advantage over using !strcasecmp(s1,s2)
-//int String_Does_Match_Caseless (const char *s1, const char *s2)
+//int String_Match_Caseless (const char *s1, const char *s2)
 //{
 //	return !strcasecmp(s1, s2);
 //}
@@ -238,10 +239,10 @@ int String_Does_Match_Nullproof (const char *s1, const char *s2)
 }
 
 
-#undef String_Does_NOT_Match
+#undef String_NOT_Match
 // Short: Returns 1 if string is different --- considering case, otherwise returns 0
 // Notes: Offers no advantage over strcmp(s1, s2).
-//int String_Does_NOT_Match (const char *s1, const char *s2)
+//int String_NOT_Match (const char *s1, const char *s2)
 //{
 //	return !!strcmp(s1, s2);
 //}
@@ -274,19 +275,19 @@ int String_Does_Not_Start_With_Caseless (const char *s, const char *s_prefix)
 }
 
 
-//#undef String_Does_Start_With
+//#undef String_Starts_With
 //// Short: Returns 1 if string begins with prefix --- considering case, otherwise returns 0
 //// Notes: None.
-//int String_Does_Start_With (const char *s, const char *s_prefix)
+//int String_Starts_With (const char *s, const char *s_prefix)
 //{
 //	return !strncmp(s, s_prefix, strlen(s_prefix));
 //}
 
 
-//#undef String_Does_Start_With_Caseless
+//#undef String_Starts_With_Caseless
 //// Short: Returns 1 if string begins with prefix --- ignoring case, otherwise returns 0
 //// Notes: None.
-//int String_Does_Start_With_Caseless (const char *s, const char *s_prefix)
+//int String_Starts_With_Caseless (const char *s, const char *s_prefix)
 //{
 //	return !strncasecmp(s, s_prefix, strlen(s_prefix));
 //}
@@ -417,7 +418,7 @@ char *String_Edit_RemoveTrailingSpaces (char *s_edit)
 
 char *String_Edit_RemoveTrailingUnixSlash (char *s_edit)
 {
-	if (String_Does_End_With (s_edit, "/"))
+	if (String_Ends_With (s_edit, "/"))
 		String_Edit_Remove_Last_Character (s_edit);
 
 	return s_edit;
@@ -865,7 +866,7 @@ char *String_Edit_Whitespace_To_Space_Except_Newline (char *s_edit)
 	for (cursor = s_edit; *cursor; cursor ++)
 	{
 		c = *cursor;
-		if (c < SPACE_CHAR_32)
+		if (c < SPACE_CHAR_32 && c!= NEWLINE_CHAR_10)
 			*cursor = SPACE_CHAR_32;
 	}
 
@@ -1013,7 +1014,8 @@ char *dpstrndup (const char *s, size_t n)
 
 // Returns length of the match, not length of the copy
 // This thing is 1 based?
-char *String_Instance_Alloc_Base1 (const char *s, int ch_delim, int nth_instance, replyx int *len)
+// Baker: Use String_Count_String or String_Count_Char to figure out number of delims
+char *String_Instance_Malloc_Base1 (const char *s, int ch_delim, int nth_instance, replyx int *len)
 {
 	int slen = -1; char *found = String_Instance_Base1 (s, ch_delim, nth_instance, &slen);
 	if (!found) return NULL;
@@ -1247,13 +1249,13 @@ char *String_Range_Dup_Alloc(const char *s_start, const char *s_end)
 }
 
 
-char *String_Replace_Alloc (const char *s, const char *s_find, const char *s_replace)
+char *String_Replace_Malloc (const char *s, const char *s_find, const char *s_replace)
 {
 	// Some day, preprocessor macros might be as reliable.  Or perhaps someday, headers will auto-generate and all functions should be explicitly defined.
-	return String_Replace_Len_Count_Alloc (s, s_find, s_replace, NULL, NULL, NULL);
+	return String_Replace_Len_Count_Malloc (s, s_find, s_replace, NULL, NULL, NULL);
 }
 
-char *String_Replace_Len_Count_Alloc (const char *s, const char *s_find, const char *s_replace, replyx int *created_length, replyx size_t *created_bufsize, replyx int *replace_count)
+char *String_Replace_Len_Count_Malloc (const char *s, const char *s_find, const char *s_replace, replyx int *created_length, replyx size_t *created_bufsize, replyx int *replace_count)
 {
 	char *newstring_o;
 
@@ -1520,7 +1522,7 @@ WARP_X_ (FS_FileWithoutPath)
 
 char *File_URL_Remove_Trailing_Unix_Slash (char *path_to_file)
 {
-	if (String_Does_End_With (path_to_file, "/")) {
+	if (String_Ends_With (path_to_file, "/")) {
 		int slen = (int)strlen (path_to_file);
 		path_to_file[slen - 1] = 0;
 	}
@@ -1542,6 +1544,47 @@ char *File_URL_Edit_Remove_Extension (char *path_to_file)
 
 	return path_to_file;
 }
+
+// Doesn't return NULL rather emptystring, return the dot (".png", etc ..)
+const char *File_URL_GetExtension (const char *path_to_file)
+{
+	const char *finddot = strrchr /*reverse*/ (path_to_file, '.');
+
+	// Make sure we found it and that what we found wasn't a dot
+	// in path
+	if (finddot && strchr /*forward*/ (finddot, '/') == NULL )
+	{
+		return finddot;
+	}
+
+	return "";
+}
+
+// Returns extension with . (like .png) after last slash if exists, returns NULL if nothing found.
+ccs *File_URL_GetExtensionEx (ccs *path_to_file)
+{
+	ccs *findsla = strrchr /*reverse*/ (path_to_file, '/');
+	if (findsla)
+		path_to_file = &findsla[1]; // After last slash
+	ccs *finddot = strrchr /*reverse*/ (path_to_file, '.');
+	
+	if (finddot)
+		return finddot;
+	return NULL;
+}
+
+void File_URL_Edit_Default_Extension (char *path_to_file, const char *dot_new_extension, size_t bufsize)
+{
+	const char *extension = File_URL_GetExtension (path_to_file);
+
+	if (extension[0] == 0)
+	{
+		// No extension so default it
+		strlcat (path_to_file, dot_new_extension, bufsize);
+	}
+}
+
+
 
 // May 18 2020 - This does NOT leave a trailing "/".  It is also UNIX only.
 char *File_URL_Edit_Reduce_To_Parent_Path (char *path_to_file)
@@ -1887,7 +1930,7 @@ char *String_Worldspawn_Value_For_Key_Sbuf (const char *s_entities_string, const
 		if (COM_Parse_Basic(&data) == false)
 			return NULL; // error
 
-		if (String_Does_Match_Caseless (find_keyname, current_key)) {
+		if (String_Match_Caseless (find_keyname, current_key)) {
 			c_strlcpy (valuestring, com_token);
 			return valuestring;
 		}
@@ -1943,4 +1986,66 @@ int String_Worldspawn_Value_For_Key_Con_PrintLine (const char *s_entities_string
 
 	// Baker: We should have exited earlier all the time due to finding closing "}"
 	return numkeysprinted;
+}
+
+void String_Worldspawn_Values_stringlistappend (stringlist_t *plist, ccs *s_entities_string)
+{
+	char			current_key[128];
+	char			current_value[4096];
+	const char		*data = s_entities_string;
+	const char		*copy_start;
+	int numkeysprinted = 0;
+
+	// Read some data ...
+	if (COM_Parse_Basic(&data) == false || com_token[0] != '{')	// Opening brace is start of worldspawn
+		return; // error
+
+	while (1) {
+		// Read some data ...
+		if (COM_Parse_Basic(&data) == false) {
+			stringlistappend (plist, "IRREGULAR EXIT");
+			stringlistappend (plist, "[Early end of data]");
+			return;// -1; // End of data
+		}
+
+		if (com_token[0] == '}')	// Closing brace is end of worldspawn
+			return;// numkeysprinted; // End of worldspawn
+
+		// Copy data over, skipping a prefix of '_' in a keyname
+		copy_start = &com_token[0];
+
+		if (*copy_start == '_')
+			copy_start ++;
+
+		c_strlcpy (current_key, copy_start);
+
+		String_Edit_RemoveTrailingSpaces (current_key);
+
+		if (COM_Parse_Basic(&data) == false) {
+			stringlistappend (plist, "IRREGULAR EXIT");
+			stringlistappendf (plist, "[Unable to get value for key %s]", current_key);
+			return;// numkeysprinted; // error
+		}
+
+		c_strlcpy (current_value, com_token);
+		stringlistappend (plist, current_key);
+		stringlistappend (plist, current_value);
+		//numkeysprinted ++;
+	} // while 1
+
+	// Baker: We should have exited earlier all the time due to finding closing "}"
+	//return numkeysprinted;
+}
+
+qbool String_Is_All_AlphaNumeric_Underscore(ccs *s)
+{
+	
+	for (ccs *p = s; *p; *p++) {
+		int ch = *p;
+		if (isalpha(ch))	continue;
+		if (isdigit(ch))	continue;
+		if (isin1(ch, '_'))	continue;
+		return false;
+	}
+	return true;
 }

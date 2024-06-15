@@ -102,57 +102,57 @@ static void M_Video_Classic_Draw (void)
 	M_Print(16, video_cursor_table[t], "        New Resolution");
 	M_Print(220, video_cursor_table[t], va(vabuf, sizeof(vabuf), "%dx%d", menu_video_resolutions[menu_video_resolution].width, menu_video_resolutions[menu_video_resolution].height));
 	M_Print(96, video_cursor_table[t] + 8, va(vabuf, sizeof(vabuf), "Type: %s", menu_video_resolutions[menu_video_resolution].type));
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	t++;
 
 	// Antialiasing
 	M_Print(16, video_cursor_table[t], "          Antialiasing");
 	M_DrawSlider(220, video_cursor_table[t], vid_samples.value, 1, 32);
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	t++;
 
 	// Refresh Rate
 	M_ItemPrint(16, video_cursor_table[t], "      Use Refresh Rate", vid_supportrefreshrate);
 	M_DrawCheckbox(220, video_cursor_table[t], vid_userefreshrate.integer);
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	t++;
 
 	// Refresh Rate
 	M_ItemPrint(16, video_cursor_table[t], "          Refresh Rate", vid_supportrefreshrate && vid_userefreshrate.integer);
 	M_DrawSlider(220, video_cursor_table[t], vid_refreshrate.value, 50, 150);
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	t++;
 
 	// Fullscreen
 	M_Print(16, video_cursor_table[t], "            Fullscreen");
 	M_DrawCheckbox(220, video_cursor_table[t], vid_fullscreen.integer);
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	t++;
 
 	// Vertical Sync
 	M_ItemPrint(16, video_cursor_table[t], "         Vertical Sync", true);
 	M_DrawCheckbox(220, video_cursor_table[t], vid_vsync.integer);
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	t++;
 
 	M_ItemPrint(16, video_cursor_table[t], "    Anisotropic Filter", vid.support.ext_texture_filter_anisotropic);
 	M_DrawSlider(220, video_cursor_table[t], gl_texture_anisotropy.integer, 1, vid.max_anisotropy);
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	t++;
 
 	M_ItemPrint(16, video_cursor_table[t], "       Texture Quality", true);
 	M_DrawSlider(220, video_cursor_table[t], gl_picmip.value, 3, 0);
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	t++;
 
 	M_ItemPrint(16, video_cursor_table[t], "   Texture Compression", true);
 	M_DrawCheckbox(220, video_cursor_table[t], gl_texturecompression.integer);
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_slider, q_force_scale_0);
 	t++;
 
 	// "Apply" button
 	M_Print(220, video_cursor_table[t], "Apply");
-	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_button);
+	Hotspots_Add (menu_x + 48, menu_y + video_cursor_table[t], 272, 8 + 1, 1, hotspottype_button, q_force_scale_0);
 	t++;
 
 	// Cursor

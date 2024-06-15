@@ -51,22 +51,23 @@ WARP_X_ (NetConn_ClientParsePacket_ServerList_UpdateCache which line 1 is writte
 void M_Menu_ServerList_f(cmd_state_t *cmd)
 {
 	KeyDest_Set (key_menu); // key_dest = key_menu;
-	menu_state_set_nova (m_slist);
+	menu_state_set_nova (m_slist_27);
 	m_entersound = true;
 	M_Update_Return_Reason("");
 
 	if (menu_state_reenter == 0) {
 		double elapsed = serverlist_list_query_time == 0 ? 9999 : serverlist_list_query_time - Sys_DirtyTime ();
 		// 300 seconds.  User can manually refresh it.
-		if (elapsed > 300)
+		if (elapsed > 300) {
 #if 1
 		// Server browser -- what to do here? modlist.txt
-		if (mod_list_folder_name[0] == 0) {
-			Net_Slist_Both_f(cmd);
-		}
-		else {
-			// Total conversion with 1 folder.
-			Net_Slist_f(cmd);
+            if (mod_list_folder_name[0] == 0) {
+                Net_Slist_Both_f(cmd);
+            }
+            else {
+                // Total conversion with 1 folder.
+                Net_Slist_f(cmd);
+            }
 		}
 #else
 		if (lanConfig_cursor == 2)
@@ -195,7 +196,7 @@ drawcolumnheaders:
 
 	#define DRAW_UNDERLINE_COLUMN \
 		DrawQ_Fill(menu_x + drawcur_x, menu_y + drawcur_y + 9, draw_cur_w, 1 /*draw_cur_h*/, VECTOR3_SEND(underline_color3),  \
-			q_alpha_1, DRAWFLAG_NORMAL_0) // Ender
+			alpha_1_0, DRAWFLAG_NORMAL_0) // Ender
 
 	draw_cur_w = 4 /*chars*/ * 8;
 
@@ -205,7 +206,7 @@ drawcolumnheaders:
 		draw_cur_w = 7 /*chars*/ * 8; // column width
 	if (slist_sort_by == SLIST_SORTBY_PLAYERS_1) {DRAW_UNDERLINE_COLUMN;}
 		M_PrintBronzey(drawcur_x, drawcur_y, "Players");	HOTSPOT_DRAW_ADD;
-		drawcur_x += (/*1 spaces*/ 1 * 8); 
+		drawcur_x += (/*1 spaces*/ 1 * 8);
 	draw_cur_w = 4 /*chars*/ * 8; // column width
 	if (slist_sort_by == SLIST_SORTBY_NAME_2) {DRAW_UNDERLINE_COLUMN;}
 		M_PrintBronzey(drawcur_x, drawcur_y, "Name");	HOTSPOT_DRAW_ADD;
@@ -350,7 +351,7 @@ static void M_ServerList_Key(cmd_state_t *cmd, int key, int ascii)
 				break;
 			}
 		} // block
-	
+
 
 	case K_ENTER:
 		S_LocalSound ("sound/misc/menu2.wav");
@@ -360,10 +361,10 @@ static void M_ServerList_Key(cmd_state_t *cmd, int key, int ascii)
 
 			char *s_ipaddy = entry_nova->info.cname;
 			char *s_name = entry_nova->info.name;
-			
+
 			// Baker: Issuing a connect will exit the menu
 			// So we set the re-entrance state "menu_state_reenter" first
-			menu_state_reenter = (lanConfig_cursor == /*qw*/ 2) ? 3 : 2;
+			menu_state_reenter = (lanConfig_cursor == /*qw*/ 2) ? m_slist_qw_28 /*3*/ : m_slist_27;
 
 			// Baker: Prevent annoyingly long console lines
 			va_super (connect_string, /*#chars*/ 80, "connect " QUOTED_S " // %s", s_ipaddy, s_name);

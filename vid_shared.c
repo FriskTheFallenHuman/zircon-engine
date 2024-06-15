@@ -148,6 +148,7 @@ cvar_t vid_window_height = {CF_CLIENT | CF_ARCHIVE, "_vid_window_height", "640",
 cvar_t vid_fullscreen_conscale = {CF_CLIENT | CF_ARCHIVE, "_vid_fullscreen_conscale", "1", "user set fullscreen 2d magnification factor [Zircon]"};
 cvar_t vid_window_conscale = {CF_CLIENT | CF_ARCHIVE, "_vid_window_conscale", "1", "user set windowed 2d magnification factor [Zircon]"};
 
+#pragma message ("vid_samples does not work")
 cvar_t vid_samples = {CF_CLIENT | CF_ARCHIVE, "vid_samples", "1", "how many anti-aliasing samples per pixel to request from the graphics driver (4 is recommended, 1 is faster)"};
 cvar_t vid_refreshrate = {CF_CLIENT | CF_ARCHIVE, "vid_refreshrate", "60", "refresh rate to use, in hz (higher values flicker less, if supported by your monitor)"};
 cvar_t vid_userefreshrate = {CF_CLIENT | CF_ARCHIVE, "vid_userefreshrate", "0", "set this to 1 to make vid_refreshrate used, or to 0 to let the engine choose a sane default"};
@@ -161,6 +162,7 @@ cvar_t vid_touchscreen_ydpi = {CF_CLIENT, "vid_touchscreen_ydpi", "300", "Vertic
 
 cvar_t vid_vsync = {CF_CLIENT | CF_ARCHIVE, "vid_vsync", "0", "sync to vertical blank, prevents 'tearing' (seeing part of one frame and part of another on the screen at the same time), automatically disabled when doing timedemo benchmarks"};
 cvar_t vid_mouse = {CF_CLIENT | CF_ARCHIVE, "vid_mouse", "1", "whether to use the mouse in windowed mode (fullscreen always does)"};
+cvar_t vid_mouse_show_coords = {CF_CLIENT | CF_ARCHIVE, "vid_mouse_show_coords", "0", "show mouse coordinates in window title [Zircon]"};
 cvar_t vid_grabkeyboard = {CF_CLIENT | CF_ARCHIVE, "vid_grabkeyboard", "0", "whether to grab the keyboard when mouse is active (prevents use of volume control keys, music player keys, etc on some keyboards)"};
 cvar_t vid_minwidth = {CF_CLIENT, "vid_minwidth", "0", "minimum vid_width that is acceptable (to be set in default.cfg in mods)"};
 cvar_t vid_minheight = {CF_CLIENT, "vid_minheight", "0", "minimum vid_height that is acceptable (to be set in default.cfg in mods)"};
@@ -192,6 +194,7 @@ cvar_t v_color_white_r = {CF_CLIENT | CF_ARCHIVE, "v_color_white_r", "1", "desir
 cvar_t v_color_white_g = {CF_CLIENT | CF_ARCHIVE, "v_color_white_g", "1", "desired color of white"};
 cvar_t v_color_white_b = {CF_CLIENT | CF_ARCHIVE, "v_color_white_b", "1", "desired color of white"};
 cvar_t v_psycho = {CF_CLIENT, "v_psycho", "0", "easter egg - R.I.P. zinx http://obits.al.com/obituaries/birmingham/obituary.aspx?n=christopher-robert-lais&pid=186080667"};
+
 
 cvar_t gl_finish = {CF_CLIENT, "gl_finish", "0", "make the cpu wait for the graphics processor at the end of each rendered frame (can help with strange input or video lag problems on some machines)"};
 
@@ -680,7 +683,7 @@ qbool GL_CheckExtension(const char *name, const char *disableparm, int silent)
 #ifndef USE_GLES2
 	for (func = openglfuncs; func && func->name != NULL; func++)
 	{
-		if (!*func->funcvariable && String_Does_Match(name, func->extension))
+		if (!*func->funcvariable && String_Match(name, func->extension))
 		{
 			if (!silent)
 				Con_DPrintf ("%s is missing function " QUOTED_S " - broken driver!\n", name, func->name);
@@ -756,7 +759,7 @@ skip_spam2:
 	missingfuncs[0] = 0;
 	for (func = openglfuncs; func && func->name != NULL; func++)
 	{
-		if (!*func->funcvariable && String_Does_Match(func->extension, "core"))
+		if (!*func->funcvariable && String_Match(func->extension, "core"))
 		{
 			Con_DPrintf ("GL context is missing required function " QUOTED_S "!\n", func->name);
 			missingrequiredfuncs = true;
@@ -811,7 +814,7 @@ skip_spam2:
 	// gl_texturecompression_color is somehow broken on AMD's Windows driver,
 	// see: https://gitlab.com/xonotic/darkplaces/-/issues/228
 	// HACK: force it off (less bad than adding hacky checks to the renderer)
-	if (String_Does_Start_With (gl_renderer, "AMD Radeon(TM)"))
+	if (String_Starts_With (gl_renderer, "AMD Radeon(TM)"))
 	{
 		Cvar_SetQuick(&gl_texturecompression_color, "0");
 		gl_texturecompression_color.flags |= CF_READONLY;
@@ -862,7 +865,7 @@ skip_spam2:
 	{
 		int samples = 0;
 		qglGetIntegerv(GL_SAMPLES, &samples);
-		vid.samples = samples;
+		vid.samples = samples; // Getting 0
 		if (samples > 1)
 			qglEnable(GL_MULTISAMPLE);
 		else
@@ -1310,7 +1313,7 @@ static int VID_Mode(int fullscreen, int width, int height, int bpp, float refres
 	mode.fullscreen = fullscreen != 0;
 	mode.width = width;
 	mode.height = height;
-	mode.bitsperpixel = bpp;
+	mode.bitsperpixel_m = bpp;
 	mode.refreshrate = vid_userefreshrate.integer ? max(1, refreshrate) : 0;
 	mode.userefreshrate = vid_userefreshrate.integer != 0;
 	mode.stereobuffer = stereobuffer != 0;
@@ -1324,11 +1327,11 @@ static int VID_Mode(int fullscreen, int width, int height, int bpp, float refres
 		vid.fullscreen     = vid.mode.fullscreen;
 		vid.width          = vid.mode.width;
 		vid.height         = vid.mode.height;
-		vid.bitsperpixel   = vid.mode.bitsperpixel;
+		vid.bitsperpixel   = vid.mode.bitsperpixel_m;
 		vid.refreshrate    = vid.mode.refreshrate;
 		vid.userefreshrate = vid.mode.userefreshrate;
 		vid.stereobuffer   = vid.mode.stereobuffer;
-		vid.stencil        = vid.mode.bitsperpixel > 16;
+		vid.stencil        = vid.mode.bitsperpixel_m > 16;
 		vid.sRGB2D         = vid_sRGB.integer >= 1 && vid.sRGBcapable2D;
 		vid.sRGB3D         = vid_sRGB.integer >= 1 && vid.sRGBcapable3D;
 
@@ -1358,7 +1361,7 @@ static int VID_Mode(int fullscreen, int width, int height, int bpp, float refres
 			vid.sRGB2D = vid.sRGB3D = false;
 
 		if (vid.restart_count == 0) // Baker r1481: Reduce ALT-ENTER video restart spam
-			Con_PrintLinef ("Video Mode: %s %dx%dx%dx%.2fhz%s", mode.fullscreen ? "fullscreen" : "window", mode.width, mode.height, mode.bitsperpixel, mode.refreshrate, mode.stereobuffer ? " stereo" : "");
+			Con_PrintLinef ("Video Mode: %s %dx%dx%dx%.2fhz%s", mode.fullscreen ? "fullscreen" : "window", mode.width, mode.height, mode.bitsperpixel_m, mode.refreshrate, mode.stereobuffer ? " stereo" : "");
 
 		Cvar_SetValueQuick(&vid_fullscreen, vid.mode.fullscreen);
 
@@ -1378,8 +1381,8 @@ static int VID_Mode(int fullscreen, int width, int height, int bpp, float refres
 
 		Cvar_SetValueQuick(&vid_width, vid.mode.width);
 		Cvar_SetValueQuick(&vid_height, vid.mode.height);
-		Cvar_SetValueQuick(&vid_bitsperpixel, vid.mode.bitsperpixel);
-		Cvar_SetValueQuick(&vid_samples, vid.mode.samples);
+		Cvar_SetValueQuick(&vid_bitsperpixel, vid.mode.bitsperpixel_m);
+		//Cvar_SetValueQuick(&vid_samples, vid.mode.samples_aa); // Baker: NO!
 		if (vid_userefreshrate.integer)
 			Cvar_SetValueQuick(&vid_refreshrate, vid.mode.refreshrate);
 		Cvar_SetValueQuick(&vid_stereobuffer, vid.stereobuffer ? 1 : 0);
@@ -1426,14 +1429,14 @@ void VID_Restart_f(cmd_state_t *cmd)
 
 	// Baker r1481: Reduce ALT-ENTER video restart spam
 	Con_DPrintLinef ("VID_Restart: changing from %s %dx%dx%dbpp%s, to %s %dx%dx%dbpp%s.",
-		vid.mode.fullscreen ? "fullscreen" : "window", vid.mode.width, vid.mode.height, vid.mode.bitsperpixel, vid.mode.fullscreen && vid.mode.userefreshrate ? va(vabuf, sizeof(vabuf), "x%.2fhz", vid.mode.refreshrate) : "",
+		vid.mode.fullscreen ? "fullscreen" : "window", vid.mode.width, vid.mode.height, vid.mode.bitsperpixel_m, vid.mode.fullscreen && vid.mode.userefreshrate ? va(vabuf, sizeof(vabuf), "x%.2fhz", vid.mode.refreshrate) : "",
 		vid_fullscreen.integer ? "fullscreen" : "window", vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_fullscreen.integer && vid_userefreshrate.integer ? va(vabuf, sizeof(vabuf), "x%.2fhz", vid_refreshrate.value) : "");
 	VID_CloseSystems();
 	VID_Shutdown();
 	if (!VID_Mode(vid_fullscreen.integer, vid_width.integer, vid_height.integer, vid_bitsperpixel.integer, vid_refreshrate.value, vid_stereobuffer.integer))
 	{
 		Con_PrintLinef ("Video mode change failed");
-		if (!VID_Mode(vid.mode.fullscreen, vid.mode.width, vid.mode.height, vid.mode.bitsperpixel, vid.mode.refreshrate, vid.mode.stereobuffer))
+		if (!VID_Mode(vid.mode.fullscreen, vid.mode.width, vid.mode.height, vid.mode.bitsperpixel_m, vid.mode.refreshrate, vid.mode.stereobuffer))
 			Sys_Error ("Unable to restore to last working video mode");
 	}
 
@@ -1591,7 +1594,7 @@ size_t VID_SortModes(vid_mode_t *modes, size_t count, qbool usebpp, qbool useref
 	return count;
 }
 
-void VID_Shared_Init(void)
+void VID_Shared_InitOnce(void)
 {
 	Cvar_RegisterVariable(&gl_info_vendor);
 	Cvar_RegisterVariable(&gl_info_renderer);
@@ -1643,6 +1646,7 @@ void VID_Shared_Init(void)
 	Cvar_RegisterVariable(&vid_touchscreen_ydpi);
 	Cvar_RegisterVariable(&vid_vsync);
 	Cvar_RegisterVariable(&vid_mouse);
+	Cvar_RegisterVariable(&vid_mouse_show_coords);
 	Cvar_RegisterVariable(&vid_grabkeyboard);
 	Cvar_RegisterVariable(&vid_touchscreen);
 	Cvar_RegisterVariable(&vid_touchscreen_showkeyboard);

@@ -3,7 +3,7 @@
 #include "quakedef.h"
 #include "thread.h"
 
-int Thread_Init(void)
+int Thread_InitOnce(void)
 {
 	return 0;
 }
