@@ -1573,6 +1573,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\quak\#overlay\gfx\cubeoid.txt"
+					>
+				</File>
+				<File
 					RelativePath=".\darkplaces.h"
 					>
 				</File>
@@ -1686,6 +1690,10 @@
 							Name="aorder"
 							>
 							<File
+								RelativePath=".\csg_pasteat.c.h"
+								>
+							</File>
+							<File
 								RelativePath="..\..\quak\id1\engine\form1.txt"
 								>
 							</File>
@@ -1773,6 +1781,54 @@
 								RelativePath=".\roboto.regular.ttf.bin.h"
 								>
 							</File>
+							<Filter
+								Name="equat"
+								>
+								<File
+									RelativePath=".\eq_attach.c.h"
+									>
+								</File>
+								<File
+									RelativePath=".\eq_branch.c.h"
+									>
+								</File>
+								<File
+									RelativePath=".\eq_c_constants.c.h"
+									>
+								</File>
+								<File
+									RelativePath=".\eq_c_functions.c.h"
+									>
+								</File>
+								<File
+									RelativePath=".\eq_calcs.c.h"
+									>
+								</File>
+								<File
+									RelativePath=".\eq_equations.c.h"
+									>
+								</File>
+								<File
+									RelativePath=".\eq_operators.c.h"
+									>
+								</File>
+								<File
+									RelativePath=".\eq_zparse.c.h"
+									>
+								</File>
+								<File
+									RelativePath=".\equat.h"
+									>
+								</File>
+								<File
+									RelativePath=".\zeq.c.h"
+									>
+								</File>
+								<File
+									RelativePath=".\zeq_tests.c.h"
+									>
+								</File>
+							</Filter>
 						</Filter>
 					</Filter>
 				</Filter>

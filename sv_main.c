@@ -112,9 +112,7 @@ cvar_t sv_freezenonclients = {CF_SERVER /*| CF_NOTIFY*/, "sv_freezenonclients", 
 cvar_t sv_friction = {CF_SERVER | CF_NOTIFY, "sv_friction","4", "how fast you slow down"};
 cvar_t sv_gameplayfix_blowupfallenzombies = {CF_SERVER, "sv_gameplayfix_blowupfallenzombies", "1", "causes findradius to detect SOLID_NOT_0 entities such as zombies and corpses on the floor, allowing splash damage to apply to them"};
 cvar_t sv_gameplayfix_consistentplayerprethink = {CF_SERVER, "sv_gameplayfix_consistentplayerprethink", "0", "improves fairness in multiplayer by running all PlayerPreThink functions (which fire weapons) before performing physics, then running all PlayerPostThink functions"};
-#if 0
-cvar_t sv_gameplayfix_hemebond_pushmove = {CF_SERVER, "sv_gameplayfix_hemebond_pushmove", "0", "Theoretic pushmove fix to make it more like Quake [Zircon]"};
-#endif
+
 cvar_t sv_gameplayfix_delayprojectiles = {CF_SERVER, "sv_gameplayfix_delayprojectiles", "1", "causes entities to not move on the same frame they are spawned, meaning that projectiles wait until the next frame to perform their first move, giving proper interpolation and rocket trails, but making weapons harder to use at low framerates"};
 cvar_t sv_gameplayfix_droptofloorstartsolid = {CF_SERVER, "sv_gameplayfix_droptofloorstartsolid", "1", "prevents items and monsters that start in a solid area from falling out of the level (makes droptofloor treat trace_startsolid as an acceptable outcome)"};
 cvar_t sv_gameplayfix_droptofloorstartsolid_nudgetocorrect = {CF_SERVER, "sv_gameplayfix_droptofloorstartsolid_nudgetocorrect", "1", "tries to nudge stuck items and monsters out of walls before droptofloor is performed"};
@@ -155,7 +153,7 @@ cvar_t sv_gameplayfix_unstickentities = {CF_SERVER, "sv_gameplayfix_unstickentit
 cvar_t sv_gameplayfix_unstickplayers = {CF_SERVER, "sv_gameplayfix_unstickplayers", "0", "big hack to try and fix the rare case of MOVETYPE_WALK_3 entities getting stuck in the world clipping hull."};
 cvar_t sv_gameplayfix_unstickentities = {CF_SERVER, "sv_gameplayfix_unstickentities", "1", "hack to check if entities are crossing world collision hull and try to move them to the right position, superseded by sv_gameplayfix_nudgeoutofsolid"};
 #endif
-cvar_t sv_gameplayfix_fixedcheckwatertransition = {CF_SERVER, "sv_gameplayfix_fixedcheckwatertransition", "1", "fix two very stupid bugs in SV_CheckWaterTransition when watertype is CONTENTS_EMPTY (the bugs causes waterlevel to be 1 on first frame, -1 on second frame - the fix makes it 0 on both frames)"};
+cvar_t sv_gameplayfix_fixedcheckwatertransition = {CF_SERVER, "sv_gameplayfix_fixedcheckwatertransition", "1", "fix two very stupid bugs in SV_CheckWaterTransition when watertype is CONTENTS_EMPTY_NEG1 (the bugs causes waterlevel to be 1 on first frame, -1 on second frame - the fix makes it 0 on both frames)"};
 
 // Baker: June 2 2024 - Current DarkPlaces calls this "sv_qcstats" instead of "sv_gameplayfix_customstats"
 cvar_t sv_gameplayfix_customstats = {CF_SERVER, "sv_gameplayfix_customstats", "0", "Disable stats higher than 220, for use by certain games such as Xonotic"};
@@ -164,7 +162,7 @@ cvar_t sv_init_frame_count = {CF_SERVER, "sv_init_frame_count", "2", "number of 
 cvar_t sv_idealpitchscale = {CF_SERVER, "sv_idealpitchscale","0.8", "how much to look up/down slopes and stairs when not using freelook"};
 cvar_t sv_jumpstep = {CF_SERVER | CF_NOTIFY, "sv_jumpstep", "0", "whether you can step up while jumping"};
 cvar_t sv_jumpvelocity = {CF_SERVER, "sv_jumpvelocity", "270", "cvar that can be used by QuakeC code for jump velocity"};
-cvar_t sv_legacy_bbox_expand = {CF_SERVER, "sv_legacy_bbox_expand", "1", "before linking an entity to the area grid, decrease its mins and increase its maxs by '1 1 1', or '15 15 1' if it has flag FL_ITEM (this is the Quake/QuakeWorld behaviour); disable to make SVQC bboxes consistent with CSQC which never does this expansion"};
+cvar_t sv_legacy_bbox_expand = {CF_SERVER, "sv_legacy_bbox_expand", "1", "before linking an entity to the area grid, decrease its mins and increase its maxs by '1 1 1', or '15 15 1' if it has flag FL_ITEM_256 (this is the Quake/QuakeWorld behaviour); disable to make SVQC bboxes consistent with CSQC which never does this expansion"};
 cvar_t sv_maxairspeed = {CF_SERVER, "sv_maxairspeed", "30", "maximum speed a player can accelerate to when airborn (note that it is possible to completely stop by moving the opposite direction)"};
 cvar_t sv_maxrate = {CF_SERVER | CF_ARCHIVE | CF_NOTIFY, "sv_maxrate", "1000000", "upper limit on client rate cvar, should reflect your network connection quality"};
 cvar_t sv_maxspeed = {CF_SERVER | CF_NOTIFY, "sv_maxspeed", "320", "maximum speed a player can accelerate to when on ground (can be exceeded by tricks)"};
@@ -177,6 +175,8 @@ cvar_t sv_random_seed = {CF_SERVER, "sv_random_seed", "", "random seed; when set
 cvar_t host_limitlocal = {CF_SERVER, "host_limitlocal", "0", "whether to apply rate limiting to the local player in a listen server (only useful for testing)"};
 cvar_t sv_sound_land = {CF_SERVER, "sv_sound_land", "demon/dland2.wav", "sound to play when MOVETYPE_STEP_4 entity hits the ground at high speed (empty cvar disables the sound)"};
 cvar_t sv_sound_watersplash = {CF_SERVER, "sv_sound_watersplash", "misc/h2ohit1.wav", "sound to play when MOVETYPE_FLY_5/TOSS/BOUNCE/STEP entity enters or leaves water (empty cvar disables the sound)"};
+cvar_t sv_precache_suppress_warning = {CF_SERVER, "sv_precache_suppress_warning", "0", "suppress precache warnings for sounds [Zircon]"};
+
 cvar_t sv_stepheight = {CF_SERVER | CF_NOTIFY, "sv_stepheight", "18", "how high you can step up (TW_SV_STEPCONTROL extension)"};
 cvar_t sv_stopspeed = {CF_SERVER | CF_NOTIFY, "sv_stopspeed","100", "how fast you come to a complete stop"};
 cvar_t sv_wallfriction = {CF_SERVER | CF_NOTIFY, "sv_wallfriction", "1", "how much you slow down when sliding along a wall"};
@@ -1147,8 +1147,12 @@ int SV_ModelIndex(const char *s, int precachemode)
 					return 0;
 				}
 				//if (precachemode == 1)
-				if (precachemode == PRECACHE_MODE_1)
-					Con_PrintLinef ("SV_ModelIndex(" QUOTED_S "): not precached (fix your code), precaching anyway", filename);
+				if (precachemode == PRECACHE_MODE_1) {
+					if (sv_precache_suppress_warning.integer)
+						Con_DPrintLinef ("SV_ModelIndex(" QUOTED_S "): not precached (fix your code), precaching anyway", filename);
+					else
+						Con_PrintLinef ("SV_ModelIndex(" QUOTED_S "): not precached (fix your code), precaching anyway", filename);
+				}
 				c_strlcpy (sv.model_precache[i], filename);//, sizeof(sv.model_precache[i]));
 				if (sv.state == ss_loading)
 				{
@@ -1247,8 +1251,11 @@ int SV_SoundIndex(const char *s, int precachemode)
 					Con_PrintLinef ("SV_SoundIndex(" QUOTED_S "): precache_sound can only be done in spawn functions", filename);
 					return 0;
 				}
-				if (precachemode == 1)
-					Con_PrintLinef ("SV_SoundIndex(" QUOTED_S "): not precached (fix your code), precaching anyway", filename);
+				if (precachemode == 1) {
+					if (sv_precache_suppress_warning.integer)
+						Con_DPrintLinef ("SV_SoundIndex(" QUOTED_S "): not precached (fix your code), precaching anyway", filename);
+					else Con_PrintLinef ("SV_SoundIndex(" QUOTED_S "): not precached (fix your code), precaching anyway", filename);
+				}
 				c_strlcpy (sv.sound_precache[i], filename);
 				if (sv.state != ss_loading) {
 					MSG_WriteByte(&sv.reliable_datagram, svc_precache);
@@ -1295,6 +1302,7 @@ int SV_ParticleEffectIndex (const char *name)
 			if (filepass == 0) // "effectinfo.txt" <------------- SERVER
 				c_strlcpy (filename, "effectinfo.txt");
 			else if (filepass == 1)
+				// dm6_effectinfo.txt -- Baker: This does not allow replacement, only "additions" as far as I can tell.
 				c_dpsnprintf1 (filename, "%s_effectinfo.txt", sv.worldnamenoextension);
 			else
 				break;
@@ -3020,7 +3028,7 @@ SV_InitOnce
 
 static void CSQC_Progcrc_c(cvar_t *var)
 {
-	int j = 5;
+//	int j = 5;
 }
 
 void SV_InitOnce (void)
@@ -3135,6 +3143,8 @@ void SV_InitOnce (void)
 	Cvar_RegisterVariable (&sv_gameplayfix_consistentplayerprethink);
 	Cvar_RegisterVariable (&sv_gameplayfix_delayprojectiles);
 	Cvar_RegisterVariable (&sv_gameplayfix_droptofloorstartsolid);
+	//Cvar_RegisterVariable (&sv_gameplayfix_swimflag_collides_liquids);
+	
 	Cvar_RegisterVariable (&sv_gameplayfix_droptofloorstartsolid_nudgetocorrect);
 	Cvar_RegisterVariable (&sv_gameplayfix_easierwaterjump);
 	Cvar_RegisterVariable (&sv_gameplayfix_findradiusdistancetobox);
@@ -3187,6 +3197,9 @@ void SV_InitOnce (void)
 	Cvar_RegisterVariableAlias(&host_limitlocal, "sv_ratelimitlocalplayer");
 	Cvar_RegisterVariable (&sv_sound_land);
 	Cvar_RegisterVariable (&sv_sound_watersplash);
+	Cvar_RegisterVariable (&sv_precache_suppress_warning);
+
+
 	Cvar_RegisterVariable (&sv_stepheight);
 	Cvar_RegisterVariable (&sv_stopspeed);
 	Cvar_RegisterVariable (&sv_wallfriction);

@@ -54,6 +54,7 @@ cvar_t con_chatrect = {CF_CLIENT | CF_ARCHIVE, "con_chatrect","0", "use con_chat
 cvar_t con_chatrect_x = {CF_CLIENT | CF_ARCHIVE, "con_chatrect_x","", "where to put chat, relative x coordinate of left edge on screen (use con_chatwidth for width)"};
 cvar_t con_chatrect_y = {CF_CLIENT | CF_ARCHIVE, "con_chatrect_y","", "where to put chat, relative y coordinate of top edge on screen (use con_chat for line count)"};
 cvar_t con_chatwidth = {CF_CLIENT | CF_ARCHIVE, "con_chatwidth","1.0", "relative chat window width"};
+cvar_t con_hints = {CF_CLIENT | CF_ARCHIVE, "con_hints", "0", "seconds before showing console hints when holding CTRL or 0 to disable [Zircon]"}; // Baker r8085: ProQuake looking clock option
 cvar_t con_textsize = {CF_CLIENT | CF_ARCHIVE, "con_textsize","8", "console text size in virtual 2D pixels"};
 cvar_t con_notifysize = {CF_CLIENT | CF_ARCHIVE, "con_notifysize","8", "notify text size in virtual 2D pixels"};
 cvar_t con_chatsize = {CF_CLIENT | CF_ARCHIVE, "con_chatsize","8", "chat text size in virtual 2D pixels (if con_chat is enabled)"};
@@ -877,13 +878,41 @@ static void Con_Maps_f(cmd_state_t *cmd)
 {
 	if (Cmd_Argc(cmd) > 2)
 	{
-		Con_Printf("usage: maps [mapnameprefix]\n");
+		Con_PrintLinef ("usage: maps [mapnameprefix]");
 		return;
 	}
 	else if (Cmd_Argc(cmd) == 2)
 		GetMapList(Cmd_Argv(cmd, 1), NULL, 0, /*is_menu_fill*/ false, /*autocompl*/ false, /*suppress*/ false);
 	else
 		GetMapList("", NULL, 0, /*is_menu_fill*/ false, /*autocompl*/ false, /*suppress*/ false);
+}
+
+
+static void _Con_PrintFile_f(cmd_state_t *cmd)
+{
+	ccs *sfilename = Cmd_Argv(cmd, 1); // If too few args what is this ANSWER ""
+	if (sfilename[0] == 0) {
+		Con_PrintLinef ("Specify filename for printfile");
+		return;
+	}
+
+
+	ccs *text_a = (ccs *)FS_LoadFile(sfilename, tempmempool, fs_quiet_true, fs_size_ptr_null);
+	if (!text_a) {
+		Con_PrintLinef ("File " QUOTED_S " not found", sfilename);
+		return;
+	}
+
+
+	stringlist_t alist = {0};
+	stringlistappend_split_lines_cr_scrub (&alist, text_a);
+	for (int idx = 0; idx < alist.numstrings; idx ++) {
+		ccs *s = alist.strings[idx];
+		Con_PrintLinef ("%04d: %s", idx, s);
+	}
+
+	stringlistfreecontents (&alist);
+	Mem_FreeNull_ (text_a);
 }
 
 static void Con_ConDump_f(cmd_state_t *cmd)
@@ -1771,6 +1800,7 @@ void Con_PrintLinef (const char *fmt, ...)
 }
 
 // Baker r1421: centerprint logging to console
+// Baker: CON_MASK_HIDENOTIFY means don't show in left-top of screen like "You got 5 health"
 void Con_HidenotifyPrintLinef(const char *fmt, ...)
 {
 	va_list argptr;
@@ -2423,6 +2453,10 @@ WARP_X_ (CL_UpdateScreen_SCR_DrawScreen -> SCR_DrawConsole)
 
 consel_t g_consel;
 
+// Baker: Console tips
+float       scr_controldown_time;
+
+
 void Con_DrawConsole (int lines_in_pixels)
 {
 	float alpha, alpha0;
@@ -2445,7 +2479,9 @@ void Con_DrawConsole (int lines_in_pixels)
 	r_draw2d_force = true;
 
 // draw the background
-	alpha0 = cls.signon == SIGNONS_4 ? scr_conalpha.value : 1.0f; // DrawConsole -  always full alpha when not in game
+	// DrawConsole -  always full alpha when not in game
+	alpha0 = cls.signon == SIGNONS_4 ? scr_conalpha.value : 1.0f; 
+	
 	if ((alpha = alpha0 * scr_conalphafactor.value /*d: 1*/) > 0) {
 		sx = scr_conscroll_x.value /*d: 0*/;
 		sy = scr_conscroll_y.value /*d: 0*/;
@@ -2580,9 +2616,96 @@ void Con_DrawConsole (int lines_in_pixels)
 	} // if
 
 // draw the input prompt, user text, and cursor if desired
-	Con_DrawInput (/*is console*/ true, 0, con_vislines - con_textsize.value * 2, con_textsize.value);
+	Con_DrawInput (/*is console*/ true, 0, con_vislines - con_textsize.value /*d:8*/ * 2, con_textsize.value);
 
 	r_draw2d_force = false;
+
+	WARP_X_ (DrawQ_TextWidth)
+
+	if (!KM_CTRL_ANY && scr_controldown_time)
+		scr_controldown_time = 0;
+
+	if (key_sellength != 0 && KM_CTRL_ANY) {
+		va_super (s, 256, "%d chars", abs(key_sellength));
+			
+			//GoogleRobotoFont_Check ();
+			int textwidth_pels = DrawQ_TextWidth(s, maxlen_0, con_textsize.value, con_textsize.value, q_ignore_color_codes_false, FONT_CONSOLE);
+
+			int curx = vid_conwidth.integer - (textwidth_pels + con_textsize.value * 2.5), cury = 10;
+			int x = curx - 2;
+			int y = cury - 2;//y_pixels - (advance_rows - 1) * con_textsize.value;
+			int w = textwidth_pels + 2 * 2;
+			int h = con_textsize.value + 2 * 2;
+			DrawQ_Fill (x, y, w, h, q_rgba_alpha75_black_4_parms, DRAWFLAG_NORMAL_0);	// h
+
+			float xafter = DrawQ_String_Scale (curx, cury, s, maxlen_0, 
+				con_textsize.value /*d:8*/, con_textsize.value /*d:8*/, scale_1_0,
+				scale_1_0, q_rgba_solid_white_4_parms, DRAWFLAG_NORMAL_0, OUTCOLOR_NULL, 
+				ignorecolorcodes_false, FONT_CONSOLE );
+	} else if (KM_CTRL_ANY && scr_controldown_time && con_hints.value > 0) {
+		// Holding control for 1 second or more show keys
+		float begin_time = (scr_controldown_time + con_hints.value);
+		//DebugPrintLinef ("realtime %g begin_time %g", host.realtime, scr_controldown_time);
+		while (scr_controldown_time && host.realtime >= begin_time) {
+			float sizehere = con_textsize.value;
+			int curx = sizehere * 0.5;
+			int cury = sizehere * 2;
+			ccs *ss[] = {
+				"L: Clear Console",
+				"I: Inspector",
+				"P: Pause Freeze",
+				"R: Recall Find",
+				"T: Traceline",
+				"+: Zoom In",
+				"-: Zoom Out",
+				"0: Zoom Reset",
+				"SHIFT-P: Showpos",
+				"SHIFT-S: Hide HUD",
+				"",
+				"UP:   Size console",
+				"DOWN: Size console",
+			};
+			int textwidth_pels = DrawQ_TextWidth("123456789012345678", maxlen_0, sizehere, 
+				sizehere, q_ignore_color_codes_false, FONT_CONSOLE);
+
+			{
+				int curx = vid_conwidth.integer - (textwidth_pels + con_textsize.value * 2.5);
+				int x = curx - 2;
+				int y = cury - 2;
+				int w = textwidth_pels + 2 * 2;
+				//int h = sizehere + 2 * 2;
+				int h = ceil(ceil(sizehere) * 1.2) * (ARRAY_COUNT(ss));
+				DrawQ_Fill (x-4, y-4, w+8, h+8, 0,0,0, alpha_0_5, DRAWFLAG_NORMAL_0);	// h
+
+			}
+			for (int idx = 0; idx < ARRAY_COUNT(ss); idx ++) {
+				ccs *sxy = ss[idx];
+				//if (!sxy[0])
+				//	continue;
+				//int textwidth_pels = DrawQ_TextWidth(sxy, maxlen_0, sizehere, 
+				//	sizehere, q_ignore_color_codes_false, FONT_CONSOLE);
+				
+				int curx = vid_conwidth.integer - (textwidth_pels + con_textsize.value * 2.5);
+				int x = curx - 2;
+				int y = cury - 2;
+				int w = textwidth_pels + 2 * 2;
+				int h = sizehere + 2 * 2;
+				//DrawQ_Fill (x-4, y-4, w+8, h+8, 0,0,0, alpha_1_0, DRAWFLAG_NORMAL_0);	// h
+				DrawQ_Fill (x, y, w, h, 0.12, 0.09, 0.04, alpha_1_0, DRAWFLAG_NORMAL_0);	// h
+				
+
+				float xafter = DrawQ_String_Scale (curx, cury, sxy, maxlen_0, 
+					sizehere, sizehere, scale_1_0,
+					scale_1_0, q_rgba_solid_white_4_parms, DRAWFLAG_NORMAL_0, OUTCOLOR_NULL, 
+					ignorecolorcodes_false, FONT_CONSOLE );
+
+				cury += ceil(ceil(sizehere) * 1.2);
+			} // for
+				
+
+			break;
+		}	
+	} // ! shift selection
 	if (con_mutex) Thread_UnlockMutex(con_mutex);
 }
 
@@ -3139,22 +3262,29 @@ exit_possible:
 			else if (String_Isin1 (command, "sv_cmd") /**/)							ac->searchtype = 11;
 			else if (String_Isin1 (command, "cl_cmd") /**/)							ac->searchtype = 12;
 //			else if (String_Isin1 (command, "menu_cmd") /**/)						ac->searchtype = 13;
-			else if (String_Isin2 (command, "modelprecache","modeldecompile" ) )	ac->searchtype = 14;
+			else if (String_Isin2 (command, "modelprecache","modeldecompile") )		ac->searchtype = 14;
 			else if (String_Isin2 (command, "play","playvol") /**/)					ac->searchtype = 15;
-			else if (String_Isin1 (command, "r_replacemaptexture") /**/)			ac->searchtype = 16;
+			else if (String_Isin2 (command, "r_replacemaptexture", "texturefindpos") /**/)			ac->searchtype = 16;
 			else if (String_Isin2 (command, "bind","unbind") /**/)					ac->searchtype = 17;
 			else if (String_Isin4 (command, "folder","dir","ls", "jpegsplit") /**/)	ac->searchtype = 18;
 			else if (String_Isin1 (command, "cvarlist") /**/)						ac->searchtype = 20;
 			else if (String_Isin1 (command, "sv_protocolname") /**/)				ac->searchtype = 21;
 			else if (String_Isin1 (command, "loadfont"))							ac->searchtype = 22;
-			else if (String_Isin3 (command, "showmodel", "objmodeladjust", "objmodelsplit") /**/)	ac->searchtype = 23;
+			else if (String_Isin4 (command, "showmodel", "objmodeladjust", "objmodelsplit", "playermodel") /**/)	ac->searchtype = 23;
 			else if (String_Isin1 (command, "envmap") /**/)							ac->searchtype = 24;
 			else if (String_Isin1 (command, "zipinfo") /**/)						ac->searchtype = 25;
 			else if (String_Isin1 (command, "parse") /**/)							ac->searchtype = 26;
 			else if (String_Isin1 (command, "shaderprint") /**/)					ac->searchtype = 27;
 			else if (String_Isin2 (command, "effectinfo_dump", "effectinfo_list"))	ac->searchtype = 28;
 			else if (String_Isin1 (command, "playvideo"))							ac->searchtype = 29;
-			else if (String_Isin1 (command, "zf"))								ac->searchtype = 31;
+			else if (String_Isin1 (command, "zf"))									ac->searchtype = 31;
+			else if (String_Isin1 (command, "printfile"))							ac->searchtype = 32;
+			else if (String_Isin1 (command, "vegetationmake"))						ac->searchtype = 33;
+			else if (String_Isin2 (command, "giftoshader","gifclip"))				ac->searchtype = 34;
+			//else if (String_Isin1 (command, "objmake"))								ac->searchtype = 35;
+			else if (String_Isin1 (command, "barmake"))								ac->searchtype = 23; // showmodel completion
+			else if (String_Isin1 (command, "which"))								ac->searchtype = 36; // showmodel completion
+			
 //			else if (String_Isin1 (command, "loadfont"))							
 //				ac->searchtype = 30;
 		}
@@ -3162,6 +3292,7 @@ exit_possible:
 			// We are 2nd argument or further down (or someone typed multiple spaces that's on them)
 		         if (String_Isin1 (command, "r_replacemaptexture") /**/)			ac->searchtype = 19;
 			else if (String_Isin1 (command, "loadfont") /**/)						ac->searchtype = 30;
+			else if (String_Isin1 (command, "barmake") /**/)						ac->searchtype = 33; // .tga, .jpg, .png
 			 // end
 		}
 
@@ -3190,10 +3321,10 @@ autocomplete_go:
 
 		switch (ac->searchtype) {
 		case 1:  GetMapList				(s, q_reply_buf_NULL, q_reply_size_0, q_is_menu_fill_false, q_is_zautocomplete_true, is_quiet);	break;
-		case 2:  GetFileList_Count		(/*folder*/ NULL, s, ".sav", q_strip_exten_true); break;
-		case 3:  GetFileList_Count		(/*folder*/ NULL, s, ".dem", q_strip_exten_true); break;
+		case 2:  GetFileList_Count		(q_folder_NULL, s, ".sav", q_strip_exten_true); break;
+		case 3:  GetFileList_Count		(q_folder_NULL, s, ".dem", q_strip_exten_true); break;
 		case 4:  GetModList_Count		(s);	break; // game
-		case 5:  GetFileList_Count		(/*folder*/ NULL, s, ".cfg", q_strip_exten_false); break;
+		case 5:  GetFileList_Count		(q_folder_NULL, s, ".cfg", q_strip_exten_false); break;
 		case 6:  GetSkyList_Count		(s);	break;
 		case 7:  GetTexMode_Count		(s);	break;
 		case 8:  GetCommad_Count		(s, "ents,tex"); break;
@@ -3202,7 +3333,9 @@ autocomplete_go:
 		case 11: GetGameCommands_Count  (s, prvm_sv_gamecommands.string);	break; // Baker r7103 gamecommand autocomplete
 		case 12: GetGameCommands_Count  (s, prvm_cl_gamecommands.string);	break; // Baker r7103 gamecommand autocomplete
 //		case 13: GetGameCommands_Count  (s, prvm_menu_gamecommands.string);	break;
-		case 14: GetModelList_Count		(s);	break; // modelprecache, modeldecompile
+		case 14: 
+				GetModelPrecacheList_Count (s); break;
+				//GetModelList_Count		(s);	break; // modelprecache, modeldecompile
 		case 15: GetSoundList_Count		(s);	break; // "play" sound command
 		case 16: GetTexWorld_Count		(s);	break; // r_replacemaptexture arg1 world textures
 		case 17: GetKeyboardList_Count	(s);	break; // "bind", "unbind"
@@ -3213,15 +3346,18 @@ autocomplete_go:
 		case 22: GetCommad_Count		(s, "centerprint,chat,console,default,infobar,menu,notify,sbar"); break;
 		case 23: GetShowModelList_Count	(s);	break;
 		case 24: GetCommad_Count		(s, "auto"); break;
-		case 25: GetFileList_Count		(/*folder*/ NULL, s, ".zip", q_strip_exten_false); break;
+		case 25: GetFileList_Count		(q_folder_NULL, s, ".zip", q_strip_exten_false); break;
 		case 26: GetCommad_Count		(s, "clipboard"); break;
 		case 27: GetShaderList_Count	(s); break;
 		case 28: GetEffectList_Count	(s); break;
 		case 29: GetVideoList_Count		(s /*".gif;*.jpg;*.dpv"*/); break;
-		case 30: GetFileList_Count		
-					 (/*folder*/ NULL, s, ".ttf", q_strip_exten_false); break;
-		case 31: GetFileList_Count		
-					 ("engine/", s, ".txt", q_strip_exten_false); break;
+		case 30: GetFileList_Count		(q_folder_NULL, s, ".ttf", q_strip_exten_false); break; // loadfont
+		case 31: GetFileList_Count		("engine/", s, ".txt", q_strip_exten_false); break; // zf
+		case 32: GetFileList_Count		(q_folder_NULL, s, "" /*.dem"*/, q_strip_exten_false); break; // printfile
+		case 33: GetShowTGAJPGPNGList_Count	(s);	break;
+		case 34: GetAnimatedGIF_Count	(s);	break;
+		case 35: GetFileList_Count		(q_folder_NULL, s, "*.txt", q_strip_exten_false); break; // objmake source looks for .txt
+		case 36: GetFileList_Count		(q_folder_NULL, s, "", q_strip_exten_false); break;
 		} // switch
 
 		if (ac->s_match_alphatop_a == NULL) {
@@ -3754,6 +3890,7 @@ void Con_InitOnce (void)
 	Cvar_RegisterVariable (&con_chatsize);
 	Cvar_RegisterVariable (&con_chattime);
 	Cvar_RegisterVariable (&con_chatwidth);
+	Cvar_RegisterVariable (&con_hints);
 	Cvar_RegisterVariable (&con_notify);
 	Cvar_RegisterVariable (&con_notifyalign);
 	Cvar_RegisterVariable (&con_notifysize);
@@ -3792,6 +3929,7 @@ void Con_InitOnce (void)
 	Cmd_AddCommand(CF_SHARED, "clear", Con_Clear_f, "clear console history");
 	Cmd_AddCommand(CF_SHARED, "maps", Con_Maps_f, "list information about available maps");
 	Cmd_AddCommand(CF_SHARED, "condump", Con_ConDump_f, "output console history to a file (see also log_file)");
+	Cmd_AddCommand(CF_SHARED, "printfile", _Con_PrintFile_f, "print a file to text [Zircon]");
 
 #ifdef CONFIG_MENU
 	// Client

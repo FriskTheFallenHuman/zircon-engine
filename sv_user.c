@@ -281,7 +281,7 @@ void SV_SetIdealPitch (void)
 	int		i, j;
 	int		steps;
 
-	if (!((int)PRVM_serveredictfloat(host_client->edict, flags) & FL_ONGROUND))
+	if (!((int)PRVM_serveredictfloat(host_client->edict, flags) & FL_ONGROUND_512))
 		return;
 
 	angleval = PRVM_serveredictvector(host_client->edict, angles)[YAW] * M_PI*2 / 360;
@@ -508,17 +508,18 @@ static void SV_WaterMove (void)
 	VectorCopy(PRVM_serveredictvector(host_client->edict, v_angle), v_angle);
 	AngleVectors(v_angle, forward, right, up);
 
-	for (i=0 ; i<3 ; i++)
+	for (i = 0; i < 3 ; i ++)
 		wishvel[i] = forward[i]*usercmd.clx_forwardmove + right[i]*usercmd.clx_sidemove;
 
-	if (!usercmd.clx_forwardmove && !usercmd.clx_sidemove && !usercmd.clx_upmove)
-		wishvel[2] -= 60;		// drift towards bottom
+	if (!usercmd.clx_forwardmove && !usercmd.clx_sidemove && !usercmd.clx_upmove) {
+		// The usual
+		wishvel[2] -= 60;		// drift towards bottom (BOAT)
+	}
 	else
 		wishvel[2] += usercmd.clx_upmove;
 
 	fwishspeed = VectorLength(wishvel);
-	if (fwishspeed > sv_maxspeed.value)
-	{
+	if (fwishspeed > sv_maxspeed.value) {
 		temp = sv_maxspeed.value/fwishspeed;
 		VectorScale (wishvel, temp, wishvel);
 		fwishspeed = sv_maxspeed.value;
@@ -527,9 +528,8 @@ static void SV_WaterMove (void)
 
 	// water friction
 	speed = VectorLength(PRVM_serveredictvector(host_client->edict, velocity));
-	if (speed)
-	{
-		newspeed = speed - sv.frametime * speed * (sv_waterfriction.value < 0 ? sv_friction.value : sv_waterfriction.value);
+	if (speed) {
+		newspeed = speed - sv.frametime * speed * (sv_waterfriction.value < 0 /*d: -1*/ ? sv_friction.value /*d: 4*/ : sv_waterfriction.value /*d: -1*/);
 		if (newspeed < 0)
 			newspeed = 0;
 		temp = newspeed/speed;
@@ -558,7 +558,7 @@ static void SV_WaterMove (void)
 static void SV_WaterJump (void)
 {
 	prvm_prog_t *prog = SVVM_prog;
-	if (sv.time > PRVM_serveredictfloat(host_client->edict, teleport_time) || !PRVM_serveredictfloat(host_client->edict, waterlevel))
+	if (sv.time > PRVM_serveredictfloat(host_client->edict, teleport_time) || !PRVM_serveredictfloat(host_client->edict, waterlevel) /*WATERLEVEL_NONE_0*/ )
 	{
 		PRVM_serveredictfloat(host_client->edict, flags) = (int)PRVM_serveredictfloat(host_client->edict, flags) & ~FL_WATERJUMP;
 		PRVM_serveredictfloat(host_client->edict, teleport_time) = 0;
@@ -657,7 +657,7 @@ void SV_PlayerPhysics (void)
 	if (PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NONE_0)
 		return;
 
-	onground = ((int)PRVM_serveredictfloat(host_client->edict, flags) & FL_ONGROUND) != 0;
+	onground = ((int)PRVM_serveredictfloat(host_client->edict, flags) & FL_ONGROUND_512) != 0;
 
 	DropPunchAngle ();
 
@@ -687,12 +687,30 @@ void SV_PlayerPhysics (void)
 	}
 
 	// walk
-	if ((PRVM_serveredictfloat(host_client->edict, waterlevel) >= 2) && (PRVM_serveredictfloat(host_client->edict, movetype) != MOVETYPE_NOCLIP_8))
+#if 1
+	if (PRVM_serveredictfloat(host_client->edict, movetype) != MOVETYPE_NOCLIP_8) {
+		if (PRVM_serveredictfloat(host_client->edict, waterlevel) >= WATER_LEVEL_WAIST_2) {
+			SV_WaterMove ();
+			SV_CheckVelocity(host_client->edict);
+			return;
+		} else if (Have_Flag ((int)PRVM_serveredictfloat(host_client->edict, flags), FL_SWIM_2)) {
+			// boat/swim more lax water check
+			if (PRVM_serveredictfloat(host_client->edict, waterlevel) >= WATER_LEVEL_FEET_1) {
+				SV_WaterMove ();
+				SV_CheckVelocity(host_client->edict);
+				return;
+			}
+		}
+	}
+#else
+	if ((PRVM_serveredictfloat(host_client->edict, waterlevel) >= WATER_LEVEL_WAIST_2) && 
+		(PRVM_serveredictfloat(host_client->edict, movetype) != MOVETYPE_NOCLIP_8))
 	{
 		SV_WaterMove ();
 		SV_CheckVelocity(host_client->edict);
 		return;
 	}
+#endif
 
 	// Baker r0085: FitzQuake noclipping
 	if ((PRVM_serveredictfloat(host_client->edict, movetype) == MOVETYPE_NOCLIP_8) && sv_altnoclipmove.integer) {
@@ -1042,7 +1060,7 @@ static void SV_ReadClientMessage_ExecuteClientMoves (vec_t *zircon_move_final_po
 	if (host_client->last_wanted_is_zircon_free_move) {
 		v = PRVM_serveredictvector(host_client->edict, origin);
 		VectorCopy (zircon_move_final_pos, v);
-		int on_ground_sv = Have_Flag ((int)PRVM_serveredictfloat(host_client->edict, flags), FL_ONGROUND);
+		int on_ground_sv = Have_Flag ((int)PRVM_serveredictfloat(host_client->edict, flags), FL_ONGROUND_512);
 		if (on_ground_sv == false && sv.zircon_jumpflag_fieldoffset) {
 			// Baker: Mild reduction in jump_flag to avoid weird damage
 			// from freemove's slightly higher jumps
@@ -1050,7 +1068,7 @@ static void SV_ReadClientMessage_ExecuteClientMoves (vec_t *zircon_move_final_po
 			float varjumpflag = PRVM_EDICTFIELDFLOAT(host_client->edict, sv.zircon_jumpflag_fieldoffset);
 
 			//Con_PrintLinef ("%dis ground jump flag = %d  z vel %f", 
-			//	Have_Flag ((int)PRVM_serveredictfloat(host_client->edict, flags), FL_ONGROUND),
+			//	Have_Flag ((int)PRVM_serveredictfloat(host_client->edict, flags), FL_ONGROUND_512),
 			//	(int)varjumpflag,
 			//	v[2]
 			//);

@@ -103,6 +103,8 @@ cvar_t vid_touchscreen_overlayalpha = {CF_CLIENT, "vid_touchscreen_overlayalpha"
 cvar_t tool_inspector = {CF_CLIENT | CL_RESETNEWMAP_0, "tool_inspector", "0", "view visible entity QC information [Zircon]"}; // Baker r0106: tool inspector
 cvar_t tool_marker = {CF_CLIENT | CL_RESETNEWMAP_0, "tool_marker", "0", "set a position to display on-screen, this value must be quoted since it is a since string [Zircon]"}; // Baker r0109: tool marker
 
+cvar_t eq_clipboard_set = {CF_CLIENT, "eq_clipboard_set", "1", "eq command will copy result to clipboard [Zircon]"}; // Baker: Oct 14 2024
+
 extern cvar_t sbar_info_pos;
 extern cvar_t r_fog_clear;
 
@@ -638,9 +640,14 @@ static int SCR_InfobarHeight(void)
 	const char *addinfo;
 	int nDownloads;
 	char addinfobuf[128];
+	WARP_X_ (CL_Disconnect)
 
-	if (cl.time > cl.oldtime)
+	if (cls.signon == SIGNON_ZERO) {
+		scr_infobartime_off -= cl.realframetime; //clframetime;
+	} else
+	if (cl.time > cl.oldtime) {
 		scr_infobartime_off -= cl.time - cl.oldtime;
+	}
 	if (scr_infobartime_off > 0)
 		offset += 1;
 	if (cls.qw_downloadname[0])
@@ -664,7 +671,13 @@ SCR_InfoBar_f
 */
 static void SCR_InfoBar_f (cmd_state_t *cmd)
 {
-	if (Cmd_Argc(cmd) == 3) {
+	if (Cmd_Argc(cmd) == 4) {
+		// Silent style
+		scr_infobartime_off = atof(Cmd_Argv(cmd, 1));
+		c_strlcpy (scr_infobarstring, Cmd_Argv(cmd, 2) );
+		//Con_LogCenterPrint (scr_infobarstring); // Baker r1421: centerprint logging to console
+	}
+	else if (Cmd_Argc(cmd) == 3) {
 		scr_infobartime_off = atof(Cmd_Argv(cmd, 1));
 		c_strlcpy (scr_infobarstring, Cmd_Argv(cmd, 2) );
 		Con_LogCenterPrint (scr_infobarstring); // Baker r1421: centerprint logging to console
@@ -700,11 +713,18 @@ static void SCR_SetUpToDrawConsole (void)
 		framecounter = 0;
 #endif
 
-	if (scr_conforcewhiledisconnected.integer >= 2 && key_dest == key_game && cls.signon != SIGNONS_4)
+	if (scr_conforcewhiledisconnected.integer /*d:1*/ >= 2 && key_dest == key_game && cls.signon != SIGNONS_4)
 		Flag_Add_To(key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4);
 	else if (scr_conforcewhiledisconnected.integer >= 1 && key_dest == key_game && cls.signon != SIGNONS_4 && !sv.active) {
 		Flag_Add_To(key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4); // |= KEY_CONSOLEACTIVE_FORCED;
-	}
+	} 
+	// Baker: Whatever ...
+	//else if (cls.signon != SIGNONS_4 && !sv.active && key_dest == key_game) {
+	//	WARP_X_ (CL_Disconnect)
+	//	// Baker: We went to great lengths to get the DarkPlaces console to quit showing at weird times.
+	//	// I think this is ok to not interfere with that.
+	//	Flag_Add_To(key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4); // |= KEY_CONSOLEACTIVE_FORCED;
+	//}
 	else
 		Flag_Remove_From(key_consoleactive, KEY_CONSOLEACTIVE_FORCED_4); // &= ~KEY_CONSOLEACTIVE_FORCED_4;
 
@@ -765,9 +785,9 @@ void SCR_DrawConsole (void)
 		#endif
 		Con_DrawConsole (vid_conheight.integer - scr_con_margin_bottom);
 	}
-	else if (scr_con_current)
+	else if (scr_con_current) {
 		Con_DrawConsole (Smallest(scr_con_current, vid_conheight.integer - scr_con_margin_bottom));
-	else {
+	} else {
 no_draw_0:
 		con_vislines = 0;
 	}
@@ -1340,7 +1360,7 @@ void CL_Tool_Inspector (void)
 					prvm_vec_t *e_orig = PRVM_serveredictvector(ed, origin);
 
 					vec3_t v_screen2d= {0};
-					int ismap = s_mdl && s_mdl[0] == '*';
+					int ismap = s_mdl && s_mdl[0] == '*'; // Star model is func_door, func_wall, etc.
 					float dist;
 					vec3_t dist3;
 
@@ -1833,7 +1853,8 @@ void CL_UpdateScreen(void)
 	if (drawscreenstart) {
 		drawscreendelta = Sys_DirtyTime() - drawscreenstart;
 #ifdef CONFIG_VIDEO_CAPTURE
-		if (cl_minfps.value > 0 && (cl_minfps_force.integer || !(cls.timedemo || (cls.capturevideo.active && !cls.capturevideo.is_realtime))) && drawscreendelta >= 0 && drawscreendelta < 60)
+		if (cl_minfps.value /*d:40*/ > 0 && (cl_minfps_force.integer /*d:0*/ || !(cls.timedemo || 
+			(cls.capturevideo.active && !cls.capturevideo.is_realtime))) && drawscreendelta >= 0 && drawscreendelta < 60)
 #else
 		if (cl_minfps.value > 0 && (cl_minfps_force.integer || !cls.timedemo) && drawscreendelta >= 0 && drawscreendelta < 60)
 #endif // CONFIG_VIDEO_CAPTURE
@@ -1846,17 +1867,17 @@ void CL_UpdateScreen(void)
 			double h;
 
 			// fade lastdrawscreentime
-			r_refdef.lastdrawscreentime += (drawscreendelta - r_refdef.lastdrawscreentime) * cl_minfps_fade.value;
+			r_refdef.lastdrawscreentime += (drawscreendelta - r_refdef.lastdrawscreentime) * cl_minfps_fade.value /*d:1*/;
 
 			// find actual and target frame times
 			actualframetime = r_refdef.lastdrawscreentime;
 			targetframetime = (1.0 / cl_minfps.value);
 
 			// we scale hysteresis by quality
-			h = cl_updatescreen_quality * cl_minfps_qualityhysteresis.value;
+			h = cl_updatescreen_quality * cl_minfps_qualityhysteresis.value /*0.05*/;
 
 			// calculate adjustment assuming linearity
-			f = cl_updatescreen_quality / actualframetime * cl_minfps_qualitymultiply.value;
+			f = cl_updatescreen_quality / actualframetime * cl_minfps_qualitymultiply.value /*d:0.2*/;
 			adjust = (targetframetime - actualframetime) * f;
 
 			// one sided hysteresis
@@ -1864,11 +1885,13 @@ void CL_UpdateScreen(void)
 				adjust = max(0, adjust - h);
 
 			// don't adjust too much at once
-			adjust = bound(-cl_minfps_qualitystepmax.value, adjust, cl_minfps_qualitystepmax.value);
+			adjust = bound(-cl_minfps_qualitystepmax.value, adjust, cl_minfps_qualitystepmax.value /*d:0.1*/);
 
 			// adjust!
 			cl_updatescreen_quality += adjust;
-			cl_updatescreen_quality = bound(max(0.01, cl_minfps_qualitymin.value), cl_updatescreen_quality, cl_minfps_qualitymax.value);
+			cl_updatescreen_quality = bound(max(0.01, cl_minfps_qualitymin.value /*d:0.25*/), 
+				cl_updatescreen_quality, 
+				cl_minfps_qualitymax.value /*d:1*/);
 		}
 		else
 		{
@@ -2235,21 +2258,43 @@ void CL_Screen_Init(void)
 	Cmd_AddCommand(CF_CLIENT, "sizeup", SCR_SizeUp_f, "increase view size (increases viewsize cvar)");
 	Cmd_AddCommand(CF_CLIENT, "sizedown", SCR_SizeDown_f, "decrease view size (decreases viewsize cvar)");
 	Cmd_AddCommand(CF_CLIENT, "screenshot", SCR_ScreenShot_f, "takes a screenshot of the next rendered frame");
+
 #ifdef CONFIG_MENU
 #if 0
 	void M_Dump_f (cmd_state_t *cmd);
 	Cmd_AddCommand(CF_CLIENT, "mdump", M_Dump_f, "");
 #endif
+
 	Cmd_AddCommand(CF_CLIENT, "jpegdecodeclipstring", SCR_jpegdecodeclipstring_f, "puts a screenshot base64 encoded jpeg string on the clipboard [Zircon]");
 	Cmd_AddCommand(CF_CLIENT, "jpegshotclip", SCR_jpegshotclip_f, "puts a screenshot base64 encoded jpeg string on the clipboard [Zircon]");
 	Cmd_AddCommand(CF_CLIENT, "clipimagetobase64string", SCR_clipimagetobase64string_f, "take image from clipboard and put a base64 string on clipboard [Zircon]");
 	Cmd_AddCommand(CF_CLIENT, "jpegextractfromsave", SCR_jpegextract_from_savegame_f, "extract a jpeg from a save and copy to clipboard [Zircon]");
-	Cmd_AddCommand(CF_CLIENT, "gifclip", SCR_gifclip_f, "extract a jpeg from a save and copy to clipboard [Zircon]");
-#endif
-	Cmd_AddCommand(CF_CLIENT, "envmap", R_Envmap_f, "render a cubemap (skybox) of the current scene");
-	Cmd_AddCommand(CF_CLIENT, "levelshot_here", R_LevelShot_Here_f, "take screenshot without HUD and write levelshots/mapname.jpg");
-	Cmd_AddCommand(CF_CLIENT, "levelshot_maps_all", R_LevelShot_Maps_All_f, "make levelshots of maps for the current gamedir only");
+	Cmd_AddCommand(CF_CLIENT, "gifclip", SCR_gifclip_f, "copy gif frame to clipboard [Zircon]");
+
+	// Cmd_AddCommand(CF_CLIENT, "reclip", SCR_reclip_f, "copy and paste text from clipboard (might scrub out oddball characters) [Zircon]");
+	// Cmd_AddCommand(CF_CLIENT, "csgtool", SCR_csgtool_f, "Run as csg for J.A.C.K. map editor [Zircon]");
+	// Cmd_AddCommand(CF_CLIENT, "csgtool_clipboard", SCR_csgtool_clipboard_f, "Run as csg for J.A.C.K. map editor [Zircon]");
+	// Cmd_AddCommand(CF_CLIENT, "csgtool2_pasteat_clipboard", SCR_csgtool2_pasteat_clipboard_f, "Run as csg for J.A.C.K. map editor [Zircon]");
+	// OLD VERSION Cmd_AddCommand(CF_CLIENT, "brushfacer", SCR_brushfacer_clipboard_f, "Set upwards facing textures to textures/up [Zircon]");
+	// Cmd_AddCommand(CF_CLIENT, "anglecalc", AngleCalc_f, " [Zircon]"); // Strip this.
+
+
+	Cmd_AddCommand(CF_CLIENT, "brushfacer", SCR_brushfacer2_clipboard_f, "Set upwards facing textures to textures/up [Zircon]");
+
+	Cvar_RegisterVariable (&eq_clipboard_set);
+
+	Cmd_AddCommand(CF_CLIENT, "atan2", SCR_atan2_f, "atan2 [Zircon]");
+	Cmd_AddCommand(CF_CLIENT, "eq", SCR_eq_f, "Equation calculator [Zircon]");
+	Cmd_AddCommand(CF_CLIENT, "eq_tests", SCR_eqtests_f, "Equation tests [Zircon]");
+	
+	Cmd_AddCommand(CF_CLIENT, "vectornormal3", SCR_vectornormal3_f, "Calculate vector normal for 3 points [Zircon]");
+	Cmd_AddCommand(CF_CLIENT, "barmake", FS_BarMake_f, "<obj> <image> <replace_object_or_texture> makes bars of decreasing size [Zircon]");
+	Cmd_AddCommand(CF_CLIENT, "levelshot_here", R_LevelShot_Here_f, "take screenshot without HUD and write levelshots/mapname.jpg [Zircon]");
+	Cmd_AddCommand(CF_CLIENT, "levelshot_maps_all", R_LevelShot_Maps_All_f, "make levelshots of maps for the current gamedir only (optional prefix) [Zircon]");
+	Cmd_AddCommand(CF_CLIENT, "envmap", R_Envmap_f, "render a cubemap (skybox) of the current scene [Zircon]");
 	Cmd_AddCommand(CF_CLIENT, "infobar", SCR_InfoBar_f, "display a text in the infobar (usage: infobar expiretime string)");
+#endif
+
 
 #ifdef CONFIG_VIDEO_CAPTURE
 	SCR_CaptureVideo_Ogg_Init();

@@ -30,6 +30,13 @@ extern struct cvar_s cl_decals_fadetime;
 
 extern struct cvar_s cl_beams_polygons;
 
+// Baker: VM_CL_boxparticles
+#define PARTICLES_USEALPHA_1		1
+#define PARTICLES_USECOLOR_2		2
+#define PARTICLES_USEFADE_4			4
+#define PARTICLES_DRAWASTRAIL_128	128
+
+
 typedef enum
 {
 	PARTICLE_BILLBOARD = 0,
@@ -104,7 +111,7 @@ typedef struct particle_s
 	// fields used by rendering: (48 bytes)
 	vec3_t          sortorigin; // sort by this group origin, not particle org
 	vec3_t          org;
-	vec3_t          vel; // velocity of particle, or orientation of decal, or end point of beam
+	vec3_t          velpart; // velocity of particle, or orientation of decal, or end point of beam
 	float           size;
 	float           alpha; // 0-255
 	float           stretch; // only for sparks

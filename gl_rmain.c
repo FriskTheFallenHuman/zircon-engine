@@ -1375,7 +1375,8 @@ static void R_SetupShader_SetPermutationGLSL(unsigned int mode, uint64_t permuta
 	#pragma message ("Defining PRIx64") 
 	#define PRIx64 "%I64d"
 #endif
-				Con_DPrintLinef ("Compiling shader mode %u permutation %" PRIx64, mode, permutation);
+				//Con_DPrintLinef ("Compiling shader mode %u permutation " PRIx64, mode, permutation);
+				Con_DPrintLinef ("Compiling shader mode %u permutation " PRIx64, mode, permutation);
 				R_GLSL_CompilePermutation(perm, mode, permutation);
 			}
 			if (!r_glsl_permutation->program)
@@ -1583,6 +1584,7 @@ static int R_BlendFuncFlags(int src, int dst)
 	return r;
 }
 
+// LM_OID lightmaptexture
 void R_SetupShader_Surface(const float rtlightambient[3], const float rtlightdiffuse[3], const float rtlightspecular[3], rsurfacepass_t rsurfacepass, int texturenumsurfaces, const msurface_t **texturesurfacelist, void *surfacewaterplane, qbool notrippy, qbool is_ui)
 {
 	// select a permutation of the lighting shader appropriate to this
@@ -1910,7 +1912,7 @@ void R_SetupShader_Surface(const float rtlightambient[3], const float rtlightdif
 		else if (rsurface.uselightmaptexture)
 		{
 			// ordinary lightmapping (q1bsp, q3bsp)
-			mode = SHADERMODE_LIGHTMAP;
+			mode = SHADERMODE_LIGHTMAP; // LM_OID
 		}
 		else
 		{
@@ -2369,7 +2371,7 @@ skinframe_t *R_SkinFrame_LoadExternal(const char *name, int textureflags, qbool 
 
 	// if the skinframe doesn't exist this will create it
 	// Baker: nmap # gloss noshader path 1
-	//DebugPrintf ("R_SkinFrame_LoadExternal %s skinframe loaded", name);
+	//DebugPrintLinef ("R_SkinFrame_LoadExternal %s skinframe loaded", name);
 	return R_SkinFrame_LoadExternal_SkinFrame(skinframe, name, textureflags, complain, fallbacknotexture);
 }
 
@@ -3764,9 +3766,9 @@ qbool R_AnimCache_GetEntity(entity_render_t *ent, qbool wantnormals, qbool wantt
 	{
 		// generate mesh cache
 		numvertices = model->surfmesh.num_vertices;
-		if (String_Contains (model->model_name, "player")) {
-			int j = 5; // ALIASX
-		}
+		//if (String_Contains (model->model_name, "player")) {
+		//	int j = 5; // ALIASX
+		//}
 		ent->animcache_vertex3f = (float *)R_FrameData_Alloc(sizeof(float[3])*numvertices);
 		if (wantnormals)
 			ent->animcache_normal3f = (float *)R_FrameData_Alloc(sizeof(float[3])*numvertices);
@@ -3926,7 +3928,11 @@ static void R_View_UpdateEntityVisible (void)
 	if (!r_drawexteriormodel.integer)
 		renderimask |= RENDER_EXTERIORMODEL;
 	memset(r_refdef.viewcache.entityvisible, 0, r_refdef.scene.numentities);
-	if (r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->brush.BoxTouchingVisibleLeafs)
+
+	// Baker: August 22 2024 - "Fixes Updates the entity visibility check in `R_View_UpdateEntityVisible` so
+	// that with `r_novis 1` entities are rendered when the player is outside
+	// of the level." from DarkPlaces Beta.
+	if (r_refdef.scene.worldmodel /*added:*/ && !r_novis.integer /*end added*/ && r_refdef.scene.worldmodel->brush.BoxTouchingVisibleLeafs)
 	{
 		// worldmodel can check visibility
 		for (i = 0;i < r_refdef.scene.numentities;i++)
@@ -4296,6 +4302,7 @@ static void R_View_SetFrustum(const int *scissor)
 	//PlaneClassify(&frustum[4]);
 }
 
+#if 0 // FBO
 static void R_View_Update(const int *myscissor)
 {
 	R_Main_ResizeViewCache();
@@ -4303,8 +4310,28 @@ static void R_View_Update(const int *myscissor)
 	R_View_WorldVisibility(!r_refdef.view.usevieworiginculling);
 	R_View_UpdateEntityVisible();
 }
+#else
 
+static void R_View_UpdateWithScissor(const int *myscissor)
+{
+	R_Main_ResizeViewCache();
+	R_View_SetFrustum(myscissor);
+	R_View_WorldVisibility(!r_refdef.view.usevieworiginculling);
+	R_View_UpdateEntityVisible();
+}
+
+static void R_View_Update(void)
+{
+	R_Main_ResizeViewCache();
+	R_View_SetFrustum(NULL);
+	R_View_WorldVisibility(!r_refdef.view.usevieworiginculling);
+	R_View_UpdateEntityVisible();
+}
+
+#endif
 float viewscalefpsadjusted = 1.0f;
+
+#if 0 // FBO
 
 void R_SetupView(qbool allowwaterclippingplane, int viewfbo, rtexture_t *viewdepthtexture, rtexture_t *viewcolortexture, int viewx, int viewy, int viewwidth, int viewheight)
 {
@@ -4338,6 +4365,40 @@ void R_SetupView(qbool allowwaterclippingplane, int viewfbo, rtexture_t *viewdep
 	R_Mesh_SetRenderTargets(viewfbo, viewdepthtexture, viewcolortexture, NULL, NULL, NULL);
 	R_SetViewport(&r_refdef.view.viewport);
 }
+#else
+void R_SetupView(qbool allowwaterclippingplane, int viewfbo, rtexture_t *viewdepthtexture, rtexture_t *viewcolortexture, int viewx, int viewy, int viewwidth, int viewheight)
+{
+	const float *customclipplane = NULL;
+	float plane[4];
+	int /*rtwidth,*/ rtheight;
+	if (r_refdef.view.useclipplane && allowwaterclippingplane)
+	{
+		// LadyHavoc: couldn't figure out how to make this approach work the same in DPSOFTRAST
+		vec_t dist = r_refdef.view.clipplane.dist - r_water_clippingplanebias.value;
+		vec_t viewdist = DotProduct(r_refdef.view.origin, r_refdef.view.clipplane.normal);
+		if (viewdist < r_refdef.view.clipplane.dist + r_water_clippingplanebias.value)
+			dist = r_refdef.view.clipplane.dist;
+		plane[0] = r_refdef.view.clipplane.normal[0];
+		plane[1] = r_refdef.view.clipplane.normal[1];
+		plane[2] = r_refdef.view.clipplane.normal[2];
+		plane[3] = -dist;
+		customclipplane = plane;
+	}
+
+	//rtwidth = viewfbo ? R_TextureWidth(viewdepthtexture ? viewdepthtexture : viewcolortexture) : vid.width;
+	rtheight = viewfbo ? R_TextureHeight(viewdepthtexture ? viewdepthtexture : viewcolortexture) : vid.height;
+
+	if (!r_refdef.view.useperspective)
+		R_Viewport_InitOrtho3D(&r_refdef.view.viewport, &r_refdef.view.matrix, viewx, rtheight - viewheight - viewy, viewwidth, viewheight, r_refdef.view.ortho_x, r_refdef.view.ortho_y, -r_refdef.farclip, r_refdef.farclip, customclipplane);
+	else if (vid.stencil && r_useinfinitefarclip.integer)
+		R_Viewport_InitPerspectiveInfinite(&r_refdef.view.viewport, &r_refdef.view.matrix, viewx, rtheight - viewheight - viewy, viewwidth, viewheight, r_refdef.view.frustum_x, r_refdef.view.frustum_y, r_refdef.nearclip, customclipplane);
+	else
+		R_Viewport_InitPerspective(&r_refdef.view.viewport, &r_refdef.view.matrix, viewx, rtheight - viewheight - viewy, viewwidth, viewheight, r_refdef.view.frustum_x, r_refdef.view.frustum_y, r_refdef.nearclip, r_refdef.farclip, customclipplane);
+	R_Mesh_SetRenderTargets(viewfbo, viewdepthtexture, viewcolortexture, NULL, NULL, NULL);
+	R_SetViewport(&r_refdef.view.viewport);
+}
+
+#endif
 
 void R_EntityMatrix(const matrix4x4_t *matrix)
 {
@@ -4361,6 +4422,7 @@ void R_EntityMatrix(const matrix4x4_t *matrix)
 	}
 }
 
+#if 0 // FBO
 void R_ResetViewRendering2D_Common(int viewfbo, rtexture_t *viewdepthtexture, rtexture_t *viewcolortexture, int viewx, int viewy, int viewwidth, int viewheight, float x2, float y2)
 {
 	r_viewport_t viewport;
@@ -4398,6 +4460,42 @@ void R_ResetViewRendering2D_Common(int viewfbo, rtexture_t *viewdepthtexture, rt
 
 	CHECKGLERROR
 }
+#else
+void R_ResetViewRendering2D_Common(int viewfbo, rtexture_t *viewdepthtexture, rtexture_t *viewcolortexture, int viewx, int viewy, int viewwidth, int viewheight, float x2, float y2)
+{
+	r_viewport_t viewport;
+
+	CHECKGLERROR
+
+	// GL is weird because it's bottom to top, r_refdef.view.y is top to bottom
+	R_Viewport_InitOrtho(&viewport, &identitymatrix, viewx, vid.height - viewheight - viewy, viewwidth, viewheight, 0, 0, x2, y2, -10, 100, NULL);
+	R_Mesh_SetRenderTargets(viewfbo, viewdepthtexture, viewcolortexture, NULL, NULL, NULL);
+	R_SetViewport(&viewport);
+	GL_Scissor(viewport.x, viewport.y, viewport.width, viewport.height);
+	GL_Color(1, 1, 1, 1);
+	GL_ColorMask(r_refdef.view.colormask[0], r_refdef.view.colormask[1], r_refdef.view.colormask[2], 1);
+	GL_BlendFunc(GL_ONE, GL_ZERO);
+	GL_ScissorTest(false);
+	GL_DepthMask(false);
+	GL_DepthRange(0, 1);
+	GL_DepthTest(false);
+	GL_DepthFunc(GL_LEQUAL);
+	R_EntityMatrix(&identitymatrix);
+	R_Mesh_ResetTextureState();
+	GL_PolygonOffset(0, 0);
+	switch(vid.renderpath)
+	{
+	case RENDERPATH_GL32:
+	case RENDERPATH_GLES2:
+		qglEnable(GL_POLYGON_OFFSET_FILL);CHECKGLERROR
+		break;
+	}
+	GL_CullFace(GL_NONE);
+
+	CHECKGLERROR
+}
+
+#endif
 
 void R_ResetViewRendering2D(int viewfbo, rtexture_t *viewdepthtexture, rtexture_t *viewcolortexture, int viewx, int viewy, int viewwidth, int viewheight)
 {
@@ -4780,8 +4878,15 @@ static void R_Water_ProcessPlanes(int fbo, rtexture_t *depthtexture, rtexture_t 
 			GL_ScissorTest(false);
 			R_ClearScreen(r_refdef.fogenabled);
 			GL_ScissorTest(true);
+#if 0 // FBO
 			R_View_Update(r_water_scissormode.integer & 2 ? 
 				myscissor : NULL);
+#else
+			if (r_water_scissormode.integer & 2)
+				R_View_UpdateWithScissor(myscissor);
+			else
+				R_View_Update();
+#endif
 			R_AnimCache_CacheVisibleEntities();
 			if (r_water_scissormode.integer & 1)
 				GL_Scissor(myscissor[0], myscissor[1], myscissor[2], myscissor[3]);
@@ -4850,7 +4955,14 @@ static void R_Water_ProcessPlanes(int fbo, rtexture_t *depthtexture, rtexture_t 
 			GL_ScissorTest(false);
 			R_ClearScreen(r_refdef.fogenabled);
 			GL_ScissorTest(true);
+#if 0
 			R_View_Update(r_water_scissormode.integer & 2 ? myscissor : NULL);
+#else
+			if (r_water_scissormode.integer & 2)
+				R_View_UpdateWithScissor(myscissor);
+			else
+				R_View_Update();
+#endif
 			R_AnimCache_CacheVisibleEntities();
 			if (r_water_scissormode.integer & 1)
 				GL_Scissor(myscissor[0], myscissor[1], myscissor[2], myscissor[3]);
@@ -4915,7 +5027,11 @@ static void R_Water_ProcessPlanes(int fbo, rtexture_t *depthtexture, rtexture_t 
 			GL_ScissorTest(false);
 			R_ClearScreen(r_refdef.fogenabled);
 			GL_ScissorTest(true);
+#if 0 // FBO
 			R_View_Update(NULL);
+#else
+			R_View_Update();
+#endif
 			R_AnimCache_CacheVisibleEntities();
 			R_RenderScene(rt->fbo, rt->depthtexture, rt->colortexture[0], 0, 0, rt->texturewidth, rt->textureheight);
 
@@ -4928,7 +5044,11 @@ static void R_Water_ProcessPlanes(int fbo, rtexture_t *depthtexture, rtexture_t 
 	r_fb.water.renderingscene = false;
 	r_refdef.view = originalview;
 	R_ResetViewRendering3D(fbo, depthtexture, colortexture, viewx, viewy, viewwidth, viewheight);
+#if 0 // FBO
 	R_View_Update(NULL);
+#else
+	R_View_Update();
+#endif
 	R_AnimCache_CacheVisibleEntities();
 	goto finish;
 error:
@@ -5162,6 +5282,7 @@ static void R_Bloom_MakeTexture(void)
 	r_fb.rt_bloom = cur;
 }
 
+#if 0 // FBO
 static qbool R_BlendView_IsTrivial(int viewwidth, int viewheight, int width, int height)
 {
 	// Scaling requested?
@@ -5188,7 +5309,9 @@ static qbool R_BlendView_IsTrivial(int viewwidth, int viewheight, int width, int
 		return false;
 	return true;
 }
+#endif
 
+#if 0 // FBO
 static void R_MotionBlurView(int viewfbo, rtexture_t *viewdepthtexture, rtexture_t *viewcolortexture, int viewx, int viewy, int viewwidth, int viewheight)
 {
 	R_EntityMatrix(&identitymatrix);
@@ -5331,6 +5454,146 @@ static void R_BlendView(rtexture_t *viewcolortexture, int fbo, rtexture_t *depth
 	R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
 	r_refdef.stats[r_stat_bloom_drawpixels] += r_refdef.view.width * r_refdef.view.height;
 }
+#else
+static void R_BlendView(int viewfbo, rtexture_t *viewdepthtexture, rtexture_t *viewcolortexture, int viewx, int viewy, int viewwidth, int viewheight)
+{
+	uint64_t permutation;
+	float uservecs[4][4];
+	rtexture_t *viewtexture;
+	rtexture_t *bloomtexture;
+
+	R_EntityMatrix(&identitymatrix);
+
+	if (r_refdef.view.ismain && !R_Stereo_Active() && (r_motionblur.value > 0 || r_damageblur.value > 0) && r_fb.ghosttexture)
+	{
+		// declare variables
+		float blur_factor, blur_mouseaccel, blur_velocity;
+		static float blur_average; 
+		static vec3_t blur_oldangles; // used to see how quickly the mouse is moving
+
+		// set a goal for the factoring
+		blur_velocity = bound(0, (VectorLength(cl.movement_velocity) - r_motionblur_velocityfactor_minspeed.value) 
+			/ max(1, r_motionblur_velocityfactor_maxspeed.value - r_motionblur_velocityfactor_minspeed.value), 1);
+		blur_mouseaccel = bound(0, ((fabs(VectorLength(cl.viewangles) - VectorLength(blur_oldangles)) * 10) - r_motionblur_mousefactor_minspeed.value) 
+			/ max(1, r_motionblur_mousefactor_maxspeed.value - r_motionblur_mousefactor_minspeed.value), 1);
+		blur_factor = ((blur_velocity * r_motionblur_velocityfactor.value) 
+			+ (blur_mouseaccel * r_motionblur_mousefactor.value));
+
+		// from the goal, pick an averaged value between goal and last value
+		cl.motionbluralpha = bound(0, (cl.time - cl.oldtime) / max(0.001, r_motionblur_averaging.value), 1);
+		blur_average = blur_average * (1 - cl.motionbluralpha) + blur_factor * cl.motionbluralpha;
+
+		// enforce minimum amount of blur 
+		blur_factor = blur_average * (1 - r_motionblur_minblur.value) + r_motionblur_minblur.value;
+
+		//Con_Printf ("motionblur: direct factor: %f, averaged factor: %f, velocity: %f, mouse accel: %f \n", blur_factor, blur_average, blur_velocity, blur_mouseaccel);
+
+		// calculate values into a standard alpha
+		cl.motionbluralpha = 1 - exp(-
+				(
+					(r_motionblur.value * blur_factor / 80)
+					+
+					(r_damageblur.value * (cl.cshifts[CSHIFT_DAMAGE].percent / 1600))
+				)
+				/
+				max(0.0001, cl.time - cl.oldtime) // fps independent
+				);
+
+		// randomization for the blur value to combat persistent ghosting
+		cl.motionbluralpha *= lhrandom(1 - r_motionblur_randomize.value, 1 + r_motionblur_randomize.value);
+		cl.motionbluralpha = bound(0, cl.motionbluralpha, r_motionblur_maxblur.value);
+
+		// apply the blur
+		R_ResetViewRendering2D(viewfbo, viewdepthtexture, viewcolortexture, viewx, viewy, viewwidth, viewheight);
+		if (cl.motionbluralpha > 0 && !r_refdef.envmap && r_fb.ghosttexture_valid)
+		{
+			GL_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			GL_Color(1, 1, 1, cl.motionbluralpha);
+			R_CalcTexCoordsForView(0, 0, viewwidth, viewheight, viewwidth, viewheight, r_fb.ghosttexcoord2f);
+			R_Mesh_PrepareVertices_Generic_Arrays(4, r_screenvertex3f, NULL, r_fb.ghosttexcoord2f);
+			R_SetupShader_Generic(r_fb.ghosttexture, false, true, true);
+			R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+			r_refdef.stats[r_stat_bloom_drawpixels] += viewwidth * viewheight;
+		}
+
+		// updates old view angles for next pass
+		VectorCopy(cl.viewangles, blur_oldangles);
+
+		// copy view into the ghost texture
+		R_Mesh_CopyToTexture(r_fb.ghosttexture, 0, 0, viewx, viewy, viewwidth, viewheight);
+		r_refdef.stats[r_stat_bloom_copypixels] += viewwidth * viewheight;
+		r_fb.ghosttexture_valid = true;
+	}
+
+	if (r_fb.bloomwidth)
+	{
+		// make the bloom texture
+		R_Bloom_MakeTexture();
+	}
+
+#if _MSC_VER >= 1400
+#define sscanf sscanf_s
+#endif
+	memset(uservecs, 0, sizeof(uservecs));
+	if (r_glsl_postprocess_uservec1_enable.integer)
+		sscanf(r_glsl_postprocess_uservec1.string, "%f %f %f %f", &uservecs[0][0], &uservecs[0][1], &uservecs[0][2], &uservecs[0][3]);
+	if (r_glsl_postprocess_uservec2_enable.integer)
+		sscanf(r_glsl_postprocess_uservec2.string, "%f %f %f %f", &uservecs[1][0], &uservecs[1][1], &uservecs[1][2], &uservecs[1][3]);
+	if (r_glsl_postprocess_uservec3_enable.integer)
+		sscanf(r_glsl_postprocess_uservec3.string, "%f %f %f %f", &uservecs[2][0], &uservecs[2][1], &uservecs[2][2], &uservecs[2][3]);
+	if (r_glsl_postprocess_uservec4_enable.integer)
+		sscanf(r_glsl_postprocess_uservec4.string, "%f %f %f %f", &uservecs[3][0], &uservecs[3][1], &uservecs[3][2], &uservecs[3][3]);
+
+	// render to the screen fbo
+	R_ResetViewRendering2D(viewfbo, viewdepthtexture, viewcolortexture, viewx, viewy, viewwidth, viewheight);
+	GL_Color(1, 1, 1, 1);
+	GL_BlendFunc(GL_ONE, GL_ZERO);
+
+	viewtexture = r_fb.rt_screen->colortexture[0];
+	bloomtexture = r_fb.rt_bloom ? r_fb.rt_bloom->colortexture[0] : NULL;
+
+	if (r_rendertarget_debug.integer >= 0)
+	{
+		r_rendertarget_t *rt = (r_rendertarget_t *)Mem_ExpandableArray_RecordAtIndex(&r_fb.rendertargets, r_rendertarget_debug.integer);
+		if (rt && rt->colortexture[0])
+		{
+			viewtexture = rt->colortexture[0];
+			bloomtexture = NULL;
+		}
+	}
+
+	R_Mesh_PrepareVertices_Mesh_Arrays(4, r_screenvertex3f, NULL, NULL, NULL, NULL, r_fb.rt_screen->texcoord2f, bloomtexture ? r_fb.rt_bloom->texcoord2f : NULL);
+	switch(vid.renderpath)
+	{
+	case RENDERPATH_GL32:
+	case RENDERPATH_GLES2:
+		permutation =
+			(r_fb.bloomwidth ? SHADERPERMUTATION_BLOOM : 0)
+			| (r_refdef.viewblend[3] > 0 ? SHADERPERMUTATION_VIEWTINT : 0)
+			| (!vid_gammatables_trivial ? SHADERPERMUTATION_GAMMARAMPS : 0)
+			| (r_glsl_postprocess.integer ? SHADERPERMUTATION_POSTPROCESSING : 0)
+			| ((!R_Stereo_ColorMasking() && r_glsl_saturation.value != 1) ? SHADERPERMUTATION_SATURATION : 0);
+		R_SetupShader_SetPermutationGLSL(SHADERMODE_POSTPROCESS, permutation);
+		if (r_glsl_permutation->tex_Texture_First           >= 0) R_Mesh_TexBind(r_glsl_permutation->tex_Texture_First     , viewtexture);
+		if (r_glsl_permutation->tex_Texture_Second          >= 0) R_Mesh_TexBind(r_glsl_permutation->tex_Texture_Second    , bloomtexture);
+		if (r_glsl_permutation->tex_Texture_GammaRamps      >= 0) R_Mesh_TexBind(r_glsl_permutation->tex_Texture_GammaRamps, r_texture_gammaramps       );
+		if (r_glsl_permutation->loc_ViewTintColor           >= 0) qglUniform4f(r_glsl_permutation->loc_ViewTintColor     , r_refdef.viewblend[0], r_refdef.viewblend[1], r_refdef.viewblend[2], r_refdef.viewblend[3]);
+		if (r_glsl_permutation->loc_PixelSize               >= 0) qglUniform2f(r_glsl_permutation->loc_PixelSize         , 1.0/r_fb.screentexturewidth, 1.0/r_fb.screentextureheight);
+		if (r_glsl_permutation->loc_UserVec1                >= 0) qglUniform4f(r_glsl_permutation->loc_UserVec1          , uservecs[0][0], uservecs[0][1], uservecs[0][2], uservecs[0][3]);
+		if (r_glsl_permutation->loc_UserVec2                >= 0) qglUniform4f(r_glsl_permutation->loc_UserVec2          , uservecs[1][0], uservecs[1][1], uservecs[1][2], uservecs[1][3]);
+		if (r_glsl_permutation->loc_UserVec3                >= 0) qglUniform4f(r_glsl_permutation->loc_UserVec3          , uservecs[2][0], uservecs[2][1], uservecs[2][2], uservecs[2][3]);
+		if (r_glsl_permutation->loc_UserVec4                >= 0) qglUniform4f(r_glsl_permutation->loc_UserVec4          , uservecs[3][0], uservecs[3][1], uservecs[3][2], uservecs[3][3]);
+		if (r_glsl_permutation->loc_Saturation              >= 0) qglUniform1f(r_glsl_permutation->loc_Saturation        , r_glsl_saturation.value);
+		if (r_glsl_permutation->loc_PixelToScreenTexCoord   >= 0) qglUniform2f(r_glsl_permutation->loc_PixelToScreenTexCoord, 1.0f/r_fb.screentexturewidth, 1.0f/r_fb.screentextureheight);
+		if (r_glsl_permutation->loc_BloomColorSubtract      >= 0) qglUniform4f(r_glsl_permutation->loc_BloomColorSubtract   , r_bloom_colorsubtract.value, r_bloom_colorsubtract.value, r_bloom_colorsubtract.value, 0.0f);
+		if (r_glsl_permutation->loc_ColorFringe             >= 0) qglUniform1f(r_glsl_permutation->loc_ColorFringe, r_colorfringe.value );
+		break;
+	} // sw
+	R_Mesh_Draw(0, 4, 0, 2, polygonelement3i, NULL, 0, polygonelement3s, NULL, 0);
+	r_refdef.stats[r_stat_bloom_drawpixels] += r_refdef.view.width * r_refdef.view.height;
+}
+
+#endif // !FBO
 
 matrix4x4_t r_waterscrollmatrix;
 
@@ -5591,7 +5854,9 @@ void R_RenderView(int fbo, rtexture_t *depthtexture, rtexture_t *colortexture, i
 	rtexture_t *viewdepthtexture = NULL;
 	rtexture_t *viewcolortexture = NULL;
 	int viewx = r_refdef.view.x, viewy = r_refdef.view.y, viewwidth = r_refdef.view.width, viewheight = r_refdef.view.height;
+#if 0 // FBO
 	qbool skipblend;
+#endif
 
 	// finish any 2D rendering that was queued
 	DrawQ_Finish();
@@ -5666,6 +5931,7 @@ void R_RenderView(int fbo, rtexture_t *depthtexture, rtexture_t *colortexture, i
 	if (r_fb.rt_bloom)
 		r_refdef.view.colorscale *= r_bloom_scenebrightness.value;
 
+#if 0 // FBO
 	skipblend = R_BlendView_IsTrivial(r_fb.rt_screen->texturewidth, r_fb.rt_screen->textureheight, width, height);
 	if (skipblend)
 	{
@@ -5689,7 +5955,20 @@ void R_RenderView(int fbo, rtexture_t *depthtexture, rtexture_t *colortexture, i
 		viewwidth = r_fb.rt_screen->texturewidth;
 		viewheight = r_fb.rt_screen->textureheight;
 	}
+#else
+	// R_Bloom_StartFrame probably set up an fbo for us to render into, it will be rendered to the window later in R_BlendView
+	if (r_fb.rt_screen)
+	{
+		viewfbo = r_fb.rt_screen->fbo;
+		viewdepthtexture = r_fb.rt_screen->depthtexture;
+		viewcolortexture = r_fb.rt_screen->colortexture[0];
+		viewx = 0;
+		viewy = 0;
+		viewwidth = r_fb.rt_screen->texturewidth;
+		viewheight = r_fb.rt_screen->textureheight;
+	}
 
+#endif // !FBO
 	R_Water_StartFrame(viewwidth, viewheight);
 
 	CHECKGLERROR
@@ -5710,7 +5989,11 @@ void R_RenderView(int fbo, rtexture_t *depthtexture, rtexture_t *colortexture, i
 
 	r_refdef.view.showdebug = true;
 
+#if 0 // FBO
 	R_View_Update(NULL);
+#else
+	R_View_Update();
+#endif
 	if (r_timereport_active)
 		R_TimeReport("visibility");
 
@@ -5729,16 +6012,24 @@ void R_RenderView(int fbo, rtexture_t *depthtexture, rtexture_t *colortexture, i
 	// test needs to be on
 	if (r_fb.rt_screen)
 		GL_ScissorTest(true);
+#if 0 // FBO
 	GL_Scissor(r_refdef.view.viewport.x, r_refdef.view.viewport.y, r_refdef.view.viewport.width, r_refdef.view.viewport.height);
+#else
+	GL_Scissor(viewx, viewy, viewwidth, viewheight);
+#endif
 	R_RenderScene(viewfbo, viewdepthtexture, viewcolortexture, viewx, viewy, viewwidth, viewheight);
 	r_fb.water.numwaterplanes = 0;
 
 	// postprocess uses textures that are not aligned with the viewport we're rendering, so no scissoring
 	GL_ScissorTest(false);
 
+#if 0 // FBO
 	R_MotionBlurView(viewfbo, viewdepthtexture, viewcolortexture, viewx, viewy, viewwidth, viewheight);
 	if (!skipblend)
 		R_BlendView(viewcolortexture, fbo, depthtexture, colortexture, x, y, width, height);
+#else
+	R_BlendView(fbo, depthtexture, colortexture, x, y, width, height);
+#endif
 	if (r_timereport_active)
 		R_TimeReport("blendview");
 
@@ -6603,8 +6894,10 @@ texture_t *R_GetCurrentTexture(texture_t *t)
 				Mem_Free(r_qwskincache);
 			r_qwskincache = (r_qwskincache_t *)Mem_Alloc(r_main_mempool, sizeof(*r_qwskincache) * r_qwskincache_size);
 		}
-		if (strcmp(r_qwskincache[i].name, cl.scores[i].qw_skin))
+		//if (strcmp(r_qwskincache[i].name, cl.scores[i].qw_skin))
+		if (false == String_Match(r_qwskincache[i].name, cl.scores[i].qw_skin))
 			R_LoadQWSkin(&r_qwskincache[i], cl.scores[i].qw_skin);
+
 		t->currentskinframe = r_qwskincache[i].skinframe;
 		if (t->materialshaderpass && t->currentskinframe == NULL)
 			t->currentskinframe = t->materialshaderpass->skinframes[LoopingFrameNumberFromDouble(rsurface.shadertime * t->materialshaderpass->animframerate, t->materialshaderpass->numframes)];
@@ -6614,8 +6907,10 @@ texture_t *R_GetCurrentTexture(texture_t *t)
 		if (t->materialshaderpass->animframerate == 0) {
 			// buttonmap
 			entity_t *real_ent = cl.entities + ent->entitynumber;
-			int buttonmap_frame = (int)real_ent->state_current.frame & 1; // Baker: 0 or 1 for now.
-			t->currentskinframe = t->materialshaderpass->skinframes[buttonmap_frame];
+			//int buttonmap_frame = (int)real_ent->state_current.frame & 1; // Baker: 0 or 1 for now.
+			int buttonmap_frame = (int)real_ent->state_current.frame;// & 1; // Baker: 0 or 1 for now.
+			if (buttonmap_frame < t->materialshaderpass->numframes)
+				t->currentskinframe = t->materialshaderpass->skinframes[buttonmap_frame];
 		} else {
 			t->currentskinframe = t->materialshaderpass->skinframes[LoopingFrameNumberFromDouble(rsurface.shadertime * 
 				t->materialshaderpass->animframerate, t->materialshaderpass->numframes)];
@@ -8248,12 +8543,12 @@ void RSurf_PrepareVerticesForBatch(int batchneed, int texturenumsurfaces, const 
 				for (j = 0;j < batchnumvertices - 3;j += 4)
 				{
 					VectorClear(center);
-					for (i = 0;i < 4;i++)
+					for (i = 0; i < 4; i ++) // Baker: Quad?
 						VectorAdd(center, rsurface.batchvertex3f + 3*(j+i), center);
 					VectorScale(center, 0.25f, center);
 					// find the two shortest edges, then use them to define the
 					// axis vectors for rotating around the central axis
-					for (i = 0;i < 6;i++)
+					for (i = 0; i < 6; i ++) // Baker: 6 is because corners
 					{
 						v1 = rsurface.batchvertex3f + 3*(j+quadedges[i][0]);
 						v2 = rsurface.batchvertex3f + 3*(j+quadedges[i][1]);
@@ -8643,6 +8938,7 @@ static int RSurf_FindWaterPlaneForSurface(const msurface_t *surface)
 	// render multiple smaller batches
 }
 
+#if 0 // FBO
 void RSurf_SetupDepthAndCulling(qbool is_ui)
 {
 	// submodels are biased to avoid z-fighting with world surfaces that they
@@ -8653,6 +8949,19 @@ void RSurf_SetupDepthAndCulling(qbool is_ui)
 	GL_DepthTest(!is_ui && !(rsurface.texture->currentmaterialflags & MATERIALFLAG_NODEPTHTEST));
 	GL_CullFace((rsurface.texture->currentmaterialflags & MATERIALFLAG_NOCULLFACE) ? GL_NONE : r_refdef.view.cullface_back);
 }
+#else
+void RSurf_SetupDepthAndCulling(void)
+{
+	// submodels are biased to avoid z-fighting with world surfaces that they
+	// may be exactly overlapping (avoids z-fighting artifacts on certain
+	// doors and things in Quake maps)
+	GL_DepthRange(0, (rsurface.texture->currentmaterialflags & MATERIALFLAG_SHORTDEPTHRANGE) ? 0.0625 : 1);
+	GL_PolygonOffset(rsurface.basepolygonfactor + rsurface.texture->biaspolygonfactor, rsurface.basepolygonoffset + rsurface.texture->biaspolygonoffset);
+	GL_DepthTest(!(rsurface.texture->currentmaterialflags & MATERIALFLAG_NODEPTHTEST));
+	GL_CullFace((rsurface.texture->currentmaterialflags & MATERIALFLAG_NOCULLFACE) ? GL_NONE : r_refdef.view.cullface_back);
+}
+
+#endif // !FBO
 
 static void R_DrawTextureSurfaceList_Sky(int texturenumsurfaces, const msurface_t **texturesurfacelist)
 {
@@ -8663,13 +8972,20 @@ static void R_DrawTextureSurfaceList_Sky(int texturenumsurfaces, const msurface_
 	// transparent sky would be ridiculous
 	if (rsurface.texture->currentmaterialflags & MATERIALFLAGMASK_DEPTHSORTED)
 		return;
+#if 0 // FBO
 	R_SetupShader_Generic_NoTexture(/*usegamma?*/ false, /*notrippy?*/ false);
 	skyrenderlater = true;
 	RSurf_SetupDepthAndCulling(q_is_ui_false);
+#else
+	R_SetupShader_Generic_NoTexture(false, false);
+	skyrenderlater = true;
+	RSurf_SetupDepthAndCulling();
+
+#endif
 	GL_DepthMask(true);
 
 	// add the vertices of the surfaces to a world bounding box so we can scissor the sky render later
-	if (r_sky_scissor.integer)
+	if (r_sky_scissor.integer /*d: 1*/)
 	{
 		RSurf_PrepareVerticesForBatch(BATCHNEED_ARRAY_VERTEX | BATCHNEED_NOGAPS, texturenumsurfaces, texturesurfacelist);
 		for (j = 0, v = rsurface.batchvertex3f + 3 * rsurface.batchfirstvertex; j < rsurface.batchnumvertices; j++, v += 3)
@@ -8761,16 +9077,15 @@ static void R_DrawTextureSurfaceList_GL20(int texturenumsurfaces, const msurface
 	{
 		// render screenspace normalmap to texture
 		GL_DepthMask(true);
-		R_SetupShader_Surface(vec3_origin, vec3_origin, vec3_origin, RSURFPASS_DEFERREDGEOMETRY, texturenumsurfaces, texturesurfacelist, NULL, false, false);
+		R_SetupShader_Surface(vec3_origin, vec3_origin, vec3_origin, RSURFPASS_DEFERREDGEOMETRY, texturenumsurfaces, texturesurfacelist, NULL, false, false); // waterplane notrippy, isui
 		RSurf_DrawBatch();
 		return;
 	}
 
-	// bind lightmap texture
+	// bind lightmap texture - LM_OID draw
 
 	// water/refraction/reflection/camera surfaces have to be handled specially
-	if ((rsurface.texture->currentmaterialflags & (MATERIALFLAG_WATERSHADER | MATERIALFLAG_REFRACTION | MATERIALFLAG_CAMERA | MATERIALFLAG_REFLECTION)))
-	{
+	if ((rsurface.texture->currentmaterialflags & (MATERIALFLAG_WATERSHADER | MATERIALFLAG_REFRACTION | MATERIALFLAG_CAMERA | MATERIALFLAG_REFLECTION))) {
 		int start, end, startplaneindex;
 		for (start = 0;start < texturenumsurfaces;start = end)
 		{
@@ -8848,7 +9163,11 @@ static void R_DrawTextureSurfaceList_ShowSurfaces(int texturenumsurfaces, const 
 static void R_DrawModelTextureSurfaceList(int texturenumsurfaces, const msurface_t **texturesurfacelist, qbool is_writedepth, qbool is_prepass, qbool is_ui)
 {
 	CHECKGLERROR
+#if 0 // FBO
 	RSurf_SetupDepthAndCulling(is_ui);
+#else
+	RSurf_SetupDepthAndCulling();
+#endif
 	if (r_showsurfaces.integer && r_refdef.view.showdebug)
 	{
 		R_DrawTextureSurfaceList_ShowSurfaces(texturenumsurfaces, texturesurfacelist, is_writedepth);
@@ -8911,7 +9230,11 @@ static void R_DrawSurface_TransparentCallback(const entity_render_t *ent, const 
 				GL_DepthMask(true);
 //				R_Mesh_ResetTextureState();
 			}
+#if 0 // FBO
 			RSurf_SetupDepthAndCulling(q_is_ui_false);
+#else
+			RSurf_SetupDepthAndCulling();
+#endif // !FBO
 			RSurf_PrepareVerticesForBatch(BATCHNEED_ARRAY_VERTEX | BATCHNEED_ALLOWMULTIDRAW, texturenumsurfaces, texturesurfacelist);
 			R_SetupShader_DepthOrShadow(false, false, !!rsurface.batchskeletaltransform3x4);
 			R_Mesh_PrepareVertices_Vertex3f(rsurface.batchnumvertices, rsurface.batchvertex3f, rsurface.batchvertex3f_vertexbuffer, rsurface.batchvertex3f_bufferoffset);
@@ -8931,7 +9254,7 @@ static void R_DrawSurface_TransparentCallback(const entity_render_t *ent, const 
 		endsurface = min(i + MESHQUEUE_TRANSPARENT_BATCHSIZE, numsurfaces);
 		texturenumsurfaces = 0;
 		texturesurfacelist[texturenumsurfaces++] = surface;
-			rsurface.lightmaptexture = surface->lightmaptexture;
+			rsurface.lightmaptexture = surface->lightmaptexture; // LM_OID draw
 			rsurface.deluxemaptexture = surface->deluxemaptexture;
 			rsurface.uselightmaptexture = surface->lightmaptexture != NULL;
 			for (;j < endsurface;j++)
@@ -8942,11 +9265,13 @@ static void R_DrawSurface_TransparentCallback(const entity_render_t *ent, const 
 				texturesurfacelist[texturenumsurfaces++] = surface;
 			}
 		// render the range of surfaces
-		R_DrawModelTextureSurfaceList(texturenumsurfaces, texturesurfacelist, false, false, false);
+		// LM_OID
+		R_DrawModelTextureSurfaceList(texturenumsurfaces, texturesurfacelist, false, false, false); // depth prepass ui
 	}
 	rsurface.entity = NULL; // used only by R_GetCurrentTexture and RSurf_ActiveModelEntity
 }
 
+WARP_X_CALLERS_ (R_QueueModelSurfaceList) // ultimate top caller  ...
 static void R_ProcessTransparentTextureSurfaceList(int texturenumsurfaces, const msurface_t **texturesurfacelist)
 {
 	// transparent surfaces get pushed off into the transparent queue
@@ -8985,7 +9310,11 @@ static void R_DrawTextureSurfaceList_DepthOnly(int texturenumsurfaces, const msu
 		return;
 	if (r_fb.water.renderingscene && (rsurface.texture->currentmaterialflags & (MATERIALFLAG_WATERSHADER | MATERIALFLAG_REFLECTION)))
 		return;
+#if 0 // FBO
 	RSurf_SetupDepthAndCulling(q_is_ui_false);
+#else
+	RSurf_SetupDepthAndCulling();
+#endif // !FBO
 	RSurf_PrepareVerticesForBatch(BATCHNEED_ARRAY_VERTEX | BATCHNEED_ALLOWMULTIDRAW, texturenumsurfaces, texturesurfacelist);
 	R_Mesh_PrepareVertices_Vertex3f(rsurface.batchnumvertices, rsurface.batchvertex3f, rsurface.batchvertex3f_vertexbuffer, rsurface.batchvertex3f_bufferoffset);
 	R_SetupShader_DepthOrShadow(false, false, !!rsurface.batchskeletaltransform3x4);
@@ -9623,7 +9952,7 @@ static void R_DrawModelDecals_FadeEntity(entity_render_t *ent)
 	}
 }
 
-extern skinframe_t *decalskinframe;
+extern skinframe_t *decalskinframe;	
 static void R_DrawModelDecals_Entity(entity_render_t *ent)
 {
 	int i;
@@ -9747,7 +10076,7 @@ static void R_DrawModelDecals_Entity(entity_render_t *ent)
 		GL_PolygonOffset(rsurface.basepolygonfactor + r_polygonoffset_decals_factor.value, rsurface.basepolygonoffset + r_polygonoffset_decals_offset.value);
 		GL_DepthTest(true);
 		GL_CullFace(GL_NONE);
-		GL_BlendFunc(GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
+		GL_BlendFunc(GL_ZERO, GL_ONE_MINUS_SRC_COLOR); // filter
 		R_SetupShader_Generic(decalskinframe->base, false, false, false);
 		R_Mesh_Draw(0, numtris * 3, 0, numtris, decalsystem->element3i, NULL, 0, decalsystem->element3s, NULL, 0);
 	}
@@ -9780,7 +10109,7 @@ static void R_DrawModelDecals(void)
 
 	R_DrawModelDecals_Entity(r_refdef.scene.worldentity);
 
-	for (i = 0;i < r_refdef.scene.numentities;i++)
+	for (i = 0; i < r_refdef.scene.numentities; i ++)
 	{
 		if (!r_refdef.viewcache.entityvisible[i])
 			continue;
@@ -10106,12 +10435,13 @@ void R_DrawModelSurfaces(entity_render_t *ent, qbool skysurfaces, qbool writedep
 	 * surfaces do not have styles on them. Mods like Arcane Dimensions (e.g. ad_necrokeep)
 	 * break this rule and animate most surfaces.
 	 */
-	if (update && !skysurfaces && !depthonly && !prepass && model->brushq1.num_lightstyles && r_refdef.scene.lightmapintensity > 0 && r_q1bsp_lightmap_updates_enabled.integer)
+	if (update && !skysurfaces && !depthonly && !prepass && model->brushq1.num_lightstyles && r_refdef.scene.lightmapintensity > 0 && r_q1bsp_lightmap_updates_enabled.integer /*d: 1*/)
 	{
 		model_brush_lightstyleinfo_t *style;
 
 		// For each lightstyle, check if its value changed and mark the lightmaps as dirty if so
-		for (i = 0, style = model->brushq1.data_lightstyleinfo; i < model->brushq1.num_lightstyles; i++, style++)
+		for (i = 0, style = model->brushq1.data_lightstyleinfo; 
+			i < model->brushq1.num_lightstyles; i++, style++)
 		{
 			if (style->value != r_refdef.scene.lightstylevalue[style->style])
 			{
@@ -10123,7 +10453,7 @@ void R_DrawModelSurfaces(entity_render_t *ent, qbool skysurfaces, qbool writedep
 			}
 		}
 		// Now check if update flags are set on any surfaces that are visible
-		if (r_q1bsp_lightmap_updates_hidden_surfaces.integer)
+		if (r_q1bsp_lightmap_updates_hidden_surfaces.integer /*d: 0*/)
 		{
 			/* 
 			 * We can do less frequent texture uploads (approximately 10hz for animated
@@ -10133,13 +10463,13 @@ void R_DrawModelSurfaces(entity_render_t *ent, qbool skysurfaces, qbool writedep
 			 */
 			for (i = 0; i < model->num_surfaces;i++)
 				if (update[i])
-					R_BuildLightMap(ent, surfaces + i, r_q1bsp_lightmap_updates_combine.integer);
+					R_BuildLightMap(ent, surfaces + i, r_q1bsp_lightmap_updates_combine.integer /*d: 2*/);
 		}
 		else
 		{
 			for (i = 0; i < numsurfacelist; i++)
 				if (update[r_surfacelist[i] - surfaces])
-					R_BuildLightMap(ent, (msurface_t *)r_surfacelist[i], r_q1bsp_lightmap_updates_combine.integer);
+					R_BuildLightMap(ent, (msurface_t *)r_surfacelist[i], r_q1bsp_lightmap_updates_combine.integer /*d: 2*/);
 		}
 	}
 

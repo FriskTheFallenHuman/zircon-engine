@@ -73,15 +73,17 @@ drawqueuemesh_t;
 
 enum drawqueue_drawflag_e {
 DRAWFLAG_NORMAL_0,
-DRAWFLAG_ADDITIVE,
-DRAWFLAG_MODULATE,
-DRAWFLAG_2XMODULATE,
-DRAWFLAG_SCREEN,
+DRAWFLAG_ADDITIVE,		// 1 Baker: GL_SRC_ALPHA, GL_ONE or (non-alpha) GL_ONE, GL_ONE
+DRAWFLAG_MODULATE,		// 2 Baker: GL_DST_COLOR, GL_ZERO
+DRAWFLAG_2XMODULATE,	// 3 Baker: GL_DST_COLOR, GL_SRC_COLOR
+DRAWFLAG_SCREEN,		// 4 Baker: This should be called "filter" (?).   GL_ONE_MINUS_DST_COLOR, GL_ONE
+						// but actual filter in q3map2 is gl_zero gl_src_color
 DRAWFLAG_NUMFLAGS,
 DRAWFLAG_MASK = 0xFF,   // ONLY R_BeginPolygon()
 DRAWFLAG_MIPMAP = 0x100, // ONLY R_BeginPolygon()
-DRAWFLAG_NOGAMMA = 0x200 // ONLY R_DrawQSuperPic()
+DRAWFLAG_NOGAMMA = 0x200 // ONLY DrawQ_SuperPic_Video()
 };
+
 #define DRAWFLAGS_BLEND 0xFF /* this matches all blending flags */
 
 typedef struct ft2_settings_s

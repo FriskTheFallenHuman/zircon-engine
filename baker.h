@@ -3,16 +3,33 @@
 #ifndef __BAKER_H__
 #define __BAKER_H__
 
+// gcc supports __FUNCTION__ .. not sure what Mac does.
+#ifndef __func__
+#define __func__ __FUNCTION__	
+#endif
+
+
 #define WARP_X_(...)			// For warp without including code  see also: SPECIAL_POS___
 #define WARP_X_CALLERS_(...)	// For warp without including code  see also: SPECIAL_POS___
 #define WARP_X_NOT_RELATED_(...)	// Sometimes relevant what is not related ...
 
 #define NULLFIX2		NULL	// Marking kludge fixes "NULLFIX, "
+#define SUCCESS_OK_0	0
 
 #define PLUS1(x)							(x+1)
 #define UNPLUS1(YOUR_PLUS_1)				((YOUR_PLUS_1) - 1)
 
 #define unconstanting			// Baker: Used to mark a cast specifically to unconst
+#define case_break				break; { } case		// default: must come first in switch.
+	
+	//switch (opcode) {
+	//default:								*perrcode = 1; return;
+	//case_break operator_bitwise_and_26:			r = a  &   b;
+	//case_break operator_bitwise_xor_27:			r = a  ^   b;
+	//case_break operator_bitwise_or_28:			r = a  |   b;
+	//case_break operator_bitwise_shiftleft_18:	r = a  <<  b;
+	//case_break operator_bitwise_shiftright_19:	r = a  >>  b;
+	//}
 
 WARP_X_ (dpsnprintf)
 WARP_X_ (Partial_Reset String_Has_Uppercase)
@@ -134,6 +151,7 @@ typedef struct {
 
 #define NULL_CHAR_0						0
 #define SPACE_CHAR_32					32
+#define EXCLAIM_CHAR_33					33
 #define	CHAR_DQUOTE_34					34				// '\"'		//#define CHAR_DQUOTE_34				34	(TOXIC to printf)
 #define TAB_CHAR_9						9
 #define NEWLINE_CHAR_10					10				// '\n'		//#define NEWLINE_CHAR_10				10
@@ -231,6 +249,9 @@ typedef struct {
 					// There are a great many unmarked, but we especially want to mark ones depending on C functions that are not thread safe
 					// because those can hit us especially by surprise when we begin implementing multi-threading safety.
 
+#define	ALLOC___
+#define REF___
+
 ///////////////////////////////////////////////////////////////////////////////
 //  DEV STRING: Baker
 ///////////////////////////////////////////////////////////////////////////////
@@ -282,11 +303,18 @@ WARP_X_ (PRINTF_INT64)
 //#else
 //	FIX ME -- Mac?
 //#endif
+#define VECTOR3_G					"%g %g %g"
+#define VECTOR4_G					"%g %g %g %g"
 
 #define VECTOR3_5d1F				"%5.1f %5.1f %5.1f"
 #define VECTOR3_LOSSLESS			FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT
+#define VECTOR4_LOSSLESS			FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT
+#define VECTOR6_LOSSLESS			FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " \
+									FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT
 #define VECTOR9_5d1F				NEWLINE "{ %5.1f %5.1f %5.1f }" NEWLINE "{ %5.1f %5.1f %5.1f }" NEWLINE "{ %5.1f %5.1f %5.1f }" NEWLINE
 #define VECTOR3_SEND(v)				(v)[0], (v)[1], (v)[2]
+#define VECTOR4_SEND(v)				(v)[0], (v)[1], (v)[2], (v)[3]
+#define VECTOR6_SEND(v)				(v)[0], (v)[1], (v)[2], (v)[3], (v)[4], (v)[5]
 #define VECTOR9_SEND(v)				(v)[0], (v)[1], (v)[2], (v)[3], (v)[4], (v)[5], (v)[6], (v)[7], (v)[8]
 #define VECTOR2_SEND(v)				(v)[0], (v)[1]
 

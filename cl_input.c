@@ -765,7 +765,7 @@ void CL_Input (void)
 				}
 			}
 		}
-		else if (cl_movecliptokeyboard.integer)
+		else if (cl_movecliptokeyboard.integer /*d:0*/)
 		{
 			// digital direction, digital amount
 			if (cl.mcmd.clx_sidemove >= cl_sidespeed.value * f * 0.5)
@@ -831,8 +831,16 @@ static void CL_UpdatePrydonCursor(void)
 		VectorClear(cl.mcmd.cursor_normal);
 		cl.mcmd.cursor_entitynumber = 0;
 	}
-	else
-		cl.mcmd.cursor_fraction = CL_SelectTraceLine(cl.mcmd.cursor_start, cl.mcmd.cursor_end, cl.mcmd.cursor_impact, cl.mcmd.cursor_normal, &cl.mcmd.cursor_entitynumber, (chase_active.integer || cl.intermission) ? &cl.entities[cl.playerentity].render : NULL);
+	else {
+		cl.mcmd.cursor_fraction = CL_SelectTraceLine(cl.mcmd.cursor_start, 
+			cl.mcmd.cursor_end, 
+			cl.mcmd.cursor_impact, // vec3
+			cl.mcmd.cursor_normal, 
+			&cl.mcmd.cursor_entitynumber, 
+			// ignore ent ...
+			(chase_active.integer || cl.intermission) ? &cl.entities[cl.playerentity].render : NULL);
+		//Con_PrintLinef ("Prydon : %d", cl.mcmd.cursor_entitynumber);
+	}
 }
 
 #define NUMOFFSETS_27 27

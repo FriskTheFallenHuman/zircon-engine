@@ -960,7 +960,9 @@ void DrawQ_Pic(float x, float y, cachepic_t *pic, float width, float height, flo
 	Mod_Mesh_AddTriangle(mod, surf, e0, e2, e3);
 }
 
-void DrawQ_RotPic(float x, float y, cachepic_t *pic, float width, float height, float org_x, float org_y, float angle, float red, float green, float blue, float alpha, int flags)
+void DrawQ_RotPic(float x, float y, cachepic_t *pic, float width, float height, 
+				  float org_x, float org_y, float angle, float red, 
+				  float green, float blue, float alpha, int flags)
 {
 	float af = DEG2RAD(-angle); // forward
 	float ar = DEG2RAD(-angle + 90); // right

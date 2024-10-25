@@ -445,9 +445,9 @@ const char *const fs_checkgamedir_missing = "missing";
 char fs_userdir[MAX_OSPATH];
 char fs_gamedir[MAX_OSPATH];
 char fs_basedir[MAX_OSPATH];
+char fs_csg_basedir[MAX_OSPATH];
 static pack_t *fs_selfpack = NULL;
 //static pack_t *fs_bakerpak = NULL;
-
 
 int fs_data_override; // Baker r0009: Super -data override
 int fs_is_zircon_galaxy;
@@ -1790,7 +1790,9 @@ void FS_PurgeAll_f (cmd_state_t *cmd)
 	//if (is_game_switch) {
 		//Mod_PurgeUnused (); // Baker .. loadmodel: stuff from prior gamedir persisted
 	Mod_PurgeALL ();
+#ifdef CONFIG_MENU
 	S_PurgeALL (); //S_PurgeUnused();
+#endif
 
 	// Baker r9003: Clear models/sounds on gamedir change
 //	is_game_switch = true;   // This does what?  Clear models thoroughly.  As opposed to video restart which shouldn't?
@@ -1964,13 +1966,13 @@ static int FS_Baker_ListGameDirs_Is_Total_Conversion (void)
 #ifdef _WIN32 // modlist.txt
 	//const char *s_pwd = Sys_Getcwd_SBuf();
 	if (fs_basedir[0] == NULL_CHAR_0)
-		c_strlcpy (vabuf, ""); // Baker: This should work?	
-	else 
+		c_strlcpy (vabuf, ""); // Baker: This should work?
+	else
 #endif
-	{ 
+	{
 		va (vabuf, sizeof(vabuf), "%s/", fs_basedir);
 	}
-	
+
 	listdirectory (&all_files_in_basedir_list, vabuf, fs_all_files_empty_string); // concats, despite name
 
 	if (fs_userdir[0]) {
@@ -1980,10 +1982,10 @@ static int FS_Baker_ListGameDirs_Is_Total_Conversion (void)
 
 	stringlistsort (&all_files_in_basedir_list, fs_make_unique_true);
 
-	WARP_X_ (FS_RealFilePath_Z_Alloc FS_SysFileOrDirectoryType) 
+	WARP_X_ (FS_RealFilePath_Z_Alloc FS_SysFileOrDirectoryType)
 
 	stringlist_t folders_in_basedir_list = {0};
-	
+
 	for (int idx = 0; idx < all_files_in_basedir_list.numstrings; idx ++) {
 		const char *s			= all_files_in_basedir_list.strings[idx];
 		//char *sreal_za		= NULL;
@@ -2022,11 +2024,11 @@ static int FS_Baker_ListGameDirs_Is_Total_Conversion (void)
 
 		// #contents.pk3 -- if found, this is a classified gamedir mod.
 		va_super (tmp, 1024, "%s/#contents.pk3", mod_list_folder_name); // modinfo.txt except with underscore
-		
-		
+
+
 		//qfile_t *f = FS_OpenRealFileReadBinary(tmp, &realpath_za);
 		qfile_t *f = FS_SysOpen (tmp, FS_MODE_READ_BINARY_RB, fs_nonblocking_false);
-		
+
 		if (!f)
 			break; // Not a #contents mod.
 
@@ -2038,10 +2040,10 @@ static int FS_Baker_ListGameDirs_Is_Total_Conversion (void)
 //		f = FS_SysOpen (tmp, FS_MODE_READ_BINARY_RB, fs_nonblocking_false);
 //		if (!f)
 //			break;
-		
+
 		//char *filedata = (char *)FS_LoadAndCloseQFile(f, tmp2, zonemempool, fs_quiet_true, &filesize);
 		char *filedata = (char *)FS_SysLoadFile(tmp2, zonemempool, fs_quiet_true, &filesize);
-		
+
 		if (!filedata)
 			break;
 
@@ -2056,7 +2058,7 @@ static int FS_Baker_ListGameDirs_Is_Total_Conversion (void)
 		const char *s;
 		s = String_Worldspawn_Value_For_Key_Sbuf (filedata, "game_title");
 		if (s) {
-			c_strlcpy (mod_list_game_window_title, s);	
+			c_strlcpy (mod_list_game_window_title, s);
 			c_strlcpy (mod_list_server_filter_name, s);	// Default - underscorized mod_list_game_window_title
 			String_Edit_Replace (mod_list_server_filter_name, sizeof(mod_list_server_filter_name), " ", "_");
 		}
@@ -2398,11 +2400,11 @@ void FS_Init_SelfPack (void)
 	//extern const unsigned char bundle_char_array_name[];
 	//extern unsigned char const * const bundle_char_array_name[];
 	extern size_t bundle_char_array_name_size;
-	
+
 	fs_bakerpak = FS_LoadPackFromMemory ("engine", (const byte *)bundle_char_array_name, bundle_char_array_name_size);
 
 #endif
-	
+
 	// Provide the SelfPack.
 
 
@@ -2985,7 +2987,7 @@ qfile_t *FS_OpenRealFileReadBinary (const char *filepath, char **prealpathname_z
 
 	// 0, 1
 	for (int j = 0; j < 2; j ++) {
-		
+
 		char real_path [MAX_OSPATH];
 
 		//Con_PrintLinef ("FS_OpenRealFile fs_gamedir " QUOTED_S " " QUOTED_S, fs_gamedir, filepath);
@@ -2999,7 +3001,7 @@ qfile_t *FS_OpenRealFileReadBinary (const char *filepath, char **prealpathname_z
 			c_dpsnprintf3 (real_path, "%s%s/%s", fs_basedir, gamedirname1, filepath); // this is never a vpack
 			break;
 		} // sw
-		
+
 
 		// If the file is opened in "write", "append", or "read/write" mode,
 		// create directories up to the file.
@@ -4226,6 +4228,7 @@ void FS_Pwd_f(cmd_state_t *cmd)
 {
 	const char *s_cwd = Sys_Getcwd_SBuf();
 	Con_PrintLinef ("Current working directory: %s", s_cwd);
+	Con_PrintLinef ("Current basedir : %s", fs_basedir);
 }
 
 void FS_DirPat_f(cmd_state_t *cmd)
@@ -4261,6 +4264,66 @@ void FS_DirPat_f(cmd_state_t *cmd)
 
 
 #ifdef CONFIG_MENU
+
+
+void FS_ColorPcts_f (cmd_state_t *cmd)
+{
+	ccs *s_color = Cmd_Argv(cmd, 1);
+	// 0x8f3933  0xRRGGBB
+
+	// #define readints(array, n)		
+	if (String_Starts_With (s_color, "0x")) {
+#ifdef _WIN32
+    #define STRTOI64_FN					_strtoi64
+#else
+	#define STRTOI64_FN					strtoll
+#endif
+
+		// Convert the hexadecimal string to a long long integer
+		#define HEX_BASE_16 16
+		
+		int64_t ourhex64 = STRTOI64_FN (s_color, /*end pointer*/ NULL, HEX_BASE_16);   // aka strtoll str to long long
+		int is_okay = (errno == 0); // ERANGE is the usual bad value according to docs, means can't be represented with size available.
+
+            // blue element
+            // Yb = Ab(1-width)(1-height) + Bb(width)(1-height) + Cb(height)(1-width) + Db(wh)
+        int red =   ((ourhex64>>16) & 0xff);
+		int green = ((ourhex64>> 8) & 0xff);
+		int blue  = ((ourhex64>> 0) & 0xff);
+
+		Con_PrintLinef ("red: %d green: %d blue: %d", red, green, blue);
+
+		float r = red / 255.0;
+		float g = green / 255.0;
+		float b = blue / 255.0 ;
+
+		va_super (s, 1024, "%4.2f %4.2f %4.2f", r, g, b);
+
+		Clipboard_Set_Text (s);
+
+		Con_PrintLinef (s);
+		Con_PrintLinef ("Copied to clipboard");
+		return;
+	}
+
+	if (Cmd_Argc(cmd) != 1 + 3) {
+		Con_PrintLinef ("Need a number");
+		return;
+	}
+
+	float r = atof(Cmd_Argv(cmd, 1)) / 255.0;
+	float g = atof(Cmd_Argv(cmd, 2)) / 255.0;
+	float b = atof(Cmd_Argv(cmd, 3)) / 255.0 ;
+
+	va_super (s, 1024, "%4.2f %4.2f %4.2f", r, g, b);
+	//va_super (s2, 1024,  FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT, r, g, b);
+	Clipboard_Set_Text (s);
+
+	Con_PrintLinef (s);
+	Con_PrintLinef ("Copied to clipboard");
+
+}
+
 void FS_BitAtomize_f (cmd_state_t *cmd)
 {
 	if (Cmd_Argc(cmd) != 2) {
@@ -4280,17 +4343,32 @@ void FS_BitAtomize_f (cmd_state_t *cmd)
 	} // for
 }
 
-
-#if 0
-void FS_Shell_f (cmd_state_t *cmd)
+#ifdef SHELLENABLE
+void FS_Shell_Wait_f (cmd_state_t *cmd)
 {
 	if (Cmd_Argc (cmd) < 2) {
-		Con_PrintLinef ("shell <command line>");
+		Con_PrintLinef ("shell_wait <command line> <optional args>");
 		return;
 	}
 
-	const char *s = Cmd_Argv (cmd, 1);
-	int is_ok = Sys_ShellExecute (s);
+	ccs *s_exec = Cmd_Argc(cmd) > 1 ? Cmd_Argv(cmd, 1) : NULL;
+	ccs *s_args = Cmd_Argc(cmd) > 2 ? Cmd_Argv(cmd, 2) : NULL;
+
+	int is_ok = Sys_ShellExecute_Wait (s_exec, s_args);
+	Con_PrintLinef ("Result ok = %d", is_ok);
+}
+
+void FS_Shell_f (cmd_state_t *cmd)
+{
+	if (Cmd_Argc (cmd) < 2) {
+		Con_PrintLinef ("shell <command line> <optional args>");
+		return;
+	}
+
+	ccs *s_exec = Cmd_Argc(cmd) > 1 ? Cmd_Argv(cmd, 1) : NULL;
+	ccs *s_args = Cmd_Argc(cmd) > 2 ? Cmd_Argv(cmd, 2) : NULL;
+
+	int is_ok = Sys_ShellExecute_NonBlocking (s_exec, s_args);
 	Con_PrintLinef ("Result ok = %d", is_ok);
 }
 #endif
@@ -4408,6 +4486,193 @@ void FS_Base64ClipboardDeCompressed_f (cmd_state_t *cmd)
 }
 #endif
 
+
+// vegetation make ... do path aware png/tga/jpg
+// It is not our responsibility to make the image
+// Nor the shader.
+// However print out a suggested share for the applicable one.
+
+//
+
+WARP_X_ (FS_JpegSplit_f, SCR_gifclip_f)
+
+
+
+void FS_Mapgenmask_f (cmd_state_t *cmd)
+{
+	// -3520 2560 ... 4096 4098
+	if (Cmd_Argc(cmd) < 1 + 6) {
+		Con_PrintLinef ("usage:" NEWLINE "%s <mask> <x> <y> <w> <h> <scale32>", Cmd_Argv(cmd, 0));
+		return;
+	}
+
+//	ccs *s_mask		= Cmd_Argv(cmd, 1);
+//	ccs *s_x		= Cmd_Argv(cmd, 2);		float x		= atof(s_x);
+//	ccs *s_y		= Cmd_Argv(cmd, 3);		float y		= atof(s_y);
+//	ccs *s_w		= Cmd_Argv(cmd, 4);		float w		= atof(s_w);
+//	ccs *s_h		= Cmd_Argv(cmd, 5);		float h		= atof(s_h);
+//	ccs *s_scale	= Cmd_Argv(cmd, 6);		float sc	= atof(s_scale);
+//
+//	byte *s_mask = loadimagepixelsbgra (
+//		s_name,
+//		q_tx_complain_false,
+//		q_tx_allowfixtrans_false,
+//		q_tx_convertsrgb_false,
+//		q_tx_miplevel_null
+//	);
+//
+//	Mem_Free (data_bgra); // Baker: it's temppool so ok
+//
+}
+
+void FS_Mapgenpoints_f (cmd_state_t *cmd)
+{
+	if (Cmd_Argc(cmd) < 1 + 7) {
+		Con_PrintLinef ("usage:" NEWLINE "%s <delta> <x1> <y1> <z1> <x1> <y1> <z1>", Cmd_Argv(cmd, 0));
+		return;
+	}
+
+	ccs *s_span = Cmd_Argv(cmd, 1);	float span = atof(s_span);
+	if (span < 32)
+		span = 32;
+
+	float spandiv2 = span / 2;
+	//char *x1 = Cmd_Argv(cmd, 2), *y1 = Cmd_Argv(cmd, 3 ), z1 = Cmd_Argv(cmd, 4);
+	//char *x2 = Cmd_Argv(cmd, 2), *y2 = Cmd_Argv(cmd, 3 ), z2 = Cmd_Argv(cmd, 4);
+//-2426 -1168 0
+
+//-2560, -384 to -2048
+
+	baker_string_t *bs_mapblock = BakerString_Create_Malloc ("");
+	ccs *s_mapblock =//	"{" NEWLINE
+			"{" NEWLINE
+			"( XL YL ZH ) ( XL YL ZL ) ( XL YH ZH ) terrain_example/alpha_000 [ 0 -1 0 5.99988 ] [ 0 0 -1 -32 ] 0 0.5 0.5 536870912 16512 0" NEWLINE
+			"( XH YH ZH ) ( XH YH ZL ) ( XH YL ZH ) terrain_example/alpha_000 [ 0 -1 0 5.99988 ] [ 0 0 -1 -32 ] 0 0.5 0.5 536870912 16512 0" NEWLINE
+			"( XH YH ZH ) ( XL YH ZH ) ( XH YH ZL ) terrain_example/alpha_000 [ 1 0 0 -7.38379 ] [ 0 0 -1 -32 ] 0 0.5 0.5 536870912 16512 0" NEWLINE
+			"( XH YL ZL ) ( XL YL ZL ) ( XH YL ZH ) terrain_example/alpha_000 [ 1 0 0 -7.38379 ] [ 0 0 -1 -32 ] 0 0.5 0.5 536870912 16512 0" NEWLINE
+			"( XH YH ZH ) ( XH YL ZH ) ( XL YH ZH ) terrain_example/alpha_000 [ 1 0 0 -7.38379 ] [ -0 1 0 -5.99988 ] 0 0.5 0.5 536870912 16512 0" NEWLINE
+			"( XH YL ZL ) ( XH YH ZL ) ( XL YL ZL ) terrain_example/alpha_000 [ 1 0 0 -7.38379 ] [ -0 1 0 -5.99988 ] 0 0.5 0.5 536870912 16512 0" NEWLINE
+			"}" NEWLINE;
+
+
+
+	// x -2560 to -2048
+		vec3_t p0 = { -2560, -384, 0}; // to -2048}
+		vec3_t p1 = { -2048, -384, 0};
+		vec3_t px = { -1, -384, 0};
+	for (float j = -2560; j <= -2048  /*to -2048*/; j += span) {
+		px[0] = j;
+		vec3_t v1= {px[0]-spandiv2, px[1]-spandiv2, px[2]-spandiv2 };
+		vec3_t v2= {px[0]+spandiv2, px[1]+spandiv2, px[2]+spandiv2 };
+
+
+		char sx1[32], sy1[32], sz1[32];
+		char sx2[32], sy2[32], sz2[32];
+		c_dpsnprintf1(sx1, FLOAT_LOSSLESS_FORMAT, v1[0]);
+		c_dpsnprintf1(sy1, FLOAT_LOSSLESS_FORMAT, v1[1]);
+		c_dpsnprintf1(sz1, FLOAT_LOSSLESS_FORMAT, v1[2]);
+		c_dpsnprintf1(sx2, FLOAT_LOSSLESS_FORMAT, v2[0]);
+		c_dpsnprintf1(sy2, FLOAT_LOSSLESS_FORMAT, v2[1]);
+		c_dpsnprintf1(sz2, FLOAT_LOSSLESS_FORMAT, v2[2]);
+
+		size_t sz8192 = 8192;
+		char *s_za = (char *)Mem_Alloc (tempmempool, sz8192);
+
+		strlcpy (s_za, s_mapblock, sz8192);
+		String_Edit_Replace (s_za, sz8192, "XL", sx1);
+		String_Edit_Replace (s_za, sz8192, "YL", sy1);
+		String_Edit_Replace (s_za, sz8192, "ZL", sz1);
+		String_Edit_Replace (s_za, sz8192, "XH", sx2);
+		String_Edit_Replace (s_za, sz8192, "YH", sy2);
+		String_Edit_Replace (s_za, sz8192, "ZH", sz2);
+
+		BakerString_Cat_No_Collide (bs_mapblock, strlen(s_za), s_za);
+		Mem_FreeNull_ (s_za);
+	}
+	char *sout_za = NULL;
+
+	Clipboard_Set_Text (bs_mapblock->string);
+	Con_PrintLinef ("Data on clipboard");
+
+	BakerString_Destroy_And_Null_It (&bs_mapblock);
+	Mem_FreeNull_ (sout_za);
+
+
+}
+
+void FS_VegetationMake_f (cmd_state_t *cmd)
+{
+	// Need to work on this.  Which one is cross.
+	// What is other one?
+	ccs *vegetion_ase_text_base64 = "KjNEU01BWF9BU0NJSUVYUE9SVAkyMDANCipDT01NRU5UCSJHZW5lcmF0ZWQgYnkgUTNNYXAyICh5ZG5hcikgLWNvbnZlcnQgLWZvcm1hdCBhc2UiDQoqU0NFTkUJew0KCSpTQ0VORV9GSUxFTkFNRQkiW01PREVMXS5ic3AiDQoJKlNDRU5FX0ZJUlNURlJBTUUJMA0KCSpTQ0VORV9MQVNURlJBTUUJMTAwDQoJKlNDRU5FX0ZSQU1FU1BFRUQJMzANCgkqU0NFTkVfVElDS1NQRVJGUkFNRQkxNjANCgkqU0NFTkVfQkFDS0dST1VORF9TVEFUSUMJMAkwCTANCgkqU0NFTkVfQU1CSUVOVF9TVEFUSUMJMAkwCTANCn0NCipNQVRFUklBTF9MSVNUCXsNCgkqTUFURVJJQUxfQ09VTlQJMw0KCSpNQVRFUklBTAkwCXsNCgkJKk1BVEVSSUFMX05BTUUJInRleHR1cmVzL2NvbW1vbi9vcmlnaW4iDQoJCSpNQVRFUklBTF9DTEFTUwkiU3RhbmRhcmQiDQoJCSpNQVRFUklBTF9ESUZGVVNFCTEJMQkxDQoJCSpNQVRFUklBTF9TSEFESU5HIFBob25nDQoJCSpNQVBfRElGRlVTRQl7DQoJCQkqTUFQX05BTUUJInRleHR1cmVzL2NvbW1vbi9vcmlnaW4iDQoJCQkqTUFQX0NMQVNTCSJCaXRtYXAiDQoJCQkqTUFQX1NVQk5PCTENCgkJCSpNQVBfQU1PVU5UCTENCgkJCSpNQVBfVFlQRQlTY3JlZW4NCgkJCSpCSVRNQVAJInRleHR1cmVzXGNvbW1vblxvcmlnaW4udGdhIg0KCQkJKkJJVE1BUF9GSUxURVIJUHlyYW1pZGFsDQoJCX0NCgl9DQoJKk1BVEVSSUFMCTEJew0KCQkqTUFURVJJQUxfTkFNRQkiW1BBVEhdL1tNT0RFTF0iDQoJCSpNQVRFUklBTF9DTEFTUwkiU3RhbmRhcmQiDQoJCSpNQVRFUklBTF9ESUZGVVNFCTEJMQkxDQoJCSpNQVRFUklBTF9TSEFESU5HIFBob25nDQoJCSpNQVBfRElGRlVTRQl7DQoJCQkqTUFQX05BTUUJIltQQVRIXS9bTU9ERUxdIg0KCQkJKk1BUF9DTEFTUwkiQml0bWFwIg0KCQkJKk1BUF9TVUJOTwkxDQoJCQkqTUFQX0FNT1VOVAkxDQoJCQkqTUFQX1RZUEUJU2NyZWVuDQoJCQkqQklUTUFQCSJbUEFUSF0vW01PREVMXSINCgkJCSpCSVRNQVBfRklMVEVSCVB5cmFtaWRhbA0KCQl9DQoJfQ0KCSpNQVRFUklBTAkyCXsNCgkJKk1BVEVSSUFMX05BTUUJIltQQVRIXS9bTU9ERUxdIg0KCQkqTUFURVJJQUxfQ0xBU1MJIlN0YW5kYXJkIg0KCQkqTUFURVJJQUxfRElGRlVTRQkxCTEJMQ0KCQkqTUFURVJJQUxfU0hBRElORyBQaG9uZw0KCQkqTUFQX0RJRkZVU0UJew0KCQkJKk1BUF9OQU1FCSJbUEFUSF0vW01PREVMXSINCgkJCSpNQVBfQ0xBU1MJIkJpdG1hcCINCgkJCSpNQVBfU1VCTk8JMQ0KCQkJKk1BUF9BTU9VTlQJMQ0KCQkJKk1BUF9UWVBFCVNjcmVlbg0KCQkJKkJJVE1BUAkiW1BBVEhdL1tNT0RFTF0iDQoJCQkqQklUTUFQX0ZJTFRFUglQeXJhbWlkYWwNCgkJfQ0KCX0NCn0NCipHRU9NT0JKRUNUCXsNCgkqTk9ERV9OQU1FCSJtYXQwbW9kZWwwc3VyZjIiDQoJKk5PREVfVE0Jew0KCQkqTk9ERV9OQU1FCSJtYXQwbW9kZWwwc3VyZjIiDQoJCSpJTkhFUklUX1BPUwkwCTAJMA0KCQkqSU5IRVJJVF9ST1QJMAkwCTANCgkJKklOSEVSSVRfU0NMCTAJMAkwDQoJCSpUTV9ST1cwCTEJMAkwDQoJCSpUTV9ST1cxCTAJMQkwDQoJCSpUTV9ST1cyCTAJMAkxDQoJCSpUTV9ST1czCTAJMAkwDQoJCSpUTV9QT1MJMAkwCTANCgl9DQoJKk1FU0gJew0KCQkqVElNRVZBTFVFCTANCgkJKk1FU0hfTlVNVkVSVEVYCTQNCgkJKk1FU0hfTlVNRkFDRVMJMg0KCQkqQ09NTUVOVAkiU1VSRkFDRVRZUEUJTVNUX1BMQU5BUiINCgkJKk1FU0hfVkVSVEVYX0xJU1QJew0KCQkJKk1FU0hfVkVSVEVYCTAJOC4wCTguMAkwDQoJCQkqTUVTSF9WRVJURVgJMQk4LjAJLTguMAkwDQoJCQkqTUVTSF9WRVJURVgJMgk4LjAJOC4wCTE2LjANCgkJCSpNRVNIX1ZFUlRFWAkzCTguMAktOC4wCTE2LjANCgkJfQ0KCQkqTUVTSF9OT1JNQUxTCXsNCgkJCSpNRVNIX0ZBQ0VOT1JNQUwJMAkwCS0xCTANCgkJCSpNRVNIX0ZBQ0VOT1JNQUwJMQkwCS0xCTANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkwCTEJMAkwDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMQkxCTAJMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTIJMQkwCTANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkzCTEJMAkwDQoJCX0NCgkJKk1FU0hfRkFDRV9MSVNUCXsNCgkJCSpNRVNIX0ZBQ0UJMAlBOgkwCUI6CTIJQzoJMQlBQjoJMQlCQzoJMQlDQToJMQkqTUVTSF9TTU9PVEhJTkcJMAkqTUVTSF9NVExJRAkwDQoJCQkqTUVTSF9GQUNFCTEJQToJMglCOgkzCUM6CTEJQUI6CTEJQkM6CTEJQ0E6CTEJKk1FU0hfU01PT1RISU5HCTAJKk1FU0hfTVRMSUQJMA0KCQl9DQoJCSpNRVNIX05VTVRWRVJURVgJNA0KCQkqTUVTSF9UVkVSVExJU1QJew0KCQkJKk1FU0hfVFZFUlQJMAkwLjUJMAkxDQoJCQkqTUVTSF9UVkVSVAkxCS0wLjUJMAkxDQoJCQkqTUVTSF9UVkVSVAkyCTAuNQkxCTENCgkJCSpNRVNIX1RWRVJUCTMJLTAuNQkxCTENCgkJfQ0KCQkqTUVTSF9OVU1UVkZBQ0VTCTINCgkJKk1FU0hfVEZBQ0VMSVNUCXsNCgkJCSpNRVNIX1RGQUNFCTAJMAkyCTENCgkJCSpNRVNIX1RGQUNFCTEJMgkzCTENCgkJfQ0KCX0NCgkqUFJPUF9NT1RJT05CTFVSCTANCgkqUFJPUF9DQVNUU0hBRE9XCTENCgkqUFJPUF9SRUNWU0hBRE9XCTENCgkqTUFURVJJQUxfUkVGCTANCn0NCipHRU9NT0JKRUNUCXsNCgkqTk9ERV9OQU1FCSJtYXQwbW9kZWwwc3VyZjMiDQoJKk5PREVfVE0Jew0KCQkqTk9ERV9OQU1FCSJtYXQwbW9kZWwwc3VyZjMiDQoJCSpJTkhFUklUX1BPUwkwCTAJMA0KCQkqSU5IRVJJVF9ST1QJMAkwCTANCgkJKklOSEVSSVRfU0NMCTAJMAkwDQoJCSpUTV9ST1cwCTEJMAkwDQoJCSpUTV9ST1cxCTAJMQkwDQoJCSpUTV9ST1cyCTAJMAkxDQoJCSpUTV9ST1czCTAJMAkwDQoJCSpUTV9QT1MJMAkwCTANCgl9DQoJKk1FU0gJew0KCQkqVElNRVZBTFVFCTANCgkJKk1FU0hfTlVNVkVSVEVYCTQNCgkJKk1FU0hfTlVNRkFDRVMJMg0KCQkqQ09NTUVOVAkiU1VSRkFDRVRZUEUJTVNUX1BMQU5BUiINCgkJKk1FU0hfVkVSVEVYX0xJU1QJew0KCQkJKk1FU0hfVkVSVEVYCTAJLTguMAk4LjAJMTYuMA0KCQkJKk1FU0hfVkVSVEVYCTEJLTguMAk4LjAJMA0KCQkJKk1FU0hfVkVSVEVYCTIJOC4wCTguMAkxNi4wDQoJCQkqTUVTSF9WRVJURVgJMwk4LjAJOC4wCTANCgkJfQ0KCQkqTUVTSF9OT1JNQUxTCXsNCgkJCSpNRVNIX0ZBQ0VOT1JNQUwJMAkwCS0xCTANCgkJCSpNRVNIX0ZBQ0VOT1JNQUwJMQkwCS0xCTANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkwCTAJMQkwDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMQkwCTEJMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTIJMAkxCTANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkzCTAJMQkwDQoJCX0NCgkJKk1FU0hfRkFDRV9MSVNUCXsNCgkJCSpNRVNIX0ZBQ0UJMAlBOgkwCUI6CTIJQzoJMQlBQjoJMQlCQzoJMQlDQToJMQkqTUVTSF9TTU9PVEhJTkcJMAkqTUVTSF9NVExJRAkwDQoJCQkqTUVTSF9GQUNFCTEJQToJMglCOgkzCUM6CTEJQUI6CTEJQkM6CTEJQ0E6CTEJKk1FU0hfU01PT1RISU5HCTAJKk1FU0hfTVRMSUQJMA0KCQl9DQoJCSpNRVNIX05VTVRWRVJURVgJNA0KCQkqTUVTSF9UVkVSVExJU1QJew0KCQkJKk1FU0hfVFZFUlQJMAktMC41CTEJMQ0KCQkJKk1FU0hfVFZFUlQJMQktMC41CTAJMQ0KCQkJKk1FU0hfVFZFUlQJMgkwLjUJMQkxDQoJCQkqTUVTSF9UVkVSVAkzCTAuNQkwCTENCgkJfQ0KCQkqTUVTSF9OVU1UVkZBQ0VTCTINCgkJKk1FU0hfVEZBQ0VMSVNUCXsNCgkJCSpNRVNIX1RGQUNFCTAJMAkyCTENCgkJCSpNRVNIX1RGQUNFCTEJMgkzCTENCgkJfQ0KCX0NCgkqUFJPUF9NT1RJT05CTFVSCTANCgkqUFJPUF9DQVNUU0hBRE9XCTENCgkqUFJPUF9SRUNWU0hBRE9XCTENCgkqTUFURVJJQUxfUkVGCTANCn0NCipHRU9NT0JKRUNUCXsNCgkqTk9ERV9OQU1FCSJtYXQwbW9kZWwwc3VyZjQiDQoJKk5PREVfVE0Jew0KCQkqTk9ERV9OQU1FCSJtYXQwbW9kZWwwc3VyZjQiDQoJCSpJTkhFUklUX1BPUwkwCTAJMA0KCQkqSU5IRVJJVF9ST1QJMAkwCTANCgkJKklOSEVSSVRfU0NMCTAJMAkwDQoJCSpUTV9ST1cwCTEJMAkwDQoJCSpUTV9ST1cxCTAJMQkwDQoJCSpUTV9ST1cyCTAJMAkxDQoJCSpUTV9ST1czCTAJMAkwDQoJCSpUTV9QT1MJMAkwCTANCgl9DQoJKk1FU0gJew0KCQkqVElNRVZBTFVFCTANCgkJKk1FU0hfTlVNVkVSVEVYCTQNCgkJKk1FU0hfTlVNRkFDRVMJMg0KCQkqQ09NTUVOVAkiU1VSRkFDRVRZUEUJTVNUX1BMQU5BUiINCgkJKk1FU0hfVkVSVEVYX0xJU1QJew0KCQkJKk1FU0hfVkVSVEVYCTAJOC4wCS04LjAJMTYuMA0KCQkJKk1FU0hfVkVSVEVYCTEJLTguMAktOC4wCTE2LjANCgkJCSpNRVNIX1ZFUlRFWAkyCTguMAk4LjAJMTYuMA0KCQkJKk1FU0hfVkVSVEVYCTMJLTguMAk4LjAJMTYuMA0KCQl9DQoJCSpNRVNIX05PUk1BTFMJew0KCQkJKk1FU0hfRkFDRU5PUk1BTAkwCTAJLTEJMA0KCQkJKk1FU0hfRkFDRU5PUk1BTAkxCTAJLTEJMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTAJMAkwCTENCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkxCTAJMAkxDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMgkwCTAJMQ0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTMJMAkwCTENCgkJfQ0KCQkqTUVTSF9GQUNFX0xJU1QJew0KCQkJKk1FU0hfRkFDRQkwCUE6CTAJQjoJMglDOgkxCUFCOgkxCUJDOgkxCUNBOgkxCSpNRVNIX1NNT09USElORwkwCSpNRVNIX01UTElECTANCgkJCSpNRVNIX0ZBQ0UJMQlBOgkyCUI6CTMJQzoJMQlBQjoJMQlCQzoJMQlDQToJMQkqTUVTSF9TTU9PVEhJTkcJMAkqTUVTSF9NVExJRAkwDQoJCX0NCgkJKk1FU0hfTlVNVFZFUlRFWAk0DQoJCSpNRVNIX1RWRVJUTElTVAl7DQoJCQkqTUVTSF9UVkVSVAkwCTAuNQkwLjUJMQ0KCQkJKk1FU0hfVFZFUlQJMQktMC41CTAuNQkxDQoJCQkqTUVTSF9UVkVSVAkyCTAuNQkxLjUJMQ0KCQkJKk1FU0hfVFZFUlQJMwktMC41CTEuNQkxDQoJCX0NCgkJKk1FU0hfTlVNVFZGQUNFUwkyDQoJCSpNRVNIX1RGQUNFTElTVAl7DQoJCQkqTUVTSF9URkFDRQkwCTAJMgkxDQoJCQkqTUVTSF9URkFDRQkxCTIJMwkxDQoJCX0NCgl9DQoJKlBST1BfTU9USU9OQkxVUgkwDQoJKlBST1BfQ0FTVFNIQURPVwkxDQoJKlBST1BfUkVDVlNIQURPVwkxDQoJKk1BVEVSSUFMX1JFRgkwDQp9DQoqR0VPTU9CSkVDVAl7DQoJKk5PREVfTkFNRQkibWF0MG1vZGVsMHN1cmY1Ig0KCSpOT0RFX1RNCXsNCgkJKk5PREVfTkFNRQkibWF0MG1vZGVsMHN1cmY1Ig0KCQkqSU5IRVJJVF9QT1MJMAkwCTANCgkJKklOSEVSSVRfUk9UCTAJMAkwDQoJCSpJTkhFUklUX1NDTAkwCTAJMA0KCQkqVE1fUk9XMAkxCTAJMA0KCQkqVE1fUk9XMQkwCTEJMA0KCQkqVE1fUk9XMgkwCTAJMQ0KCQkqVE1fUk9XMwkwCTAJMA0KCQkqVE1fUE9TCTAJMAkwDQoJfQ0KCSpNRVNICXsNCgkJKlRJTUVWQUxVRQkwDQoJCSpNRVNIX05VTVZFUlRFWAk0DQoJCSpNRVNIX05VTUZBQ0VTCTINCgkJKkNPTU1FTlQJIlNVUkZBQ0VUWVBFCU1TVF9QTEFOQVIiDQoJCSpNRVNIX1ZFUlRFWF9MSVNUCXsNCgkJCSpNRVNIX1ZFUlRFWAkwCS04LjAJLTguMAkxNi4wDQoJCQkqTUVTSF9WRVJURVgJMQktOC4wCS04LjAJMA0KCQkJKk1FU0hfVkVSVEVYCTIJLTguMAk4LjAJMTYuMA0KCQkJKk1FU0hfVkVSVEVYCTMJLTguMAk4LjAJMA0KCQl9DQoJCSpNRVNIX05PUk1BTFMJew0KCQkJKk1FU0hfRkFDRU5PUk1BTAkwCTAJLTEJMA0KCQkJKk1FU0hfRkFDRU5PUk1BTAkxCTAJLTEJMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTAJLTEJMAkwDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMQktMQkwCTANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkyCS0xCTAJMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTMJLTEJMAkwDQoJCX0NCgkJKk1FU0hfRkFDRV9MSVNUCXsNCgkJCSpNRVNIX0ZBQ0UJMAlBOgkwCUI6CTIJQzoJMQlBQjoJMQlCQzoJMQlDQToJMQkqTUVTSF9TTU9PVEhJTkcJMAkqTUVTSF9NVExJRAkwDQoJCQkqTUVTSF9GQUNFCTEJQToJMglCOgkzCUM6CTEJQUI6CTEJQkM6CTEJQ0E6CTEJKk1FU0hfU01PT1RISU5HCTAJKk1FU0hfTVRMSUQJMA0KCQl9DQoJCSpNRVNIX05VTVRWRVJURVgJNA0KCQkqTUVTSF9UVkVSVExJU1QJew0KCQkJKk1FU0hfVFZFUlQJMAktMC41CTEJMQ0KCQkJKk1FU0hfVFZFUlQJMQktMC41CTAJMQ0KCQkJKk1FU0hfVFZFUlQJMgkwLjUJMQkxDQoJCQkqTUVTSF9UVkVSVAkzCTAuNQkwCTENCgkJfQ0KCQkqTUVTSF9OVU1UVkZBQ0VTCTINCgkJKk1FU0hfVEZBQ0VMSVNUCXsNCgkJCSpNRVNIX1RGQUNFCTAJMAkyCTENCgkJCSpNRVNIX1RGQUNFCTEJMgkzCTENCgkJfQ0KCX0NCgkqUFJPUF9NT1RJT05CTFVSCTANCgkqUFJPUF9DQVNUU0hBRE9XCTENCgkqUFJPUF9SRUNWU0hBRE9XCTENCgkqTUFURVJJQUxfUkVGCTANCn0NCipHRU9NT0JKRUNUCXsNCgkqTk9ERV9OQU1FCSJtYXQwbW9kZWwwc3VyZjYiDQoJKk5PREVfVE0Jew0KCQkqTk9ERV9OQU1FCSJtYXQwbW9kZWwwc3VyZjYiDQoJCSpJTkhFUklUX1BPUwkwCTAJMA0KCQkqSU5IRVJJVF9ST1QJMAkwCTANCgkJKklOSEVSSVRfU0NMCTAJMAkwDQoJCSpUTV9ST1cwCTEJMAkwDQoJCSpUTV9ST1cxCTAJMQkwDQoJCSpUTV9ST1cyCTAJMAkxDQoJCSpUTV9ST1czCTAJMAkwDQoJCSpUTV9QT1MJMAkwCTANCgl9DQoJKk1FU0gJew0KCQkqVElNRVZBTFVFCTANCgkJKk1FU0hfTlVNVkVSVEVYCTQNCgkJKk1FU0hfTlVNRkFDRVMJMg0KCQkqQ09NTUVOVAkiU1VSRkFDRVRZUEUJTVNUX1BMQU5BUiINCgkJKk1FU0hfVkVSVEVYX0xJU1QJew0KCQkJKk1FU0hfVkVSVEVYCTAJOC4wCS04LjAJMA0KCQkJKk1FU0hfVkVSVEVYCTEJLTguMAktOC4wCTANCgkJCSpNRVNIX1ZFUlRFWAkyCTguMAktOC4wCTE2LjANCgkJCSpNRVNIX1ZFUlRFWAkzCS04LjAJLTguMAkxNi4wDQoJCX0NCgkJKk1FU0hfTk9STUFMUwl7DQoJCQkqTUVTSF9GQUNFTk9STUFMCTAJMAktMQkwDQoJCQkqTUVTSF9GQUNFTk9STUFMCTEJMAktMQkwDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMAkwCS0xCTANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkxCTAJLTEJMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTIJMAktMQkwDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMwkwCS0xCTANCgkJfQ0KCQkqTUVTSF9GQUNFX0xJU1QJew0KCQkJKk1FU0hfRkFDRQkwCUE6CTAJQjoJMglDOgkxCUFCOgkxCUJDOgkxCUNBOgkxCSpNRVNIX1NNT09USElORwkwCSpNRVNIX01UTElECTANCgkJCSpNRVNIX0ZBQ0UJMQlBOgkyCUI6CTMJQzoJMQlBQjoJMQlCQzoJMQlDQToJMQkqTUVTSF9TTU9PVEhJTkcJMAkqTUVTSF9NVExJRAkwDQoJCX0NCgkJKk1FU0hfTlVNVFZFUlRFWAk0DQoJCSpNRVNIX1RWRVJUTElTVAl7DQoJCQkqTUVTSF9UVkVSVAkwCTAuNQkwCTENCgkJCSpNRVNIX1RWRVJUCTEJLTAuNQkwCTENCgkJCSpNRVNIX1RWRVJUCTIJMC41CTEJMQ0KCQkJKk1FU0hfVFZFUlQJMwktMC41CTEJMQ0KCQl9DQoJCSpNRVNIX05VTVRWRkFDRVMJMg0KCQkqTUVTSF9URkFDRUxJU1QJew0KCQkJKk1FU0hfVEZBQ0UJMAkwCTIJMQ0KCQkJKk1FU0hfVEZBQ0UJMQkyCTMJMQ0KCQl9DQoJfQ0KCSpQUk9QX01PVElPTkJMVVIJMA0KCSpQUk9QX0NBU1RTSEFET1cJMQ0KCSpQUk9QX1JFQ1ZTSEFET1cJMQ0KCSpNQVRFUklBTF9SRUYJMA0KfQ0KKkdFT01PQkpFQ1QJew0KCSpOT0RFX05BTUUJIm1hdDBtb2RlbDBzdXJmNyINCgkqTk9ERV9UTQl7DQoJCSpOT0RFX05BTUUJIm1hdDBtb2RlbDBzdXJmNyINCgkJKklOSEVSSVRfUE9TCTAJMAkwDQoJCSpJTkhFUklUX1JPVAkwCTAJMA0KCQkqSU5IRVJJVF9TQ0wJMAkwCTANCgkJKlRNX1JPVzAJMQkwCTANCgkJKlRNX1JPVzEJMAkxCTANCgkJKlRNX1JPVzIJMAkwCTENCgkJKlRNX1JPVzMJMAkwCTANCgkJKlRNX1BPUwkwCTAJMA0KCX0NCgkqTUVTSAl7DQoJCSpUSU1FVkFMVUUJMA0KCQkqTUVTSF9OVU1WRVJURVgJNA0KCQkqTUVTSF9OVU1GQUNFUwkyDQoJCSpDT01NRU5UCSJTVVJGQUNFVFlQRQlNU1RfUExBTkFSIg0KCQkqTUVTSF9WRVJURVhfTElTVAl7DQoJCQkqTUVTSF9WRVJURVgJMAktOC4wCTguMAkwDQoJCQkqTUVTSF9WRVJURVgJMQktOC4wCS04LjAJMA0KCQkJKk1FU0hfVkVSVEVYCTIJOC4wCTguMAkwDQoJCQkqTUVTSF9WRVJURVgJMwk4LjAJLTguMAkwDQoJCX0NCgkJKk1FU0hfTk9STUFMUwl7DQoJCQkqTUVTSF9GQUNFTk9STUFMCTAJMAktMQkwDQoJCQkqTUVTSF9GQUNFTk9STUFMCTEJMAktMQkwDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMAkwCTAJLTENCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkxCTAJMAktMQ0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTIJMAkwCS0xDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMwkwCTAJLTENCgkJfQ0KCQkqTUVTSF9GQUNFX0xJU1QJew0KCQkJKk1FU0hfRkFDRQkwCUE6CTAJQjoJMglDOgkxCUFCOgkxCUJDOgkxCUNBOgkxCSpNRVNIX1NNT09USElORwkwCSpNRVNIX01UTElECTANCgkJCSpNRVNIX0ZBQ0UJMQlBOgkyCUI6CTMJQzoJMQlBQjoJMQlCQzoJMQlDQToJMQkqTUVTSF9TTU9PVEhJTkcJMAkqTUVTSF9NVExJRAkwDQoJCX0NCgkJKk1FU0hfTlVNVFZFUlRFWAk0DQoJCSpNRVNIX1RWRVJUTElTVAl7DQoJCQkqTUVTSF9UVkVSVAkwCS0wLjUJMS41CTENCgkJCSpNRVNIX1RWRVJUCTEJLTAuNQkwLjUJMQ0KCQkJKk1FU0hfVFZFUlQJMgkwLjUJMS41CTENCgkJCSpNRVNIX1RWRVJUCTMJMC41CTAuNQkxDQoJCX0NCgkJKk1FU0hfTlVNVFZGQUNFUwkyDQoJCSpNRVNIX1RGQUNFTElTVAl7DQoJCQkqTUVTSF9URkFDRQkwCTAJMgkxDQoJCQkqTUVTSF9URkFDRQkxCTIJMwkxDQoJCX0NCgl9DQoJKlBST1BfTU9USU9OQkxVUgkwDQoJKlBST1BfQ0FTVFNIQURPVwkxDQoJKlBST1BfUkVDVlNIQURPVwkxDQoJKk1BVEVSSUFMX1JFRgkwDQp9DQoqR0VPTU9CSkVDVAl7DQoJKk5PREVfTkFNRQkibWF0Mm1vZGVsMHN1cmY4Ig0KCSpOT0RFX1RNCXsNCgkJKk5PREVfTkFNRQkibWF0Mm1vZGVsMHN1cmY4Ig0KCQkqSU5IRVJJVF9QT1MJMAkwCTANCgkJKklOSEVSSVRfUk9UCTAJMAkwDQoJCSpJTkhFUklUX1NDTAkwCTAJMA0KCQkqVE1fUk9XMAkxCTAJMA0KCQkqVE1fUk9XMQkwCTEJMA0KCQkqVE1fUk9XMgkwCTAJMQ0KCQkqVE1fUk9XMwkwCTAJMA0KCQkqVE1fUE9TCTAJMAkwDQoJfQ0KCSpNRVNICXsNCgkJKlRJTUVWQUxVRQkwDQoJCSpNRVNIX05VTVZFUlRFWAk0DQoJCSpNRVNIX05VTUZBQ0VTCTINCgkJKkNPTU1FTlQJIlNVUkZBQ0VUWVBFCU1TVF9QTEFOQVIiDQoJCSpNRVNIX1ZFUlRFWF9MSVNUCXsNCgkJCSpNRVNIX1ZFUlRFWAkwCTAJMzIuMAkwDQoJCQkqTUVTSF9WRVJURVgJMQkwCTMyLjAJNjQuMA0KCQkJKk1FU0hfVkVSVEVYCTIJMAktMzIuMAk2NC4wDQoJCQkqTUVTSF9WRVJURVgJMwkwCS0zMi4wCTANCgkJfQ0KCQkqTUVTSF9OT1JNQUxTCXsNCgkJCSpNRVNIX0ZBQ0VOT1JNQUwJMAkwCS0xCTANCgkJCSpNRVNIX0ZBQ0VOT1JNQUwJMQkwCS0xCTANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkwCS0xCTAJMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTEJLTEJMAkwDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMgktMQkwCTANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkzCS0xCTAJMA0KCQl9DQoJCSpNRVNIX0ZBQ0VfTElTVAl7DQoJCQkqTUVTSF9GQUNFCTAJQToJMAlCOgkyCUM6CTEJQUI6CTEJQkM6CTEJQ0E6CTEJKk1FU0hfU01PT1RISU5HCTAJKk1FU0hfTVRMSUQJMA0KCQkJKk1FU0hfRkFDRQkxCUE6CTAJQjoJMwlDOgkyCUFCOgkxCUJDOgkxCUNBOgkxCSpNRVNIX1NNT09USElORwkwCSpNRVNIX01UTElECTANCgkJfQ0KCQkqTUVTSF9OVU1UVkVSVEVYCTQNCgkJKk1FU0hfVFZFUlRMSVNUCXsNCgkJCSpNRVNIX1RWRVJUCTAJMAkwCTENCgkJCSpNRVNIX1RWRVJUCTEJMAkxCTENCgkJCSpNRVNIX1RWRVJUCTIJMQkxCTENCgkJCSpNRVNIX1RWRVJUCTMJMQkwCTENCgkJfQ0KCQkqTUVTSF9OVU1UVkZBQ0VTCTINCgkJKk1FU0hfVEZBQ0VMSVNUCXsNCgkJCSpNRVNIX1RGQUNFCTAJMAkyCTENCgkJCSpNRVNIX1RGQUNFCTEJMAkzCTINCgkJfQ0KCX0NCgkqUFJPUF9NT1RJT05CTFVSCTANCgkqUFJPUF9DQVNUU0hBRE9XCTENCgkqUFJPUF9SRUNWU0hBRE9XCTENCgkqTUFURVJJQUxfUkVGCTINCn0NCipHRU9NT0JKRUNUCXsNCgkqTk9ERV9OQU1FCSJtYXQybW9kZWwwc3VyZjkiDQoJKk5PREVfVE0Jew0KCQkqTk9ERV9OQU1FCSJtYXQybW9kZWwwc3VyZjkiDQoJCSpJTkhFUklUX1BPUwkwCTAJMA0KCQkqSU5IRVJJVF9ST1QJMAkwCTANCgkJKklOSEVSSVRfU0NMCTAJMAkwDQoJCSpUTV9ST1cwCTEJMAkwDQoJCSpUTV9ST1cxCTAJMQkwDQoJCSpUTV9ST1cyCTAJMAkxDQoJCSpUTV9ST1czCTAJMAkwDQoJCSpUTV9QT1MJMAkwCTANCgl9DQoJKk1FU0gJew0KCQkqVElNRVZBTFVFCTANCgkJKk1FU0hfTlVNVkVSVEVYCTQNCgkJKk1FU0hfTlVNRkFDRVMJMg0KCQkqQ09NTUVOVAkiU1VSRkFDRVRZUEUJTVNUX1BMQU5BUiINCgkJKk1FU0hfVkVSVEVYX0xJU1QJew0KCQkJKk1FU0hfVkVSVEVYCTAJLTMyLjAJMAkwDQoJCQkqTUVTSF9WRVJURVgJMQktMzIuMAkwCTY0LjANCgkJCSpNRVNIX1ZFUlRFWAkyCTMyLjAJMAk2NC4wDQoJCQkqTUVTSF9WRVJURVgJMwkzMi4wCTAJMA0KCQl9DQoJCSpNRVNIX05PUk1BTFMJew0KCQkJKk1FU0hfRkFDRU5PUk1BTAkwCTAJLTEJMA0KCQkJKk1FU0hfRkFDRU5PUk1BTAkxCTAJLTEJMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTAJMAktMQkwDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMQkwCS0xCTANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkyCTAJLTEJMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTMJMAktMQkwDQoJCX0NCgkJKk1FU0hfRkFDRV9MSVNUCXsNCgkJCSpNRVNIX0ZBQ0UJMAlBOgkwCUI6CTIJQzoJMQlBQjoJMQlCQzoJMQlDQToJMQkqTUVTSF9TTU9PVEhJTkcJMAkqTUVTSF9NVExJRAkwDQoJCQkqTUVTSF9GQUNFCTEJQToJMAlCOgkzCUM6CTIJQUI6CTEJQkM6CTEJQ0E6CTEJKk1FU0hfU01PT1RISU5HCTAJKk1FU0hfTVRMSUQJMA0KCQl9DQoJCSpNRVNIX05VTVRWRVJURVgJNA0KCQkqTUVTSF9UVkVSVExJU1QJew0KCQkJKk1FU0hfVFZFUlQJMAkwCTAJMQ0KCQkJKk1FU0hfVFZFUlQJMQkwCTEJMQ0KCQkJKk1FU0hfVFZFUlQJMgkxCTEJMQ0KCQkJKk1FU0hfVFZFUlQJMwkxCTAJMQ0KCQl9DQoJCSpNRVNIX05VTVRWRkFDRVMJMg0KCQkqTUVTSF9URkFDRUxJU1QJew0KCQkJKk1FU0hfVEZBQ0UJMAkwCTIJMQ0KCQkJKk1FU0hfVEZBQ0UJMQkwCTMJMg0KCQl9DQoJfQ0KCSpQUk9QX01PVElPTkJMVVIJMA0KCSpQUk9QX0NBU1RTSEFET1cJMQ0KCSpQUk9QX1JFQ1ZTSEFET1cJMQ0KCSpNQVRFUklBTF9SRUYJMg0KfQ0K"; // corn02.ase was source or perhaps brush02.ase
+	ccs *vegetion_ase_text_autosprite = "KjNEU01BWF9BU0NJSUVYUE9SVAkyMDANCipDT01NRU5UCSJHZW5lcmF0ZWQgYnkgUTNNYXAyICh5ZG5hcikgLWNvbnZlcnQgLWZvcm1hdCBhc2UiDQoqU0NFTkUJew0KCSpTQ0VORV9GSUxFTkFNRQkiW01PREVMXS5ic3AiDQoJKlNDRU5FX0ZJUlNURlJBTUUJMA0KCSpTQ0VORV9MQVNURlJBTUUJMTAwDQoJKlNDRU5FX0ZSQU1FU1BFRUQJMzANCgkqU0NFTkVfVElDS1NQRVJGUkFNRQkxNjANCgkqU0NFTkVfQkFDS0dST1VORF9TVEFUSUMJMC4wMDAwCTAuMDAwMAkwLjAwMDANCgkqU0NFTkVfQU1CSUVOVF9TVEFUSUMJMC4wMDAwCTAuMDAwMAkwLjAwMDANCn0NCipNQVRFUklBTF9MSVNUCXsNCgkqTUFURVJJQUxfQ09VTlQJMw0KCSpNQVRFUklBTAkwCXsNCgkJKk1BVEVSSUFMX05BTUUJInRleHR1cmVzL2NvbW1vbi9jYXVsayINCgkJKk1BVEVSSUFMX0NMQVNTCSJTdGFuZGFyZCINCgkJKk1BVEVSSUFMX0RJRkZVU0UJMS4wMDAwMDAJMS4wMDAwMDAJMS4wMDAwMDANCgkJKk1BVEVSSUFMX1NIQURJTkcgUGhvbmcNCgkJKk1BUF9ESUZGVVNFCXsNCgkJCSpNQVBfTkFNRQkidGV4dHVyZXMvY29tbW9uL2NhdWxrIg0KCQkJKk1BUF9DTEFTUwkiQml0bWFwIg0KCQkJKk1BUF9TVUJOTwkxDQoJCQkqTUFQX0FNT1VOVAkxLjANCgkJCSpNQVBfVFlQRQlTY3JlZW4NCgkJCSpCSVRNQVAJIi4uXHRleHR1cmVzXGNvbW1vblxjYXVsay50Z2EiDQoJCQkqQklUTUFQX0ZJTFRFUglQeXJhbWlkYWwNCgkJfQ0KCX0NCgkqTUFURVJJQUwJMQl7DQoJCSpNQVRFUklBTF9OQU1FCSJ0ZXh0dXJlcy9jb21tb24vbm9kcmF3Ig0KCQkqTUFURVJJQUxfQ0xBU1MJIlN0YW5kYXJkIg0KCQkqTUFURVJJQUxfRElGRlVTRQkxLjAwMDAwMAkxLjAwMDAwMAkxLjAwMDAwMA0KCQkqTUFURVJJQUxfU0hBRElORyBQaG9uZw0KCQkqTUFQX0RJRkZVU0UJew0KCQkJKk1BUF9OQU1FCSJ0ZXh0dXJlcy9jb21tb24vbm9kcmF3Ig0KCQkJKk1BUF9DTEFTUwkiQml0bWFwIg0KCQkJKk1BUF9TVUJOTwkxDQoJCQkqTUFQX0FNT1VOVAkxLjANCgkJCSpNQVBfVFlQRQlTY3JlZW4NCgkJCSpCSVRNQVAJIi4uXHRleHR1cmVzXGNvbW1vblxub2RyYXcudGdhIg0KCQkJKkJJVE1BUF9GSUxURVIJUHlyYW1pZGFsDQoJCX0NCgl9DQoJKk1BVEVSSUFMCTIJew0KCQkqTUFURVJJQUxfTkFNRQkiW1BBVEhdL1tNT0RFTF0iDQoJCSpNQVRFUklBTF9DTEFTUwkiU3RhbmRhcmQiDQoJCSpNQVRFUklBTF9ESUZGVVNFCTEuMDAwMDAwCTEuMDAwMDAwCTEuMDAwMDAwDQoJCSpNQVRFUklBTF9TSEFESU5HIFBob25nDQoJCSpNQVBfRElGRlVTRQl7DQoJCQkqTUFQX05BTUUJIltQQVRIXS9bTU9ERUxdIg0KCQkJKk1BUF9DTEFTUwkiQml0bWFwIg0KCQkJKk1BUF9TVUJOTwkxDQoJCQkqTUFQX0FNT1VOVAkxLjANCgkJCSpNQVBfVFlQRQlTY3JlZW4NCgkJCSpCSVRNQVAJIltQQVRIXS9bTU9ERUxdIg0KCQkJKkJJVE1BUF9GSUxURVIJUHlyYW1pZGFsDQoJCX0NCgl9DQp9DQoqR0VPTU9CSkVDVAl7DQoJKk5PREVfTkFNRQkibWF0Mm1vZGVsMHN1cmYwIg0KCSpOT0RFX1RNCXsNCgkJKk5PREVfTkFNRQkibWF0Mm1vZGVsMHN1cmYwIg0KCQkqSU5IRVJJVF9QT1MJMAkwCTANCgkJKklOSEVSSVRfUk9UCTAJMAkwDQoJCSpJTkhFUklUX1NDTAkwCTAJMA0KCQkqVE1fUk9XMAkxLjAJMAkwDQoJCSpUTV9ST1cxCTAJMS4wCTANCgkJKlRNX1JPVzIJMAkwCTEuMA0KCQkqVE1fUk9XMwkwCTAJMA0KCQkqVE1fUE9TCTAuMDAwMDAwCTAuMDAwMDAwCTAuMDAwMDAwDQoJfQ0KCSpNRVNICXsNCgkJKlRJTUVWQUxVRQkwDQoJCSpNRVNIX05VTVZFUlRFWAk0DQoJCSpNRVNIX05VTUZBQ0VTCTINCgkJKkNPTU1FTlQJIlNVUkZBQ0VUWVBFCU1TVF9QTEFOQVIiDQoJCSpNRVNIX1ZFUlRFWF9MSVNUCXsNCgkJCSpNRVNIX1ZFUlRFWAkwCTguMDAwMDAwCS0xLjAwMDAwMAkxLjAwMDAwMA0KCQkJKk1FU0hfVkVSVEVYCTEJLTguMDAwMDAwCS0xLjAwMDAwMAktMTYuMDAwMDAwDQoJCQkqTUVTSF9WRVJURVgJMgktOC4wMDAwMDAJLTEuMDAwMDAwCTEuMDAwMDAwDQoJCQkqTUVTSF9WRVJURVgJMwk4LjAwMDAwMAktMS4wMDAwMDAJLTE2LjAwMDAwMA0KCQl9DQoJCSpNRVNIX05PUk1BTFMJew0KCQkJKk1FU0hfRkFDRU5PUk1BTAkwCTAuMDAwMDAwCS0xLjAwMDAwMAkwLjAwMDAwMA0KCQkJKk1FU0hfRkFDRU5PUk1BTAkxCTAuMDAwMDAwCS0xLjAwMDAwMAkwLjAwMDAwMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTAJMC4wMDAwMDAJLTEuMDAwMDAwCTAuMDAwMDAwDQoJCQkqTUVTSF9WRVJURVhOT1JNQUwJMQkwLjAwMDAwMAktMS4wMDAwMDAJMC4wMDAwMDANCgkJCSpNRVNIX1ZFUlRFWE5PUk1BTAkyCTAuMDAwMDAwCS0xLjAwMDAwMAkwLjAwMDAwMA0KCQkJKk1FU0hfVkVSVEVYTk9STUFMCTMJMC4wMDAwMDAJLTEuMDAwMDAwCTAuMDAwMDAwDQoJCX0NCgkJKk1FU0hfRkFDRV9MSVNUCXsNCgkJCSpNRVNIX0ZBQ0UJMAlBOgkwCUI6CTIJQzoJMQlBQjoJMQlCQzoJMQlDQToJMQkqTUVTSF9TTU9PVEhJTkcJMAkqTUVTSF9NVExJRAkwDQoJCQkqTUVTSF9GQUNFCTEJQToJMwlCOgkwCUM6CTEJQUI6CTEJQkM6CTEJQ0E6CTEJKk1FU0hfU01PT1RISU5HCTAJKk1FU0hfTVRMSUQJMA0KCQl9DQoJCSpNRVNIX05VTVRWRVJURVgJNA0KCQkqTUVTSF9UVkVSVExJU1QJew0KCQkJKk1FU0hfVFZFUlQJMAkxLjAwMDAwMAkxLjAwMDAwMAkxLjAwMDAwMA0KCQkJKk1FU0hfVFZFUlQJMQkwLjAwMDAwMAkwLjAwNTE1MAkxLjAwMDAwMA0KCQkJKk1FU0hfVFZFUlQJMgkwLjAwMDAwMAkxLjAwMDAwMAkxLjAwMDAwMA0KCQkJKk1FU0hfVFZFUlQJMwkxLjAwMDAwMAkwLjAwNTE1MAkxLjAwMDAwMA0KCQl9DQoJCSpNRVNIX05VTVRWRkFDRVMJMg0KCQkqTUVTSF9URkFDRUxJU1QJew0KCQkJKk1FU0hfVEZBQ0UJMAkwCTIJMQ0KCQkJKk1FU0hfVEZBQ0UJMQkzCTAJMQ0KCQl9DQoJfQ0KCSpQUk9QX01PVElPTkJMVVIJMA0KCSpQUk9QX0NBU1RTSEFET1cJMQ0KCSpQUk9QX1JFQ1ZTSEFET1cJMQ0KCSpNQVRFUklBTF9SRUYJMg0KfQ0K"; // Ender
+
+	if (Cmd_Argc(cmd) < 2) {
+		Con_PrintLinef ("usage:" NEWLINE "%s <image>", Cmd_Argv(cmd, 0));
+		return;
+	}
+
+	ccs *s_texture = Cmd_Argv(cmd, 1); //
+	ccs *s_switch = Cmd_Argv(cmd, 2); //
+
+	int is_autosprite = s_switch[0] && String_Match_Caseless (s_switch, "sprite");
+
+	Con_PrintLinef ("Wants autosprite = %d ", is_autosprite);
+
+	size_t unbase_datasize;
+	char *s_unbase64_calloc = (char *)base64_decode_calloc (vegetion_ase_text_base64, &unbase_datasize);
+
+	size_t s_autosprite_za_size = strlen(vegetion_ase_text_autosprite) * 2;
+	char *s_autosprite_za = (char *)Mem_Alloc (tempmempool, s_autosprite_za_size);
+
+	strlcpy (s_autosprite_za, vegetion_ase_text_autosprite, s_autosprite_za_size);
+
+	// Baker: Extra room for replacement.
+	size_t smaxsize = unbase_datasize * 2;
+	s_unbase64_calloc = (char *)realloc (s_unbase64_calloc, smaxsize);
+
+
+	char *s_model_za = Z_StrDup (s_texture);
+	File_URL_Edit_Remove_Extension (s_model_za); //
+	char *s_model_ase_za;
+	if (is_autosprite)
+		s_model_ase_za = Z_StrDupf ("%s_autosprite.obj", s_model_za);  // append _solid and append .ase
+	else
+		s_model_ase_za = Z_StrDupf ("%s.ase", s_model_za);  // append _solid and append .ase
+	char *s_barename_noext_za = Z_StrDup(File_URL_SkipPath(s_model_za));
+	char *s_path_notrailslash_za = Z_StrDup(s_model_ase_za); // models/outdoors -- no trailing slash
+	File_URL_Edit_Reduce_To_Parent_Path (s_path_notrailslash_za);
+
+	//remove filename or strip to path
+	Con_PrintLinef ("Path is " QUOTED_S, s_path_notrailslash_za);
+	Con_PrintLinef ("Texture bare name is " QUOTED_S, s_barename_noext_za);
+
+	// [PATH] like models/outdoors s_path_notrailslash_za
+	// [MODEL] like brush02 s_barename_noext_za
+	char *targ = is_autosprite ? s_autosprite_za : s_unbase64_calloc;
+	char *targfile = is_autosprite ? s_autosprite_za : s_unbase64_calloc;
+	String_Edit_Replace (targ, smaxsize, "[MODEL]", s_barename_noext_za);
+	String_Edit_Replace (targ, smaxsize, "[PATH]", s_path_notrailslash_za);
+
+	qfile_t *f = FS_OpenRealFile(s_model_ase_za, "wb", fs_quiet_FALSE);
+
+	if (f) {
+		FS_Printf (f, "%s" NEWLINE, targ);
+		FS_CloseNULL_ (f);
+		Con_PrintLinef ("Wrote " QUOTED_S, s_model_ase_za);
+	} else {
+		Con_PrintLinef ("Could not open " QUOTED_S " for writing", s_model_ase_za);
+	}
+
+
+	freenull_ (s_unbase64_calloc);
+	Mem_FreeNull_ (s_autosprite_za);
+	Mem_FreeNull_ (s_path_notrailslash_za);
+	Mem_FreeNull_ (s_barename_noext_za);
+	Mem_FreeNull_ (s_model_za);
+	Mem_FreeNull_ (s_model_ase_za);
+}
+
 void FS_JpegSplit_f (cmd_state_t *cmd)
 {
 	extern int image_width, image_height; // Baker: image globals !!!
@@ -4433,9 +4698,9 @@ void FS_JpegSplit_f (cmd_state_t *cmd)
 
 	for (int idx = 0; idx < slist.numstrings; idx ++) {
 		char *s_name = slist.strings[idx];
-		
+
 		Vid_SetWindowTitlef ("%d/%d %s", idx, slist.numstrings, s_name);
-		
+
 		Con_PrintLinef ("%4d: %s", idx, s_name);
 
 		if (is_write == false)
@@ -4617,7 +4882,7 @@ char *ShaderText_Alloc (shader_t *myshader, const char *s_shadername, char *s_re
 
 // Returns relative real path
 char *FS_RealFilePath_Z_Alloc (const char *s_quake_file)
-{	
+{
 	int index; // Why? Don't ask ... move along ...
 	searchpath_t *sp = FS_FindFile (s_quake_file, &index, fs_quiet_true);
 	if (!sp) {
@@ -4631,7 +4896,7 @@ char *FS_RealFilePath_Z_Alloc (const char *s_quake_file)
 		//	Con_PrintLinef ("%s is in package %s", filename, sp->pack->shortname);
 		return NULL;
 	}
-	
+
 	char sbuf[MAX_OSPATH_EX_1024];
 	c_dpsnprintf2 (sbuf, "%s%s", sp->filename, s_quake_file); // Hmmm.
 	char *s_realpath_zalloc = Z_StrDup (sbuf);//  (char *)z_memdup_z (sp->filename, strlen(sp->filename));
@@ -5052,6 +5317,33 @@ size_t File_Length2 (const char *path_to_file, requiredx int *p_is_existing)
 	return st_buf.st_size;
 }
 
+#if !defined(_WIN32) || defined(__MINGW32__)
+	# include <unistd.h>
+#endif
+#include <time.h>
+// "20241005 10:12 AM"
+void TimeString_Fill_YYYYMMDD_HHMMSSAM (char *timestring, size_t timestring_size) // "20241005 10:12 AM"
+{
+	time_t crt_time;
+	time (&crt_time);
+
+#if _MSC_VER >= 1400
+	struct tm crt_tm;
+#else
+	struct tm *crt_tm;
+#endif
+
+	#if _MSC_VER >= 1400
+		localtime_s (&crt_tm, &crt_time);
+		strftime (timestring, timestring_size, "%a %b %d %H:%M:%S %Y", &crt_tm);
+	#else
+		crt_tm = localtime (&crt_time);
+		strftime (timestring, timestring_size, "%a %b %d %H:%M:%S %Y", crt_tm);
+	#endif
+
+
+}
+
 static void FS_Init_Dir (void)
 {
 	const char *p;
@@ -5065,9 +5357,420 @@ static void FS_Init_Dir (void)
 	// -basedir <path>
 	// Overrides the system supplied base directory (under GAMENAME)
 // COMMANDLINEOPTION: Filesystem: -basedir <path> chooses what base directory the game data is in, inside this there should be a data directory for the game (for example id1)
+
+#if 1 // CSG PROCESS IS HERE
+	int j = Sys_CheckParm("-csg");
+	if (j && j + 1 < sys.argc) {
+		// Baker: With -csg
+		char mappath[MAX_OSPATH];
+		ccs *mapfullpath = sys.argv[j+1];
+
+		c_strlcpy (fs_csg_basedir, mapfullpath);
+		// fs_csg_basedir	is now ... 0x01f55238 "C:\galaxy\zircon\maps\aafter"
+
+		//C:/galaxy/zircon_beta_gcc.exe -csg C:\galaxy\zircon\maps\aafter
+
+		File_URL_Edit_SlashesForward_Like_Unix (fs_csg_basedir);
+		// fs_csg_basedir	"C:/galaxy/zircon/maps/aafter"
+
+		c_strlcpy (mappath, fs_csg_basedir);
+		if (String_Ends_With_Caseless (mappath, ".map") == false)
+			c_strlcat (mappath, ".map");
+
+		// Baker: We get Windows style map path without .map
+		// "C:/galaxy/zircon_beta_gcc.exe -csg C:\galaxy\zircon\maps\treefall_auto1
+		// The parent folder should be our basedir?
+		// Or is it 2 up?
+
+		char *lastslash;
+		lastslash = strrchr(fs_csg_basedir, '/');
+		if (lastslash) {
+			*lastslash = 0;
+			if (lastslash)
+				lastslash = strrchr(fs_csg_basedir, '/');
+			*lastslash = 0;
+		}
+
+		c_strlcpy (fs_basedir, fs_csg_basedir);
+		// fs_basedir	0x01f54810 "C:/galaxy/zircon"	char [260]
+		// fs_csg_basedir	0x01f55238 "C:/galaxy/zircon"	char [260]
+
+
+		i = (int)strlen (fs_basedir);
+		if (i > 0 && (fs_basedir[i-1] == '\\' || fs_basedir[i-1] == '/'))
+			fs_basedir[i-1] = 0;
+		is_forced = true; // // Baker r1001: -nohome is the behavior on Windows and Mac
+		chdir (fs_basedir); // Baker: We are in the "c:/galaxy/zircon" here!  (not c:\galaxy!)
+
+		// Do the command here and exit?
+		size_t bytes = 0;
+		char *sin = (char *)File_To_Memory_Alloc (mappath, &bytes);
+		// mappath	0x0019b55c "C:/galaxy/zircon/maps/aafter.map"	char [260]
+
+		if (!sin)
+			exit (0); // Couldn't open map
+
+		// Baker: We are assuming the decal process applies.
+
+#if 1
+		int do_decals = String_Contains (sin, "info_decal_start");
+		if (do_decals) {
+			baker_string_t *bsout = CSG_Process_BSAlloc(sin);
+			if (!bsout)
+				exit (1); // error processing the map for some reason.
+
+			int isok = File_String_To_File (mappath, bsout->string);
+			BakerString_Destroy_And_Null_It (&bsout);
+			if (isok == false)
+				exit (1); // Couldn't write file
+
+
+			freenull_ (sin); // Free the map data -- then reload it
+			sin = (char *)File_To_Memory_Alloc (mappath, &bytes);
+			if (!sin)
+				exit (1); // Couldn't reopen map
+		}
+#endif
+
+#if 1 // ENTITY BRUSH DIVIDER
+		int do_try_brush2ent = String_Contains (sin, "_atomize");
+		while (do_try_brush2ent) {
+			entitylist_t list_map1 = {0};	// aafter.map
+			baker_string_t *bsout = NULL;
+			
+			char timestring [64]; TimeString_Fill_YYYYMMDD_HHMMSSAM (timestring, sizeof(timestring));
+			char *snewval_za = Z_StrDupf ("0 - %s", timestring); // looks like "0 - 20241005 10:12 AM"
+
+			// PARSE THE MAP
+			int isok = entitylist_parsemaptxt (&list_map1, sin);
+			if (isok == false) exit (1); // failed to parse
+
+			int num_entities_made = entitylist_atomize_entities_num_made (&list_map1, snewval_za);
+			
+			if (!num_entities_made) {
+				goto false_alarm_atomize;
+			}
+			
+			bsout = entitylist_maptext_bsalloc (&list_map1);
+			if (!bsout) exit (1); // This would be bad.
+
+			// RE-WRITE
+			int isok2 = File_String_To_File (mappath, bsout->string);
+			BakerString_Destroy_And_Null_It (&bsout);
+			
+			if (isok2 == false)
+				exit (1); // Couldn't write file
+
+			// REFRESH SOURCE
+			freenull_ (sin); // Free the map data -- then reload it
+			sin = (char *)File_To_Memory_Alloc (mappath, &bytes);
+			if (!sin)
+				exit (1); // Couldn't reopen map
+
+false_alarm_atomize:
+			Mem_FreeNull_ (snewval_za);
+			BakerString_Destroy_And_Null_It (&bsout);
+			entitylistfreecontents	(&list_map1);
+			break;
+		} // while
+#endif // ORIGIN MAKER
+
+#if 1 // ORIGINMAKE _originmake
+		int do_try_originmake = String_Contains (sin, "_originmake");
+		while (do_try_originmake) {
+			entitylist_t list_map1 = {0};	// aafter.map
+			baker_string_t *bsout = NULL;
+			
+			// "brushfacer" "0 - 20241005 10:12 AM"
+			char timestring [64];
+			TimeString_Fill_YYYYMMDD_HHMMSSAM (timestring, sizeof(timestring));
+			char *snewval_za = Z_StrDupf ("0 - %s", timestring);
+
+			// PARSE THE MAP
+			int isok = entitylist_parsemaptxt (&list_map1, sin);
+			if (isok == false) exit (1); // failed to parse
+
+			// snewval_za looks like "0 - 20241005 10:12 AM"
+			// We set _originmake value to "0 - 20241005 10:12 AM" so it is known it happened.
+			// if you read the .map source.
+			int num_brushes_made = entitylist__originmake_num_made (&list_map1, snewval_za);
+			
+			if (!num_brushes_made) {
+				goto false_alarm_origin_brush;
+			}
+			
+			bsout = entitylist_maptext_bsalloc (&list_map1);
+			if (!bsout) exit (1); // This would be bad.
+
+			// RE-WRITE
+			int isok2 = File_String_To_File (mappath, bsout->string);
+			BakerString_Destroy_And_Null_It (&bsout);
+			
+			if (isok2 == false)
+				exit (1); // Couldn't write file
+
+			// REFRESH SOURCE
+			freenull_ (sin); // Free the map data -- then reload it
+			sin = (char *)File_To_Memory_Alloc (mappath, &bytes);
+			if (!sin)
+				exit (1); // Couldn't reopen map
+
+false_alarm_origin_brush:
+			Mem_FreeNull_ (snewval_za);
+			BakerString_Destroy_And_Null_It (&bsout);
+			entitylistfreecontents	(&list_map1);
+			break;
+		} // while
+#endif // ORIGIN MAKER
+
+#if 1 // BRUSHFACER
+		int do_try_brushfacer = String_Contains (sin, "brushfacer");
+		while (do_try_brushfacer) {
+			entitylist_t list_map1 = {0};	// aafter.map
+			baker_string_t *bsout = NULL;
+
+
+			// "brushfacer" "0 - 20241005 10:12 AM"
+			char timestring [64];
+			TimeString_Fill_YYYYMMDD_HHMMSSAM (timestring, sizeof(timestring));
+
+			char *snewval_za = Z_StrDupf ("0 - %s", timestring);
+
+			// PARSE THE MAP
+			int isok = entitylist_parsemaptxt (&list_map1, sin);
+			if (isok == false) exit (1); // failed to parse
+
+			ccs *val = entitykeys_find_value (&list_map1.entity[0], "brushfacer");
+			if (!val) goto false_alarm; // not a worldspawn key
+
+			if (atoi(val) <= 0) goto false_alarm; // "brushfacer" value is zero or less (disabled)
+
+			WARP_X_ (SCR_brushfacer2_clipboard_f)
+			
+			int num_faces = 0;
+			int num_upfaces = entitylist_brush0_facer (&list_map1, &num_faces);
+
+			Con_PrintLinef ("Num faces %d, num up faces %d", num_faces, num_upfaces);
+
+			entitylist_set_replace_key_val (&list_map1, /*world*/ 0, "brushfacer", snewval_za);
+			
+			bsout = entitylist_maptext_bsalloc (&list_map1);
+			if (!bsout) exit (1); // This would be bad.
+
+			// RE-WRITE
+			int isok2 = File_String_To_File (mappath, bsout->string);
+			BakerString_Destroy_And_Null_It (&bsout);
+			
+			if (isok2 == false)
+				exit (1); // Couldn't write file
+
+			// REFRESH SOURCE
+			freenull_ (sin); // Free the map data -- then reload it
+			sin = (char *)File_To_Memory_Alloc (mappath, &bytes);
+			if (!sin)
+				exit (1); // Couldn't reopen map
+
+false_alarm:
+			Mem_FreeNull_ (snewval_za);
+			BakerString_Destroy_And_Null_It (&bsout);
+			entitylistfreecontents	(&list_map1);
+			break;
+		} // while
+#endif // BRUSHFACER
+
+//part2:
+		int do_paste = String_Contains (sin, "map_include_prefix_start_end");
+		// map_include_prefix_start_end ... "around 1 10" // around1.map to around10.map // 3 tokens prefix start end
+		// map_include_origin			... -20000 -20000 -2000  where first paste occurs
+		// map_include_step				... 8000
+
+		while (do_paste) { // NOT A LOOP
+			entitylist_t list_map1 = {0};	// aafter.map
+
+			// PARSE THE MAP
+			int isok = entitylist_parsemaptxt (&list_map1, sin);
+			if (isok == false) exit (1); // failed to parse
+
+#if 1 // OCTOBER 2 2024
+			int modgen = entitylist_epairs_find_model_gen_entitynum (&list_map1, "model_gen");
+			if (modgen != not_found_neg1) {
+				// Generate func_collision entities of various sizes
+				entitylist_gen_models (&list_map1, modgen);
+			}
+#endif
+
+			ccs *val, *datasrc;
+
+			// Parse prefix, jstart, jlast
+
+			val = entitykeys_find_value (&list_map1.entity[0], "map_include_prefix_start_end");
+			if (!val) exit (1); // couldn't find
+
+			datasrc = val;
+			char prefix[MAX_QPATHX2_256]; int jstart = -1, jlast = -1;
+
+			if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+			c_strlcpy (prefix, com_token); // around
+			// prefix	0x0019b3bc "around"	char [256]
+
+
+			if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+			jstart = atoi (com_token);	// 1
+			// jstart	2	int
+
+			if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+			jlast = atoi (com_token);	// 10
+			// jlast	3	int
+
+
+			// Parse move
+			val = entitykeys_find_value (&list_map1.entity[0], "map_include_move");
+			// val	0x04b92810 "-32768 -32768 -4196"	const char *
+
+			if (!val) exit (1); // couldn't find
+
+			datasrc = val;
+			vec3_t move0;
+
+			if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+			move0[0] = atof (com_token);	// 1
+
+			if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+			move0[1] = atof (com_token);	// 1
+
+			if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+			move0[2] = atof (com_token);	// 1
+
+			// Parse step
+			val = entitykeys_find_value (&list_map1.entity[0], "map_include_step");
+			if (!val) exit (1); // couldn't find
+			// val	0x04b92920 "8192"	const char *
+
+			datasrc = val;
+			float step0;
+
+			if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+			step0 = atof (com_token);	// 1
+
+			// map_include_set "invaders_bossname invaders1" (OPTIONAL)
+			val = entitykeys_find_value (&list_map1.entity[0], "map_include_set");
+			stringlist_t listset = {0};		// "invaders_bossname" "invaders1"
+
+			datasrc = val;
+			if (val) {
+				if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+				stringlistappend (&listset, com_token);	// invaders_bossname
+
+				if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+				stringlistappend (&listset, com_token);	// "invaders1"
+			}
+
+			// map_include_change "invaders_round" (OPTIONAL)
+			val = entitykeys_find_value (&list_map1.entity[0], "map_include_change");
+			stringlist_t listchange = {0};		// "invaders_round"
+
+			datasrc = val;
+			if (val) {
+				if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
+				stringlistappend (&listchange, com_token);	// invaders_round
+			}
+
+			// map_include_name_fields "door_name attach_to" (OPTIONAL)
+			WARP_X_ (entitylist_prefix_epairslist)
+			stringlist_t listnamefields = {0};
+			stringlistappend (&listnamefields, "targetname");
+			stringlistappend (&listnamefields, "target");
+
+			val = entitykeys_find_value (&list_map1.entity[0], "map_include_name_fields");
+			datasrc = val;
+			if (val) {
+				// This breaks when all fields read ...
+				while (1) {
+					if (COM_Parse_Basic(&datasrc) == false) break; // parse failure
+					stringlistappend (&listnamefields, com_token);	// invaders_round
+				}
+			}
+
+			// PLAN
+			// FOR EACH MAP
+			// MOVE EVERYTHING AND COPY INTO SRC
+			vec3_t translate_amount;
+			VectorCopy (move0, translate_amount); // src -> dest
+
+			// Baker: We are ascending the paste point by +8192 after each iteration.
+			for (int j = jstart; j <= jlast; j ++, translate_amount[2] += step0) {
+				entitylist_t list_paste = {0};	// aafter.map
+				char smap[MAX_OSPATH];
+				c_dpsnprintf3 (smap, "%s/maps/%s%d.map", fs_csg_basedir, prefix, j);
+				//smap	0x0019b244 "C:/galaxy/zircon/maps/around2.map"	char [260]
+
+				char *sin2 = (char *)File_To_Memory_Alloc (smap, &bytes);
+				if (!sin2)
+					exit (0); // Couldn't open map
+
+				// PARSE THE MAP
+				int isok = entitylist_parsemaptxt (&list_paste, sin2);
+				if (isok == false) exit (1); // failed to parse
+
+				// IN LIST_PASTE:
+				// Translate entity 0 brushes accordingly
+				// Translate ALL origin keys in all entities epairs.
+				//char prefix_here[MAX_OSPATH];
+				va_super (prefix_here, 128, "%s%d_", prefix, j);
+
+				//entitylist_prefix_epairs		(&list_paste, prefix_here);
+				entitylist_prefix_epairslist	(&list_paste, prefix_here, &listnamefields);
+
+				entitylist_translate_epairs		(&list_paste, translate_amount);
+				entitylist_translate_brushes	(&list_paste, translate_amount);
+				
+#if 0 // It's a good idea
+				entitylist_origin_brush_ensure	(&list_paste, "main");
+#endif
+
+				entitylist_nonworld_set			(&list_paste, &listset);
+				if (listchange.numstrings) {
+					ccs *key_force = listchange.strings[0];
+					va_super (val_force, 1024, "%d", j);
+					entitylist_nonworld_setthis (&list_paste, key_force, val_force);
+				}
+
+				//entitylist_to_clipboard (&list_paste); // check our work
+
+				// Add entity 0 brushes TO MAP1
+				// Add entity ALL brushes and epairs to MAP1
+				entitylist_brush0_append		(&list_map1, &list_paste);	// no keys, just brushes.
+				entitylist_nonworld_append		(&list_map1, &list_paste);	// brushes and keys.
+
+				entitylistfreecontents	(&list_paste);
+				freenull_ (sin2);
+			}
+
+			stringlistfreecontents (&listset);
+			stringlistfreecontents (&listchange);
+			stringlistfreecontents (&listnamefields);
+			
+			baker_string_t *bsa = entitylist_maptext_bsalloc (&list_map1);
+			if (!bsa) exit (1); // error processing the map for some reason.
+
+			isok = File_String_To_File (mappath, bsa->string);
+			if (!isok)
+				exit (1); // error writing the string
+
+			// Write
+			BakerString_Destroy_And_Null_It (&bsa);
+
+			entitylistfreecontents	(&list_map1);
+			break;
+		} // do paste
+
+		freenull_ (sin); // Free the map data
+		exit (0); // success
+	} // CSG
+#endif // CSG PROCESS
+
 	i = Sys_CheckParm ("-basedir");
-	if (i && i < sys.argc-1)
-	{
+	if (i && i < sys.argc-1) {
 		c_strlcpy (fs_basedir, sys.argv[i+1]);
 		i = (int)strlen (fs_basedir);
 		if (i > 0 && (fs_basedir[i-1] == '\\' || fs_basedir[i-1] == '/'))
@@ -5109,6 +5812,9 @@ static void FS_Init_Dir (void)
 				}
 			}
 		}
+#else // Not android mac or dpbasedir
+		// use the working directory
+		getcwd (fs_basedir, sizeof(fs_basedir));
 #endif
 	}
 
@@ -5278,12 +5984,34 @@ void FS_Init_Commands(void)
 	Cmd_AddCommand(CF_SHARED, "pwd", FS_Pwd_f, "what is current working directory [Zircon]");  // Baker r3101: pwd command to say the current directory
 	Cmd_AddCommand(CF_SHARED, "zipinfo", FS_Zipinfo_f, "zipinfo <file> list files in a zip [Zircon]");
 	Cmd_AddCommand(CF_SHARED, "jpegsplit", FS_JpegSplit_f, "jpegsplit <folder> (test) -- or --  <folder> go (run conversion!) --- load all TGA/PNG in supplied folder, write them as .jpg to same directory including any _alpha jpegs.  DarkPlaces pattern matching hates periods '.' in path names, beware! [Zircon]");
-#if 0 // Baker: Too dangerous
-	Cmd_AddCommand(CF_SHARED, "shell", FS_Shell_f, "execute a command line [Zircon]");
+
+#if 0 // These experiments are not solidified enough
+	Cmd_AddCommand(CF_SHARED, "vegetationmake", FS_VegetationMake_f, "vegetationmake <image> - creates a vegetation model using texture name [Zircon]");
+	Cmd_AddCommand(CF_SHARED, "mapgenpoints", FS_Mapgenpoints_f, "mapgenpoints x0 y0 z0 x1 y1 z21 -- creates map brushes and copies to clipboard with textures/common/alpha_000 [Zircon]");
+	Cmd_AddCommand(CF_SHARED, "mapgenmask", FS_Mapgenmask_f, "mapgenpoints [file.tga] [x] [y] [w] [h] [scale32] -- creates map points from image and creates alpha set brushes for pasting into .map [Zircon]");
 #endif
+
+	void FS_GifToShader_f (cmd_state_t *cmd);
+
+	Cmd_AddCommand(CF_SHARED, "giftoshader", FS_GifToShader_f, "giftoshader [file.gif] makes animated gif [Zircon]");
+	//Cmd_AddCommand(CF_SHARED, "objmake", FS_ObjMake_f, "objmake [file.txt] makes animated gif [Zircon]"); // Strip this.
+
+
+
+	//Cmd_AddCommand(CF_SHARED, "shell", FS_Shell_f, "shell [path/to/commmand] [optional working dir] - execute a command [Zircon]");
+//#ifdef _DEBUG // Baker: Too dangerous
+#ifdef SHELLENABLE
+	if (Sys_CheckParm ("-shell")) {
+		Cmd_AddCommand(CF_SHARED, "shell", FS_Shell_f, "execute a command line [optional args], Zircon will not wait for it to complete [Zircon]");
+		Cmd_AddCommand(CF_SHARED, "shell_wait", FS_Shell_Wait_f, "execute a command line and wait for it to complete [optional args] [Zircon]");
+	}
+#endif
+
+//#endif
 #ifdef CONFIG_MENU
 	Cmd_AddCommand(CF_SHARED, "parse", FS_Parse_f, "parse a string or parse clipboard [Zircon]");
 	Cmd_AddCommand(CF_SHARED, "bitatomize", FS_BitAtomize_f, "break an integer down into bits [Zircon]");
+	Cmd_AddCommand(CF_SHARED, "colorpcts", FS_ColorPcts_f, "Converts rgb 0-255 colors to pct colors to clipboard [Zircon]");
 	Cmd_AddCommand(CF_SHARED, "base64clipboard", FS_Base64Clipboard_f, "takes text on clipboard and converts it to base 64 [Zircon]");
 	Cmd_AddCommand(CF_SHARED, "base64compressedclipboard", FS_Base64ClipboardCompressed_f, "takes text on clipboard, zip shrinks it and converts it to base 64 [Zircon]");
 	Cmd_AddCommand(CF_SHARED, "base64decompressedclipboard", FS_Base64ClipboardDeCompressed_f, "takes text on clipboard, zip shrinks it and converts it to base 64 [Zircon]");
@@ -5351,7 +6079,7 @@ pack_t *FS_LoadPackFromMemory (const char *packfile, const byte *pakdata, fs_off
 
 	bakerbuf_t *bb = baker_open_from_memory_NO_MALLOC_is_ok (pakdata, (size_t)pakdatasize); // Mallocs
 
-	
+
 //Read exactly length bytes from fd into buf. If end of file is reached,
 //the number of bytes read is returned. If an error occurred, that error
 //is returned. Note that if an error is returned, any previously read

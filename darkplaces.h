@@ -67,6 +67,7 @@ extern int globs;
 
 // Baker: Function call clarity ...
 
+#define ASSIGN(x)						(x)		// Clarifying assignment in parens
 #define ALL_FLAGS_ANTIZERO				(~0)
 
 #define fs_caseless_true				true
@@ -142,9 +143,12 @@ extern int globs;
 #define q_s_loadgame_NULL				NULL
 #define q_s_startspot_EmptyString		""
 
+#define q_folder_NULL					NULL
+
 #define q_vm_wildcard_NULL				NULL
 #define q_vm_classname_NULL				NULL
 #define q_vm_targetname_NULL			NULL
+#define q_stringlist_NULL				NULL
 #define q_vm_printfree_true				true
 #define q_vm_printfree_false			false
 #define q_is_console_true				true
@@ -263,6 +267,8 @@ extern int globs;
 #define q_ignore_color_codes_true		true
 #define q_ignore_color_codes_false		false
 
+#define	q_wildcard_fieldname_null		NULL
+
 #define q_net_suppress_reliables_true	true
 #define q_net_suppress_reliables_false	false
 
@@ -315,6 +321,7 @@ extern int globs;
 #define q_hitsuraces_true				true
 #define q_hitsuraces_false				false
 
+#define qp_parse_backslash_true			true
 #define qp_parse_backslash_false		false
 
 #define q_is_jpeg_false					false

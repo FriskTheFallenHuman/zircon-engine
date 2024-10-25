@@ -2964,7 +2964,11 @@ void R_Shadow_RenderLighting(int texturenumsurfaces, const msurface_t **textures
 		VectorNegate(specularcolor, specularcolor);
 		GL_BlendEquationSubtract(true);
 	}
+#if 0 // FBO
 	RSurf_SetupDepthAndCulling(q_is_ui_false);
+#else
+	RSurf_SetupDepthAndCulling();
+#endif // !FBO
 	switch (r_shadow_rendermode)
 	{
 	case R_SHADOW_RENDERMODE_VISIBLELIGHTING:
@@ -5783,6 +5787,13 @@ static void R_Shadow_EditLights_EditAll_f(cmd_state_t *cmd)
 	}
 	// return to old selected (to not mess editing once selection is locked)
 	R_Shadow_SelectLight(oldselected);
+}
+
+// Tool Inspector
+// How we determine what entity we are looking at?
+
+void R_Shadow_EditLights_DrawSelectedLightProperties2(void)
+{
 }
 
 void R_Shadow_EditLights_DrawSelectedLightProperties(void)

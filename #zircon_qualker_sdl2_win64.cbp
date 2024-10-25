@@ -1,0 +1,634 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="#qualker64_sdl" />
+		<Option makefile="makefile" />
+		<Option pch_mode="2" />
+		<Option compiler="mingw_64-bit_compiler" />
+		<Build>
+			<Target title="Debug">
+				<Option output="c:/quak/qualker_gcc_debug" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="c:/galaxy" />
+				<Option object_output="build-obj/debug/zircon_beta_gcc_debug/" />
+				<Option type="0" />
+				<Option compiler="mingw_64-bit_compiler" />
+				<Option parameters="-basedir c:\galaxy -condebug" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-ggdb" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="c:/quak/Q.U.A.L.K.E.R_64" prefix_auto="1" extension_auto="1" />
+				<Option object_output="build-obj/release/zircon_beta_gcc_release/" />
+				<Option type="0" />
+				<Option compiler="mingw_64-bit_compiler" />
+				<Option parameters="-basedir c:\quak -condebug" />
+				<Compiler>
+					<Add option="-O3" />
+					<Add option="-std=c99" />
+					<Add option="-fno-strict-aliasing" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<VirtualTargets>
+			<Add alias="All Windows" targets="Debug;Release;" />
+		</VirtualTargets>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-ffinite-math-only" />
+			<Add option="-fno-math-errno" />
+			<Add option="-fno-rounding-math" />
+			<Add option="-fno-signaling-nans" />
+			<Add option="-fno-trapping-math" />
+			<Add option="`sdl-config --cflags`" />
+			<Add option="-Wsign-compare" />
+			<Add option="-msse3" />
+			<Add option="-DCORE_SDL" />
+			<Add option="-DCONFIG_VIDEO_CAPTURE" />
+			<Add option="-DCONFIG_MENU" />
+			<Add option="-D_FILE_OFFSET_BITS=64" />
+			<Add option="-D__KERNEL_STRICT_NAMES" />
+			<Add option="-DUSEODE" />
+			<Add option="-DQUALKER" />
+			<Add directory="./xtra/SDK/SDL2-devel-2.28.5-mingw/SDL2-2.28.5/x86_64-w64-mingw32/include/SDL2" />
+		</Compiler>
+		<Linker>
+			<Add option="-static" />
+			<Add library="mingw32" />
+			<Add library="SDL2main" />
+			<Add library="SDL2" />
+			<Add library="msvcrt" />
+			<Add library="kernel32" />
+			<Add library="user32" />
+			<Add library="comdlg32" />
+			<Add library="gdi32" />
+			<Add library="opengl32" />
+			<Add library="glu32" />
+			<Add library="ws2_32" />
+			<Add library="shlwapi" />
+			<Add library="dxguid" />
+			<Add library="libSDL2main" />
+			<Add library="libSDL2" />
+			<Add library="winmm" />
+			<Add library="dinput8" />
+			<Add library="dxerr8" />
+			<Add library="imm32" />
+			<Add library="ole32" />
+			<Add library="oleaut32" />
+			<Add library="version" />
+			<Add library="SetupAPI" />
+			<Add directory="./xtra/SDK/SDL2-devel-2.28.5-mingw/SDL2-2.28.5/x86_64-w64-mingw32/lib" />
+		</Linker>
+		<Unit filename="av_backend_libav.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="baker.h" />
+		<Unit filename="bih.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bih.h" />
+		<Unit filename="bspfile.h" />
+		<Unit filename="builddate.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cap.h" />
+		<Unit filename="cap_avi.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cap_avi.h" />
+		<Unit filename="cap_ogg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cap_ogg.h" />
+		<Unit filename="cd_shared.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cd_win.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cdaudio.h" />
+		<Unit filename="cl_cmd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_collision.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_collision.h" />
+		<Unit filename="cl_demo.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_ents.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_ents4.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_ents5.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_ents_nq.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_ents_qw.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_input.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_parse.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_parse.h" />
+		<Unit filename="cl_particles.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_particles.h" />
+		<Unit filename="cl_screen.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_screen.h" />
+		<Unit filename="cl_video.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cl_video.h" />
+		<Unit filename="cl_video_jamdecode.c.h" />
+		<Unit filename="cl_video_libavw.c.h" />
+		<Unit filename="cl_video_libavw.h" />
+		<Unit filename="client.h" />
+		<Unit filename="clprogdefs.h" />
+		<Unit filename="clvm_cmds.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="clvm_cmds.h" />
+		<Unit filename="cmd.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cmd.h" />
+		<Unit filename="collision.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="collision.h" />
+		<Unit filename="com_crc16.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="com_ents.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="com_ents4.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="com_game.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="com_game.h" />
+		<Unit filename="com_infostring.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="com_infostring.h" />
+		<Unit filename="com_list.h" />
+		<Unit filename="com_msg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="common.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="common.h" />
+		<Unit filename="common_extras2.c.h" />
+		<Unit filename="conproc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="conproc.h" />
+		<Unit filename="console.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="console.h" />
+		<Unit filename="console_autocomplete.c.h" />
+		<Unit filename="convex.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="convex.h" />
+		<Unit filename="crypto.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="crypto.h" />
+		<Unit filename="csprogs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="csprogs.h" />
+		<Unit filename="curves.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="curves.h" />
+		<Unit filename="cvar.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cvar.h" />
+		<Unit filename="darkplaces.h" />
+		<Unit filename="dpvsimpledecode.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="dpvsimpledecode.h" />
+		<Unit filename="draw.h" />
+		<Unit filename="filematch.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="filematch.h" />
+		<Unit filename="fractalnoise.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="fs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="fs.h" />
+		<Unit filename="ft2.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ft2.h" />
+		<Unit filename="ft2_defs.h" />
+		<Unit filename="ft2_fontdefs.h" />
+		<Unit filename="gl_backend.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gl_backend.h" />
+		<Unit filename="gl_draw.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gl_rmain.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gl_rsurf.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gl_textures.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="glquake.h" />
+		<Unit filename="hmac.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="hmac.h" />
+		<Unit filename="host.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="host.h" />
+		<Unit filename="image.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="image.h" />
+		<Unit filename="image_png.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="image_png.h" />
+		<Unit filename="input.h" />
+		<Unit filename="jack_scripts.c.h" />
+		<Unit filename="jpeg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="jpeg.h" />
+		<Unit filename="keys.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="keys.h" />
+		<Unit filename="keys_history.c.h" />
+		<Unit filename="keys_other.c.h" />
+		<Unit filename="keys_undo.c.h" />
+		<Unit filename="lhfont.h" />
+		<Unit filename="lhnet.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lhnet.h" />
+		<Unit filename="libcurl.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="libcurl.h" />
+		<Unit filename="lodepng.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lodepng.h" />
+		<Unit filename="mathlib.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="mathlib.h" />
+		<Unit filename="matrixlib.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="matrixlib.h" />
+		<Unit filename="mdfour.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="mdfour.h" />
+		<Unit filename="menu.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="menu.h" />
+		<Unit filename="menu_color.c.h" />
+		<Unit filename="menu_effects.c.h" />
+		<Unit filename="menu_game.c.h" />
+		<Unit filename="menu_help.c.h" />
+		<Unit filename="menu_keys.c.h" />
+		<Unit filename="menu_lan.c.h" />
+		<Unit filename="menu_lighting.c.h" />
+		<Unit filename="menu_main.c.h" />
+		<Unit filename="menu_main_neh.c.h" />
+		<Unit filename="menu_main_zirc.c.h" />
+		<Unit filename="menu_maps.c.h" />
+		<Unit filename="menu_modlist.c.h" />
+		<Unit filename="menu_multiplayer.c.h" />
+		<Unit filename="menu_options_classic.c.h" />
+		<Unit filename="menu_options_nova.c.h" />
+		<Unit filename="menu_options_nova_extra.c.h" />
+		<Unit filename="menu_qc.c.h" />
+		<Unit filename="menu_quit.c.h" />
+		<Unit filename="menu_saveload.c.h" />
+		<Unit filename="menu_setup.c.h" />
+		<Unit filename="menu_single_player.c.h" />
+		<Unit filename="menu_slist.c.h" />
+		<Unit filename="menu_video_classic.c.h" />
+		<Unit filename="menu_video_nova.c.h" />
+		<Unit filename="meshqueue.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="meshqueue.h" />
+		<Unit filename="mod_skeletal_animatevertices_generic.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="mod_skeletal_animatevertices_generic.h" />
+		<Unit filename="mod_skeletal_animatevertices_sse.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="mod_skeletal_animatevertices_sse.h" />
+		<Unit filename="model_alias.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="model_alias.h" />
+		<Unit filename="model_brush.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="model_brush.h" />
+		<Unit filename="model_brush_vbsp.c.h" />
+		<Unit filename="model_dpmodel.h" />
+		<Unit filename="model_hlmdl.h" />
+		<Unit filename="model_iqm.h" />
+		<Unit filename="model_psk.h" />
+		<Unit filename="model_q1bsp.h" />
+		<Unit filename="model_q2bsp.h" />
+		<Unit filename="model_q3bsp.h" />
+		<Unit filename="model_shared.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="model_shared.h" />
+		<Unit filename="model_sprite.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="model_sprite.h" />
+		<Unit filename="model_vbsp.h" />
+		<Unit filename="model_zymotic.h" />
+		<Unit filename="modelgen.h" />
+		<Unit filename="mprogdefs.h" />
+		<Unit filename="mvm_cmds.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="netconn.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="netconn.h" />
+		<Unit filename="palette.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="palette.h" />
+		<Unit filename="phys.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="phys.h" />
+		<Unit filename="pmove.h" />
+		<Unit filename="polygon.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="polygon.h" />
+		<Unit filename="portals.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="portals.h" />
+		<Unit filename="pr_comp.h" />
+		<Unit filename="progdefs.h" />
+		<Unit filename="progs.h" />
+		<Unit filename="progsvm.h" />
+		<Unit filename="protocol.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="protocol.h" />
+		<Unit filename="prvm_cmds.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="prvm_cmds.h" />
+		<Unit filename="prvm_edict.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="prvm_exec.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="prvm_execprogram.h" />
+		<Unit filename="prvm_offsets.h" />
+		<Unit filename="qdefs.h" />
+		<Unit filename="qstats.h" />
+		<Unit filename="qtypes.h" />
+		<Unit filename="quakedef.h" />
+		<Unit filename="qualker.rc">
+			<Option compilerVar="WINDRES" />
+		</Unit>
+		<Unit filename="r_explosion.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="r_lightning.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="r_modules.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="r_modules.h" />
+		<Unit filename="r_qshader.h" />
+		<Unit filename="r_shadow.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="r_shadow.h" />
+		<Unit filename="r_sky.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="r_sprites.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="r_stats.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="r_stats.h" />
+		<Unit filename="r_textures.h" />
+		<Unit filename="render.h" />
+		<Unit filename="resource.h" />
+		<Unit filename="sbar.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sbar.h" />
+		<Unit filename="screen.h" />
+		<Unit filename="server.h" />
+		<Unit filename="shader_glsl.h" />
+		<Unit filename="snd_main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_main.h" />
+		<Unit filename="snd_mem.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_mix.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_null.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_ogg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_ogg.h" />
+		<Unit filename="snd_oss.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_sdl.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_wav.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_wav.h" />
+		<Unit filename="snd_win.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_xmp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="snd_xmp.h" />
+		<Unit filename="sound.h" />
+		<Unit filename="spritegn.h" />
+		<Unit filename="sv_ccmds.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_demo.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_demo.h" />
+		<Unit filename="sv_ents.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_ents4.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_ents5.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_ents_csqc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_ents_nq.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_main_precache.c.h" />
+		<Unit filename="sv_move.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_phys.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_save.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_send.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sv_user.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="svbsp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="svbsp.h" />
+		<Unit filename="svvm_cmds.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sys.h" />
+		<Unit filename="sys_sdl.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sys_shared.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sys_unix.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sys_win.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="taskqueue.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="taskqueue.h" />
+		<Unit filename="thread.h" />
+		<Unit filename="thread_null.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="thread_pthread.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="thread_sdl.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="thread_win.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="timing.h" />
+		<Unit filename="utf8lib.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="utf8lib.h" />
+		<Unit filename="vc_stdint.h" />
+		<Unit filename="vid.h" />
+		<Unit filename="vid_null.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="vid_sdl.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="vid_shared.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="vid_wgl.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="view.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="view.h" />
+		<Unit filename="vpk.h" />
+		<Unit filename="wad.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="wad.h" />
+		<Unit filename="world.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="world.h" />
+		<Unit filename="zone.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="zone.h" />
+		<Extensions />
+	</Project>
+</CodeBlocks_project_file>

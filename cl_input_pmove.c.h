@@ -171,7 +171,7 @@ static void CL_ClientMovement_Physics_Swim (cl_clientmovement_state_t *s, int co
 
 	// water jump only in certain situations
 	// this mimics quakeworld code
-	if (s->cmd.clx_jump && s->waterlevel == 2 && s->velocity[2] >= -180) {
+	if (s->cmd.clx_jump && s->waterlevel == WATERLEVEL_SWIMMING_2 /*2*/ && s->velocity[2] >= -180) {
 		vec3_t forward;
 		vec3_t yawangles;
 		vec3_t spot;
@@ -218,7 +218,7 @@ static void CL_ClientMovement_Physics_Swim (cl_clientmovement_state_t *s, int co
 
 	if (s->waterjumptime <= 0) {
 		// water friction
-		f = 1 - s->cmd.clx_frametime * cl.movevars_waterfriction * (cls.protocol == PROTOCOL_QUAKEWORLD ? s->waterlevel : 1);
+		f = 1 - s->cmd.clx_frametime * cl.movevars_waterfriction * (cls.protocol == PROTOCOL_QUAKEWORLD ? s->waterlevel : WATERLEVEL_WETFEET_1 /*1*/);
 		f = bound(0, f, 1);
 		VectorScale(s->velocity, f, s->velocity);
 

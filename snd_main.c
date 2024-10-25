@@ -1006,7 +1006,7 @@ void S_InitOnce(void)
 
 	known_sfx = NULL;
 
-	total_channels = MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS;	// no statics
+	total_channels = MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS_4;	// no statics
 	memset(channels, 0, MAX_CHANNELS_8196 * sizeof(channel_t));
 
 	OGG_OpenLibrary ();
@@ -1294,7 +1294,8 @@ float S_SoundLength(const char *name)
 		return -1;
 #if 1
 	// Baker: The length of the sounds needs divided by samples sound rate
-	return sfx->total_length / sfx->format.speed;
+	//return sfx->format.speed ? sfx->total_length / sfx->format.speed : 0;
+	return sfx->format.speed ? sfx->total_length / (float)sfx->format.speed : (float) S_GetSoundRate();
 #else
 	return sfx->total_length / (float) S_GetSoundRate();
 	
@@ -1356,7 +1357,7 @@ static channel_t *SND_PickChannel(int entnum, int entchannel)
 	// channels <= 0 are autochannels
 	if (IS_CHAN_SINGLE(entchannel))
 	{
-		for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++)
+		for (ch_idx=NUM_AMBIENTS_4 ; ch_idx < NUM_AMBIENTS_4 + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++)
 		{
 			ch = &channels[ch_idx];
 			if (ch->entnum == entnum && ch->entchannel == entchannel)
@@ -1369,7 +1370,7 @@ static channel_t *SND_PickChannel(int entnum, int entchannel)
 	}
 
 	// there was no channel to override, so look for the first empty one
-	for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++)
+	for (ch_idx=NUM_AMBIENTS_4 ; ch_idx < NUM_AMBIENTS_4 + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++)
 	{
 		ch = &channels[ch_idx];
 		sfx = ch->sfx; // fetch the volatile variable
@@ -1809,7 +1810,7 @@ int S_StartSound_StartPosition_Flags (int entnum, int entchannel, sfx_t *sfx, ve
 	{
 		if (!IS_CHAN_SINGLE(entchannel))
 			return -1;
-		for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++)
+		for (ch_idx=NUM_AMBIENTS_4 ; ch_idx < NUM_AMBIENTS_4 + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++)
 		{
 			ch = &channels[ch_idx];
 			if (ch->entnum == entnum && ch->entchannel == entchannel)
@@ -1837,11 +1838,11 @@ int S_StartSound_StartPosition_Flags (int entnum, int entchannel, sfx_t *sfx, ve
 
 	// if an identical sound has also been started this frame, offset the pos
 	// a bit to keep it from just making the first one louder
-	check = &channels[NUM_AMBIENTS];
+	check = &channels[NUM_AMBIENTS_4];
 	startpos = (int)(startposition * sfx->format.speed);
 	if (startpos == 0)
 	{
-		for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++, check++)
+		for (ch_idx=NUM_AMBIENTS_4 ; ch_idx < NUM_AMBIENTS_4 + MAX_DYNAMIC_CHANNELS_512 ; ch_idx++, check++)
 		{
 			if (check == target_chan)
 				continue;
@@ -1957,7 +1958,7 @@ void S_StopAllSounds(void)
 			if (channels[i].sfx)
 				S_StopChannel (i, false, false);
 
-		total_channels = MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS;	// no statics
+		total_channels = MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS_4;	// no statics
 		memset(channels, 0, MAX_CHANNELS_8196 * sizeof(channel_t));
 
 		// Mute the contents of the submittion buffer
@@ -2071,7 +2072,7 @@ static void S_UpdateAmbientSounds (void)
 	float		fade = (float)max(0.0, cl.time - cl.oldtime) * ambient_fade.value / 256.0f;
 	int			ambient_channel;
 	channel_t	*chan;
-	unsigned char		ambientlevels[NUM_AMBIENTS];
+	unsigned char		ambientlevels[NUM_AMBIENTS_4];
 	sfx_t		*sfx;
 
 	memset(ambientlevels, 0, sizeof(ambientlevels));
@@ -2081,7 +2082,7 @@ static void S_UpdateAmbientSounds (void)
 	// Calc ambient sound levels
 	S_SetUnderwaterIntensity();
 
-	for (ambient_channel = 0 ; ambient_channel< NUM_AMBIENTS ; ambient_channel++) {
+	for (ambient_channel = 0 ; ambient_channel< NUM_AMBIENTS_4 ; ambient_channel++) {
 		chan = &channels[ambient_channel];
 		sfx = chan->sfx; // fetch the volatile variable
 		if (sfx == NULL || sfx->fetcher == NULL)
@@ -2391,19 +2392,19 @@ void S_Update(const matrix4x4_t *listenermatrix)
 	// update spatialization for static and dynamic sounds
 	cls.soundstats.totalsounds = 0;
 	cls.soundstats.mixedsounds = 0;
-	ch = channels+NUM_AMBIENTS;
-	for (i=NUM_AMBIENTS ; i<total_channels; i++, ch++)
+	ch = channels+NUM_AMBIENTS_4;
+	for (i=NUM_AMBIENTS_4 ; i<total_channels; i++, ch++)
 	{
 		if (!ch->sfx)
 			continue;
 		cls.soundstats.totalsounds++;
 
 		// respatialize channel
-		SND_Spatialize(ch, i >= MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS);
+		SND_Spatialize(ch, i >= MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS_4);
 
 		// try to combine static sounds with a previous channel of the same
 		// sound effect so we don't mix five torches every frame
-		if (i > MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS)
+		if (i > MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS_4)
 		{
 			// no need to merge silent channels
 			for (j = 0;j < SND_LISTENERS_8;j++)
@@ -2416,7 +2417,7 @@ void S_Update(const matrix4x4_t *listenermatrix)
 			{
 				// search for one
 				combine = NULL;
-				for (j = MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS;j < i;j++)
+				for (j = MAX_DYNAMIC_CHANNELS_512 + NUM_AMBIENTS_4;j < i;j++)
 				{
 					if (channels[j].sfx == ch->sfx)
 					{

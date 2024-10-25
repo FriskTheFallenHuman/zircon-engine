@@ -73,20 +73,25 @@ static void SV_Map_f(cmd_state_t *cmd)
 			Con_PrintLinef ("map is %s" NEWLINE, cl.worldbasename);
 
 			if (cl.worldmodel) {
-				Con_PrintLinef (S_FMT_LEFT_PAD_20 " %s", "supportwateralpha?", cl.worldmodel->brush.supportwateralpha ? "Yes" : "No");
-				Con_PrintLinef (S_FMT_LEFT_PAD_20 " %s", "vis data?", cl.worldmodel->brush.num_pvsclusters != 0 ? "Yes" : "No");
+				#define S_FMT_LEFT_PAD_14			"%-14.14s"		// Negative means left pad or right pad?  LEFT  The .20 truncates at 20, right?
+
+				Con_PrintLinef (S_FMT_LEFT_PAD_14 " %s", "wateralpha?", cl.worldmodel->brush.supportwateralpha ? "Yes" : "No");
+				//Con_PrintLinef (S_FMT_LEFT_PAD_20 " %s", "vis data?", cl.worldmodel->brush.num_pvsclusters != 0 ? "Yes" : "No");
+				Con_PrintLinef (S_FMT_LEFT_PAD_14 " %s", "vis data?", cl.worldmodel->brush.is_vised ? "Yes" : "No");
 
 				//if (developer.integer) {
 					// Con_PrintLinef (S_FMT_LEFT_PAD_20 " %d", "num brushes", cl.worldmodel->brush.num_brushes);
-					Con_PrintLinef (S_FMT_LEFT_PAD_20 " %d", "num triangles", cl.worldmodel->surfmesh.num_triangles);
-					Con_PrintLinef (S_FMT_LEFT_PAD_20 " %d", "num vertices", cl.worldmodel->surfmesh.num_vertices);
-					Con_PrintLinef (S_FMT_LEFT_PAD_20 " " VECTOR3_5d1F, "normalmins", VECTOR3_SEND(cl.worldmodel->normalmins));
-					Con_PrintLinef (S_FMT_LEFT_PAD_20 " " VECTOR3_5d1F, "normalmaxs", VECTOR3_SEND(cl.worldmodel->normalmaxs));
+					Con_PrintLinef (S_FMT_LEFT_PAD_14 " %d (verts: %d)", "num triangles", cl.worldmodel->surfmesh.num_triangles, cl.worldmodel->surfmesh.num_vertices);
+					//Con_PrintLinef (S_FMT_LEFT_PAD_20 " %d", "num vertices", cl.worldmodel->surfmesh.num_vertices);
+					Con_PrintLinef (S_FMT_LEFT_PAD_14 " (" VECTOR3_5d1F ") (" VECTOR3_5d1F")", "normalmins/maxs", VECTOR3_SEND(cl.worldmodel->normalmins), VECTOR3_SEND(cl.worldmodel->normalmaxs));
+					//Con_PrintLinef (S_FMT_LEFT_PAD_20 " " VECTOR3_5d1F, "normalmaxs", );
 					vec3_t size3;
 					VectorSubtract (cl.worldmodel->normalmaxs, cl.worldmodel->normalmins, size3);
-					Con_PrintLinef (S_FMT_LEFT_PAD_20 " " VECTOR3_5d1F, "size", VECTOR3_SEND(size3));
+					Con_PrintLinef (S_FMT_LEFT_PAD_14 " " VECTOR3_5d1F, "size", VECTOR3_SEND(size3));
 				//}
-
+#if 1 //
+				Con_PrintLinef (NEWLINE "Type \"devinfo\" for map worldspawn keys" NEWLINE);
+#else
 				Con_PrintLinef (NEWLINE "Keys" NEWLINE);
 
 				char *entities, entname[MAX_QPATH_128];
@@ -97,6 +102,7 @@ static void SV_Map_f(cmd_state_t *cmd)
 				} else {
 					String_Worldspawn_Value_For_Key_Con_PrintLine (cl.worldmodel->brush.entities);
 				}
+#endif
 			} // worldmodel
 		} else if (sv.active) {
 			Con_PrintLinef ("map is %s", sv.name);
@@ -725,8 +731,8 @@ static void SV_SetPos_f(cmd_state_t *cmd)
 		(int)true;
 
 	int flagz = PRVM_serveredictfloat(player_ed, flags);
-	if (Have_Flag (flagz, FL_ONGROUND)) {
-		Flag_Remove_From (flagz, FL_ONGROUND);
+	if (Have_Flag (flagz, FL_ONGROUND_512)) {
+		Flag_Remove_From (flagz, FL_ONGROUND_512);
 		PRVM_serveredictfloat(player_ed, flags) = (int)flagz;
 	}
 }
@@ -1745,11 +1751,12 @@ static void SV_SendCvar_f(cmd_state_t *cmd)
 	host_client = old;
 }
 
-void SV_Spawn_Model_At (ccs *s_classname, ccs *s_modelname, ccs *s_origin, ccs *s_angles, ccs *s_frame, ccs *s_scale)
+int SV_Spawn_Model_At (ccs *s_classname, ccs *s_modelname, ccs *s_origin, ccs *s_angles, ccs *s_frame, ccs *s_scale)
 {
 	// Baker: Spawn entity.
 	prvm_prog_t *prog = SVVM_prog;
 	prvm_edict_t *ed = PRVM_ED_Alloc (SVVM_prog);
+	int edictnum = PRVM_NUM_FOR_EDICT(ed);
 	
 	//const char *s_classname = "func_illusionary"; // Cmd_Argv(cmd, 1)
 
@@ -1767,8 +1774,12 @@ void SV_Spawn_Model_At (ccs *s_classname, ccs *s_modelname, ccs *s_origin, ccs *
 	// Make it appear in the world
 	SV_LinkEdict (ed); // Hmmm.
 	//PRVM_ED_Free(prog, ed); // Kills it
+
+	return edictnum;
 }
-// Cmd_AddCommand(CF_CHEAT | CF_SERVER_FROM_CLIENT, "modelview", SV_ModelView_f, "Shows a model to look at with [model][scale][z_adjust]");
+
+
+// In console with no game running>  Can't "showmodel", not connected
 static void SV_ShowModel_f (cmd_state_t *cmd)
 {
 	void (*print)(const char *, ...) = (cmd->source == src_client ? SV_ClientPrintf : Con_Printf);
@@ -1797,27 +1808,17 @@ static void SV_ShowModel_f (cmd_state_t *cmd)
 	const char *s_zadjust		= Cmd_Argc(cmd) < 4 ? "0" : Cmd_Argv(cmd, 3);
 	const char *s_scale			= Cmd_Argc(cmd) < 5 ? "1" : Cmd_Argv(cmd, 4);
 
-	////// Baker: Spawn entity.
-	////ed = PRVM_ED_Alloc (SVVM_prog);
-
-	////const char *s_classname = "func_illusionary"; // Cmd_Argv(cmd, 1)
-	////PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "classname"), s_classname, /*parse backslash*/ false);
-	////PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "scale"), s_scale, /*parse backslash*/ false);
-	////PRVM_ED_ParseEpair (prog, ed, PRVM_ED_FindField(prog, "frame"), s_frame, /*parse backslash*/ false);
-
 	char s_origin_buffer[128];
 	char s_angles_buffer[128];
 
 	// Spawn where the player is aiming. We need a view matrix first.
 	if (cmd->source == src_client) {
-		vec3_t org;// temp; //, temp, dest;
+		vec3_t org;
 		matrix4x4_t view;
-		//trace_t trace;
 
 		SV_GetEntityMatrix(prog, host_client->edict, &view, true);
 
 		Matrix4x4_OriginFromMatrix	(&view, org);
-		//VectorSet					(temp, 65536, 0, 0);
 
 		vec3_t forward;
 		vec3_t yawangles;
@@ -1831,9 +1832,6 @@ static void SV_ShowModel_f (cmd_state_t *cmd)
 		c_dpsnprintf3 (s_origin_buffer, "%g %g %g", spot[0], spot[1], spot[2] + z_adjust);
 		c_dpsnprintf3 (s_angles_buffer, "%g %g %g", cl.viewangles[0], -cl.viewangles[1], cl.viewangles[2]);
 
-		////PRVM_ED_ParseEpair(prog, ed, PRVM_ED_FindField(prog, "origin"), s_origin_buffer, /*parse backslash*/ false);
-		////PRVM_ED_ParseEpair(prog, ed, PRVM_ED_FindField(prog, "angles"), s_angles_buffer, /*parse backslash*/ false);
-
 		haveorigin = true;
 	}
 	// Or spawn at a specified origin.
@@ -1845,29 +1843,105 @@ static void SV_ShowModel_f (cmd_state_t *cmd)
 
 	if (haveorigin == false) {
 		print ("Missing origin" NEWLINE);
-		//PRVM_ED_Free(prog, ed);
 		return;
 	}
 
-	SV_Spawn_Model_At ("func_illusionary", s_modelname, s_origin_buffer, s_angles_buffer, s_frame, s_scale);
-
-	////// precache_model
-	////WARP_X_ (VMX_SV_precache_model, VMX_SV_setmodel)
-	////void VMX_SV_precache_model (prvm_prog_t *prog, const char *s_model);
-	////void VMX_SV_setmodel (prvm_prog_t *prog, prvm_edict_t *e, const char *s_model);
-
-	////VMX_SV_precache_model	(prog, s_modelname);
-	////VMX_SV_setmodel			(prog, ed, s_modelname);
-	////// Baker: The origin should be set.
-
-
-	// Make it appear in the world
-	////SV_LinkEdict (ed);
+	int edictnum = SV_Spawn_Model_At ("func_illusionary", s_modelname, s_origin_buffer, s_angles_buffer, s_frame, s_scale);
 
 	if (cmd->source == src_client)
-		Con_Printf ("%s spawned a model " QUOTED_S NEWLINE, host_client->name, s_modelname);
+		print ("%s spawned a model " QUOTED_S " as edict # %d" NEWLINE, host_client->name, s_modelname, edictnum);
 }
 
+// In console with no game running>  Can't "showmodel", not connected
+// Dedicated server "showmodel"   >  Cannot execute client commands from a dedicated server console.
+// This is because Cmd_AddCommand(CF_CHEAT | CF_SERVER_FROM_CLIENT, "showmodel"
+// Does not have CF_SERVER in the flags
+static void SV_CL_TraceLine_f (cmd_state_t *cmd)
+{
+	void (*printf)(const char *, ...) = (cmd->source == src_client ? SV_ClientPrintf : Con_Printf);
+
+	prvm_prog_t *prog = SVVM_prog;
+	qbool haveorigin;
+
+	if (!cl.islocalgame) {
+		printf (	"Requires local game" NEWLINE);
+		return;
+	}
+
+	//if (Cmd_Argc(cmd) < 2) {
+	//	printf (	"Usage: traceline" NEWLINE);
+	//	return;
+	//}
+
+	// Spawn where the player is aiming. We need a view matrix first.
+	if (cmd->source == src_client) {
+		WARP_X_ (VM_CL_traceline Con_Pos_f SV_ShowModel_f)
+		
+		vec3_t vieworg;
+		vec3_t viewangles;
+		vec3_t vlookat_1000;
+		VectorCopy(PRVM_serveredictvector(host_client->edict, origin), vieworg);
+		VectorAdd (vieworg, PRVM_serveredictvector(host_client->edict, view_ofs), vieworg);
+		
+		VectorCopy(PRVM_serveredictvector(host_client->edict, v_angle), viewangles);
+		
+		vec3_t forward;
+		AngleVectors	(viewangles, forward, NULL, NULL);		
+		VectorMA		(vieworg, 1000, forward, vlookat_1000); // Baker: Forward + 1000
+
+		int movementval = 0; // TRACE_HIT_EVERYTHING_0 vs. TRACE_NOMONSTERS_TRUE
+
+		trace_t _trace = SV_TraceLine(vieworg, vlookat_1000, movementval, host_client->edict, 
+			SV_GenericHitSuperContentsMask(host_client->edict), 0, 0, 
+			collision_extendtracelinelength.value);
+
+		haveorigin = true;
+		//VM_SetTraceGlobals(prog, &trace);
+		trace_t *trace = &_trace;
+
+#define printvarf(var)		printf (STRINGIFY(var) " " FLOAT_LOSSLESS_FORMAT NEWLINE, (float)(var))
+#define printvars(var)		printf (STRINGIFY(var) " %s" NEWLINE, var)
+#define printvarv(var)		printf (STRINGIFY(var) " " VECTOR3_LOSSLESS NEWLINE, VECTOR3_SEND(var) )
+#define printvari(var)		printf (STRINGIFY(var) " %d" NEWLINE, (int)(var))
+
+		printvarv (vieworg);
+		printvarv (viewangles);
+		printvarv (vlookat_1000);
+
+		printvari (trace->allsolid);
+		printvari (trace->startsolid);
+		printvarf (trace->fraction);
+		printvari (trace->inwater);
+		printvari (trace->inopen);
+		printvarv (trace->endpos);
+		printvarv (trace->plane.normal);
+		printvarf (trace->plane.dist);
+
+		int entnumhit = trace->ent ? PRVM_NUM_FOR_EDICT(trace->ent) : 0;
+		printvari (entnumhit);
+		printvari (trace->startsupercontents);		// trace_dpstartcontents
+		printvari (trace->hitsupercontents);		// trace_dphitcontents
+		printvari (trace->hitq3surfaceflags);		// trace_dphitq3surfaceflags
+		if (trace->hittexture) // trace_dphittexturename
+			printvars (trace->hittexture->name);		// trace_dphitq3surfaceflags
+		else 
+			printf ("Did not hit a texture" NEWLINE);
+
+		WARP_X_ (VM_SV_traceline)
+		prvm_prog_t *prog = SVVM_prog;
+		void VM_SetTraceGlobals(prvm_prog_t *prog, const trace_t *trace);
+		VM_SetTraceGlobals(prog, trace);
+		SV_ClientCommandsf  ("tool_marker \"" VECTOR3_5d1F "\"", VECTOR3_SEND( trace->endpos));
+	}
+	// Or spawn at a specified origin.
+	else
+	{
+		// Dedicated server?
+		printf = Con_Printf;
+		haveorigin = false;
+	}
+
+}
 
 static void SV_Ent_Create_f(cmd_state_t *cmd)
 {
@@ -2123,4 +2197,5 @@ void SV_InitOperatorCommands(void)
 	Cmd_AddCommand(CF_CHEAT | CF_SERVER_FROM_CLIENT, "showmodel", SV_ShowModel_f, "Shows a model to look at with [model][scale][z_adjust]");
 	Cmd_AddCommand(CF_CHEAT | CF_SERVER_FROM_CLIENT, "ent_remove_all", SV_Ent_Remove_All_f, "Removes all entities of the specified classname");
 	Cmd_AddCommand(CF_CHEAT | CF_SERVER_FROM_CLIENT, "ent_remove", SV_Ent_Remove_f, "Removes an entity by number, or the entity you're aiming at");
+	Cmd_AddCommand(CF_CHEAT | CF_SERVER_FROM_CLIENT, "traceline", SV_CL_TraceLine_f, "Removes an entity by number, or the entity you're aiming at");
 }

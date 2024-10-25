@@ -39,7 +39,7 @@ cvar_t csqc_progcrc = {CF_CLIENT | CF_READONLY, "csqc_progcrc","-1","CRC of cspr
 cvar_t csqc_progsize = {CF_CLIENT | CF_READONLY, "csqc_progsize","-1","file size of csprogs.dat file to load (-1 is none), only used during level changes and then reset to -1"};
 cvar_t csqc_usedemoprogs = {CF_CLIENT, "csqc_usedemoprogs","1","use csprogs stored in demos"};
 cvar_t csqc_polygons_defaultmaterial_nocullface = {CF_CLIENT, "csqc_polygons_defaultmaterial_nocullface", "0", "use 'cull none' behavior in the default shader for rendering R_PolygonBegin - warning: enabling this is not consistent with FTEQW behavior on this feature"};
-cvar_t csqc_polygons_darkplaces_classic_3d = {CF_CLIENT, "csqc_polygons_darkplaces_classic_3d", "1", "use DarkPlaces polygon 3d polygon drawing [Zircon]"};
+cvar_t csqc_polygons_darkplaces_classic_3d = {CF_CLIENT, "csqc_polygons_darkplaces_classic_3d", "1", "use DarkPlaces Classic 3d polygon drawing [Zircon]"};
 
 
 cvar_t cl_shownet = {CF_CLIENT, "cl_shownet","0","1 = print packet size, 2 = print packet message list"};
@@ -75,7 +75,7 @@ cvar_t cl_explosions_lifetime = {CF_CLIENT | CF_ARCHIVE, "cl_explosions_lifetime
 cvar_t cl_stainmaps = {CF_CLIENT | CF_ARCHIVE, "cl_stainmaps", "0","stains lightmaps, much faster than decals but blurred"};
 cvar_t cl_stainmaps_clearonload = {CF_CLIENT | CF_ARCHIVE, "cl_stainmaps_clearonload", "1","clear stainmaps on map restart"};
 
-cvar_t cl_beams_polygons = {CF_CLIENT | CF_ARCHIVE, "cl_beams_polygons", "1","use beam polygons instead of models"};
+cvar_t cl_beams_polygons = {CF_CLIENT | CF_ARCHIVE, "cl_beams_polygons", "0","use beam polygons instead of models [Zircon default]"}; // Baker July 29 2024 - was 1 (DarkPlaces) now defaults 0
 cvar_t cl_beams_quakepositionhack = {CF_CLIENT | CF_ARCHIVE, "cl_beams_quakepositionhack", "1", "makes your lightning gun appear to fire from your waist (as in Quake and QuakeWorld)"};
 cvar_t cl_beams_instantaimhack = {CF_CLIENT | CF_ARCHIVE, "cl_beams_instantaimhack", "0", "makes your lightning gun aiming update instantly"};
 cvar_t cl_beams_lightatend = {CF_CLIENT | CF_ARCHIVE, "cl_beams_lightatend", "0", "make a light at the end of the beam"};
@@ -90,7 +90,10 @@ cvar_t cl_dlights_decaybrightness = {CF_CLIENT | CF_ARCHIVE, "cl_dlights_decaybr
 cvar_t qport = {CF_CLIENT, "qport", "0", "identification key for playing on qw servers (allows you to maintain a connection to a quakeworld server even if your port changes)"};
 
 cvar_t cl_prydoncursor = {CF_CLIENT, "cl_prydoncursor", "0", "enables a mouse pointer which is able to click on entities in the world, useful for point and click mods, see PRYDON_CLIENTCURSOR extension in dpextensions.qc"};
-cvar_t cl_prydoncursor_notrace = {CF_CLIENT, "cl_prydoncursor_notrace", "1", "disables traceline used in prydon cursor reporting to the game, saving some cpu time [Zircon default]"}; // Baker r5002: This defaults to off, a value of 1.  There are no mods I know of that use this except Prydon Gate, I have seen no evidence that Xonotic uses it in the Xonotic QuakeC source nor any other DarkPlaces mods.
+cvar_t cl_prydoncursor_notrace = {CF_CLIENT, "cl_prydoncursor_notrace", "1", "disables traceline used in prydon cursor reporting to the game, saving some cpu time [Zircon default]"}; 
+// Baker r5002: This defaults to off, a value of 1.  There are no mods I know of that use this 
+// except Prydon Gate, I have seen no evidence that Xonotic uses it in the Xonotic QuakeC source 
+// nor any other DarkPlaces mods.
 
 cvar_t cl_deathnoviewmodel = {CF_CLIENT, "cl_deathnoviewmodel", "1", "hides gun model when dead"};
 
@@ -2308,11 +2311,25 @@ CL_Fog_f
 static void CL_Fog_f(cmd_state_t *cmd)
 {
 	int is_fog_alpha_requested = false; // Baker r1201: FitzQuake r_skyfog
-	if (Cmd_Argc (cmd) == 1)
-	{
+	if (Cmd_Argc (cmd) == 1) {
 		Con_PrintLinef ("\"fog\" is " QUOTED_STR ("%f %f %f %f %f %f %f %f %f"), r_refdef.fog_density, r_refdef.fog_red, r_refdef.fog_green, r_refdef.fog_blue, r_refdef.fog_alpha, r_refdef.fog_start, r_refdef.fog_end, r_refdef.fog_height, r_refdef.fog_fadedepth);
+		Con_PrintLinef ("");
+		Con_PrintLinef ("density      " "%1.2f", r_refdef.fog_density);
+		Con_PrintLinef ("red          " "%1.2f", r_refdef.fog_red);
+		Con_PrintLinef ("green        " "%1.2f", r_refdef.fog_green);
+		Con_PrintLinef ("blue         " "%1.2f", r_refdef.fog_blue);
+		Con_PrintLinef ("alpha        " "%1.2f", r_refdef.fog_alpha);
+		Con_PrintLinef ("start dist   " FLOAT_LOSSLESS_FORMAT, r_refdef.fog_start);
+		Con_PrintLinef ("end dist     " FLOAT_LOSSLESS_FORMAT, r_refdef.fog_end);
+		Con_PrintLinef ("start height " FLOAT_LOSSLESS_FORMAT, r_refdef.fog_height);
+
+		// Baker: Is there where it starts to fade?
+		// fog_fadedepth
+		Con_PrintLinef ("fadedepth    " FLOAT_LOSSLESS_FORMAT, r_refdef.fog_fadedepth);
+		
 		return;
 	}
+
 	FOG_clear(); // so missing values get good defaults
 	if (Cmd_Argc(cmd) > 1) {
 		r_refdef.fog_density0 = atof(Cmd_Argv(cmd, 1)); // Baker r1201: FitzQuake r_skyfog
@@ -2763,7 +2780,7 @@ static void CL_MeshEntities_Shutdown(void)
 #if 1 // Let's destroy classic if applicable
 	if (CLVM_prog) {
 		// Baker: Go through the textures and try to kill them?
-		//DebugPrintf ("VM_Polygons_Reset");
+		//DebugPrintLinef ("VM_Polygons_Reset");
 		VM_Polygons_Reset (CLVM_prog);
 	}
 
@@ -2951,7 +2968,7 @@ lightme:
 			ent->render_modellight_forced = true;
 			ent->render_rtlight_disabled = true;
 		}
-		else if (((ent->model && !ent->model->lit) || (ent->model == r_refdef.scene.worldmodel ? mod_q3bsp_lightgrid_world_surfaces.integer : mod_q3bsp_lightgrid_bsp_surfaces.integer))
+		else if (((ent->model && !ent->model->lit) || (ent->model == r_refdef.scene.worldmodel ? mod_q3bsp_lightgrid_world_surfaces.integer : mod_q3bsp_lightgrid_bsp_surfaces.integer /*d:0*/))
 			&& r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->lit && r_refdef.scene.worldmodel->brushq3.lightgridtexture && mod_q3bsp_lightgrid_texture.integer)
 		{
 			ent->render_lightgrid = true;
@@ -3039,6 +3056,7 @@ void CL_UpdateEntityShading(void)
 
 qbool vid_opened = false;
 // Baker: This is renderer restart "start video".  Sort of like VID_InitOnce
+WARP_X_CALLERS_ (Mod_ForName /*yes really*/ SV_SpawnServer Host_InitOnce CDAudio_Play_byName)
 void CL_StartVideo(void)
 {
 	if (!vid_opened && cls.state != ca_dedicated)

@@ -43,6 +43,8 @@ typedef int64_t fs_offset_t;
 extern char fs_gamedir [MAX_OSPATH];
 extern char fs_basedir [MAX_OSPATH];
 extern char fs_userdir [MAX_OSPATH];
+extern char fs_csg_basedir [MAX_OSPATH];
+
 
 extern int fs_data_override; // Baker r0009: Super -data override
 extern int fs_is_zircon_galaxy; // Baker: Explain how we know this?

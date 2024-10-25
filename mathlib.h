@@ -114,6 +114,8 @@ unsigned int CeilPowerOf2(unsigned int value);
 
 #define Vector3_IsZeros(v) (((v)[0] == 0) && ((v)[1] == 0) && ((v)[2] == 0))
 
+#define Vector6Set(a,b,c,d,e,f,g) ((a)[0]=(b),(a)[1]=(c),(a)[2]=(d),(a)[3]=(e),(a)[4]=(f),(a)[5]=(g)) // OCT 2 2024
+
 #define VectorNegate(a,b) ((b)[0]=-((a)[0]),(b)[1]=-((a)[1]),(b)[2]=-((a)[2]))
 #define VectorSet(a,b,c,d) ((a)[0]=(b),(a)[1]=(c),(a)[2]=(d))
 #define VectorClear(a) ((a)[0]=(a)[1]=(a)[2]=0)

@@ -59,12 +59,12 @@ void Protocol_Names(char *buffer, size_t buffersize);
 WARP_X_ (EF_ROCKET)
 #define	MF_ROCKET_1		1			// leave a trail
 #define	MF_GRENADE_2	2			// leave a trail
-#define	MF_GIB_4		4			// leave a trail
+#define	MF_GIB_4		4			// leave a trail				MF_GIB		TR_BLOOD		regular blood trail
 #define	MF_ROTATE_8		8			// rotate (bonus items)
-#define	MF_TRACER_16	16			// green split trail
-#define	MF_ZOMGIB_32	32			// small blood trail
-#define	MF_TRACER2_64	64			// orange split trail + rotate
-#define	MF_TRACER3_127	128			// purple trail
+#define	MF_TRACER_16	16			// green split trail			EF_TRACER	TR_WIZSPIKE
+#define	MF_ZOMGIB_32	32			// small blood trail			EF_ZOMGIB?	TR_SLIGHTBLOOD	dark blood trail
+#define	MF_TRACER2_64	64			// orange split trail + rotate	EF_TRACER2	TR_KNIGHTSPIKE
+#define	MF_TRACER3_128	128			// purple trail					EF_TRACER3	TR_VORESPIKE
 
 // Baker r0087: Fence texture q1 mdl support
 #define MF_FENCE	16384		// 0x40000	
@@ -111,7 +111,7 @@ WARP_X_ (EF_ROCKET)
 #define EF_TRACER				268435456	// 28	green split trail
 #define EF_ZOMGIB				536870912	// 29	small blood trail
 #define EF_TRACER2				1073741824	// 30	orange split trail + rotate
-#define EF_TRACER3				0x80000000	// 31	purple trail
+#define EF_TRACER3				0x80000000	// 31	purple trail 2147483648
 
 // internaleffects bits (no overlap with EF_ bits):
 #define INTEF_FLAG1QW_1				1

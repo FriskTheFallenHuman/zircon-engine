@@ -1373,24 +1373,24 @@ static void M_Init(void)
 		Mem_Free(s_keylist_alloc);
 	}
 
-	Cmd_AddCommand(CF_CLIENT, "menu_main", M_Menu_Main_f, "open the main menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_singleplayer", M_Menu_SinglePlayer_f, "open the singleplayer menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_load", M_Menu_Load_f, "open the loadgame menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_save", M_Menu_Save_f, "open the savegame menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_multiplayer", M_Menu_MultiPlayer_f, "open the multiplayer menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_setup", M_Menu_Setup_f, "open the player setup menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_main", M_Menu_Main_f, "open the main menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_singleplayer", M_Menu_SinglePlayer_f, "open the singleplayer menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_load", M_Menu_Load_f, "open the loadgame menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_save", M_Menu_Save_f, "open the savegame menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_multiplayer", M_Menu_MultiPlayer_f, "open the multiplayer menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_setup", M_Menu_Setup_f, "open the player setup menu");
 	Cmd_AddCommand (CF_CLIENT, "menu_options", M_Menu_Options_Nova_f, "open the options menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_options_effects", M_Menu_Options_Effects_f, "open the effects options menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_options_graphics", M_Menu_Options_Graphics_f, "open the graphics options menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_options_colorcontrol", M_Menu_Options_ColorControl_f, "open the color control menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_keys", M_Menu_Keys_f, "open the key binding menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_video", M_Menu_Video_Classic_f, "open the video options menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_options_effects", M_Menu_Options_Effects_f, "open the effects options menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_options_graphics", M_Menu_Options_Graphics_f, "open the graphics options menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_options_colorcontrol", M_Menu_Options_ColorControl_f, "open the color control menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_keys", M_Menu_Keys_f, "open the key binding menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_video", M_Menu_Video_Classic_f, "open the video options menu");
 	Cmd_AddCommand (CF_CLIENT, "menu_video2", M_Menu_Video_Nova_f, "open the video options menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_reset", M_Menu_Reset_f, "open the reset to defaults menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_mods", M_Menu_ModList_f, "open the mods browser menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_reset", M_Menu_Reset_f, "open the reset to defaults menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_mods", M_Menu_ModList_f, "open the mods browser menu");
 	Cmd_AddCommand (CF_CLIENT, "menu_maps", M_Menu_Maps_f, "open the maps browser menu");
-	Cmd_AddCommand(CF_CLIENT, "help", M_Menu_Help_f, "open the help menu");
-	Cmd_AddCommand(CF_CLIENT, "menu_quit", M_Menu_Quit_f, "open the quit menu");
+	Cmd_AddCommand (CF_CLIENT, "help", M_Menu_Help_f, "open the help menu");
+	Cmd_AddCommand (CF_CLIENT, "menu_quit", M_Menu_Quit_f, "open the quit menu");
 
 	Cmd_AddCommand(CF_CLIENT, "menu_credits", M_Menu_Credits_f, "open the credits menu");
 

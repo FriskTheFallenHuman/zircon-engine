@@ -53,7 +53,7 @@ cvar_t mod_q3shader_default_offsetmapping = {CF_CLIENT | CF_ARCHIVE, "mod_q3shad
 cvar_t mod_q3shader_default_offsetmapping_scale = {CF_CLIENT | CF_ARCHIVE, "mod_q3shader_default_offsetmapping_scale", "1", "default scale used for offsetmapping"};
 cvar_t mod_q3shader_default_offsetmapping_bias = {CF_CLIENT | CF_ARCHIVE, "mod_q3shader_default_offsetmapping_bias", "0", "default bias used for offsetmapping"};
 cvar_t mod_q3shader_default_polygonfactor = {CF_CLIENT, "mod_q3shader_default_polygonfactor", "0", "biases depth values of 'polygonoffset' shaders to prevent z-fighting artifacts"};
-cvar_t mod_q3shader_default_polygonoffset = {CF_CLIENT, "mod_q3shader_default_polygonoffset", "-2", "biases depth values of 'polygonoffset' shaders to prevent z-fighting artifacts"};
+cvar_t mod_q3shader_default_polygonoffset = {CF_CLIENT, "mod_q3shader_default_polygonoffset", "-48", "biases depth values of 'polygonoffset' shaders to prevent z-fighting artifacts [Zircon default]"}; // Baker: July 26 2024 - was -2 changed to -48
 cvar_t mod_q3shader_default_refractive_index = {CF_CLIENT, "mod_q3shader_default_refractive_index", "1.33", "angle of refraction specified as n to apply when a photon is refracted, example values are: 1.0003 = air, water = 1.333, crown glass = 1.517, flint glass = 1.655, diamond = 2.417"};
 cvar_t mod_q3shader_force_addalpha = {CF_CLIENT, "mod_q3shader_force_addalpha", "0", "treat GL_ONE GL_ONE (or add) blendfunc as GL_SRC_ALPHA GL_ONE for compatibility with older DarkPlaces releases"};
 cvar_t mod_q3shader_force_terrain_alphaflag = {CF_CLIENT, "mod_q3shader_force_terrain_alphaflag", "0", "for multilayered terrain shaders force TEXF_ALPHA flag on both layers"};
@@ -560,17 +560,17 @@ int Mod_Q1BSP_SuperContentsFromNativeContents(int nativecontents)
 {
 	switch(nativecontents)
 	{
-		case CONTENTS_EMPTY:
+		case CONTENTS_EMPTY_NEG1:
 			return 0;
-		case CONTENTS_SOLID:
+		case CONTENTS_SOLID_NEG2:
 			return SUPERCONTENTS_SOLID | SUPERCONTENTS_OPAQUE;
-		case CONTENTS_WATER:
+		case CONTENTS_WATER_NEG3:
 			return SUPERCONTENTS_WATER;
-		case CONTENTS_SLIME:
+		case CONTENTS_SLIME_NEG4:
 			return SUPERCONTENTS_SLIME;
-		case CONTENTS_LAVA:
+		case CONTENTS_LAVA_NEG5:
 			return SUPERCONTENTS_LAVA | SUPERCONTENTS_NODROP;
-		case CONTENTS_SKY:
+		case CONTENTS_SKY_NEG6:
 			return SUPERCONTENTS_SKY | SUPERCONTENTS_NODROP | SUPERCONTENTS_OPAQUE; // to match behaviour of Q3 maps, let sky count as opaque
 	}
 	return 0;
@@ -579,16 +579,16 @@ int Mod_Q1BSP_SuperContentsFromNativeContents(int nativecontents)
 int Mod_Q1BSP_NativeContentsFromSuperContents(int supercontents)
 {
 	if (supercontents & (SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY))
-		return CONTENTS_SOLID;
+		return CONTENTS_SOLID_NEG2;
 	if (supercontents & SUPERCONTENTS_SKY)
-		return CONTENTS_SKY;
+		return CONTENTS_SKY_NEG6;
 	if (supercontents & SUPERCONTENTS_LAVA)
-		return CONTENTS_LAVA;
+		return CONTENTS_LAVA_NEG5;
 	if (supercontents & SUPERCONTENTS_SLIME)
-		return CONTENTS_SLIME;
+		return CONTENTS_SLIME_NEG4;
 	if (supercontents & SUPERCONTENTS_WATER)
-		return CONTENTS_WATER;
-	return CONTENTS_EMPTY;
+		return CONTENTS_WATER_NEG3;
+	return CONTENTS_EMPTY_NEG1;
 }
 
 typedef struct RecursiveHullCheckTraceInfo_s
@@ -1057,11 +1057,11 @@ void Collision_ClipTrace_Box(trace_t *trace, const vec3_t cmins, const vec3_t cm
 
 			side = i&1;
 
-			box_clipnodes[i].children[side] = CONTENTS_EMPTY;
+			box_clipnodes[i].children[side] = CONTENTS_EMPTY_NEG1;
 			if (i != 5)
 				box_clipnodes[i].children[side^1] = i + 1;
 			else
-				box_clipnodes[i].children[side^1] = CONTENTS_SOLID;
+				box_clipnodes[i].children[side^1] = CONTENTS_SOLID_NEG2;
 
 			box_planes[i].type = i>>1;
 			box_planes[i].normal[i>>1] = 1;
@@ -2156,11 +2156,14 @@ static void Mod_Q1BSP_LoadVisibility(sizebuf_t *sb)
 {
 	loadmodel->brushq1.num_compressedpvs = 0;
 	loadmodel->brushq1.data_compressedpvs = NULL;
-	if (!sb->cursize)
+	if (!sb->cursize) {
+		loadmodel->brush.is_vised = false;
 		return;
+	}
 	loadmodel->brushq1.num_compressedpvs = sb->cursize;
 	loadmodel->brushq1.data_compressedpvs = (unsigned char *)Mem_Alloc(loadmodel->mempool, sb->cursize);
 	MSG_ReadBytes(sb, sb->cursize, loadmodel->brushq1.data_compressedpvs);
+	loadmodel->brush.is_vised = true;
 }
 
 // used only for HalfLife maps
@@ -2735,8 +2738,7 @@ static void Mod_Q1BSP_LoadFaces(sizebuf_t *sb)
 		mod_alloclightmap_state_t allocState;
 
 		Mod_AllocLightmap_Init(&allocState, loadmodel->mempool, lightmapsize, lightmapsize);
-		for (surfacenum = 0, surface = loadmodel->data_surfaces;surfacenum < count;surfacenum++, surface++)
-		{
+		for (surfacenum = 0, surface = loadmodel->data_surfaces;surfacenum < count;surfacenum++, surface++) {
 			int iu, iv, lightmapx = 0, lightmapy = 0;
 			float u, v, ubase, vbase, uscale, vscale;
 
@@ -3058,11 +3060,11 @@ static qbool Mod_Q1BSP_CheckWaterAlphaSupport(void)
 	// can we can assume this map supports r_wateralpha
 	for (i = 0, leaf = loadmodel->brush.data_leafs;i < loadmodel->brush.num_leafs;i++, leaf++)
 	{
-		if ((leaf->contents == CONTENTS_WATER || leaf->contents == CONTENTS_SLIME) && leaf->clusterindex >= 0)
+		if ((leaf->contents == CONTENTS_WATER_NEG3 || leaf->contents == CONTENTS_SLIME_NEG4) && leaf->clusterindex >= 0)
 		{
 			pvs = loadmodel->brush.data_pvsclusters + leaf->clusterindex * loadmodel->brush.num_pvsclusterbytes;
 			for (j = 0;j < loadmodel->brush.num_leafs;j++)
-				if (CHECKPVSBIT(pvs, loadmodel->brush.data_leafs[j].clusterindex) && loadmodel->brush.data_leafs[j].contents == CONTENTS_EMPTY)
+				if (CHECKPVSBIT(pvs, loadmodel->brush.data_leafs[j].clusterindex) && loadmodel->brush.data_leafs[j].contents == CONTENTS_EMPTY_NEG1)
 					return true;
 		}
 	}
@@ -4014,13 +4016,23 @@ int Mod_Q1BSP_Load(model_t *mod, void *buffer, void *bufferend)
 
 	// Baker r0100
 	Mod_Q1BSP_MakeHull0();
-	if (mod_bsp_portalize.integer) {
+	if (mod_bsp_portalize.integer /*d:1*/) {
 		// Baker r0100: Only do Mod_BSP_MakePortals when it would be used.
-		if (mod_bsp_portalize.integer >= 2 || mod->brush.num_pvsclusters == 0 || r_novis.integer) {
-			Mod_BSP_MakePortals ();
-		} else {
-			Con_DPrintLinef ("Vis data found and not r_novis, skipping Mod_BSP_MakePortals");
+		//if (mod_bsp_portalize.integer >= 2 || mod->brush.num_pvsclusters == 0 || r_novis.integer) {
+		//if (mod_bsp_portalize.integer >= 2 || mod->brush.num_visleafs <= 1 || r_novis.integer) {
+#ifdef CONFIG_MENU // Dedicated this is not the "way"
+		if (cl.loadmodel_current == 1) // Baker: October 13 2024 .. don't do this for healthboxes and such
+#endif
+		{
+			if (mod_bsp_portalize.integer >= 2 || mod->brush.is_vised == false || r_novis.integer) {
+				if (mod->brush.is_vised == false)
+					Con_PrintLinef ("No vis data ... making portals ...");
+				Mod_BSP_MakePortals ();
+			} else {
+				Con_DPrintLinef ("Vis data found and not r_novis, skipping Mod_BSP_MakePortals");
+			}
 		}
+
 	} // portalize.integer
 
 	mod->numframes = 2;		// regular and alternate animation
@@ -4269,8 +4281,10 @@ static void Mod_Q2BSP_LoadVisibility(sizebuf_t *sb)
 	loadmodel->brush.num_pvsclusterbytes = 0;
 	loadmodel->brush.data_pvsclusters = NULL;
 
-	if (!sb->cursize)
+	if (!sb->cursize) {
+		loadmodel->brush.is_vised = false;
 		return;
+	}
 
 	count = MSG_ReadLittleLong(sb);
 	loadmodel->brush.num_pvsclusters = count;
@@ -4286,6 +4300,7 @@ static void Mod_Q2BSP_LoadVisibility(sizebuf_t *sb)
 	}
 	// hush the loading error check later - we had to do random access on this lump, so we didn't read to the end
 	sb->readcount = sb->cursize;
+	loadmodel->brush.is_vised = true;
 }
 
 static void Mod_Q2BSP_LoadNodes(sizebuf_t *sb)
@@ -5328,8 +5343,7 @@ static void Mod_Q3BSP_LoadBrushes(lump_t *l)
 	maxplanes = 0;
 	planes = NULL;
 
-	for (i = 0;i < count;i++, in++, out++)
-	{
+	for (i = 0;i < count;i++, in++, out++) {
 		n = LittleLong(in->firstbrushside);
 		c = LittleLong(in->numbrushsides);
 		if (n < 0 || n + c > loadmodel->brush.num_brushsides)
@@ -5350,8 +5364,7 @@ static void Mod_Q3BSP_LoadBrushes(lump_t *l)
 			planes = (colplanef_t *)Mem_Alloc(tempmempool, sizeof(colplanef_t) * maxplanes);
 		}
 		q3surfaceflags = 0;
-		for (j = 0;j < out->numbrushsides;j++)
-		{
+		for (j = 0;j < out->numbrushsides;j++) {
 			VectorCopy(out->firstbrushside[j].plane->normal, planes[j].normal);
 			planes[j].dist = out->firstbrushside[j].plane->dist;
 			planes[j].q3surfaceflags = out->firstbrushside[j].texture->surfaceflags;
@@ -5499,6 +5512,8 @@ static void Mod_Q3BSP_LoadTriangles(lump_t *l)
 	}
 }
 
+// 1 caller
+WARP_X_CALLERS_ (Mod_Q3BSP_Load)
 static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 {
 	q3dlightmap_t *input_pointer;
@@ -5529,7 +5544,7 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 	unsigned char *mergebuf;
 	char mapname[MAX_QPATH_128];
 	qbool external;
-	unsigned char *inpixels[10000]; // max count q3map2 can output (it uses 4 digits)
+	unsigned char *inpixels_lightmap[10000]; // max count q3map2 can output (it uses 4 digits)
 	char vabuf[1024];
 
 	// defaults for q3bsp
@@ -5544,8 +5559,7 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 	if (cls.state == ca_dedicated)
 		return;
 
-	if (mod_q3bsp_nolightmaps.integer)
-	{
+	if (mod_q3bsp_nolightmaps.integer /*d: 0*/) {
 		return;
 	}
 	else if (l->filelen)
@@ -5557,16 +5571,16 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 		if (l->filelen % sizeof(*input_pointer))
 			Host_Error_Line ("Mod_Q3BSP_LoadLightmaps: funny lump size in %s",loadmodel->model_name);
 		count = l->filelen / sizeof(*input_pointer);
-		for(i = 0; i < count; ++i)
-			inpixels[i] = input_pointer[i].rgb;
+		for(i = 0; i < count; i ++) // Count is 24 for Zircon Galaxy start map
+			inpixels_lightmap[i] = input_pointer[i].rgb;
 	}
 	else
 	{
 		// no internal lightmaps
 		// try external lightmaps
 		FS_StripExtension(loadmodel->model_name, mapname, sizeof(mapname));
-		inpixels[0] = loadimagepixelsbgra(va(vabuf, sizeof(vabuf), "%s/lm_%04d", mapname, 0), q_tx_complain_false, q_tx_allowfixtrans_false, q_tx_convertsrgb_false, NULL);
-		if (!inpixels[0])
+		inpixels_lightmap[0] = loadimagepixelsbgra(va(vabuf, sizeof(vabuf), "%s/lm_%04d", mapname, 0), q_tx_complain_false, q_tx_allowfixtrans_false, q_tx_convertsrgb_false, NULL);
+		if (!inpixels_lightmap[0])
 			return;
 		else {
 			if (developer_loading.integer)
@@ -5585,22 +5599,22 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 		rgbmap[2] = 2;
 		external = true;
 
-		for(count = 1; ; ++count)
+		for(count = 1; ; count ++)
 		{
-			inpixels[count] = loadimagepixelsbgra(va(vabuf, sizeof(vabuf), "%s/lm_%04d", mapname, count), q_tx_complain_false, q_tx_allowfixtrans_false, q_tx_convertsrgb_false, NULL);
-			if (!inpixels[count])
+			inpixels_lightmap[count] = loadimagepixelsbgra(va(vabuf, sizeof(vabuf), "%s/lm_%04d", 
+				mapname, count), q_tx_complain_false, q_tx_allowfixtrans_false, q_tx_convertsrgb_false, NULL);
+			if (!inpixels_lightmap[count])
 				break; // we got all of them
-			if (image_width != size || image_height != size)
-			{
-				Mem_Free(inpixels[count]);
-				inpixels[count] = NULL;
+			if (image_width != size || image_height != size) {
+				Mem_Free(inpixels_lightmap[count]);
+				inpixels_lightmap[count] = NULL;
 				Con_PrintLinef ("Mod_Q3BSP_LoadLightmaps: mismatched lightmap size in %s - external lightmap %s/lm_%04d does not match earlier ones", loadmodel->model_name, mapname, count);
 				break;
 			}
 		}
 	}
 
-	loadmodel->brushq3.lightmapsize = size;
+	loadmodel->brushq3.lightmapsize = size; // Baker: Sets the size.
 	loadmodel->brushq3.num_originallightmaps = count;
 
 	// now check the surfaces to see if any of them index an odd numbered
@@ -5614,13 +5628,11 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 	// to see if the second lightmap is blank, if so it is not deluxemapped.
 	// VorteX: autodetect only if previous attempt to find "deluxeMaps" key
 	// in Mod_Q3BSP_LoadEntities was failed
-	if (!loadmodel->brushq3.deluxemapping)
-	{
+	if (!loadmodel->brushq3.deluxemapping) {
 		loadmodel->brushq3.deluxemapping = !(count & 1);
 		loadmodel->brushq3.deluxemapping_modelspace = true;
 		endlightmap = 0;
-		if (loadmodel->brushq3.deluxemapping)
-		{
+		if (loadmodel->brushq3.deluxemapping) {
 			int facecount = faceslump->filelen / sizeof(q3dface_t);
 			q3dface_t *faces = (q3dface_t *)(mod_base + faceslump->fileofs);
 			for (i = 0;i < facecount;i++)
@@ -5647,7 +5659,7 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 		// blank lightmaps, which must be handled properly as well
 		if (endlightmap == 1 && count > 1)
 		{
-			c = inpixels[1];
+			c = inpixels_lightmap[1];
 			for (i = 0;i < size*size;i++)
 			{
 				if (c[bytesperpixel*i + rgbmap[0]])
@@ -5670,7 +5682,7 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 	// figure out what the most reasonable merge power is within limits
 
 	// find the appropriate NxN dimensions to merge to, to avoid wasted space
-	realcount = count >> (int)loadmodel->brushq3.deluxemapping;
+	realcount = count >> (int)loadmodel->brushq3.deluxemapping; // Baker: Zircon Galaxy start map realcount is 12
 
 	// figure out how big the merged texture has to be
 	mergegoal = 128<<bound(0, mod_q3bsp_lightmapmergepower.integer, 6);
@@ -5711,8 +5723,7 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 
 	mergedpixels = (unsigned char *) Mem_Alloc(tempmempool, mergedwidth * mergedheight * 4);
 	mergeddeluxepixels = loadmodel->brushq3.deluxemapping ? (unsigned char *) Mem_Alloc(tempmempool, mergedwidth * mergedheight * 4) : NULL;
-	for (i = 0;i < count;i++)
-	{
+	for (i = 0; i < count; i ++) {
 		// figure out which merged lightmap texture this fits into
 		realindex = i >> (int)loadmodel->brushq3.deluxemapping;
 		lightmapindex = i >> powerdxy;
@@ -5727,36 +5738,54 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 		for (j = 0;j < size;j++)
 		for (k = 0;k < size;k++)
 		{
-			mergebuf[(j*mergedwidth+k)*4+0] = inpixels[i][(j*size+k)*bytesperpixel+rgbmap[0]];
-			mergebuf[(j*mergedwidth+k)*4+1] = inpixels[i][(j*size+k)*bytesperpixel+rgbmap[1]];
-			mergebuf[(j*mergedwidth+k)*4+2] = inpixels[i][(j*size+k)*bytesperpixel+rgbmap[2]];
+			mergebuf[(j*mergedwidth+k)*4+0] = inpixels_lightmap[i][(j*size+k)*bytesperpixel+rgbmap[0]];
+			mergebuf[(j*mergedwidth+k)*4+1] = inpixels_lightmap[i][(j*size+k)*bytesperpixel+rgbmap[1]];
+			mergebuf[(j*mergedwidth+k)*4+2] = inpixels_lightmap[i][(j*size+k)*bytesperpixel+rgbmap[2]];
 			mergebuf[(j*mergedwidth+k)*4+3] = 255;
 		}
 
 		// upload texture if this was the last tile being written to the texture
 		if (((realindex + 1) & (mergedrowsxcolumns - 1)) == 0 || (realindex + 1) == realcount)
 		{
-			if (loadmodel->brushq3.deluxemapping && (i & 1))
-				loadmodel->brushq3.data_deluxemaps[lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "deluxemap%04i", lightmapindex), mergedwidth, mergedheight, mergeddeluxepixels, TEXTYPE_BGRA, TEXF_FORCELINEAR | (gl_texturecompression_q3bspdeluxemaps.integer ? TEXF_COMPRESS : 0), q_tx_miplevel_neg1, q_tx_palette_NULL);
+			// Baker: How q1 know light styles?
+			WARP_X_ (R_LoadTexture2D, R_UploadFullTexture, R_UploadPartialTexture, R_UpdateTexture, )
+			// Baker: LM_OID - R_LoadTexture2D
+			// 
+			// rtexture_t *R_LoadTexture2D(rtexturepool_t *rtexturepool, 
+			//			const char *identifier, int width, int height, 
+			//			const unsigned char *data, textype_t textype, int flags, int miplevel, 
+			//			const unsigned int *palette)
+			if (loadmodel->brushq3.deluxemapping && (i & 1 /*is odd*/)) {
+baker_upload_here:
+				loadmodel->brushq3.data_deluxemaps[lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, 
+				va(vabuf, sizeof(vabuf), "deluxemap%04i", lightmapindex), mergedwidth, mergedheight, 
+				mergeddeluxepixels, TEXTYPE_BGRA, TEXF_FORCELINEAR | (gl_texturecompression_q3bspdeluxemaps.integer /*d: 0*/
+					? TEXF_COMPRESS : 0), q_tx_miplevel_neg1, q_tx_palette_NULL);
+			}
 			else
 			{
-				if (mod_q3bsp_sRGBlightmaps.integer)
-				{
+				if (mod_q3bsp_sRGBlightmaps.integer /*d: 0*/) {
+					// Baker: SRGB ...
 					textype_t t;
-					if (vid_sRGB.integer && vid_sRGB_fallback.integer && !vid.sRGB3D)
-					{
+					if (vid_sRGB.integer /*d: 0*/ && vid_sRGB_fallback.integer /*d: 0*/ && !vid.sRGB3D) {
 						t = TEXTYPE_BGRA; // in stupid fallback mode, we upload lightmaps in sRGB form and just fix their brightness
 						// we fix the brightness consistently via lightmapscale
 					}
 					else
 						t = TEXTYPE_SRGB_BGRA; // normally, we upload lightmaps in sRGB form (possibly downconverted to linear)
-					loadmodel->brushq3.data_lightmaps [lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "lightmap%04i", lightmapindex), mergedwidth, mergedheight, mergedpixels, t, TEXF_FORCELINEAR | (gl_texturecompression_q3bsplightmaps.integer ? TEXF_COMPRESS : 0), q_tx_miplevel_neg1, q_tx_palette_NULL);
+					loadmodel->brushq3.data_lightmaps [lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "lightmap%04i", lightmapindex), mergedwidth, mergedheight, mergedpixels, t, TEXF_FORCELINEAR | (gl_texturecompression_q3bsplightmaps.integer /*d: 0*/ ? TEXF_COMPRESS : 0), 
+						q_tx_miplevel_neg1, q_tx_palette_NULL);
 				}
 				else
 				{
+					// Baker: This is the norm
 					if (vid_sRGB.integer && vid_sRGB_fallback.integer && !vid.sRGB3D)
 						Image_MakesRGBColorsFromLinear_Lightmap(mergedpixels, mergedpixels, mergedwidth * mergedheight);
-					loadmodel->brushq3.data_lightmaps [lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, va(vabuf, sizeof(vabuf), "lightmap%04i", lightmapindex), mergedwidth, mergedheight, mergedpixels, TEXTYPE_BGRA, TEXF_FORCELINEAR | (gl_texturecompression_q3bsplightmaps.integer ? TEXF_COMPRESS : 0), q_tx_miplevel_neg1, q_tx_palette_NULL);
+					loadmodel->brushq3.data_lightmaps [lightmapindex] = R_LoadTexture2D(loadmodel->texturepool, 
+						va(vabuf, sizeof(vabuf), "lightmap%04d", lightmapindex), mergedwidth, mergedheight, 
+						mergedpixels, TEXTYPE_BGRA, TEXF_FORCELINEAR | 
+						(gl_texturecompression_q3bsplightmaps.integer /*d: 0*/ ? TEXF_COMPRESS : 0), 
+						q_tx_miplevel_neg1, q_tx_palette_NULL);
 				}
 			}
 		}
@@ -5768,7 +5797,7 @@ static void Mod_Q3BSP_LoadLightmaps(lump_t *l, lump_t *faceslump)
 	if (external)
 	{
 		for(i = 0; i < count; ++i)
-			Mem_Free(inpixels[i]);
+			Mem_Free(inpixels_lightmap[i]);
 	}
 }
 
@@ -6517,7 +6546,7 @@ static void Mod_Q3BSP_LoadLightGrid(lump_t *l)
 			}
 		}
 
-		if (mod_q3bsp_lightgrid_texture.integer)
+		if (mod_q3bsp_lightgrid_texture.integer /*d:1*/)
 		{
 			// build a texture to hold the data for per-pixel sampling
 			// this has 3 different kinds of data stacked in it:
@@ -6595,14 +6624,15 @@ static void Mod_Q3BSP_LoadLightGrid(lump_t *l)
 	}
 }
 
+WARP_X_ ()
 static void Mod_Q3BSP_LoadPVS(lump_t *l)
 {
 	q3dpvs_t *in;
 	int totalchains;
 
-	if (l->filelen == 0)
-	{
+	if (l->filelen == 0) {
 		int i;
+
 		// unvised maps often have cluster indices even without pvs, so check
 		// leafs to find real number of clusters
 		loadmodel->brush.num_pvsclusters = 1;
@@ -6614,6 +6644,7 @@ static void Mod_Q3BSP_LoadPVS(lump_t *l)
 		totalchains = loadmodel->brush.num_pvsclusterbytes * loadmodel->brush.num_pvsclusters;
 		loadmodel->brush.data_pvsclusters = (unsigned char *)Mem_Alloc(loadmodel->mempool, totalchains);
 		memset(loadmodel->brush.data_pvsclusters, 0xFF, totalchains);
+		loadmodel->brush.is_vised = false;
 		return;
 	}
 
@@ -6631,6 +6662,7 @@ static void Mod_Q3BSP_LoadPVS(lump_t *l)
 
 	loadmodel->brush.data_pvsclusters = (unsigned char *)Mem_Alloc(loadmodel->mempool, totalchains);
 	memcpy(loadmodel->brush.data_pvsclusters, (unsigned char *)(in + 1), totalchains);
+	loadmodel->brush.is_vised = true;
 }
 
 static void Mod_Q3BSP_LightPoint(model_t *model, const vec3_t p, vec3_t ambientcolor, vec3_t diffusecolor, vec3_t diffusenormal)
@@ -7545,15 +7577,22 @@ static void Mod_Q3BSP_Load(model_t *mod, void *buffer, void *bufferend)
 	loadmodel->brush.numsubmodels = loadmodel->brushq3.num_models;
 
 	// the MakePortals code works fine on the q3bsp data as well
-	if (mod_bsp_portalize.integer) {
+	if (mod_bsp_portalize.integer /*d:1*/) {
 		// Baker r0100: Only do Mod_BSP_MakePortals when it would be used.
-		if (mod_bsp_portalize.integer >= 2 || mod->brush.num_pvsclusters == 0 || r_novis.integer) {
+		
+		// Baker: mod->brush.num_visleafs was 118 with a leaky map, so that didn't work.
+		//if (mod_bsp_portalize.integer >= 2 || mod->brush.num_visleafs <= 1 || r_novis.integer) {
+		
+		if (mod_bsp_portalize.integer >= 2 || mod->brush.is_vised == false || r_novis.integer) {
+		//if (mod_bsp_portalize.integer >= 2 || mod->brush.num_pvsclusters == 0 || r_novis.integer) {
+			if (mod->brush.is_vised == false)
+				Con_PrintLinef ("No vis data ... making portals ...");
 			Mod_BSP_MakePortals ();
 		} else {
 			Con_DPrintLinef ("Vis data found and not r_novis, skipping Mod_BSP_MakePortals");
 		}
 	}
-
+	
 	// FIXME: shader alpha should replace r_wateralpha support in q3bsp
 	loadmodel->brush.supportwateralpha = true;
 
@@ -7565,10 +7604,8 @@ static void Mod_Q3BSP_Load(model_t *mod, void *buffer, void *bufferend)
 
 	mod = loadmodel;
 	mod->modelsurfaces_sorted = (int*)Mem_Alloc(loadmodel->mempool, mod->num_surfaces * sizeof(*mod->modelsurfaces_sorted));
-	for (i = 0;i < loadmodel->brush.numsubmodels;i++)
-	{
-		if (i > 0)
-		{
+	for (i = 0;i < loadmodel->brush.numsubmodels; i ++) {
+		if (i > 0) {
 			char name[10];
 			// duplicate the basic information
 			dpsnprintf(name, sizeof(name), "*%d", i);
@@ -7626,6 +7663,7 @@ static void Mod_Q3BSP_Load(model_t *mod, void *buffer, void *bufferend)
 			}
 		}
 		//printf("Editing model %d... AFTER re-bounding: %f %f %f - %f %f %f\n", i, mod->normalmins[0], mod->normalmins[1], mod->normalmins[2], mod->normalmaxs[0], mod->normalmaxs[1], mod->normalmaxs[2]);
+		// TOUCHOID - Q3BSP LOAD
 		corner[0] = max(fabs(mod->normalmins[0]), fabs(mod->normalmaxs[0]));
 		corner[1] = max(fabs(mod->normalmins[1]), fabs(mod->normalmaxs[1]));
 		corner[2] = max(fabs(mod->normalmins[2]), fabs(mod->normalmaxs[2]));
@@ -7793,6 +7831,8 @@ int Mod_OBJ_Load(model_t *mod, void *buffer, void *bufferend)
 	loadmodel->CompileShadowMap = R_Mod_CompileShadowMap;
 	loadmodel->DrawShadowMap = R_Mod_DrawShadowMap;
 	loadmodel->DrawLight = R_Mod_DrawLight;
+
+	loadmodel->brush.is_vised = false; // Baker .OBJ put this somewhere
 
 	skinfiles = Mod_LoadSkinFiles();
 	if (loadmodel->numskins < 1)

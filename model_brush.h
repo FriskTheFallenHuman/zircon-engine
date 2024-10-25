@@ -196,7 +196,7 @@ typedef struct mleaf_s
 	int *firstleafsurface;
 	int numleafbrushes; // q3bsp
 	int *firstleafbrush; // q3bsp
-	unsigned char ambient_sound_level[NUM_AMBIENTS]; // q1bsp
+	unsigned char ambient_sound_level[NUM_AMBIENTS_4]; // q1bsp
 	int contents; // q1bsp: // TODO: remove (only used temporarily during loading when making collision hull 0)
 	int portalmarkid; // q1bsp // used by see-polygon-through-portals visibility checker
 }
@@ -357,6 +357,7 @@ typedef struct model_brush_s
 	struct skinframe_s *solidskyskinframe;
 	struct skinframe_s *alphaskyskinframe;
 
+	qbool is_vised; // Baker: October 3 2024
 	qbool supportwateralpha;
 
 	// QuakeWorld

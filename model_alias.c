@@ -937,7 +937,7 @@ void Mod_BuildAliasSkinsFromSkinFiles(texture_t *skin, skinfile_t *skinfile, con
 			for (skinfileitem = skinfile->items; skinfileitem; skinfileitem = skinfileitem->next)
 			{
 				// leave the skin unitialized (nodraw) if the replacement is "common/nodraw" or "textures/common/nodraw"
-				if (String_Match(skinfileitem->name, meshname))
+				if (String_Match(skinfileitem->skname, meshname))
 				{
 					Image_StripImageExtension(skinfileitem->replacement, stripbuf, sizeof(stripbuf));
 					if (developer_extra.integer)
@@ -967,7 +967,7 @@ void Mod_BuildAliasSkinsFromSkinFiles(texture_t *skin, skinfile_t *skinfile, con
 extern cvar_t r_nolerp_list;
 #define BOUNDI(VALUE,MIN,MAX) if (VALUE < MIN || VALUE >= MAX) Host_Error_Line ("model %s has an invalid ##VALUE (%d exceeds %d - %d)", loadmodel->model_name, VALUE, MIN, MAX);
 #define BOUNDF(VALUE,MIN,MAX) if (VALUE < MIN || VALUE >= MAX) Host_Error_Line ("model %s has an invalid ##VALUE (%f exceeds %f - %f)", loadmodel->model_name, VALUE, MIN, MAX);
-int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend)
+int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend) // Baker: Alias model .mdl
 {
 	int i, j, version, totalskins, skinwidth, skinheight, groupframes, groupskins, numverts;
 	float scales, scalet, interval;

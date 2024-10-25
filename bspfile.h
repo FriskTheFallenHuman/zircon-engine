@@ -130,20 +130,21 @@ typedef struct dplane_s
 
 
 // contents values in Q1 maps
-#define CONTENTS_EMPTY			-1
-#define CONTENTS_SOLID			-2
-#define CONTENTS_WATER			-3
-#define CONTENTS_SLIME			-4
-#define CONTENTS_LAVA				-5
-#define CONTENTS_SKY				-6
+#define CONTENTS_EMPTY_NEG1			-1
+#define CONTENTS_SOLID_NEG2			-2
+#define CONTENTS_WATER_NEG3			-3
+#define CONTENTS_SLIME_NEG4			-4
+#define CONTENTS_LAVA_NEG5			-5
+#define CONTENTS_SKY_NEG6			-6
+
 // these were #ifdef QUAKE2 in the quake source
-#define CONTENTS_ORIGIN			-7 // removed at csg time
+#define CONTENTS_ORIGIN				-7 // removed at csg time
 #define CONTENTS_CLIP				-8 // changed to contents_solid
-#define CONTENTS_CURRENT_0		-9
-#define CONTENTS_CURRENT_90		-10
+#define CONTENTS_CURRENT_0			-9
+#define CONTENTS_CURRENT_90			-10
 #define CONTENTS_CURRENT_180		-11
 #define CONTENTS_CURRENT_270		-12
-#define CONTENTS_CURRENT_UP		-13
+#define CONTENTS_CURRENT_UP			-13
 #define CONTENTS_CURRENT_DOWN		-14
 
 //contents flags in Q2 maps
@@ -195,19 +196,19 @@ typedef struct dplane_s
 
 #define SUPERCONTENTS_SKIP_NONE_0	0
 
-#define SUPERCONTENTS_SOLID			0x00000001
-#define SUPERCONTENTS_WATER			0x00000002
-#define SUPERCONTENTS_SLIME			0x00000004
-#define SUPERCONTENTS_LAVA			0x00000008
-#define SUPERCONTENTS_SKY			0x00000010
-#define SUPERCONTENTS_BODY			0x00000020
-#define SUPERCONTENTS_CORPSE		0x00000040
-#define SUPERCONTENTS_NODROP		0x00000080
-#define SUPERCONTENTS_PLAYERCLIP	0x00000100
-#define SUPERCONTENTS_MONSTERCLIP	0x00000200
-#define SUPERCONTENTS_DONOTENTER	0x00000400
-#define SUPERCONTENTS_BOTCLIP		0x00000800
-#define SUPERCONTENTS_OPAQUE		0x00001000
+#define SUPERCONTENTS_SOLID			0x00000001	// 1
+#define SUPERCONTENTS_WATER			0x00000002	// 2
+#define SUPERCONTENTS_SLIME			0x00000004	// 4
+#define SUPERCONTENTS_LAVA			0x00000008	// 8
+#define SUPERCONTENTS_SKY			0x00000010	// 16
+#define SUPERCONTENTS_BODY			0x00000020	// 32
+#define SUPERCONTENTS_CORPSE		0x00000040	// 64
+#define SUPERCONTENTS_NODROP		0x00000080	// 128
+#define SUPERCONTENTS_PLAYERCLIP	0x00000100	// 256
+#define SUPERCONTENTS_MONSTERCLIP	0x00000200	// 512
+#define SUPERCONTENTS_DONOTENTER	0x00000400	// 1024
+#define SUPERCONTENTS_BOTCLIP		0x00000800	// 2048
+#define SUPERCONTENTS_OPAQUE		0x00001000	// 4096
 // TODO: is there any reason to define:
 //   fog?
 //   areaportal?
@@ -217,7 +218,7 @@ typedef struct dplane_s
 //   detail?         (div0) no, game code should not be allowed to differentiate between structural and detail
 //   structural?     (div0) no, game code should not be allowed to differentiate between structural and detail
 //   trigger?        (div0) no, as these are always solid anyway, and that's all that matters for trigger brushes
-#define SUPERCONTENTS_LIQUIDSMASK	(SUPERCONTENTS_LAVA | SUPERCONTENTS_SLIME | SUPERCONTENTS_WATER)
+#define SUPERCONTENTS_LIQUIDSMASK	(SUPERCONTENTS_LAVA | SUPERCONTENTS_SLIME | SUPERCONTENTS_WATER) // 14
 #define SUPERCONTENTS_VISBLOCKERMASK	SUPERCONTENTS_OPAQUE
 
 /*
@@ -306,9 +307,9 @@ typedef struct dface_s
 #define	AMBIENT_SLIME	2
 #define	AMBIENT_LAVA	3
 
-#define	NUM_AMBIENTS			4		// automatic ambient sounds
+#define	NUM_AMBIENTS_4			4		// automatic ambient sounds
 
-// leaf 0 is the generic CONTENTS_SOLID leaf, used for all solid areas
+// leaf 0 is the generic CONTENTS_SOLID_NEG2 leaf, used for all solid areas
 // all other leafs need visibility info
 /*
 typedef struct dleaf_s
@@ -322,7 +323,7 @@ typedef struct dleaf_s
 	unsigned short		firstmarksurface;
 	unsigned short		nummarksurfaces;
 
-	unsigned char		ambient_level[NUM_AMBIENTS];
+	unsigned char		ambient_level[NUM_AMBIENTS_4];
 } dleaf_t;
 */
 

@@ -229,15 +229,15 @@ float	FALSE					= 0;
 float 	TRUE					= 1;
 
 // edict.flags
-float	FL_FLY					= 1;
-float	FL_SWIM					= 2;
+float	FL_FLY_1					= 1;
+float	FL_SWIM_2					= 2;
 float	FL_CLIENT				= 8;	// set for all client edicts
 float	FL_INWATER				= 16;	// for enter / leave water splash
 float	FL_MONSTER				= 32;
 float	FL_GODMODE				= 64;	// player cheat
 float	FL_NOTARGET				= 128;	// player cheat
-float	FL_ITEM					= 256;	// extra wide size for bonus items IF sv_legacy_bbox_expand is 1
-float	FL_ONGROUND				= 512;	// standing on something
+float	FL_ITEM_256					= 256;	// extra wide size for bonus items IF sv_legacy_bbox_expand is 1
+float	FL_ONGROUND_512				= 512;	// standing on something
 float	FL_PARTIALGROUND		= 1024;	// not all corners are valid
 float	FL_WATERJUMP			= 2048;	// player jumping out of water
 float	FL_JUMPRELEASED			= 4096;	// for jump debouncing

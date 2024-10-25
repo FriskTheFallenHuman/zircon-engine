@@ -66,7 +66,7 @@ void CleanShader (const char *srel) // scripts/mine.shader
 	// J.A.C.K. doesn't know these shaders, we strip to speed up load times
 	const char *scrub_list[] = {
 		//"framemap",	// buttonmap
-		"animmap",
+		//"animmap",
 		"dp_camera",
 		"dp_reflect",
 		"dp_reflectcube",
@@ -87,12 +87,15 @@ void CleanShader (const char *srel) // scripts/mine.shader
 		"surfaceparm nolightmap",
 		"distancecull",
 		//"nonsolid",
+		"deformVertexes roundwave",
+		"q3map_bounceScale",
 
 	};
 
 	// 0 -> 1, 2 -> 3
 	const char *substitute_list[] = {
 		"framemap ",	"map ", // buttonmap
+		"animmap",		"animMap ", // buttonmap
 	};
 
 	char *sfile = String_Find_Skip_Past(srel, "/");// String_Skip_Char(srel, '/');

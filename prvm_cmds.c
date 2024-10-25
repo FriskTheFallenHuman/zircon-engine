@@ -374,7 +374,7 @@ void VM_error(prvm_prog_t *prog)
 	VM_VarString(prog, 0, string, sizeof(string));
 	Con_PrintLinef (CON_ERROR "======%s ERROR in %s:" NEWLINE "%s", prog->name, PRVM_GetString(prog, prog->xfunction->s_name), string);
 	ed = PRVM_PROG_TO_EDICT(PRVM_allglobaledict(self));
-	PRVM_ED_Print(prog, ed, q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL);
+	PRVM_ED_Print(prog, ed, q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
 
 	prog->error_cmd("%s: Program error in function %s:\n%s\nTip: read above for entity information\n", prog->name, PRVM_GetString(prog, prog->xfunction->s_name), string);
 }
@@ -397,7 +397,7 @@ void VM_objerror(prvm_prog_t *prog)
 	VM_VarString(prog, 0, string, sizeof(string));
 	Con_Printf (CON_ERROR "======OBJECT ERROR======\n"); // , prog->name, PRVM_GetString(prog->xfunction->s_name), string); // or include them? FIXME
 	ed = PRVM_PROG_TO_EDICT(PRVM_allglobaledict(self));
-	PRVM_ED_Print(prog, ed, q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL);
+	PRVM_ED_Print(prog, ed, q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
 	PRVM_ED_Free (prog, ed);
 	Con_Printf (CON_ERROR "%s OBJECT ERROR in %s:\n%s\nTip: read above for entity information\n", prog->name, PRVM_GetString(prog, prog->xfunction->s_name), string);
 }
@@ -1471,7 +1471,7 @@ void VM_eprint(prvm_prog_t *prog)
 {
 	VM_SAFEPARMCOUNT(1,VM_eprint);
 
-	PRVM_ED_PrintNum (prog, PRVM_G_EDICTNUM(OFS_PARM0), q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL);
+	PRVM_ED_PrintNum (prog, PRVM_G_EDICTNUM(OFS_PARM0), q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
 }
 
 /*
@@ -5423,6 +5423,8 @@ static void uri_to_string_callback(int status, size_t length_received, unsigned 
 
 // uri_get() gets content from an URL and calls a callback "uri_get_callback" with it set as string; an unique ID of the transfer is returned
 // returns 1 on success, and then calls the callback with the ID, 0 or the HTTP status code, and the received data in a string
+
+// Baker: Why is called crypto_uri_postbuf?
 void VM_uri_get (prvm_prog_t *prog)
 {
 	const char *url;

@@ -311,6 +311,24 @@ int COM_ParseToken_Simple(const char **datapointer, qbool returnnewline, qbool p
 int COM_ParseToken_QuakeC(const char **datapointer, qbool returnnewline);
 int COM_ParseToken_VM_Tokenize(const char **datapointer, qbool returnnewline);
 int COM_ParseToken_Console(const char **datapointer);
+
+// Baker: Returns false on end of data or new line
+typedef enum {
+	word_none_0			= 0,
+ 	word_alphanumeric_1	= 1,		// alphanumeric or _	
+ 	word_numeric_2		= 2,		//	"123"
+ 	word_numericalpha_3	= 3,		//	"2a"
+ 	word_punct_4		= 4,		//	"," ... always a single char.
+	word_string_5		= 5,
+	word_multichar_6	= 6,
+	word_invalid_9		= 9,		// control characters, non-ascii >= 127 
+	word_newline_10		= 10,
+} word_e;
+
+WARP_X_ (operator_e)
+
+word_e COM_ParseToken_EQ_Tokenize (const char **datapointer, const char **ps_start, const char **ps_beyond);
+
 char *COM_Parse_FTE (const char *data, char *out, size_t outlen);
 
 void COM_Init (void);
@@ -531,6 +549,7 @@ char *String_Edit_Unquote (char *s_edit);
 #define String_Edit_DeQuote String_Edit_Unquote
 char *String_Edit_Trim (char *s_edit);
 char *String_Edit_Replace (char *s_edit, size_t s_size, const char *s_find, const char *s_replace); // no alloc
+char *String_Edit_Replace_Float (char *s_edit, size_t s_size, const char *s_find, float mynumber);
 char *String_Replace_Malloc (const char *s, const char *s_find, const char *s_replace);
 char *String_Edit_RTrim_Whitespace_Including_Spaces (char *s_edit);
 
@@ -581,7 +600,7 @@ char *File_URL_Edit_SlashesForward_Like_Unix (char *windows_path_to_file);
 void *File_To_Memory_Alloc (const char *path_to_file, replyx size_t *numbytes);
 char *File_URL_Edit_Remove_Extension (char *path_to_file);
 char *File_URL_Edit_Reduce_To_Parent_Path (char *path_to_file);
-
+int File_String_To_File (const char *path_to_file, const char *s);
 
 SBUF___ const char *File_Getcwd_SBuf (void); // No trailing slash
 char *File_URL_Edit_SlashesBack_Like_Windows (char *unix_path_to_file);
@@ -666,6 +685,9 @@ void BakerString_Set (baker_string_t *dst, int s_len, const char *s);
 
 // Baker: Do not have string to cat be inside the string receiving cat. This version does not allow that.
 void BakerString_Cat_No_Collide (/*modify*/ baker_string_t *dst, size_t s_len, const char *s);
+void BakerString_CatC (/*modify*/ baker_string_t *dst, const char *s);
+void BakerString_CatCFmt  (/*modify*/ baker_string_t *dst, const char *fmt, ...) DP_FUNC_PRINTF(2);
+
 
 #ifdef _WIN32
 	#define VA_EXPAND_ALLOC(_text, _len, _siz16, _fmt) \
@@ -714,6 +736,7 @@ char *String_Edit_Replace_Char (char *s_edit, int ch_find, int ch_replace, reply
 char *Z_StrDupf (const char *fmt, ...) DP_FUNC_PRINTF(1);
 void Z_StrDupf_Realloc (char **ps, const char *fmt, ...) DP_FUNC_PRINTF(2);
 void Z_StrDup_Len_Z_Realloc (char **ps, const char *s, int slen);
+char *Z_StrRepeat_Z (char ch, int count);
 
 char *_c_strlcpy_size_z (char *dst, size_t dst_sizeof, const char *src, size_t src_length);
 #define c_strlcpy_size_z(dst,src,len)  _c_strlcpy_size_z(dst, sizeof(dst), src, len)
@@ -751,7 +774,16 @@ const char *File_URL_GetExtension (const char *path_to_file);
 // Returns extension with . (like .png) after last slash if exists, returns NULL if nothing found.
 ccs *File_URL_GetExtensionEx (ccs *path_to_file);
 
-
+int String_Replace_Proxy_ZWork (char **pzstr, ccs *text, ccs *s_replace, ccs *offset_start, ccs *offset_beyond);
 char *String_Edit_Replace_Memory_Constant (char *s_edit, size_t s_size, const char *s_find, const char *s_replace);
+
+bgra4 *Image_Bilinear_Resize_ZAlloc (const bgra4 *rgba, int width, int height, int new_width, int new_height);
+int Image_Rect_Fill3 (void *pels, unsigned rowbytes, int x, int y, int paint_width, int paint_height, int pixel_bytes, unsigned fill_color);
+void *Image_Enlarge_Canvas_ZAlloc (const void *pels, int width, int height, int pixel_bytes, int new_width, int new_height, unsigned fillcolor, int is_centered);
+int Image_Save_JPEG_Is_Ok (ccs *filename, bgra4 *pels_bgra, int width, int height);
+int StringToFileIsOk (ccs *filename, ccs *s);
+int StringToFileConPrintIsOk (ccs *filename, ccs *s);
+
+char *String_Find_Reverse (const char *s, const char *s_find);
 
 #endif // ! COMMON_H

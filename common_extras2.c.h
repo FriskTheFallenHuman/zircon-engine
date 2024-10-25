@@ -602,6 +602,13 @@ end_of_buffer:
 	return s_edit;
 }
 
+char *String_Edit_Replace_Float (char *s_edit, size_t s_size, const char *s_find, float mynumber)
+{
+	char s_replace[64];
+	c_dpsnprintf1 (s_replace, FLOAT_LOSSLESS_FORMAT, mynumber);
+	return String_Edit_Replace (s_edit, s_size, s_find, s_replace);
+}
+
 char *String_Edit_Replace_Token_Array (char *s_edit, size_t s_size, const char **replace_tokens2)
 {
 	const char **curt;
@@ -615,8 +622,39 @@ char *String_Edit_Replace_Token_Array (char *s_edit, size_t s_size, const char *
 	return s_edit;
 }
 
+typedef struct {
+	int			length;	// Yes, it must be int to work with star
+	ccs			*string;
+} kcursor;
+#define  KS_Fmt		  "%.*s"	//  printf ("%.*s", sa->length, sa->string)
+#define kspv(ks) ((ks)->length), ((ks)->string)		//  printf ("%.*s", sa->length, sa->string)
 
+// The idea is that pzstr was a clone of origtext
+int String_Replace_Proxy_ZWork (char **pzstr, ccs *sorig, ccs *s_replace, ccs *sorig_start, ccs *sorig_beyond)
+{
+	char *s = *pzstr;
+	
+	size_t offset_start  = sorig_start - sorig;
+	size_t offset_beyond = sorig_beyond - sorig;
+	size_t replacelen = strlen(s_replace);
+	
+	kcursor s_start = { offset_start, s };
+	kcursor s_repla = { strlen(s_replace), s_replace };
+	kcursor s_after = { strlen(&s[offset_beyond]), &s[offset_beyond] }; // New string everything after offset
+	size_t bufsize = {s_start.length + s_repla.length + s_after.length + ONE_CHAR_1 };
+	char *snew = (char *)Mem_Alloc (zonemempool, bufsize);
+	size_t pt2 = s_start.length + s_repla.length;
+	size_t pt3 = pt2 + s_after.length;
+	memcpy (&snew[0],				s_start.string,	s_start.length);
+	memcpy (&snew[s_start.length],	s_repla.string,	s_repla.length);
+	memcpy (&snew[pt2],	s_after.string,		s_after.length);
+	snew[pt3] = NULL_CHAR_0; // Not technically necessary since Mem_Alloc should be all zeroes.
 
+	Mem_FreeNull_ (*pzstr);
+	*pzstr = snew;
+
+	return true;
+}
 
 // Short: Replaces all instances of a string within a string or until reaching s_size - 1
 // Notes: None.
@@ -1452,6 +1490,27 @@ void *File_To_Memory_Offset_Alloc (const char *path_to_file, replyx size_t *numb
 	}
 }
 
+
+int File_Memory_To_File (const char *path_to_file, const void *data, size_t numbytes) // Returns true if ok
+{
+	AUTO_FOPEN___ FILE *f = fopen (path_to_file, FS_MODE_WRITE_BINARY_WB);
+
+	if ( f == NULL)										return false;
+	if ( fwrite (data, 1, numbytes, f) != numbytes)		{ return AUTO_FFREE___ fclose (f); false; }
+
+	AUTO_FFREE___ fclose (f);
+
+	return true;
+}
+
+// Does not write trailing null.
+int File_String_To_File (const char *path_to_file, const char *s)
+{
+	size_t numbytes = strlen(s);
+	return File_Memory_To_File (path_to_file, s, numbytes);
+}
+
+
 void *File_To_Memory_Alloc (const char *path_to_file, replyx size_t *numbytes)
 {
 	return File_To_Memory_Offset_Alloc (path_to_file, numbytes, OFFSET_0, FILE_READ_ALL_0);
@@ -1667,9 +1726,44 @@ int Clipboard_Set_Text (const char *text_to_clipboard)
 {
 	if (!text_to_clipboard)
 		return false;
-	return Sys_Clipboard_Set_Text (text_to_clipboard);
+	int ret = Sys_Clipboard_Set_Text (text_to_clipboard);
+	return ret;
 }
 
+#ifdef _DEBUG
+	// copies given text to clipboard.  Text can't be NULL
+	int _Platform_Clipboard_Set_Text (const char *text_to_clipboard)
+	{
+		char *clipboard_text;
+		HGLOBAL hglbCopy;
+		size_t len = strlen(text_to_clipboard) + 1;
+	
+		if (!OpenClipboard(NULL))
+			return false;
+	
+		if (!EmptyClipboard()) {
+			CloseClipboard();
+			return false;
+		}
+	
+		if ((hglbCopy = GlobalAlloc(GMEM_DDESHARE, len + 1)) == 0) {
+			CloseClipboard();
+			return false;
+		}
+	
+		if ((clipboard_text = (char *)GlobalLock(hglbCopy)) == 0) {
+			CloseClipboard();
+			return false;
+		}
+	
+		strlcpy ((char *) clipboard_text, text_to_clipboard, len);
+		GlobalUnlock(hglbCopy);
+		SetClipboardData(CF_TEXT, hglbCopy);
+	
+		CloseClipboard();
+		return true;
+	}
+#endif // _DEBUG
 
 ///////////////////////////////////////////////////////////////////////////////
 //  MATH: Baker - Math

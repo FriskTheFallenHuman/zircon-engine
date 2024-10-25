@@ -38,6 +38,11 @@ cvar_t prvm_sv_progfields = {CF_SERVER | SV_RESETNEWMAP_0, "prvm_sv_progfields",
 cvar_t prvm_cl_gamecommands = {CF_CLIENT | CL_RESETNEWMAP_0, "prvm_cl_gamecommands", "", "Space delimited list of GameCommands for CL.  Set via progs to provide engine information for console autocomplete of cl_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
 cvar_t prvm_cl_progfields = {CF_CLIENT | CL_RESETNEWMAP_0, "prvm_cl_progfields", "", "Space delimited list of CL prog fieldnames.  Set via progs to provide engine information for console autocomplete of cl_cmd [Zircon]"};  // Baker r7103 gamecommand autocomplete
 
+cvar_t prvm_edictget_autostore = {CF_CLIENT, "prvm_edictget_autostore", "2", "1: Auto-store prvm_edictget to _last cvar, 2: to clipboard also [Zircon]"};  // Baker: August 8 2024
+cvar_t _last = {CF_CLIENT, "_last", "", "last value of \"eq\" or prvm_edictget_autostore [Zircon]"};  /// Baker: August 8 2024 .. Baker: Changed to _last Oct 13 2024
+
+
+
 //cvar_t prvm_menu_gamecommands = {CF_MENU, "prvm_menu_gamecommands", "", "Space delimited list of GameCommands for MENU.  Set via progs to provide engine information for console autocomplete of menu_cmd [Zircon]"};
 
 
@@ -667,7 +672,11 @@ For debugging
 */
 // LadyHavoc: optimized this to print out much more quickly (tempstring)
 // LadyHavoc: changed to print out every 4096 characters (incase there are a lot of fields to print)
-void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, const char *wildcard_fieldname, const char *s_fieldname_partial, const char *s_fieldvalue_partial)
+// Baker: shall_print_free means print "free" if the edict is free.
+WARP_X_ (PRVM_ED_PrintEdict_SV_f PRVM_ED_PrintNum)
+void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, 
+				   const char *wildcard_fieldname, 
+				   const char *s_fieldname_partial, const char *s_fieldvalue_partial, stringlist_t *plist)
 {
 	size_t	slen;
 	mdef_t	*d;
@@ -677,14 +686,16 @@ void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, co
 	int		type;
 	char	tempstring[MAX_INPUTLINE_16384], tempstring2[260]; // temporary string buffers
 	char	valuebuf[MAX_INPUTLINE_16384];
-
+	
 	if (ed->free) {
 		if (shall_print_free) {
+			//if (plist == NULL) // Baker: October 18 2024
 			Con_PrintLinef ("%s: FREE", prog->name);
 		}
 		return;
 	}
 
+#if 1 // Baker: The match field/value I added.  This isn't part of print
 	int ismatch = false;
 
 	if (s_fieldname_partial && s_fieldname_partial[0]) {
@@ -692,7 +703,9 @@ void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, co
 		for (n = 1; n < prog->numfielddefs; n ++) {
 			d = &prog->fielddefs[n];
 			name = PRVM_GetString(prog, d->s_name);
-			if (strlen(name) > 1 && name[strlen(name)-2] == '_' && (name[strlen(name)-1] == 'x' || name[strlen(name)-1] == 'y' || name[strlen(name)-1] == 'z'))
+			if (strlen(name) > 1 && name[strlen(name)-2] == '_' 
+				&& (name[strlen(name)-1] == 'x' 
+				|| name[strlen(name)-1] == 'y' || name[strlen(name)-1] == 'z'))
 				continue;	// skip _x, _y, _z vars
 
 			val = (prvm_eval_t *)(ed->fields.fp + d->ofs);
@@ -731,9 +744,17 @@ void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, co
 		if (!ismatch)
 			return;
 	} // targetname match
+#endif
 
+	// Baker: name is name
 	tempstring[0] = 0;
 	dpsnprintf(tempstring, sizeof(tempstring), "\n%s EDICT %d:\n", prog->name, PRVM_NUM_FOR_EDICT(ed));
+
+#if 1 // October 18 2024
+	if (plist)
+		stringlistappendf (plist, "%s EDICT %d", prog->name, PRVM_NUM_FOR_EDICT(ed));
+#endif
+
 	for (n = 1; n < prog->numfielddefs; n ++)
 	{
 		d = &prog->fielddefs[n];
@@ -758,18 +779,22 @@ void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, co
 		if (j == prvm_type_size[type])
 			continue;
 
-		if (strlen(name) > sizeof(tempstring2)-4)
-		{
+		if (strlen(name) > sizeof(tempstring2)-4) {
 			memcpy (tempstring2, name, sizeof(tempstring2)-4);
 			tempstring2[sizeof(tempstring2)-4] = tempstring2[sizeof(tempstring2)-3] = tempstring2[sizeof(tempstring2)-2] = '.';
 			tempstring2[sizeof(tempstring2)-1] = 0;
 			name = tempstring2;
 		}
 		strlcat(tempstring, name, sizeof(tempstring));
+		if (plist)
+			stringlistappend (plist, name); // Baker: October 18 2024 - "Name"
+
+		// Baker: space pad to size 14 as far as I can tell.  Then add 1 space.  Then print value.
 		for (slen = strlen(name);slen < 14;slen++)
 			strlcat(tempstring, " ", sizeof(tempstring));
 		strlcat(tempstring, " ", sizeof(tempstring));
 
+		// Baker: name re-used as value string here.
 		name = PRVM_ValueString(prog, (etype_t)d->type, val, valuebuf, sizeof(valuebuf));
 		if (strlen(name) > sizeof(tempstring2)-4)
 		{
@@ -777,17 +802,33 @@ void PRVM_ED_Print(prvm_prog_t *prog, prvm_edict_t *ed, int shall_print_free, co
 			tempstring2[sizeof(tempstring2)-4] = tempstring2[sizeof(tempstring2)-3] = tempstring2[sizeof(tempstring2)-2] = '.';
 			tempstring2[sizeof(tempstring2)-1] = 0;
 			name = tempstring2;
-		}
+		}		
+
 		strlcat(tempstring, name, sizeof(tempstring));
+
+		if (plist) {
+			qbool Edict_Value_Fixup_Did_Change (ccs *key, char *valuebuf, size_t valuebuf_size);
+			char valuebuf[MAX_INPUTLINE_16384];
+			c_strlcpy (valuebuf, name);
+
+			char *sold = stringlist_lastp(plist);
+			qbool did_replace = Edict_Value_Fixup_Did_Change (/*key*/ sold, /*value*/ valuebuf, sizeof(valuebuf));
+			char *sa = Z_StrDupf ("%-14.14s %s", sold, valuebuf);
+			Mem_FreeNull_ (sold); // Free then replace ...
+			stringlist_lastp(plist)=sa; // Replace
+			//stringlistappend (plist, name /*Baker: but is really the value*/); // Baker: October 18 2024 - "Value"
+		}
+			
 		strlcat(tempstring, "\n", sizeof(tempstring));
-		if (strlen(tempstring) >= sizeof(tempstring)/2)
-		{
+		if (strlen(tempstring) >= sizeof(tempstring)/2) {
+			if (plist == NULL) // Baker: October 18 2024
 			Con_Print(tempstring);
 			tempstring[0] = 0;
 		}
 	}
 	if (tempstring[0])
-		Con_Print(tempstring);
+		if (plist == NULL) // Baker: October 18 2024
+			Con_Print(tempstring);
 }
 
 /*
@@ -849,9 +890,9 @@ void PRVM_ED_Write (prvm_prog_t *prog, qfile_t *f, prvm_edict_t *ed)
 	Flex_Writef ("}" NEWLINE);
 }
 
-void PRVM_ED_PrintNum (prvm_prog_t *prog, int ent, int shall_print_free, const char *wildcard_fieldname, const char *s_fieldname_partial, const char *s_fieldvalue_partial)
+void PRVM_ED_PrintNum (prvm_prog_t *prog, int ent, int shall_print_free, const char *wildcard_fieldname, const char *s_fieldname_partial, const char *s_fieldvalue_partial, stringlist_t *plist)
 {
-	PRVM_ED_Print (prog, PRVM_EDICT_NUM(ent), shall_print_free, wildcard_fieldname, s_fieldname_partial, s_fieldvalue_partial);
+	PRVM_ED_Print (prog, PRVM_EDICT_NUM(ent), shall_print_free, wildcard_fieldname, s_fieldname_partial, s_fieldvalue_partial, plist);
 }
 
 /*
@@ -886,7 +927,7 @@ void PRVM_ED_PrintEdicts_f(cmd_state_t *cmd)
 	Con_PrintLinef ("%s: %d entities", prog->name, prog->num_edicts);
 	for (i=0 ; i<prog->num_edicts ; i++)
 		PRVM_ED_PrintNum (prog, i, q_vm_printfree_true, wildcard_fieldname,
-			q_vm_classname_NULL, q_vm_targetname_NULL);
+			q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
 }
 
 
@@ -921,7 +962,7 @@ void PRVM_ED_PrintEdicts_Either (cmd_state_t *cmd, prvm_prog_t *prog)
 	int shall_print_free = !s_fieldname_partial || s_fieldname_partial[0] == NULL_CHAR_0;
 
 	for (edict_num = 0 ; edict_num < prog->num_edicts ; edict_num ++)
-		PRVM_ED_PrintNum (prog, edict_num, shall_print_free, wildcard_fieldname, s_fieldname_partial, s_fieldvalue_partial);
+		PRVM_ED_PrintNum (prog, edict_num, shall_print_free, wildcard_fieldname, s_fieldname_partial, s_fieldvalue_partial, q_stringlist_NULL);
 }
 
 // "edicts"
@@ -982,30 +1023,199 @@ static void PRVM_ED_PrintEdict_f(cmd_state_t *cmd)
 	else
 		// Use All
 		wildcard_fieldname = NULL;
-	PRVM_ED_PrintNum (prog, edict_num, q_vm_printfree_true, wildcard_fieldname, q_vm_classname_NULL, q_vm_targetname_NULL);
+	PRVM_ED_PrintNum (prog, edict_num, q_vm_printfree_true, wildcard_fieldname, q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
+}
+
+WARP_X_ (PRVM_ED_Print)
+
+
+#define	CON_COLOR_SOMETHING "^x88e"
+#define CON_GRAY_50 "^3"
+static qbool BitAtoms_Did_Change (char *valuebuf, size_t valuebuf_size)
+{
+	WARP_X_ (FS_BitAtomize_f)
+	double dnumber = atof(valuebuf);
+	uint64_t number = dnumber;
+
+	// bust down to bits and then print
+	int count = 0;
+	for (uint64_t j = 0; j < 32; j ++) {
+		uint64_t thisbit = 1 << j;
+		uint64_t icommon = (number & thisbit);
+		if (icommon)
+			count ++;
+	} // for
+
+	// Don't change if count is <= 0
+	if (count <= 0)
+		return false;
+
+	char s_work[16384];
+	c_strlcpy (s_work, "(");
+	
+	for (uint64_t j = 0; j < 32; j ++) {
+		uint64_t thisbit = 1 << j;
+		uint64_t icommon = (number & thisbit);
+		//Con_PrintLinef ("%02d %16.0f %16.0f %x", (int)j, (double)(miney), (double)(number & miney), (unsigned)(number & miney));
+		if (!icommon) continue;
+
+		// Add a space if we haven't done so
+		if (s_work[1] != NULL_CHAR_0)
+			c_strlcat (s_work, " + ");
+
+		va_super (sthisbit,256,"%u",(uint32_t)(number & icommon));
+		c_strlcat (s_work, sthisbit);
+	} // for
+	c_strlcat (s_work, ")");
+	
+	strlcat (valuebuf, " " CON_GRAY_50, valuebuf_size);
+	strlcat (valuebuf, s_work, valuebuf_size);
+	strlcat (valuebuf, CON_WHITE, valuebuf_size);
+	return true;
+}
+
+static qbool Replacer_Did_Change (char *valuebuf, size_t valuebuf_size, ccs **pkeys, size_t keys_count)
+{
+	char s_work[16384];
+	size_t idx = atoi (valuebuf);
+	if (in_range_beyond (0, idx, keys_count) == false)
+		return false; // Not in range
+	ccs *s_enumeration_name = pkeys[idx];
+
+	c_dpsnprintf2 (s_work, "%s "CON_GRAY_50 "(%s)" CON_WHITE, valuebuf, s_enumeration_name);
+	strlcpy (valuebuf, s_work, valuebuf_size);
+	return true;
+}
+
+
+qbool Edict_Value_Fixup_Did_Change (ccs *key, char *valuebuf, size_t valuebuf_size)
+{	
+	if (String_Match(key, "solid")) { // EASY
+		ccs *solids[] = {
+			"solid_not", 
+			"solid_trigger", 
+			"solid_bbox", 
+			"solid_slidebox", 
+			"solid_bsp", 
+			"solid_corpse", 
+		};
+		
+		return Replacer_Did_Change (valuebuf, valuebuf_size, solids, ARRAY_COUNT(solids));
+	}
+	
+	if (String_Match(key, "movetype")) { // EASY
+		ccs *movetypes[] = {
+			"movetype_none",
+			"movetype_anglenoclip",
+			"movetype_angleclip",
+			"movetype_walk",
+			"movetype_step",
+			"movetype_fly",
+			"movetype_toss",
+			"movetype_push",
+			"movetype_noclip",
+			"movetype_flymissile",
+			"movetype_bounce",
+			"movetype_bouncemissile",
+		};
+		
+		return Replacer_Did_Change (valuebuf, valuebuf_size, movetypes, ARRAY_COUNT(movetypes));
+	}
+	if (String_Isin3(key, "flags", "spawnflags", "items")) {
+		//ccs *fl_flags[] = {
+		//	"FL_FLY",
+		//	"FL_FLY",
+		//	float	FL_SWIM_2				= 2;
+		//	float	FL_CLIENT_8				= 8;	// set for all client edicts
+		//	float	FL_INWATER_16			= 16;	// for enter / leave water splash
+		//	float	FL_MONSTER_32			= 32;
+		//	float	FL_GODMODE				= 64;	// player cheat
+		//	float	FL_NOTARGET				= 128;	// player cheat
+		//	float	FL_ITEM_256				= 256;	// extra wide size for bonus items
+		//											// to make items easier to pick up and allow them to be grabbed off
+		//											// of shelves, the abs sizes are expanded 15 x/y and 1 on z in engine
+		//											// Baker: we are going to use FL_ITEM_256 as the definitive "touch is pickup" flag.
+		//											// With the exception maybe of coins. See SPAWNFLAGS_THIN_TOUCH_BOX_524288
+
+
+
+		//	float	FL_ONGROUND_512				= 512;	// standing on something
+		//	float	FL_PARTIALGROUND		= 1024;	// not all corners are valid
+		//	float	FL_WATERJUMP			= 2048;	// player jumping out of water
+		//	float	FL_JUMPRELEASED			= 4096;	// for jump debouncing
+		//};
+
+		return BitAtoms_Did_Change (valuebuf, valuebuf_size);
+	}
+	
+
+	return false;
+	//if (String_Match(key,"movetype")) // EASY
+	//if (String_Match(key,"flags")) // WORTHY
+//	if (String_Match(key,"items")) // MEH
+//		WARP_X_ (FS_BitAtomize_f)
+//	if (String_Match(key,"waterlevel"))
+
 }
 
 static void PRVM_ED_PrintEdict_SV_f(cmd_state_t *cmd)
 {
-	prvm_prog_t *prog;
-	int		edict_num;
-	const char	*wildcard_fieldname = NULL;
+	stringlist_t list = {0};
 
 	if (Cmd_Argc(cmd) < 2) {
 		Con_PrintLinef ("edict <edict number>");
 		return;
 	}
 
+	prvm_prog_t *prog;
 	if (!(prog = PRVM_FriendlyProgFromString("server")))
 		return;
 
-	edict_num = atoi (Cmd_Argv(cmd, 1));
+	int		edict_num = atoi (Cmd_Argv(cmd, 1));
 
 	if (edict_num >= prog->num_edicts) {
 		Con_PrintLinef ("Bad edict number");
 		return;
 	}
-	PRVM_ED_PrintNum (prog, edict_num, q_vm_printfree_true, wildcard_fieldname, q_vm_classname_NULL, q_vm_targetname_NULL);
+
+	if (0) {
+		PRVM_ED_PrintNum (prog, edict_num, q_vm_printfree_true, q_wildcard_fieldname_null, 
+			q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
+		goto no_sort;
+	}
+	
+sorted_print:
+
+	
+	WARP_X_ (PRVM_ED_Print)
+	PRVM_ED_PrintNum (prog, edict_num, q_vm_printfree_true, q_wildcard_fieldname_null, q_vm_classname_NULL, q_vm_targetname_NULL, &list);
+	// Baker: If was "free" it printed and we do nothing here
+	
+	if (list.numstrings == 0)
+		goto no_strings_to_print;
+
+	// PRESORT - the first line make it have a leading space because it is "server EDICT 84"
+	// And needs to be on top of the sort.
+	char chold = list.strings[0][0];
+	list.strings[0][0] = SPACE_CHAR_32;
+	
+	
+	// SORT
+	stringlistsort (&list, fs_make_unique_false);
+
+	list.strings[0][0] = chold; // restore " erver EDICT 84" => "server EDICT 84"
+
+	// PRINT EACH
+	for (int idx = 0; idx < list.numstrings; idx ++) {
+		ccs *sxy = list.strings[idx];
+		Con_PrintLinef ("%s", sxy);
+	}
+
+
+no_strings_to_print:
+no_sort:
+
+	stringlistfreecontents (&list);
 }
 
 // "edict 11"
@@ -1029,7 +1239,7 @@ static void PRVM_ED_PrintEdict_CL_f(cmd_state_t *cmd)
 		return;
 	}
 	PRVM_ED_PrintNum (prog, edict_num, q_vm_printfree_true, wildcard_fieldname,
-		q_vm_classname_NULL, q_vm_targetname_NULL);  // Baker r7101: edicts with criteria
+		q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);  // Baker r7101: edicts with criteria
 }
 
 /*
@@ -1346,9 +1556,9 @@ static void PRVM_ED_EdictGet_f(cmd_state_t *cmd)
 	prvm_eval_t *v;
 	char valuebuf[MAX_INPUTLINE_16384];
 
-	if (Cmd_Argc(cmd) != 4 && Cmd_Argc(cmd) != 5)
-	{
-		Con_Print("prvm_edictget <program name> <edict number> <field> [<cvar>]\n");
+	if (Cmd_Argc(cmd) != 4 && Cmd_Argc(cmd) != 5) {
+		//               0              1              2              3       4
+		Con_PrintLinef ("prvm_edictget <program name> <edict number> <field> [<cvar>]");
 		return;
 	}
 
@@ -1357,25 +1567,33 @@ static void PRVM_ED_EdictGet_f(cmd_state_t *cmd)
 
 	ed = PRVM_EDICT_NUM(atoi(Cmd_Argv(cmd, 2)));
 
-	if ((key = PRVM_ED_FindField(prog, Cmd_Argv(cmd, 3))) == 0)
-	{
-		Con_Printf ("Key %s not found !\n", Cmd_Argv(cmd, 3));
+	if ((key = PRVM_ED_FindField(prog, Cmd_Argv(cmd, 3))) == 0) {
+		Con_PrintLinef ("Key %s not found !", Cmd_Argv(cmd, 3));
 		goto fail;
 	}
 
 	v = (prvm_eval_t *)(ed->fields.fp + key->ofs);
 	s = PRVM_UglyValueString(prog, (etype_t)key->type, v, valuebuf, sizeof(valuebuf));
-	if (Cmd_Argc(cmd) == 5)
-	{
+
+	// Baker: This does what?
+	if (Cmd_Argc(cmd) == 5) {
 		cvar_t *cvar = Cvar_FindVar(cmd->cvars, Cmd_Argv(cmd, 4), cmd->cvars_flagsmask);
 		if (cvar)
 			if (Cvar_Readonly(cvar, "prvm_edictget"))
 				goto fail;
 
-		Cvar_Get(cmd->cvars, Cmd_Argv(cmd, 4), s, cmd->cvars_flagsmask, NULL);
+		Cvar_Get (cmd->cvars, Cmd_Argv(cmd, 4), s, cmd->cvars_flagsmask, NULL);
 	}
-	else
-		Con_Printf ("%s\n", s);
+	else {
+		Con_PrintLinef ("%s", s);
+		if (prvm_edictget_autostore.integer) {
+			Cvar_SetQuick (&_last, s);
+			if (prvm_edictget_autostore.integer >= 2) {
+				Clipboard_Set_Text (s);
+				Con_PrintLinef ("Value set to clipboard");
+			}
+		} // autostore
+	}
 
 fail:
 	;
@@ -1389,9 +1607,8 @@ static void PRVM_ED_GlobalGet_f(cmd_state_t *cmd)
 	prvm_eval_t *v;
 	char valuebuf[MAX_INPUTLINE_16384];
 
-	if (Cmd_Argc(cmd) != 3 && Cmd_Argc(cmd) != 4)
-	{
-		Con_Print("prvm_globalget <program name> <global> [<cvar>]\n");
+	if (Cmd_Argc(cmd) != 3 && Cmd_Argc(cmd) != 4) {
+		Con_PrintLinef ("prvm_globalget <program name> <global> [<cvar>]");
 		return;
 	}
 
@@ -1399,27 +1616,141 @@ static void PRVM_ED_GlobalGet_f(cmd_state_t *cmd)
 		return;
 
 	key = PRVM_ED_FindGlobal(prog, Cmd_Argv(cmd, 2));
-	if (!key)
-	{
-		Con_Printf ( "No global '%s' in %s!\n", Cmd_Argv(cmd, 2), Cmd_Argv(cmd, 1) );
+	if (!key) {
+		Con_PrintLinef ( "No global '%s' in %s!", Cmd_Argv(cmd, 2), Cmd_Argv(cmd, 1) );
 		goto fail;
 	}
 
 	v = (prvm_eval_t *) &prog->globals.fp[key->ofs];
 	s = PRVM_UglyValueString(prog, (etype_t)key->type, v, valuebuf, sizeof(valuebuf));
-	if (Cmd_Argc(cmd) == 4)
-	{
+	if (Cmd_Argc(cmd) == 4) {
 		cvar_t *cvar = Cvar_FindVar(cmd->cvars, Cmd_Argv(cmd, 3), cmd->cvars_flagsmask);
 		if (cvar)
 			if (Cvar_Readonly(cvar, "prvm_globalget"))
 				goto fail;
 		Cvar_Get(cmd->cvars, Cmd_Argv(cmd, 3), s, cmd->cvars_flagsmask, NULL);
 	}
-	else
-		Con_Printf ("%s\n", s);
+	else {
+		Con_PrintLinef ("%s", s);
+		if (prvm_edictget_autostore.integer) {
+			Cvar_SetQuick (&_last, s);
+			if (prvm_edictget_autostore.integer >= 2) {
+				Clipboard_Set_Text (s);
+				Con_PrintLinef ("Value set to clipboard");
+			}
+		} // autostore
+	}
 
 fail:
 	;
+}
+
+//  0    1  2    3
+// eset 40 scale 0.4 // 4
+// eset 40 scale // 3
+static void PRVM_ED_Eset_f(cmd_state_t *cmd)
+{
+	char val_3plus[1024];
+	prvm_prog_t *prog = SVVM_prog;
+	int is_get = false;
+	int argc = Cmd_Argc(cmd);
+
+	if (argc > 4) {
+		int low_arg_num = 3; // 3 to ... cumulate
+		baker_string_t *bsa = BakerString_Create_Malloc ("");
+		for (int j = low_arg_num; j < Cmd_Argc(cmd); j ++) {
+			ccs *sxy = Cmd_Argv (cmd, j);
+			if (j > 1)
+				BakerString_CatC (bsa, " ");
+			BakerString_CatC (bsa, sxy);
+		}
+		c_strlcpy (val_3plus, bsa->string);
+		BakerString_Destroy_And_Null_It (&bsa);
+		Con_PrintLinef ("Accumulated value string = " QUOTED_S, val_3plus);
+	}
+	else if (argc == 4) {
+		c_strlcpy (val_3plus, Cmd_Argv(cmd, 3));
+	} else if (argc == 3) {		
+		// Become get
+		is_get = true;
+	} else if (argc == 2) {		
+		// Become "edict"
+		stringlist_t list = {0};
+		int		edict_num = atoi (Cmd_Argv(cmd, 1));
+
+		if (edict_num >= prog->num_edicts || edict_num < 0) {
+			Con_PrintLinef ("Bad edict number");
+			return;
+		}
+		
+sorted_print:
+
+		PRVM_ED_PrintNum (prog, edict_num, q_vm_printfree_true, q_wildcard_fieldname_null, q_vm_classname_NULL, q_vm_targetname_NULL, &list);
+
+		// Baker: If was "free" it printed and we do nothing here		
+		if (list.numstrings == 0)
+			goto no_strings_to_print;
+
+		// PRESORT - the first line make it have a leading space because it is "server EDICT 84"
+		// And needs to be on top of the sort.
+		char chold = list.strings[0][0];
+		list.strings[0][0] = SPACE_CHAR_32;
+		
+		// SORT
+		stringlistsort (&list, fs_make_unique_false);
+
+		list.strings[0][0] = chold; // restore " erver EDICT 84" => "server EDICT 84"
+
+		// PRINT EACH
+		for (int idx = 0; idx < list.numstrings; idx ++) {
+			ccs *sxy = list.strings[idx];
+			Con_PrintLinef ("%s", sxy);
+		}
+
+no_strings_to_print:
+no_sort:
+
+		stringlistfreecontents (&list);
+		return;
+	} else {
+		Con_PrintLinef ("eset <edict number> <field> <value>");
+		return;
+	}
+
+	int edict_num = atoi(Cmd_Argv(cmd, 1));
+
+	if (edict_num >= prog->num_edicts || edict_num < 0) {
+		Con_PrintLinef ("Bad edict number %d > num_edicts %d", edict_num, prog->num_edicts);
+		return;
+	}
+
+	prvm_edict_t	*ed_1	= PRVM_EDICT_NUM(edict_num);
+
+	mdef_t			*key_2	= PRVM_ED_FindField(prog, Cmd_Argv(cmd, 2));
+
+	if (key_2 == NULL)
+		Con_PrintLinef ("Key %s not found!", key_2);
+
+	if (is_get) { // Baker: EDICT GET instead
+		// Do edict get		
+		char valuebuf[MAX_INPUTLINE_16384];
+
+		prvm_eval_t *v	= (prvm_eval_t *)(ed_1->fields.fp + key_2->ofs);
+		const char	*s	= PRVM_UglyValueString(prog, (etype_t)key_2->type, v, valuebuf, sizeof(valuebuf));
+					
+		Con_PrintLinef ("%s", s);
+		if (prvm_edictget_autostore.integer) {
+			Cvar_SetQuick (&_last, s);
+			if (prvm_edictget_autostore.integer >= 2) {
+				Clipboard_Set_Text (s);
+				Con_PrintLinef ("Value set to clipboard");
+			}
+		} // autostore
+
+		return;
+	}
+	
+	PRVM_ED_ParseEpair(prog, ed_1, key_2, val_3plus, qp_parse_backslash_true);
 }
 
 /*
@@ -1434,10 +1765,16 @@ static void PRVM_ED_EdictSet_f(cmd_state_t *cmd)
 	prvm_prog_t *prog;
 	prvm_edict_t *ed;
 	mdef_t *key;
+	
+#if 1
+	if (Cmd_Argc(cmd) == 4) { // Baker: Turn into prvm_edictget with 4 params
+		PRVM_ED_EdictGet_f (cmd);
+		return;
+	}
+#endif
 
-	if (Cmd_Argc(cmd) != 5)
-	{
-		Con_Print("prvm_edictset <program name> <edict number> <field> <value>\n");
+	if (Cmd_Argc(cmd) != 5) {
+		Con_PrintLinef ("prvm_edictset <program name> <edict number> <field> <value>");
 		return;
 	}
 
@@ -1447,7 +1784,7 @@ static void PRVM_ED_EdictSet_f(cmd_state_t *cmd)
 	ed = PRVM_EDICT_NUM(atoi(Cmd_Argv(cmd, 2)));
 
 	if ((key = PRVM_ED_FindField(prog, Cmd_Argv(cmd, 3))) == 0)
-		Con_Printf ("Key %s not found!\n", Cmd_Argv(cmd, 3));
+		Con_PrintLinef ("Key %s not found!", Cmd_Argv(cmd, 3));
 	else
 		PRVM_ED_ParseEpair(prog, ed, key, Cmd_Argv(cmd, 4), true);
 }
@@ -1476,7 +1813,8 @@ const char *PRVM_ED_ParseEdict (prvm_prog_t *prog, const char *data, prvm_edict_
 	{
 	// parse key
 		//if (!COM_ParseToken_Simple(&data, false, false, true))
-		if (!COM_ParseToken_Simple(&data, false, is_saveload, true)) // ITK #6
+		//if (!COM_ParseToken_Simple(&data, false, is_saveload, true)) // ITK #6
+		if (!COM_ParseToken_Simple(&data, false, false, true))
 			prog->error_cmd("PRVM_ED_ParseEdict: EOF without closing brace");
 		if (developer_entityparsing.integer)
 			Con_Printf ("Key: " QUOTED_S, com_token);
@@ -1508,7 +1846,8 @@ const char *PRVM_ED_ParseEdict (prvm_prog_t *prog, const char *data, prvm_edict_
 		}
 
 	// parse value
-		if (!COM_ParseToken_Simple(&data, false, false, true))
+		//if (!COM_ParseToken_Simple(&data, false, false, true))
+		if (!COM_ParseToken_Simple(&data, false, is_saveload, true)) // ITK #X
 			prog->error_cmd("PRVM_ED_ParseEdict: EOF without closing brace");
 		if (developer_entityparsing.integer)
 			Con_PrintLinef (" " QUOTED_S, com_token);
@@ -1578,7 +1917,7 @@ qbool PRVM_ED_CallSpawnFunction(prvm_prog_t *prog, prvm_edict_t *ent, const char
 		if (!PRVM_alledictstring(ent, classname))
 		{
 			Con_PrintLinef ("No classname for:");
-			PRVM_ED_Print(prog, ent, q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL);
+			PRVM_ED_Print(prog, ent, q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
 			PRVM_ED_Free (prog, ent);
 			return false;
 		}
@@ -1638,12 +1977,12 @@ qbool PRVM_ED_CallSpawnFunction(prvm_prog_t *prog, prvm_edict_t *ent, const char
 					Con_PrintLinef (CON_WARN "No spawn function for:");
 					//if (developer.integer > 0) // don't confuse non-developers with errors
 						PRVM_ED_Print(prog, ent, q_vm_printfree_true, q_vm_wildcard_NULL,
-						q_vm_classname_NULL, q_vm_targetname_NULL);
+						q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
 				} else {
 					Con_DPrintLinef (CON_WARN "No spawn function for:");
 					if (developer.integer > 0) // don't confuse non-developers with errors
 						PRVM_ED_Print(prog, ent, q_vm_printfree_true, q_vm_wildcard_NULL,
-						q_vm_classname_NULL, q_vm_targetname_NULL);
+						q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
 				}
 				PRVM_ED_Free (prog, ent);
 				return false; // not included in "inhibited" count
@@ -2799,7 +3138,8 @@ const char *PRVM_Prog_Load(prvm_prog_t *prog, const char * filename, unsigned ch
 		//Con_Printf ("found var %s\n", name);
 		if (name
 			&& !strncmp(name, "autocvar_", 9)
-			&& !(strlen(name) > 1 && name[strlen(name)-2] == '_' && (name[strlen(name)-1] == 'x' || name[strlen(name)-1] == 'y' || name[strlen(name)-1] == 'z'))
+			&& !(strlen(name) > 1 && name[strlen(name)-2] == '_' && 
+			(name[strlen(name)-1] == 'x' || name[strlen(name)-1] == 'y' || name[strlen(name)-1] == 'z'))
 		)
 		{
 			prvm_eval_t *val = PRVM_GLOBALFIELDVALUE(prog->globaldefs[i].ofs);
@@ -3817,7 +4157,7 @@ void PRVM_LeakTest(prvm_prog_t *prog)
 		if (ed->priv.required->allocation_origin)
 		{
 			Con_PrintLinef ("Unreferenced edict found!" NEWLINE "  Allocated at: %s", ed->priv.required->allocation_origin);
-			PRVM_ED_Print(prog, ed, q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL);
+			PRVM_ED_Print(prog, ed, q_vm_printfree_true, q_vm_wildcard_NULL, q_vm_classname_NULL, q_vm_targetname_NULL, q_stringlist_NULL);
 			Con_Print("\n");
 			leaked = true;
 		}
@@ -4009,9 +4349,11 @@ void PRVM_InitOnce (void)
 	Cmd_AddCommand(CF_SHARED, "prvm_global", PRVM_Global_f, "prints value of a specified global variable in the selected VM (server, client, menu)");
 	Cmd_AddCommand(CF_SHARED, "prvm_globalset", PRVM_GlobalSet_f, "sets value of a specified global variable in the selected VM (server, client, menu)");
 	Cmd_AddCommand(CF_SHARED, "prvm_edictset", PRVM_ED_EdictSet_f, "changes value of a specified property of a specified entity in the selected VM (server, client, menu)");
+	Cmd_AddCommand(CF_SHARED, "eset", PRVM_ED_Eset_f, "prvm_edictset for server [Zircon]");
 	Cmd_AddCommand(CF_SHARED, "prvm_edictget", PRVM_ED_EdictGet_f, "retrieves the value of a specified property of a specified entity in the selected VM (server, client menu) into a cvar or to the console");
 	Cmd_AddCommand(CF_SHARED, "prvm_globalget", PRVM_ED_GlobalGet_f, "retrieves the value of a specified global variable in the selected VM (server, client menu) into a cvar or to the console");
 	Cmd_AddCommand(CF_SHARED, "prvm_printfunction", PRVM_PrintFunction_f, "prints a disassembly (QuakeC instructions) of the specified function in the selected VM (server, client, menu)");
+	
 	Cmd_AddCommand(CF_SHARED, "cl_cmd", PRVM_GameCommand_Client_f, "calls the client QC function GameCommand with the supplied string as argument");
 	Cmd_AddCommand(CF_SHARED, "menu_cmd", PRVM_GameCommand_Menu_f, "calls the menu QC function GameCommand with the supplied string as argument");
 	Cmd_AddCommand(CF_SHARED, "sv_cmd", PRVM_GameCommand_Server_f, "calls the server QC function GameCommand with the supplied string as argument");
@@ -4026,6 +4368,9 @@ void PRVM_InitOnce (void)
 
 	Cvar_RegisterVariable (&prvm_cl_gamecommands); // Baker r7103 gamecommand autocomplete
 	Cvar_RegisterVariable (&prvm_cl_progfields); // Baker r7103 gamecommand autocomplete
+
+	Cvar_RegisterVariable (&prvm_edictget_autostore); // Baker: August 8 2024
+	Cvar_RegisterVariable (&_last); // Baker: August 8 2024
 
 	// #pragma message ("Baker: At some point revive prvm_menu_gamecommands, lack of CF_MENU is why we stall")
 	// Cvar_RegisterVariable (&prvm_menu_gamecommands);

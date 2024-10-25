@@ -91,7 +91,7 @@ typedef struct server_s
 	int perf_acc_offset_samples;
 
 	// used by PF_checkclient
-	int lastcheck;
+	int lastcheck; // Baker: Last player edictnumber returns by checkclient (monster finds a player)
 	double lastchecktime;
 
 	// crc of clientside progs at time of level start
@@ -349,6 +349,12 @@ typedef struct client_s
 
 //=============================================================================
 
+#define WATER_LEVEL_NOT_0			0		// self.waterlevel
+#define WATER_LEVEL_FEET_1			1
+#define WATER_LEVEL_WAIST_2			2
+#define WATER_LEVEL_EYES_MAX_3		3
+
+
 // edict->movetype values
 #define	MOVETYPE_NONE_0				0		///< never moves
 #define	MOVETYPE_ANGLENOCLIP_1		1
@@ -367,8 +373,11 @@ typedef struct client_s
 #define MOVETYPE_FAKEPUSH_13		13		///< tenebrae's push that doesn't push
 #define MOVETYPE_PHYSICS_32			32		///< indicates this object is physics controlled
 #define MOVETYPE_FLY_WORLDONLY_33	33		///< like MOVETYPE_FLY_5, but uses MOVE_WORLDONLY for all its traces; objects of this movetype better be SOLID_NOT_0 or SOLID_TRIGGER_1 please, or else...
-#define MOVETYPE_USER_FIRST			128		///< user defined movetypes
-#define MOVETYPE_USER_LAST			191
+
+#define MOVETYPE_BOAT_34			34		// Experimental for boats
+
+#define MOVETYPE_USER_FIRST_128		128		///< user defined movetypes
+#define MOVETYPE_USER_LAST_191		191
 
 // edict->solid values
 #define	SOLID_NOT_0				0		///< no interaction with other objects
@@ -396,16 +405,16 @@ typedef struct client_s
 #define	DAMAGE_AIM				2
 
 // edict->flags
-#define	FL_FLY					1
-#define	FL_SWIM					2
-#define	FL_CONVEYOR				4
+#define	FL_FLY_1				1
+#define	FL_SWIM_2				2
+#define	FL_CONVEYOR				4		// Baker: Used? It is not.  FTE?  Don't see it instead commented out FL_GLIMPSE
 #define	FL_CLIENT_8				8
 #define	FL_INWATER				16
 #define	FL_MONSTER_32			32
 #define	FL_GODMODE				64
 #define	FL_NOTARGET				128
-#define	FL_ITEM					256
-#define	FL_ONGROUND				512
+#define	FL_ITEM_256				256
+#define	FL_ONGROUND_512				512
 #define	FL_PARTIALGROUND		1024	///< not all corners are valid
 #define	FL_WATERJUMP			2048	///< player jumping out of water
 #define	FL_JUMPRELEASED			4096	///< for jump debouncing
@@ -530,6 +539,8 @@ extern cvar_t host_limitlocal;
 extern cvar_t sv_pext;
 extern cvar_t sv_sound_land;
 extern cvar_t sv_sound_watersplash;
+extern cvar_t sv_precache_suppress_warning;
+
 extern cvar_t sv_stepheight;
 extern cvar_t sv_stopspeed;
 extern cvar_t sv_wallfriction;
@@ -728,11 +739,12 @@ extern cvar_t sv_allow_zircon_move;
 extern cvar_t sv_players_walk_thru_players;
 extern cvar_t sv_save_screenshots;
 extern cvar_t halflifebsp, sv_mapformat_is_quake2,  sv_mapformat_is_quake3;
-
+extern cvar_t _last;
+//extern cvar_t sv_gameplayfix_swimflag_collides_liquids;
 
 void VMX_SV_precache_model (prvm_prog_t *prog, const char *s_model);
 void VMX_SV_setmodel (prvm_prog_t *prog, prvm_edict_t *e, const char *s_model);
-void SV_Spawn_Model_At (ccs *s_classname, ccs *s_modelname, ccs *s_origin, ccs *s_angles, ccs *s_frame, ccs *s_scale);
+int SV_Spawn_Model_At (ccs *s_classname, ccs *s_modelname, ccs *s_origin, ccs *s_angles, ccs *s_frame, ccs *s_scale);
 
 #define	SAVEGAME_VERSION_5	5
 int SV_Loadgame_Intermap_Do_Ents (const char *s_load_game_contents);

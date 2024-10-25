@@ -1084,7 +1084,7 @@ typedef struct {
 
 	char *mtllib_za;
 
-	gfaceset_s faceset[20];
+	gfaceset_s faceset[256];
 	int faceset_count;
 
 	int num_vertexs, num_faces;
@@ -1570,13 +1570,14 @@ void facefill_calc_filter (gobj_s *g, int filter_idx1)
 // objmodelsplit models/vehicles/helo1.obj propeller_2
 void CL_OBJModelSplit_f (cmd_state_t *cmd)
 {
-	if (Cmd_Argc(cmd) < 2) {
+	if (Cmd_Argc(cmd) < 2) {          // 1          2                 3
 		Con_PrintLinef ("Usage: %s [obj file name] [group to split] [suffix]", Cmd_Argv(cmd, 0));
 		return;
 	}
 
-	int is_write_file = Cmd_Argc(cmd) == 3; // Go
+	int is_write_file = isin2(Cmd_Argc(cmd), 3,4); // Go
 	ccs *filter = Cmd_Argv(cmd, 2); // If too few args what is this ANSWER ""
+	ccs *trailer = Cmd_Argc(cmd) == 4 ? Cmd_Argv(cmd, 3) : "_out";
 	int ifilterp1 = atoi(filter);//Cmd_Argv(cmd, 2); // If too few args what is this
 
 	//ccs *s_group = Cmd_Argv(cmd, 2); // 
@@ -1603,7 +1604,8 @@ void CL_OBJModelSplit_f (cmd_state_t *cmd)
 		char s_filenameout[MAX_QPATH_128];
 		c_strlcpy (s_filenameout, s_filename);
 		File_URL_Edit_Remove_Extension (s_filenameout);	
-		c_strlcat (s_filenameout, "_out");
+		//c_strlcat (s_filenameout, "_out");
+		c_strlcat (s_filenameout, trailer); // "_out");
 		c_strlcat (s_filenameout, ".obj");
 
 		qfile_t *f = FS_OpenRealFile (s_filenameout, "wb", fs_quiet_FALSE); // WRITE-EON obj model adjust
@@ -1615,6 +1617,8 @@ void CL_OBJModelSplit_f (cmd_state_t *cmd)
 		facefill_write_to_stream (g, f);
 
 		FS_CloseNULL_ (f);
+
+		Con_PrintLinef (CON_BRONZE "Wrote %s", s_filenameout);
 	}
 
 file_open_write_fail:
@@ -1862,7 +1866,18 @@ void CL_SpawnDecalParticleForPoint(const vec3_t org, float maxdist, float size, 
 // stainsize: size of the stain as factor for palpha
 // angle: base rotation of the particle geometry around its center normal
 // spin: rotation speed of the particle geometry around its center normal
-particle_t *CL_NewParticle(const vec3_t sortorigin, unsigned short ptypeindex, int pcolor1, int pcolor2, int ptex, float psize, float psizeincrease, float palpha, float palphafade, float pgravity, float pbounce, float px, float py, float pz, float pvx, float pvy, float pvz, float pairfriction, float pliquidfriction, float originjitter, float velocityjitter, qbool pqualityreduction, float lifetime, float stretch, pblend_t blendmode, porientation_t orientation, int staincolor1, int staincolor2, int staintex, float stainalpha, float stainsize, float angle, float spin, float tint[4])
+
+WARP_X_CALLERS_ (many )
+
+/* SUPERBOSS*/
+particle_t *CL_NewParticle(const vec3_t sortorigin, unsigned short ptypeindex, int pcolor1, int pcolor2, 
+						   int ptex, float psize, float psizeincrease, float palpha, float palphafade, 
+						   float pgravity, float pbounce, float px, float py, float pz, 
+						   float pvx, float pvy, float pvz, float pairfriction, 
+						   float pliquidfriction, float originjitter, float velocityjitter, 
+						   qbool pqualityreduction, float lifetime, float stretch, pblend_t blendmode, 
+						   porientation_t orientation, int staincolor1, int staincolor2, 
+						   int staintex, float stainalpha, float stainsize, float angle, float spin, float tint[4])
 {
 	int l1, l2, r, g, b;
 	particle_t *part;
@@ -1870,7 +1885,7 @@ particle_t *CL_NewParticle(const vec3_t sortorigin, unsigned short ptypeindex, i
 	if (!cl_particles.integer)
 		return NULL;
 	for (;cl.free_particle < cl.max_particles && cl.particles[cl.free_particle].typeindex;cl.free_particle++);
-	if (cl.free_particle >= cl.max_particles)
+	if (cl.free_particle >= cl.max_particles /*MAX_PARTICLES_1048576*/)
 		return NULL;
 	if (!lifetime)
 		lifetime = palpha / min(1, palphafade);
@@ -1958,9 +1973,9 @@ particle_t *CL_NewParticle(const vec3_t sortorigin, unsigned short ptypeindex, i
 	part->org[0] = px + originjitter * v[0];
 	part->org[1] = py + originjitter * v[1];
 	part->org[2] = pz + originjitter * v[2];
-	part->vel[0] = pvx + velocityjitter * v[0];
-	part->vel[1] = pvy + velocityjitter * v[1];
-	part->vel[2] = pvz + velocityjitter * v[2];
+	part->velpart[0] = pvx + velocityjitter * v[0];
+	part->velpart[1] = pvy + velocityjitter * v[1];
+	part->velpart[2] = pvz + velocityjitter * v[2];
 	part->time2 = 0;
 	part->airfriction = pairfriction;
 	part->liquidfriction = pliquidfriction;
@@ -1980,7 +1995,7 @@ particle_t *CL_NewParticle(const vec3_t sortorigin, unsigned short ptypeindex, i
 		// turn raindrop into simple spark and create delayedspawn splash effect
 		part->typeindex = pt_spark;
 		part->bounce = 0;
-		VectorMA(part->org, lifetime, part->vel, endvec);
+		VectorMA(part->org, lifetime, part->velpart, endvec);
 		trace = CL_TraceLine(part->org, endvec, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_LIQUIDSMASK, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
 		part->die = cl.time + lifetime * trace.fraction;
 		part2 = CL_NewParticle(endvec, pt_raindecal, pcolor1, pcolor2, tex_rainsplash, part->size, part->size * 20, part->alpha, part->alpha / 0.4, 0, 0, trace.endpos[0] + trace.plane.normal[0], trace.endpos[1] + trace.plane.normal[1], trace.endpos[2] + trace.plane.normal[2], trace.plane.normal[0], trace.plane.normal[1], trace.plane.normal[2], 0, 0, 0, 0, pqualityreduction, 0, 1, PBLEND_ADD, PARTICLE_ORIENTED_DOUBLESIDED, -1, -1, -1, 1, 1, 0, 0, NULL);
@@ -2022,16 +2037,16 @@ static void CL_ImmediateBloodStain(particle_t *part)
 	// blood creates a splash at spawn, not just at impact, this makes monsters bloody where they are shot
 	if (part->staintexnum >= 0 && cl_decals.integer)
 	{
-		VectorCopy(part->vel, v);
+		VectorCopy(part->velpart, v);
 		VectorNormalize(v);
 		staintex = part->staintexnum;
 		R_DecalSystem_SplatEntities(part->org, v, 1-part->staincolor[0]*(1.0f/255.0f), 1-part->staincolor[1]*(1.0f/255.0f), 1-part->staincolor[2]*(1.0f/255.0f), part->stainalpha*(1.0f/255.0f), particletexture[staintex].s1, particletexture[staintex].t1, particletexture[staintex].s2, particletexture[staintex].t2, part->stainsize);
 	}
 
 	// blood creates a splash at spawn, not just at impact, this makes monsters bloody where they are shot
-	if (part->typeindex == pt_blood && cl_decals.integer)
+	if (part->typeindex == pt_blood && cl_decals.integer /*d:1*/)
 	{
-		VectorCopy(part->vel, v);
+		VectorCopy(part->velpart, v);
 		VectorNormalize(v);
 		staintex = tex_blooddecal[rand()&7];
 		R_DecalSystem_SplatEntities(part->org, v, part->color[0]*(1.0f/255.0f), part->color[1]*(1.0f/255.0f), part->color[2]*(1.0f/255.0f), part->alpha*(1.0f/255.0f), particletexture[staintex].s1, particletexture[staintex].t1, particletexture[staintex].s2, particletexture[staintex].t2, part->size * 2);
@@ -2070,6 +2085,8 @@ void CL_SpawnDecalParticleForPoint(const vec3_t org, float maxdist, float size, 
 	int besthitent = 0, hitent;
 	trace_t trace;
 	bestfrac = 10;
+	// Baker: do 32 random org2 vectors
+	// Keep the shortest distance one.
 	for (i = 0;i < 32;i++)
 	{
 		VectorRandom(org2);
@@ -2668,16 +2685,13 @@ static void CL_NewParticlesFromEffectinfo(int effectnameindex, float pcount, con
 		VectorSubtract(originmaxs, originmins, traildir);
 		traillen = VectorLength(traildir);
 		VectorNormalize(traildir);
-		if (tintmins)
-		{
+		if (tintmins) {
 			Vector4Lerp(tintmins, 0.5, tintmaxs, avgtint);
 		}
-		else
-		{
+		else {
 			Vector4Set(avgtint, 1, 1, 1, 1);
 		}
-		for (effectinfoindex = 0, info = particleeffectinfo;effectinfoindex < MAX_PARTICLEEFFECTINFO_8192 && info->effectnameindex;effectinfoindex++, info++)
-		{
+		for (effectinfoindex = 0, info = particleeffectinfo;effectinfoindex < MAX_PARTICLEEFFECTINFO_8192 && info->effectnameindex;effectinfoindex++, info++) {
 			if ((info->effectnameindex == effectnameindex) && (info->flags & PARTICLEEFFECT_DEFINED))
 			{
 				qbool definedastrail = info->trailspacing > 0;
@@ -2693,21 +2707,18 @@ static void CL_NewParticlesFromEffectinfo(int effectnameindex, float pcount, con
 					continue;
 
 				// spawn a dlight if requested
-				if (info->lightradiusstart > 0 && spawndlight)
-				{
+				if (info->lightradiusstart > 0 && spawndlight) {
 					matrix4x4_t tempmatrix;
 					if (drawastrail)
 						Matrix4x4_CreateTranslate(&tempmatrix, originmaxs[0], originmaxs[1], originmaxs[2]);
 					else
 						Matrix4x4_CreateTranslate(&tempmatrix, center[0], center[1], center[2]);
-					if (info->lighttime > 0 && info->lightradiusfade > 0)
-					{
+					if (info->lighttime > 0 && info->lightradiusfade > 0) {
 						// light flash (explosion, etc)
 						// called when effect starts
 						CL_AllocLightFlash(NULL, &tempmatrix, info->lightradiusstart, info->lightcolor[0]*avgtint[0]*avgtint[3], info->lightcolor[1]*avgtint[1]*avgtint[3], info->lightcolor[2]*avgtint[2]*avgtint[3], info->lightradiusfade, info->lighttime, LightCubemapNumToName(vabuf, sizeof(vabuf), info->lightcubemapnum, info->flags), -1, info->lightshadow, info->lightcorona[0], info->lightcorona[1], 0, 1, 1, LIGHTFLAG_NORMALMODE | LIGHTFLAG_REALTIMEMODE);
 					}
-					else if (r_refdef.scene.numlights < MAX_DLIGHTS_256)
-					{
+					else if (r_refdef.scene.numlights < MAX_DLIGHTS_256) {
 						// glowing entity
 						// called by CL_LinkNetworkEntity
 						Matrix4x4_Scale(&tempmatrix, info->lightradiusstart, 1);
@@ -2789,7 +2800,7 @@ static void CL_NewParticlesFromEffectinfo(int effectnameindex, float pcount, con
 						immediatebloodstain = false;
 					else
 						immediatebloodstain =
-							((cl_decals_newsystem_immediatebloodstain.integer >= 1) && (info->particletype == pt_blood))
+							((cl_decals_newsystem_immediatebloodstain.integer /*d:2*/ >= 1) && (info->particletype == pt_blood))
 							||
 							((cl_decals_newsystem_immediatebloodstain.integer >= 2) && staintex);
 
@@ -2863,6 +2874,7 @@ void CL_ParticleBox(int effectnameindex, float pcount, const vec3_t originmins, 
 }
 
 // note: this one ONLY does boxes!
+WARP_X_CALLERS_ (VM_CL_pointparticles)
 void CL_ParticleEffect(int effectnameindex, float pcount, const vec3_t originmins, const vec3_t originmaxs, const vec3_t velocitymins, const vec3_t velocitymaxs, entity_t *ent, int palettecolor)
 {
 	CL_ParticleBox(effectnameindex, pcount, originmins, originmaxs, velocitymins, velocitymaxs, ent, palettecolor, true, true, NULL, NULL, 1);
@@ -3814,9 +3826,9 @@ static void R_DrawParticle_TransparentCallback(const entity_render_t *ent, const
 			t2f[6] = tex->s2;t2f[7] = tex->t2;
 			break;
 		case PARTICLE_ORIENTED_DOUBLESIDED:
-			vecvel[0] = p->vel[0];
-			vecvel[1] = p->vel[1];
-			vecvel[2] = p->vel[2];
+			vecvel[0] = p->velpart[0];
+			vecvel[1] = p->velpart[1];
+			vecvel[2] = p->velpart[2];
 			VectorVectors(vecvel, baseright, baseup);
 			if (p->angle + p->spin)
 			{
@@ -3853,8 +3865,8 @@ static void R_DrawParticle_TransparentCallback(const entity_render_t *ent, const
 			t2f[6] = tex->s2;t2f[7] = tex->t2;
 			break;
 		case PARTICLE_SPARK:
-			len = VectorLength(p->vel);
-			VectorNormalize2(p->vel, up);
+			len = VectorLength(p->velpart);
+			VectorNormalize2(p->velpart, up);
 			lenfactor = p->stretch * 0.04 * len;
 			if (lenfactor < size * 0.5)
 				lenfactor = size * 0.5;
@@ -3867,30 +3879,29 @@ static void R_DrawParticle_TransparentCallback(const entity_render_t *ent, const
 			t2f[6] = tex->s2;t2f[7] = tex->t2;
 			break;
 		case PARTICLE_VBEAM:
-			R_CalcBeam_Vertex3f(v3f, p->org, p->vel, size);
-			VectorSubtract(p->vel, p->org, up);
+			R_CalcBeam_Vertex3f(v3f, p->org, p->velpart, size);
+			VectorSubtract(p->velpart, p->org, up);
 			VectorNormalize(up);
 			v[0] = DotProduct(p->org, up) * (1.0f / 64.0f) * p->stretch;
-			v[1] = DotProduct(p->vel, up) * (1.0f / 64.0f) * p->stretch;
+			v[1] = DotProduct(p->velpart, up) * (1.0f / 64.0f) * p->stretch;
 			t2f[0] = tex->s2;t2f[1] = v[0];
 			t2f[2] = tex->s1;t2f[3] = v[0];
 			t2f[4] = tex->s1;t2f[5] = v[1];
 			t2f[6] = tex->s2;t2f[7] = v[1];
 			break;
 		case PARTICLE_HBEAM:
-			R_CalcBeam_Vertex3f(v3f, p->org, p->vel, size);
-			VectorSubtract(p->vel, p->org, up);
+			R_CalcBeam_Vertex3f(v3f, p->org, p->velpart, size);
+			VectorSubtract(p->velpart, p->org, up);
 			VectorNormalize(up);
 			v[0] = DotProduct(p->org, up) * (1.0f / 64.0f) * p->stretch;
-			v[1] = DotProduct(p->vel, up) * (1.0f / 64.0f) * p->stretch;
+			v[1] = DotProduct(p->velpart, up) * (1.0f / 64.0f) * p->stretch;
 			t2f[0] = v[0];t2f[1] = tex->t1;
 			t2f[2] = v[0];t2f[3] = tex->t2;
 			t2f[4] = v[1];t2f[5] = tex->t2;
 			t2f[6] = v[1];t2f[7] = tex->t1;
 			break;
 		}
-		if (r_showparticleedges.integer)
-		{
+		if (r_showparticleedges.integer /*d:0*/) {
 			R_DebugLine(v3f, v3f + 3);
 			R_DebugLine(v3f + 3, v3f + 6);
 			R_DebugLine(v3f + 6, v3f + 9);
@@ -3975,10 +3986,10 @@ void R_DrawParticles (void)
 	pt_explode_frame_interval = frametime * 10;
 	pt_explode2_frame_interval = frametime * 15;
 #endif
-	minparticledist_start = DotProduct(r_refdef.view.origin, r_refdef.view.forward) + r_drawparticles_nearclip_min.value;
+	minparticledist_start = DotProduct(r_refdef.view.origin, r_refdef.view.forward) + r_drawparticles_nearclip_min.value /*d:4*/;
 	gravity = frametime * cl.movevars_gravity;
 	update = frametime > 0;
-	drawdist2 = r_drawparticles_drawdistance.value * r_refdef.view.quality;
+	drawdist2 = r_drawparticles_drawdistance.value /*d:2000*/ * r_refdef.view.quality;
 	drawdist2 = drawdist2*drawdist2;
 
 	for (i = 0, p = cl.particles;i < cl.num_particles;i++, p++)
@@ -4008,24 +4019,24 @@ void R_DrawParticles (void)
 					if (p->typeindex == pt_blood)
 						p->size += frametime * 8;
 					else
-						p->vel[2] -= p->gravity * gravity;
+						p->velpart[2] -= p->gravity * gravity;
 					f = 1.0f - min(p->liquidfriction * frametime, 1);
-					VectorScale(p->vel, f, p->vel);
+					VectorScale(p->velpart, f, p->velpart);
 				}
 				else
 				{
-					p->vel[2] -= p->gravity * gravity;
+					p->velpart[2] -= p->gravity * gravity;
 					if (p->airfriction)
 					{
 						f = 1.0f - min(p->airfriction * frametime, 1);
-						VectorScale(p->vel, f, p->vel);
+						VectorScale(p->velpart, f, p->velpart);
 					}
 				}
 
 				VectorCopy(p->org, oldorg);
-				VectorMA(p->org, frametime, p->vel, p->org);
+				VectorMA(p->org, frametime, p->velpart, p->org);
 //				if (p->bounce && cl.time >= p->delayedcollisions)
-				if (p->bounce && cl_particles_collisions.integer && VectorLength(p->vel))
+				if (p->bounce && cl_particles_collisions.integer && VectorLength(p->velpart))
 				{
 					trace = CL_TraceLine(oldorg, p->org, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID | ((p->typeindex == pt_rain || p->typeindex == pt_snow) ? SUPERCONTENTS_LIQUIDSMASK : 0), 0, 0, collision_extendmovelength.value, true, false, &hitent, false, false);
 					// if the trace started in or hit something of SUPERCONTENTS_NODROP
@@ -4051,9 +4062,9 @@ void R_DrawParticles (void)
 								{
 									// create a decal for the blood splat
 									a = 0xFFFFFF ^ (p->staincolor[0]*65536+p->staincolor[1]*256+p->staincolor[2]);
-									if (cl_decals_newsystem_bloodsmears.integer)
+									if (cl_decals_newsystem_bloodsmears.integer /*d:1*/)
 									{
-										VectorCopy(p->vel, decaldir);
+										VectorCopy(p->velpart, decaldir);
 										VectorNormalize(decaldir);
 									}
 									else
@@ -4074,9 +4085,9 @@ void R_DrawParticles (void)
 								if (cl_decals.integer)
 								{
 									// create a decal for the blood splat
-									if (cl_decals_newsystem_bloodsmears.integer)
+									if (cl_decals_newsystem_bloodsmears.integer /*d:1*/)
 									{
-										VectorCopy(p->vel, decaldir);
+										VectorCopy(p->velpart, decaldir);
 										VectorNormalize(decaldir);
 									}
 									else
@@ -4094,17 +4105,17 @@ void R_DrawParticles (void)
 						else
 						{
 							// anything else - bounce off solid
-							dist = DotProduct(p->vel, trace.plane.normal) * -p->bounce;
-							VectorMA(p->vel, dist, trace.plane.normal, p->vel);
+							dist = DotProduct(p->velpart, trace.plane.normal) * -p->bounce;
+							VectorMA(p->velpart, dist, trace.plane.normal, p->velpart);
 						}
 					}
 				}
 
-				if (VectorLength2(p->vel) < 0.03)
+				if (VectorLength2(p->velpart) < 0.03)
 				{
 					if (p->orientation == PARTICLE_SPARK) // sparks are virtually invisible if very slow, so rather let them go off
 						goto killparticle;
-					VectorClear(p->vel);
+					VectorClear(p->velpart);
 				}
 			}
 
@@ -4139,8 +4150,8 @@ void R_DrawParticles (void)
 					{
 						// snow flutter
 						p->time2 = cl.time + (rand() & 3) * 0.1;
-						p->vel[0] = p->vel[0] * 0.9f + lhrandom(-32, 32);
-						p->vel[1] = p->vel[0] * 0.9f + lhrandom(-32, 32);
+						p->velpart[0] = p->velpart[0] * 0.9f + lhrandom(-32, 32);
+						p->velpart[1] = p->velpart[0] * 0.9f + lhrandom(-32, 32);
 					}
 					a = CL_PointSuperContents(p->org);
 					if (a & (SUPERCONTENTS_SOLID | SUPERCONTENTS_LIQUIDSMASK))
@@ -4219,10 +4230,9 @@ killparticle:
 	while (cl.num_particles > 0 && cl.particles[cl.num_particles - 1].typeindex == 0)
 		cl.num_particles--;
 
-	if (cl.num_particles == cl.max_particles && cl.max_particles < MAX_PARTICLES)
-	{
+	if (cl.num_particles == cl.max_particles && cl.max_particles < MAX_PARTICLES_1048576) {
 		particle_t *oldparticles = cl.particles;
-		cl.max_particles = min(cl.max_particles * 2, MAX_PARTICLES);
+		cl.max_particles = min(cl.max_particles * 2, MAX_PARTICLES_1048576);
 		cl.particles = (particle_t *) Mem_Alloc(cls.levelmempool, cl.max_particles * sizeof(particle_t));
 		memcpy(cl.particles, oldparticles, cl.num_particles * sizeof(particle_t));
 		Mem_Free(oldparticles);

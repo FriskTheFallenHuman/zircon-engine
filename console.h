@@ -62,10 +62,12 @@ void Con_Printf (const char *fmt, ...) DP_FUNC_PRINTF(1);
 
 void Con_PrintLinef (const char *fmt, ...) DP_FUNC_PRINTF(1);  // Baker 1009: Jan 19 2022
 
+
+
 #define Con_PrintVarInt(var) Con_PrintLinef (STRINGIFY(var) " %d", (int)(var))
-#define Con_PrintVarFloat(var) Con_PrintLinef (STRINGIFY(var) " %f", (float)(var))
+#define Con_PrintVarFloat(var) Con_PrintLinef (STRINGIFY(var) " " FLOAT_LOSSLESS_FORMAT, (float)(var))
 #define Con_PrintVarString(var) Con_PrintLinef (STRINGIFY(var) " %s", var)
-#define Con_PrintVarVector(var) Con_PrintLinef (STRINGIFY(var) " %f %f %f", var[0], var[1], var[2])
+#define Con_PrintVarVector3(var) Con_PrintLinef (STRINGIFY(var) " " VECTOR3_5d1F, VECTOR3_SEND(var) )
 
 
 void Con_LogCenterPrint(const char *str); // Baker r1421: centerprint logging to console
@@ -119,6 +121,7 @@ void Log_Printf(const char *logfilename, const char *fmt, ...) DP_FUNC_PRINTF(2)
 
 #define CON_GREEN "^2"
 #define CON_CYAN "^5"
+#define CON_GRAY_50 "^x888"
 
 
 // CON_MASK_PRINT is the default (Con_Print/Con_Printf)
@@ -128,7 +131,7 @@ void Log_Printf(const char *logfilename, const char *fmt, ...) DP_FUNC_PRINTF(2)
 #define CON_MASK_INPUT 2
 #define CON_MASK_DEVELOPER 4
 #define CON_MASK_PRINT 8
-#define CON_MASK_HIDENOTIFY 128
+#define CON_MASK_HIDENOTIFY 128 // Baker: This means don't show in left-top of screen like "You got 5 health"
 
 typedef struct con_lineinfo_s
 {

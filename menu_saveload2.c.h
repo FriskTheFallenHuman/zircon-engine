@@ -106,22 +106,6 @@ int saveload_sort (const void *pa, const void *pb)
 	return negator * diff;
 }
 
-//void M_Dump_f (cmd_state_t *cmd)
-//{
-////	stringlist_condump (&g_saves_indexes_4byte);
-//
-//	stringlist_t *plist = &g_saves_indexes_4byte;
-//	for (int idx = 0; idx < plist->numstrings; idx++) {
-//		char *sxy = plist->strings[idx];
-//		int pidx = *((int *)&plist->strings[idx][0]);
-//
-//		char *ssave = g_saves_filename_noExt_crop.strings[pidx];
-//
-//		Con_PrintLinef ("%4d: val %d " QUOTED_S " " QUOTED_S, idx, pidx, sxy, ssave);
-//	} // for
-//
-//}
-//
 
 
 WARP_X_ (GetFileList_Count)

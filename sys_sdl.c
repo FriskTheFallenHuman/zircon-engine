@@ -155,7 +155,7 @@ void Sys_Error (const char *error, ...)
 
 #ifdef _WIN32
 	#ifdef _DEBUG
-		void DebugPrintf (const char *fmt, ...)
+		void DebugPrintLinef (const char *fmt, ...)
 		{
 			VA_EXPAND_ALLOC (text, text_slen, bufsiz, fmt);
 			OutputDebugString (text);
@@ -507,14 +507,19 @@ int main (int argc, char *argv[])
 			"/sdcard/zircon/"
 #endif
 			"zircon_command_line.txt";
+		WARP_X_ (FS_Init_Dir) // csg executed there
+		int as_csg_tool = Sys_CheckParm("-csg");
 
-		if (File_Exists (s_fp)) {
+		if (as_csg_tool == false && File_Exists (s_fp)) {
 			size_t s_temp_size = 0; char *s_temp = (char *)File_To_String_Alloc (s_fp, &s_temp_size);
 			if (String_Contains (s_temp, "//")) {
 				char *s_start = (char *)strstr ( s_temp, "//");
 				*s_start = 0; // null it out
 
 			}
+#ifdef _WIN32
+			ccs *old_arg0 = sys.argv[0]; // Baker: Windows it is imperative that this is .EXE name for selffd
+#endif
 			c_strlcpy (cmdline_fake, "quake_engine "); // arg0 is engine and ignored by Sys_CheckParm
 			if (s_temp) {
 				c_strlcat (cmdline_fake, s_temp);
@@ -525,6 +530,9 @@ int main (int argc, char *argv[])
 				sys.argv = (const char **)fake_argv;
 
 				free ((void *)s_temp);
+#ifdef _WIN32
+			sys.argv[0] = old_arg0; // Baker: Windows it is imperative that this is .EXE name for selffd
+#endif
 			} // if
 		} // if exists
 	} // if 1 cmd arg the exe
@@ -699,22 +707,52 @@ qbool System_Process_Close_Did_Close (sys_handle_t pid)
 
 
 #include <shellapi.h>
-qbool Sys_ShellExecute (const char *s)
+//HINSTANCE ShellExecuteA(
+//  [in, optional] HWND   hwnd,
+//  [in, optional] LPCSTR lpOperation,
+//  [in]           LPCSTR lpFile,
+//  [in, optional] LPCSTR lpParameters,
+//  [in, optional] LPCSTR lpDirectory,
+//  [in]           INT    nShowCmd
+//);
+
+// NONBLOCKING.  PROCESS WILL NOT COMPLETE.
+qbool Sys_ShellExecute_NonBlocking (ccs *s_exename, ccs *s_args_or_null)
 {
-
-//	char s_cmd[MAX_INPUTLINE_16384];
-
-	size_t result = (size_t)ShellExecute (NULL,
-             NULL,
-             s /*"C:\\WINDOWS\\System32\\CALC.EXE"*/,
-             NULL,
-             NULL,
-             SW_SHOWDEFAULT);
+	size_t result = (size_t)ShellExecute (
+		/*hwnd*/ NULL,		// Parent window
+         NULL,				// NULL does "open"
+         s_exename,			// C:\\WINDOWS\\System32\\CALC.EXE"
+         s_args_or_null,	// Parameters
+         NULL,				// Working directory - "c:\quake\" - If this value is NULL, the current working directory is used
+         SW_SHOWDEFAULT
+	);
 
 	// If the function succeeds, it returns a value greater than 32.
 	return (result > 32);
 
 }
+
+qbool Sys_ShellExecute_Wait (ccs *s_exename, ccs *s_args_or_null)
+{
+//	size_t result = (size_t)ShellExecute (
+	SHELLEXECUTEINFO ShExecInfo = {0};
+	ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+	ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+	ShExecInfo.hwnd = NULL;
+	ShExecInfo.lpVerb = NULL;
+	ShExecInfo.lpFile = s_exename;// "c:\\MyProgram.exe";        
+	ShExecInfo.lpParameters = s_args_or_null; // "";   
+	ShExecInfo.lpDirectory = NULL;
+	ShExecInfo.nShow = SW_SHOW;
+	ShExecInfo.hInstApp = NULL; 
+	if (!ShellExecuteEx(&ShExecInfo))
+		return false;
+	WaitForSingleObject(ShExecInfo.hProcess, INFINITE);
+	CloseHandle(ShExecInfo.hProcess);
+	return true;
+}
+
 
 #else
 #if 0

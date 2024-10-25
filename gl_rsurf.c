@@ -29,7 +29,12 @@ cvar_t r_ambient = {CF_CLIENT, "r_ambient", "0", "brightens map, value is 0-128"
 cvar_t r_lockpvs = {CF_CLIENT | CL_RESETNEWMAP_0, "r_lockpvs", "0", "disables pvs switching, allows you to walk around and inspect what is visible from a given location in the map (anything not visible from your current location will not be drawn)"};
 cvar_t r_lockvisibility = {CF_CLIENT | CL_RESETNEWMAP_0, "r_lockvisibility", "0", "disables visibility updates, allows you to walk around and inspect what is visible from a given viewpoint in the map (anything offscreen at the moment this is enabled will not be drawn)"};
 cvar_t r_useportalculling = {CF_CLIENT, "r_useportalculling", "1", "improve framerate with r_novis 1 by using portal culling - still not as good as compiled visibility data in the map, but it helps (a value of 2 forces use of this even with vis data, which improves framerates in maps without too much complexity, but hurts in extremely complex maps, which is why 2 is not the default mode)"};
+cvar_t r_usefrustumculling = {CF_CLIENT, "r_usefrustumculling", "1", "disabilities frustum culling [Zircon]"};
 cvar_t r_usesurfaceculling = {CF_CLIENT, "r_usesurfaceculling", "1", "skip off-screen surfaces (1 = cull surfaces if the map is likely to benefit, 2 = always cull surfaces)"};
+cvar_t r_usesurfaceculling_nosky = {CF_CLIENT, "r_usesurfaceculling_nosky", "0", "exclude sky from r_usesurfaceculling [Zircon]"};
+
+// Baker: r_usesurfaceculling_xmax was ineffective
+//cvar_t r_usesurfaceculling_xmax = {CF_CLIENT, "r_usesurfaceculling_xmax", "0", "skip culling large surfaces [Zircon]"};
 cvar_t r_vis_trace = {CF_CLIENT, "r_vis_trace", "0", "test if each portal or leaf is visible using tracelines"};
 cvar_t r_vis_trace_samples = {CF_CLIENT, "r_vis_trace_samples", "1", "use this many randomly positioned tracelines each frame to refresh the visible timer"};
 cvar_t r_vis_trace_delay = {CF_CLIENT, "r_vis_trace_delay", "1", "keep a portal visible for this many seconds"};
@@ -131,6 +136,7 @@ void R_BuildLightMap (const entity_render_t *ent, msurface_t *surface, int combi
 
 	if (vid_sRGB.integer && vid_sRGB_fallback.integer && !vid.sRGB3D)
 		Image_MakesRGBColorsFromLinear_Lightmap(templight, templight, size);
+	// Baker: LM_OID - Q1 only?
 	R_UpdateTexture(surface->lightmaptexture, templight, surface->lightmapinfo->lightmaporigin[0], surface->lightmapinfo->lightmaporigin[1], 0, smax, tmax, 1, combine);
 
 	// update the surface's deluxemap if it has one
@@ -416,16 +422,28 @@ static void R_View_WorldVisibility_CullSurfaces(void)
 		return;
 	if (r_trippy.integer)
 		return;
-	if (r_usesurfaceculling.integer < 1)
+	if (r_usesurfaceculling.integer < 1 /*d : 1*/)
 		return;
 	surfaces = model->data_surfaces;
 	surfacevisible = r_refdef.viewcache.world_surfacevisible;
-	for (surfaceindex = model->submodelsurfaces_start; surfaceindex < model->submodelsurfaces_end; surfaceindex++)
-	{
-		if (surfacevisible[surfaceindex])
-		{
-			if (R_CullFrustum(surfaces[surfaceindex].mins, surfaces[surfaceindex].maxs)
-			 || (r_vis_trace_surfaces.integer && !R_CanSeeBox(r_vis_trace_samples.integer, r_vis_trace_eyejitter.value, r_vis_trace_enlarge.value, r_vis_trace_expand.value, r_vis_trace_pad.value, r_refdef.view.origin, surfaces[surfaceindex].mins, surfaces[surfaceindex].maxs)))
+	for (surfaceindex = model->submodelsurfaces_start; surfaceindex < model->submodelsurfaces_end; surfaceindex++) {
+		if (surfacevisible[surfaceindex]) {
+#if 1
+			msurface_t *this_surface = &surfaces[surfaceindex];
+			//if (r_usesurfaceculling_xmax.integer) {
+			//	float size_x = surfaces[surfaceindex].maxs[0] - surfaces[surfaceindex].mins[0];
+			//	if (size_x >= r_usesurfaceculling_xmax.integer)
+			//		continue;
+			//}
+			
+			// Baker: Option to never cull visible sky surfaces for large maps
+			if (r_usesurfaceculling_nosky.integer && this_surface->texture && Have_Flag (this_surface->texture->basematerialflags, MATERIALFLAG_SKY))
+				continue;
+#endif	
+			if ( R_CullFrustum(surfaces[surfaceindex].mins, surfaces[surfaceindex].maxs)
+			 || (r_vis_trace_surfaces.integer /*d: 0*/ && 
+				!R_CanSeeBox(r_vis_trace_samples.integer /*d: 1*/, r_vis_trace_eyejitter.value, 
+					r_vis_trace_enlarge.value, r_vis_trace_expand.value, r_vis_trace_pad.value, r_refdef.view.origin, surfaces[surfaceindex].mins, surfaces[surfaceindex].maxs)))
 				surfacevisible[surfaceindex] = 0;
 		}
 	}
@@ -441,18 +459,19 @@ void R_View_WorldVisibility(qbool forcenovis)
 	if (!model)
 		return;
 
-	if (r_lockvisibility.integer)
+	if (r_lockvisibility.integer /*d: 0*/)
 		return;
 
 	// clear the visible surface and leaf flags arrays
 	memset(r_refdef.viewcache.world_surfacevisible, 0, model->num_surfaces);
 	if (!r_lockpvs.integer)
-		memset(r_refdef.viewcache.world_leafvisible, 0, model->brush.num_leafs);
+		memset (r_refdef.viewcache.world_leafvisible, 0, model->brush.num_leafs);
 
 	r_refdef.viewcache.world_novis = false;
 
-	if (r_refdef.view.usecustompvs)
-	{
+	// Baker: June 15 2024 how can we exclude skybox here?
+	// How do we know if is skybox?
+	if (r_refdef.view.usecustompvs) { // Baker: usecustompvs is always set to true in process water planes
 		// simply cull each marked leaf to the frustum (view pyramid)
 		for (j = 0, leaf = model->brush.data_leafs;j < model->brush.num_leafs;j++, leaf++)
 		{
@@ -474,6 +493,7 @@ void R_View_WorldVisibility(qbool forcenovis)
 		// if possible fetch the visible cluster bits
 		if (!r_lockpvs.integer && model->brush.FatPVS)
 #if 1 // June 2
+			WARP_X_ (Mod_BSP_FatPVS)
 			model->brush.FatPVS(model, r_refdef.view.origin, 2, &r_refdef.viewcache.world_pvsbits, r_main_mempool, false);
 #else
 			model->brush.FatPVS(model, r_refdef.view.origin, 2, r_refdef.viewcache.world_pvsbits, (r_refdef.viewcache.world_numclusters+7)>>3, false);
@@ -481,7 +501,8 @@ void R_View_WorldVisibility(qbool forcenovis)
 
 		// if floating around in the void (no pvs data available, and no
 		// portals available), simply use all on-screen leafs.
-		if (!viewleaf || viewleaf->clusterindex < 0 || forcenovis || !r_refdef.view.usevieworiginculling)
+		if (!viewleaf || viewleaf->clusterindex < 0 || forcenovis || 
+			!r_refdef.view.usevieworiginculling /*looks like true*/)
 		{
 			// no visibility method: (used when floating around in the void)
 			// simply cull each leaf to the frustum (view pyramid)
@@ -504,7 +525,8 @@ void R_View_WorldVisibility(qbool forcenovis)
 		}
 		// just check if each leaf in the PVS is on screen
 		// (unless portal culling is enabled)
-		else if (!model->brush.data_portals || r_useportalculling.integer < 1 || (r_useportalculling.integer < 2 && !r_novis.integer))
+		else if (!model->brush.data_portals || r_useportalculling.integer < 1 || 
+			(r_useportalculling.integer < 2 && !r_novis.integer))
 		{
 			// pvs method:
 			// simply check if each leaf is in the Potentially Visible Set,
@@ -515,8 +537,28 @@ void R_View_WorldVisibility(qbool forcenovis)
 				if (leaf->clusterindex < 0)
 					continue;
 				// if leaf is in current pvs and on the screen, mark its surfaces
-				if (CHECKPVSBIT(r_refdef.viewcache.world_pvsbits, leaf->clusterindex) && !R_CullFrustum(leaf->mins, leaf->maxs))
+
+#if 0
+				if (CHECKPVSBIT(r_refdef.viewcache.world_pvsbits, leaf->clusterindex) && 
+					!R_CullFrustum(leaf->mins, leaf->maxs))
+#else
+				//int is_pass = false;
+				//
+				//if (r_usesurfaceculling_xmax.integer) {
+				//	float size_x = leaf->maxs[0] - leaf->mins[0];
+				//	if (size_x >= r_usesurfaceculling_xmax.integer)
+				//		is_pass = true;
+				//}
+
+				if (CHECKPVSBIT(r_refdef.viewcache.world_pvsbits, leaf->clusterindex) && 
+					(/*is_pass || */ !r_usefrustumculling.integer || !R_CullFrustum(leaf->mins, leaf->maxs))  )
+#endif
 				{
+#if 1
+					//if r_usefrustumculling
+#endif
+
+
 					r_refdef.stats[r_stat_world_leafs]++;
 					r_refdef.viewcache.world_leafvisible[j] = true;
 					if (leaf->numleafsurfaces)
@@ -1622,7 +1664,12 @@ void GL_Surf_Init(void)
 	Cvar_RegisterVariable(&r_lockpvs);
 	Cvar_RegisterVariable(&r_lockvisibility);
 	Cvar_RegisterVariable(&r_useportalculling);
+	Cvar_RegisterVariable(&r_usefrustumculling);
+	
 	Cvar_RegisterVariable(&r_usesurfaceculling);
+	Cvar_RegisterVariable(&r_usesurfaceculling_nosky);
+	//Cvar_RegisterVariable(&r_usesurfaceculling_xmax);
+	
 	Cvar_RegisterVariable(&r_vis_trace);
 	Cvar_RegisterVariable(&r_vis_trace_samples);
 	Cvar_RegisterVariable(&r_vis_trace_delay);

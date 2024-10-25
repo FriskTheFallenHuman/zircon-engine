@@ -45,7 +45,7 @@ static void Consel_MouseDown (consel_t *m, float mx, float my, int row, int col)
 	c_assert_ (m->a.drag_state == drag_state_none_0);
 
 	m->a.drag_state				= drag_state_awaiting_threshold_1; // CHANGE TO AWAITING
-	DebugPrintf ("Mouse down at virtual x %f y %f", mx, my);
+	DebugPrintLinef ("Mouse down at virtual x %f y %f", mx, my);
 	m->a.mousedown_fx			= mx;
 	m->a.mousedown_fy			= my;
 	m->a.mousedown_time			= Sys_DirtyTime ();
@@ -62,7 +62,7 @@ static void Consel_MouseUp_After_Dragging (consel_t *m, float mx, float my, int 
 {
 	c_assert_ (m->a.drag_state == drag_state_dragging_2);
 	m->a.drag_state = drag_state_drag_completed_3; // CHANGE TO COMPLETED
-	DebugPrintf ("To completed 3");
+	DebugPrintLinef ("To completed 3");
 }
 
 static void Consel_MouseMove_Extend_Selection (consel_t *m, float mx, float my, int row, int col)
@@ -71,7 +71,7 @@ static void Consel_MouseMove_Extend_Selection (consel_t *m, float mx, float my, 
 //		int j = 4;
 	m->a.mousedown_end_row_index = row;
 	m->a.mousedown_end_col_index = col;
-	DebugPrintf ("Extend select rc %d %d to rc %d %d", m->a.mousedown_row_index, m->a.mousedown_col_index, m->a.mousedown_end_row_index, m->a.mousedown_end_col_index);
+	DebugPrintLinef ("Extend select rc %d %d to rc %d %d", m->a.mousedown_row_index, m->a.mousedown_col_index, m->a.mousedown_end_row_index, m->a.mousedown_end_col_index);
 }
 
 WARP_X_ (Con_DrawConsoleLine_Num_Rows_Drawn)
@@ -86,9 +86,9 @@ static void Consel_MouseMove_Check_Threshold (consel_t *m, float mx, float my, i
 
 	if (did_hit_threshold) {
 		m->a.drag_state = drag_state_dragging_2; // CHANGE TO DRAG
-		DebugPrintf ("Drag ACTIVATED mx my %f %f", mx, my);
+		DebugPrintLinef ("Drag ACTIVATED mx my %f %f", mx, my);
 	}
-	DebugPrintf ("MouseMove No Drag deltax was %f deltay was %f", delta_x, delta_y);
+	DebugPrintLinef ("MouseMove No Drag deltax was %f deltay was %f", delta_x, delta_y);
 }
 
 //
@@ -103,7 +103,7 @@ void Consel_MouseReset (const char *reason)
 #endif // #ifdef CONFIG_MENU
 	consel_t *m = &g_consel;
 	memset (&m->a, 0, sizeof(m->a));
-	DebugPrintf ("Consel_MouseReset");
+	DebugPrintLinef ("Consel_MouseReset");
 }
 
 
@@ -138,11 +138,11 @@ int Consel_Key_Event_Check_Did_Action (int is_down)
 		// MOUSE UP - DID NOT MOVE FAR ENOUGH - TREAT LIKE MOUSE UP
 
 		if (m->a.prior_was_selection) {
-			DebugPrintf ("TREAT_IGNORED MOUSEUP");
+			DebugPrintLinef ("TREAT_IGNORED MOUSEUP");
 			Consel_MouseReset ("Mouseup with previous selection that failed threshold");
 			return TREAT_CONSUMED_MOUSE_ACTION_1; // Allow mouse action is simply clear the selection
 		}
-		DebugPrintf ("TREAT_MOUSEUP_2");
+		DebugPrintLinef ("TREAT_MOUSEUP_2");
 		return TREAT_MOUSEUP_2; // Treat like a mouse up
 	}
 
@@ -176,7 +176,7 @@ void Consel_MouseMove_Check (void)
 	if (false == is_check_move)
 		return;
 
-	DebugPrintf ("IN_Move: Check drag = %d", m->a.drag_state);
+	DebugPrintLinef ("IN_Move: Check drag = %d", m->a.drag_state);
 
 	float	canvas_x_multiplier		= g_consel.draww.conscalewidth / vid.width;		// 640 / 1920 = 0.3
 	float	canvas_y_multiplier		= g_consel.draww.conscaleheight / vid.height;		// 480 / 1080 = 0.2

@@ -1987,6 +1987,7 @@ void Sbar_Init (void)
 	Cvar_RegisterVariable(&sbar_alpha_fg);
 	Cvar_RegisterVariable(&sbar_hudselector);
 	Cvar_RegisterVariable(&scr_clock);
+
 	Cvar_RegisterVariable(&sbar_showprotocol);
 
 	Cvar_RegisterVariable(&sbar_miniscoreboard_size);

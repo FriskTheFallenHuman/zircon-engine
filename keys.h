@@ -396,6 +396,7 @@ extern unsigned char keydown[MAX_KEYS_44032]; // Baker: Share this.
 #define KM_CTRL_SHIFT_ALT ( keydown[K_CTRL] &&  keydown[K_SHIFT] &&  keydown[K_ALT])
 #define KM_CTRL_SHIFT     ( keydown[K_CTRL] &&  keydown[K_SHIFT] && !keydown[K_ALT])
 #define KM_CTRL_ALT       ( keydown[K_CTRL] && !keydown[K_SHIFT] &&  keydown[K_ALT])
+#define KM_CTRL_ANY		( keydown[K_CTRL] )
 #define KM_SHIFT_ALT      (!keydown[K_CTRL] &&  keydown[K_SHIFT] &&  keydown[K_ALT])
 #define KM_CTRL           ( keydown[K_CTRL] && !keydown[K_SHIFT] && !keydown[K_ALT])
 #define KM_SHIFT          (!keydown[K_CTRL] &&  keydown[K_SHIFT] && !keydown[K_ALT])

@@ -1163,8 +1163,11 @@ float MOVE_WORLDONLY = 3;
 //builtin definitions:
 vector(vector forward, vector up) vectoangles2 = #51; // same number as vectoangles
 //description:
-//variant of vectoangles that takes an up vector to calculate roll angle (also uses this to calculate yaw correctly if the forward is straight up or straight down)
-//note: just like normal vectoangles you need to negate the pitch of the returned angles if you want to feed them to makevectors or assign to self.v_angle
+//variant of vectoangles that takes an up vector to calculate roll angle 
+(also uses this to calculate yaw correctly if the forward is straight up or straight down)
+//note: just like normal vectoangles you need to negate the pitch of the returned angles 
+if you want to feed them to 
+makevectors or assign to self.v_angle
 
 //DP_QC_VECTORVECTORS
 //idea: LadyHavoc
@@ -2604,10 +2607,11 @@ float(string url, float id, string content_type, string delim, float buf, float 
 //idea: divVerent
 //darkplaces implementation: Mario
 //movetype definitions:
-float MOVETYPE_USER_FIRST = 128;
-float MOVETYPE_USER_LAST = 191;
+float MOVETYPE_USER_FIRST_128 = 128;
+float MOVETYPE_USER_LAST_191 = 191;
 //description:
-//user defined movetypes can be added between the start and end points, without producing unknown movetype warnings
+//user defined movetypes can be added between the start and end points, without producing unknown 
+	// movetype warnings
 
 //DP_RM_CLIPGROUP
 //idea: Akari

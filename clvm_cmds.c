@@ -588,7 +588,7 @@ static void VM_CL_droptofloor (prvm_prog_t *prog)
 	if (trace.fraction != 1)
 	{
 		VectorCopy (trace.endpos, PRVM_clientedictvector(ent, origin));
-		PRVM_clientedictfloat(ent, flags) = (int)PRVM_clientedictfloat(ent, flags) | FL_ONGROUND;
+		PRVM_clientedictfloat(ent, flags) = (int)PRVM_clientedictfloat(ent, flags) | FL_ONGROUND_512;
 		PRVM_clientedictedict(ent, groundentity) = PRVM_EDICT_TO_PROG(trace.ent);
 		PRVM_G_FLOAT(OFS_RETURN) = 1;
 		// if support is destroyed, keep suspended (gross hack for floating items in various maps)
@@ -1184,6 +1184,9 @@ static void VM_CL_R_AddDynamicLight (prvm_prog_t *prog)
 //============================================================================
 
 //#310 vector (vector v) cs_unproject (EXT_CSQC)
+// Baker: The intent is to use the screen pixel.
+// Baker: A problem is that we don't want to use vid_conwidth and vid_conheight.
+
 static void VM_CL_unproject (prvm_prog_t *prog)
 {
 	vec3_t f;
@@ -1196,7 +1199,7 @@ static void VM_CL_unproject (prvm_prog_t *prog)
 		f[2],
 		(-1.0 + 2.0 * (f[0] / vid_conwidth.integer)) * f[2] * -r_refdef.view.frustum_x,
 		(-1.0 + 2.0 * (f[1] / vid_conheight.integer)) * f[2] * -r_refdef.view.frustum_y);
-	if (v_flipped.integer)
+	if (v_flipped.integer /*d: 0*/)
 		temp[1] = -temp[1];
 	Matrix4x4_Transform(&r_refdef.view.matrix, temp, result);
 	VectorCopy(result, PRVM_G_VECTOR(OFS_RETURN));
@@ -1824,7 +1827,9 @@ void VM_drawrotpic(prvm_prog_t *prog)
 	if (pos[2] || size[2] || org[2])
 		VM_WarningLinef (prog, "VM_drawrotpic: z value from pos/size/org discarded");
 
-	DrawQ_RotPic(pos[0], pos[1], Draw_CachePic_Flags(picname, CACHEPICFLAG_NOTPERSISTENT), size[0], size[1], org[0], org[1], PRVM_G_FLOAT(OFS_PARM4), rgb[0], rgb[1], rgb[2], PRVM_G_FLOAT(OFS_PARM6), flag);
+	DrawQ_RotPic(pos[0], pos[1], Draw_CachePic_Flags(picname, CACHEPICFLAG_NOTPERSISTENT), 
+		size[0], size[1], org[0], org[1], 
+		PRVM_G_FLOAT(OFS_PARM4), rgb[0], rgb[1], rgb[2], PRVM_G_FLOAT(OFS_PARM6), flag);
 	PRVM_G_FLOAT(OFS_RETURN) = 1;
 }
 /*
@@ -2165,7 +2170,8 @@ static void VM_CL_pointparticles (prvm_prog_t *prog)
 	CL_ParticleEffect(i, n, f, f, v, v, NULL, prog->argc >= 5 ? (int)PRVM_G_FLOAT(OFS_PARM4) : 0);
 }
 
-//#502 void(float effectnum, entity own, vector origin_from, vector origin_to, vector dir_from, vector dir_to, float count, float extflags) boxparticles (DP_CSQC_BOXPARTICLES)
+//#502 void(float effectnum, entity own /*Baker: owner*/, vector origin_from, vector origin_to, 
+// vector dir_from, vector dir_to, float count, float extflags) boxparticles (DP_CSQC_BOXPARTICLES)
 static void VM_CL_boxparticles (prvm_prog_t *prog)
 {
 	int effectnum;
@@ -2196,22 +2202,26 @@ static void VM_CL_boxparticles (prvm_prog_t *prog)
 	fade = 1;
 	istrail = false;
 
-	if (flags & 1) // read alpha
-	{
+#define PARTICLES_USEALPHA_1 1
+#define PARTICLES_USECOLOR_2 2
+#define PARTICLES_USEFADE_4 4
+#define PARTICLES_DRAWASTRAIL_128 128
+
+	if (Have_Flag (flags, PARTICLES_USEALPHA_1) ) { // read alpha
 		tintmins[3] = PRVM_clientglobalfloat(particles_alphamin);
 		tintmaxs[3] = PRVM_clientglobalfloat(particles_alphamax);
 	}
-	if (flags & 2) // read color
-	{
+
+	if (Have_Flag (flags,PARTICLES_USECOLOR_2) ) { // read color
 		VectorCopy(PRVM_clientglobalvector(particles_colormin), tintmins);
 		VectorCopy(PRVM_clientglobalvector(particles_colormax), tintmaxs);
 	}
-	if (flags & 4) // read fade
-	{
+
+	if (Have_Flag (flags, PARTICLES_USEFADE_4)) { // read fade
 		fade = PRVM_clientglobalfloat(particles_fade);
 	}
-	if (flags & 128) // draw as trail
-	{
+
+	if (Have_Flag (flags, PARTICLES_DRAWASTRAIL_128)) { // draw as trail
 		istrail = true;
 	}
 
@@ -3752,6 +3762,7 @@ static void VM_CL_ParticleThemeFree (prvm_prog_t *prog)
 
 // float(vector org, vector dir, [float theme]) particle
 // returns 0 if failed, 1 if succesful
+WARP_X_ (VORTEXPARTICLE)
 static void VM_CL_SpawnParticle (prvm_prog_t *prog)
 {
 	vec3_t org, dir;
@@ -3766,7 +3777,8 @@ static void VM_CL_SpawnParticle (prvm_prog_t *prog)
 		PRVM_G_FLOAT(OFS_RETURN) = 0;
 		return;
 	}
-	VectorCopy(PRVM_G_VECTOR(OFS_PARM0), org);
+	//                                             0   1   2 
+	VectorCopy(PRVM_G_VECTOR(OFS_PARM0), org); // org dir  theme
 	VectorCopy(PRVM_G_VECTOR(OFS_PARM1), dir);
 
 	if (prog->argc < 3) // global-set particle
@@ -4741,7 +4753,7 @@ static qbool CL_movestep (prvm_edict_t *ent, vec3_t move, qbool relink, qbool no
 	VectorAdd (PRVM_clientedictvector(ent, origin), move, neworg);
 
 // flying monsters don't step up
-	if ( (int)PRVM_clientedictfloat(ent, flags) & (FL_SWIM | FL_FLY) )
+	if ( (int)PRVM_clientedictfloat(ent, flags) & (FL_SWIM_2 | FL_FLY_1) )
 	{
 	// try one move with vertical motion, then one without
 		for (i=0 ; i<2 ; i++)
@@ -4764,7 +4776,7 @@ static qbool CL_movestep (prvm_edict_t *ent, vec3_t move, qbool relink, qbool no
 			if (trace.fraction == 1)
 			{
 				VectorCopy(trace.endpos, traceendpos);
-				if (((int)PRVM_clientedictfloat(ent, flags) & FL_SWIM) && !(CL_PointSuperContents(traceendpos) & SUPERCONTENTS_LIQUIDSMASK))
+				if (((int)PRVM_clientedictfloat(ent, flags) & FL_SWIM_2) && !(CL_PointSuperContents(traceendpos) & SUPERCONTENTS_LIQUIDSMASK))
 					return false;	// swim monster left water
 
 				VectorCopy (traceendpos, PRVM_clientedictvector(ent, origin));
@@ -4806,7 +4818,7 @@ static qbool CL_movestep (prvm_edict_t *ent, vec3_t move, qbool relink, qbool no
 			VectorAdd (PRVM_clientedictvector(ent, origin), move, PRVM_clientedictvector(ent, origin));
 			if (relink)
 				CL_LinkEdict(ent);
-			PRVM_clientedictfloat(ent, flags) = (int)PRVM_clientedictfloat(ent, flags) & ~FL_ONGROUND;
+			PRVM_clientedictfloat(ent, flags) = (int)PRVM_clientedictfloat(ent, flags) & ~FL_ONGROUND_512;
 			return true;
 		}
 
@@ -4876,7 +4888,7 @@ static void VM_CL_walkmove (prvm_prog_t *prog)
 	dist = PRVM_G_FLOAT(OFS_PARM1);
 	settrace = prog->argc >= 3 && PRVM_G_FLOAT(OFS_PARM2);
 
-	if ( !( (int)PRVM_clientedictfloat(ent, flags) & (FL_ONGROUND|FL_FLY|FL_SWIM) ) )
+	if ( !( (int)PRVM_clientedictfloat(ent, flags) & (FL_ONGROUND_512|FL_FLY_1|FL_SWIM_2) ) )
 		return;
 
 	yaw = yaw*M_PI*2 / 360;

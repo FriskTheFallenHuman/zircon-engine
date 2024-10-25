@@ -181,6 +181,7 @@ endif
 CFLAGS_COMMON=$(CFLAGS_STANDARD) $(CFLAGS_TCC) $(CFLAGS_MAKEDEP) $(CFLAGS_PRELOAD) $(CFLAGS_FS) $(CFLAGS_WARNINGS) $(CFLAGS_LIBZ) $(CFLAGS_LIBJPEG) $(CFLAGS_SND_XMP) $(CFLAGS_NET) $(CFLAGS_SDL) -D_FILE_OFFSET_BITS=64 -D__KERNEL_STRICT_NAMES -I../../../
 CFLAGS_CLIENT=-DCORE_SDL -DCONFIG_MENU $(CFLAGS_VIDEO_CAPTURE)
 CFLAGS_OBJECTN=-DOBJECTN
+CFLAGS_QUALKER=-DQUALKER
 CFLAGS_SERVER=
 CFLAGS_DEBUG=-ggdb
 CFLAGS_PROFILE=-g -pg -ggdb -fprofile-arcs
@@ -228,7 +229,9 @@ EXE_UNIXSDL=zircon_beta_linux_sdl
 EXE_UNIXSVNEXUIZ=nexuiz-dedicated
 EXE_UNIXSDLNEXUIZ=nexuiz-sdl
 EXE_UNIXSDLOBJECTN=objectn-sdl
+EXE_UNIXSDLQUALKER=qualker-sdl
 EXE_UNIXSVOBJECTN=objectn-dedicated
+EXE_UNIXSVQUALKER=qualker-dedicated
 
 CMD_UNIXRM=rm -rf
 CMD_UNIXCP=cp -f
@@ -279,6 +282,8 @@ EXE_WINSVNEXUIZ=nexuiz-dedicated.exe
 EXE_WINSDLNEXUIZ=nexuiz-sdl.exe
 EXE_WINSVOBJECTN=objectn-dedicated.exe
 EXE_WINSDLOBJECTN=objectn-sdl.exe
+EXE_WINSVQUALKER=qualker-dedicated.exe
+EXE_WINSDLQUALKER=qualker-sdl.exe
 
 VPATH := ../../../
 
@@ -312,6 +317,7 @@ help:
 	@echo "* $(MAKE) sv-release           : make dedicated server (release version)"
 	@echo "* $(MAKE) sv-nexuiz            : make dedicated server with nexuiz icon"
 	@echo "* $(MAKE) sv-objectn           : make objectn dedicated server"
+	@echo "* $(MAKE) sv-qualker           : make qualker dedicated server"
 	@echo "                              (release version)"
 	@echo "* $(MAKE) sdl-debug            : make SDL client (debug version)"
 	@echo "* $(MAKE) sdl-profile          : make SDL client (profile version)"
@@ -319,6 +325,7 @@ help:
 	@echo "* $(MAKE) sdl-release          : make SDL client (release version)"
 	@echo "* $(MAKE) sdl-nexuiz           : make SDL client with nexuiz icon (release version)"
 	@echo "* $(MAKE) sdl-objectn          : make SDL objectn client (release version)"
+	@echo "* $(MAKE) sdl-qualker          : make SDL qualker client (release version)"
 	@echo
 
 debug :
@@ -341,6 +348,9 @@ nexuiz :
 
 objectn :
 	$(MAKE) $(TARGETS_OBJECTN)
+
+qualker :
+	$(MAKE) $(TARGETS_QUALKER)
 
 sv-debug :
 	$(MAKE) bin-debug \
@@ -387,10 +397,20 @@ sdl-objectn :
 		DP_MAKE_TARGET=$(DP_MAKE_TARGET) \
 		EXE='$(EXE_SDLOBJECTN)' CFLAGS_FEATURES='$(CFLAGS_CLIENT) $(CFLAGS_OBJECTN)' CFLAGS_SDL='$(SDLCONFIG_CFLAGS)' LDFLAGS_COMMON='$(LDFLAGS_SDL)' LEVEL=1
 
+sdl-qualker :
+	$(MAKE) bin-release \
+		DP_MAKE_TARGET=$(DP_MAKE_TARGET) \
+		EXE='$(EXE_SDLQUALKER)' CFLAGS_FEATURES='$(CFLAGS_CLIENT) $(CFLAGS_QUALKER)' CFLAGS_SDL='$(SDLCONFIG_CFLAGS)' LDFLAGS_COMMON='$(LDFLAGS_SDL)' LEVEL=1
+
 sv-objectn :
 	$(MAKE) bin-release \
 		DP_MAKE_TARGET=$(DP_MAKE_TARGET) \
 		EXE='$(EXE_SVOBJECTN)' CFLAGS_FEATURES='$(CFLAGS_SERVER) $(CFLAGS_OBJECTN)' LDFLAGS_COMMON='$(LDFLAGS_SV)' LEVEL=1
+
+sv-qualker :
+	$(MAKE) bin-release \
+		DP_MAKE_TARGET=$(DP_MAKE_TARGET) \
+		EXE='$(EXE_SVQUALKER)' CFLAGS_FEATURES='$(CFLAGS_SERVER) $(CFLAGS_QUALKER)' LDFLAGS_COMMON='$(LDFLAGS_SV)' LEVEL=1
 
 sdl-release-profile :
 	$(MAKE) bin-release-profile \
@@ -533,6 +553,14 @@ $(EXE_SDLOBJECTN): $(OBJ_SDL) $(OBJ_ICON)
 	$(CHECKLEVEL2)
 	$(DO_LD)
 
+$(EXE_SVQUALKER): $(OBJ_SV) $(OBJ_ICON)
+	$(CHECKLEVEL2)
+	$(DO_LD)
+
+$(EXE_SDLQUALKER): $(OBJ_SDL) $(OBJ_ICON)
+	$(CHECKLEVEL2)
+	$(DO_LD)
+
 clean:
 	-$(CMD_RM) $(EXE_SV)
 	-$(CMD_RM) $(EXE_SDL)
@@ -540,6 +568,8 @@ clean:
 	-$(CMD_RM) $(EXE_SDLNEXUIZ)
 	-$(CMD_RM) $(EXE_SVOBJECTN)
 	-$(CMD_RM) $(EXE_SDLOBJECTN)
+	-$(CMD_RM) $(EXE_SVQUALKER)
+	-$(CMD_RM) $(EXE_SDLQUALKER)
 	-$(CMD_RM) *.o
 	-$(CMD_RM) *.d
 	-$(CMD_RM) *.gch

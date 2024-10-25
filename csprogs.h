@@ -87,11 +87,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //#define RF_DOUBLESIDED		32
 #define RF_USETRANSPARENTOFFSET 64   // Allows QC to customize origin used for transparent sorting via transparent_origin global, helps to fix transparent sorting bugs on a very large entities
 #define RF_WORLDOBJECT          128  // for large outdoor entities that should not be culled
+#define RF_FULLBRIGHT			256
+#define RF_NOSHADOW				512
 #define RF_MODELLIGHT           4096 // CSQC-set model light
 #define RF_DYNAMICMODELLIGHT    8192 // origin-dependent model light
 
-#define RF_FULLBRIGHT			256
-#define RF_NOSHADOW				512
 
 extern cvar_t csqc_enable;		// Baker r0101:  csqc_enable
 extern cvar_t csqc_progname;	//[515]: csqc crc check and right csprogs name according to progs.dat

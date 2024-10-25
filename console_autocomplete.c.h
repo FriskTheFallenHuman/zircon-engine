@@ -4,7 +4,7 @@
 
 // Performed by:
 WARP_X_ (Key_ClearEditLine if console which is called by Con_ToggleConsole)
-// Con_ToggleConsole resets history to -1 
+// Con_ToggleConsole resets history to -1
 // Partial reset needs to be performed in the console
 // by damn near any key that is not TAB or shift TAB
 
@@ -106,8 +106,8 @@ int m_maplist_count;
 maplist_s m_maplist[MAXMAPLIST_4096];
 
 // Baker r0086: Rewritten so .obj maps located in maps folder are listed like other maps.
-qbool GetMapList (const char *s_partial, char *completedname, 
-	int completednamebufferlength, int is_menu_fill, 
+qbool GetMapList (const char *s_partial, char *completedname,
+	int completednamebufferlength, int is_menu_fill,
 	int is_zautocomplete, int is_suppress_print)
 {
 	fssearch_t	*t_bsp;
@@ -124,7 +124,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 	}
 
 	c_dpsnprintf1 (s_pattern, "maps/%s*.bsp", s_partial);
-	
+
 	t_bsp = FS_Search(s_pattern, fs_caseless_true, fs_quiet_true, fs_pakfile_null, is_menu_fill ? fs_gamedironly_true : fs_gamedironly_false);
 
 	c_dpsnprintf1 (s_pattern, "maps/%s*.obj", s_partial);
@@ -143,7 +143,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 		for (int idx = 0; idx < pt->numfilenames; idx++ ) {
 			stringlistappend (&maplist, pt->filenames[idx]);
 		} // for
-		
+
 		FS_FreeSearch(pt);
 	} // if
 
@@ -158,7 +158,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 	stringlistsort	(&maplist, fs_make_unique_true);
 
 	if (maplist.numstrings > 1) {
-		if (is_menu_fill == false && is_suppress_print == false) 
+		if (is_menu_fill == false && is_suppress_print == false)
 			Con_PrintLinef (CON_BRONZE " %d maps found:", maplist.numstrings);
 	}
 
@@ -189,21 +189,21 @@ qbool GetMapList (const char *s_partial, char *completedname,
 		int is_playable = false;
 		desc[0] = 0;
 		int is_obj_map = String_Ends_With (s_this_filename, ".obj");
-		
+
 		c_strlcpy (s_map_title, CON_RED "ERROR: open failed" CON_WHITE);
-		
+
 		p = 0;
 		f = FS_OpenVirtualFile(s_this_filename, fs_quiet_true);
-		
+
 		if (f) {
 			c_strlcpy (s_map_title, CON_RED "ERROR: not a known map format" CON_WHITE);
 
 			memset(buf, 0, 1024);
 			FS_Read(f, buf, 1024);
-			//#pragma message ("Baker: It is said that .bsp that are .md3 
+			//#pragma message ("Baker: It is said that .bsp that are .md3
 			//or such bypass requirement of info_player_start")
 			if (is_obj_map) {
-					c_strlcpy (desc, "OBJ"); 
+					c_strlcpy (desc, "OBJ");
 					map_format_code = 7;
 			} else if (!memcmp(buf, "IBSP", 4)) {
 				p = LittleLong(((int *)buf)[1]);
@@ -211,7 +211,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 					q3dheader_t *header = (q3dheader_t *)buf;
 					lumpofs = LittleLong(header->lumps[Q3LUMP_ENTITIES].fileofs);
 					lumplen = LittleLong(header->lumps[Q3LUMP_ENTITIES].filelen);
-					c_dpsnprintf1 (desc, "Q3BSP%d", p); 
+					c_dpsnprintf1 (desc, "Q3BSP%d", p);
 					if (p == 47)		map_format_code = 8;
 					else if (p == 48)	map_format_code = 9;
 					else map_format_code = 3;
@@ -220,7 +220,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 					q2dheader_t *header = (q2dheader_t *)buf;
 					lumpofs = LittleLong(header->lumps[Q2LUMP_ENTITIES].fileofs);
 					lumplen = LittleLong(header->lumps[Q2LUMP_ENTITIES].filelen);
-					c_dpsnprintf1 (desc, "Q2BSP%d", p); 
+					c_dpsnprintf1 (desc, "Q2BSP%d", p);
 					map_format_code = 2;
 				}
 				else {
@@ -230,32 +230,32 @@ qbool GetMapList (const char *s_partial, char *completedname,
 			} else if (BuffLittleLong(buf) == BSPVERSION /*29*/) {
 				lumpofs = BuffLittleLong(buf + 4 + 8 * LUMP_ENTITIES);
 				lumplen = BuffLittleLong(buf + 4 + 8 * LUMP_ENTITIES + 4);
-				c_strlcpy (desc, "BSP29"); 
+				c_strlcpy (desc, "BSP29");
 				map_format_code = 1;
 			} else if (BuffLittleLong(buf) == 30 /*Half-Life*/) {
 				lumpofs = BuffLittleLong(buf + 4 + 8 * LUMP_ENTITIES);
 				lumplen = BuffLittleLong(buf + 4 + 8 * LUMP_ENTITIES + 4);
-				c_strlcpy (desc, "BSPHL"); 
+				c_strlcpy (desc, "BSPHL");
 				map_format_code = -1;
 			} else if (!memcmp(buf, "BSP2", 4)) {
 				lumpofs = BuffLittleLong(buf + 4 + 8 * LUMP_ENTITIES);
 				lumplen = BuffLittleLong(buf + 4 + 8 * LUMP_ENTITIES + 4);
-				c_strlcpy (desc, "BSP2"); 
+				c_strlcpy (desc, "BSP2");
 				map_format_code = 1;
 			} else if (!memcmp(buf, "2PSB", 4)) {
 				lumpofs = BuffLittleLong(buf + 4 + 8 * LUMP_ENTITIES);
 				lumplen = BuffLittleLong(buf + 4 + 8 * LUMP_ENTITIES + 4);
-				c_strlcpy (desc, "BSP2RMQe"); 
+				c_strlcpy (desc, "BSP2RMQe");
 				map_format_code = 1;
 			} else if (!memcmp(buf, "VBSP", 4)) {
 				hl2dheader_t *header = (hl2dheader_t *)buf;
 				lumpofs = LittleLong(header->lumps[HL2LUMP_ENTITIES].fileofs);
 				lumplen = LittleLong(header->lumps[HL2LUMP_ENTITIES].filelen);
 				int versi = LittleLong(((int *)buf)[1]);
-				c_dpsnprintf1 (desc, "VBSP%d", versi); 
+				c_dpsnprintf1 (desc, "VBSP%d", versi);
 				map_format_code = 5;
 			} else {
-				c_dpsnprintf1(desc, "unknown%d", BuffLittleLong(buf)); 
+				c_dpsnprintf1(desc, "unknown%d", BuffLittleLong(buf));
 				map_format_code = -2;
 			}
 			c_strlcpy (entfilename, s_this_filename);
@@ -271,7 +271,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 				// if there are entities to parse, a missing message key just
 				// means there is no title, so clear the message string now
 				s_map_title[0] = 0;
-				is_playable = String_Contains (entities, "info_player_start") || 
+				is_playable = String_Contains (entities, "info_player_start") ||
 					String_Contains (entities, "info_player_deathmatch");
 
 				data = entities;
@@ -320,7 +320,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 
 			SPARTIAL_EVAL_
 		}
-		
+
 		if (is_menu_fill == false && is_suppress_print == false) {
 			// If we print, print only maps with spawnpoints
 			// This should avoid healthboxes and such
@@ -353,7 +353,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 				mx->s_name_after_maps_folder_a	= (unsigned char *)strdup	(s_this_filename + 5);
 				mx->s_name_trunc_16_a			= (unsigned char *)strdup	(s_file_trunc_at_16);
 				mx->s_map_title_trunc_28_a		= (unsigned char *)strdup	(s_title_trunc_at_28);
-				mx->s_bsp_code					= (unsigned char *) ( 
+				mx->s_bsp_code					= (unsigned char *) (
 					isin1 (map_format_code, 8) ? "QL" :
 					isin1 (map_format_code, 9) ? "IG" :
 					isin2 (map_format_code, 3,4) ? "Q3" :
@@ -363,7 +363,7 @@ qbool GetMapList (const char *s_partial, char *completedname,
 			} // if m_maplist_count < max
 		} // if menu fill
 	} // for numfilenames
-	if (is_menu_fill == false && is_suppress_print == false) 
+	if (is_menu_fill == false && is_suppress_print == false)
 		Con_Print("\n");
 
 	for (p = partial_length; p < our_min_length; p ++)
@@ -415,7 +415,7 @@ int GetVideoList_Count (const char *s_prefix)
 	// "playvideo" will work fine
 	{
 		stringlist_t all_contents_of_video_folder_list = {0};
-		
+
 #if 1
 		char gamedir_slash_video_slash[MAX_OSPATH_EX_1024]; // id1/video/
 		c_dpsnprintf2 (gamedir_slash_video_slash, "%s%s", fs_gamedir /* "id1/" */ , "video/" );
@@ -425,7 +425,7 @@ int GetVideoList_Count (const char *s_prefix)
 		// Baker: I totally don't trust this at this time.
 		// This returns file names without the path
 		listdirectory	(&all_contents_of_video_folder_list, gamedir_slash_video_slash /* id1/video/ */, "");
-		
+
 		//stringlist_condump (&all_contents_of_video_folder_list);
 
 		stringlist_t fps_list = {0};
@@ -453,14 +453,14 @@ int GetVideoList_Count (const char *s_prefix)
 		//
 		stringlistfreecontents (&all_contents_of_video_folder_list);
 		stringlistfreecontents (&fps_list);
-		
+
 #endif
 
 	}
 	stringlistsort (&list, fs_make_unique_true);
 
 	int num_matches = 0;
-	
+
 	// Baker: We want to keep the extension
 	// Baker: We want to remove "video\" prefix
 	for (int idx = 0; idx < list.numstrings; idx ++) {
@@ -597,6 +597,8 @@ continuey:
 	return num_matches;
 }
 
+
+
 int GetAny1_Count (const char *s_prefix, const char *s_singleton)
 {
 	int			num_matches = 0;
@@ -667,7 +669,7 @@ int GetEdictsCmd_Count (const char *s_prefix)
 	return num_matches;
 }
 
-// 
+//
 int GetREditLightsEdit_Count (const char *s_prefix)
 {
 	// Ok .. this has to be sorted due to first/last.
@@ -772,7 +774,7 @@ int GetTexGeneric_Count (const char *s_prefix)
 			char *sxy = t->filenames[idx];
 
 			SPARTIAL_EVAL_
-			
+
 			num_matches ++;
 		} // for
 	} // if
@@ -791,7 +793,7 @@ int GetSoundList_Count (const char *s_prefix)
 	// Remove extension before we add an extension in the pattern further down
 	c_strlcpy (s_prefix_no_ext, s_prefix);
 	File_URL_Edit_Remove_Extension (s_prefix_no_ext);
-	
+
 	stringlist_t list = {0};
 
 	va_super(spattern1, MAX_QPATHX2_256, "%s*.wav", s_prefix_no_ext); stringlistappend_search_pattern (&list, spattern1);
@@ -978,7 +980,7 @@ int GetFolderList_Count (const char *s_prefix)
 	} // for
 
 	if (num_matches == 1) {
-		// If only one match, we indicate the intention to help 
+		// If only one match, we indicate the intention to help
 		// the autocompletion "enter the folder"
 		if (String_Match (s_prefix, ac->s_match_alphalast_a)) {
 			// Completely replace search results
@@ -986,7 +988,7 @@ int GetFolderList_Count (const char *s_prefix)
 			freenull_ (ac->s_match_alphalast_a);
 			freenull_ (ac->s_match_alphatop_a);
 			freenull_ (ac->s_match_before_a);
-			
+
 			c_strlcpy (sthisy, s_prefix);
 			c_strlcat (sthisy, "/");
 
@@ -1026,7 +1028,7 @@ int CatList (stringlist_t *pmain_list, const char *s_path, const char *s_prefix,
 		for (int idx = 0; idx < t->numfilenames; idx++) {
 			// Baker: We are getting the fullpath like "progs/player.mdl"
 			// However, for our purposes we need to reduce
-			
+
 			char *sxy = t->filenames[idx];
 			const char *s_skippath = File_URL_SkipPath(sxy);
 			stringlistappend (pmain_list, s_skippath);
@@ -1042,6 +1044,122 @@ int CatList (stringlist_t *pmain_list, const char *s_path, const char *s_prefix,
 // "showmodel"
 // Autocomplete of paths and or .md3 .obj .mdl .spr .bsp in path
 int GetShowModelList_Count (const char *s_prefix)
+{
+	autocomplete_t *ac = &_g_autocomplete;
+
+	stringlist_t list;
+
+	char s_prefix_copy[1024] ;
+	char gamepathos[1024] ;
+	char s_prefix_filename_only[1024] ;
+	char sthisy[1024] ;
+
+	const char *safterpath = File_URL_SkipPath (s_prefix);
+		char sgdwork[1024];
+		c_strlcpy (sgdwork, fs_gamedir); // "id1/"
+		File_URL_Remove_Trailing_Unix_Slash (sgdwork);
+
+		const char *slastcom = File_URL_SkipPath(sgdwork);
+		char sgamedirlast[1024];
+		c_strlcpy (sgamedirlast, slastcom);
+		File_URL_Remove_Trailing_Unix_Slash (sgamedirlast);
+		// sgamedirlast is like "id1" or "travail" or whatever
+
+	WARP_X_ (Con_Folder_f)
+
+	// What is dir?
+	c_strlcpy  (s_prefix_copy, s_prefix);
+	if (String_Ends_With (s_prefix_copy, "/") == false)
+		File_URL_Edit_Reduce_To_Parent_Path_Trailing_Slash (s_prefix_copy);
+	c_strlcpy  (s_prefix_filename_only, safterpath);
+
+	c_strlcpy  (gamepathos, sgamedirlast); // "id1"
+	c_strlcat  (gamepathos, "/");
+	// fs_gamedir "C:\Users\Main\Documents/My Games/zircon/id1/"
+	// fs_gamedir "id1/"
+	// gamedirname1
+	if (s_prefix_copy[0])
+		c_strlcat  (gamepathos, s_prefix_copy);
+
+	if (s_prefix_copy[0] && String_Ends_With (gamepathos,  "/")==false) {
+		c_strlcat  (gamepathos, "/");		// Directory to list
+		c_strlcat  (s_prefix_copy, "/");
+	}
+
+	stringlistinit	(&list);
+	// game pathos tends to be "id1/" here
+	// game pathos tends to be "id1/progs/"
+	listdirectory	(&list, gamepathos /*fs_gamedir*/, fs_all_files_empty_string);
+
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.mdl");
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.md3");
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.spr");
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.obj");
+
+	// SORT
+	stringlistsort (&list, /*uniq*/ fs_make_unique_true);
+
+	int num_matches = 0;
+
+	for (int idx = 0; idx < list.numstrings; idx ++) {
+		char *s_this = list.strings[idx];
+
+		if (String_Is_Dot(s_this) || String_Is_DotDot(s_this))
+			continue; // ignore "." and ".." as filenames
+
+		if (String_Starts_With_Caseless (s_this, s_prefix_filename_only) == false)
+			continue;
+
+		if (String_Ends_With_Caseless (s_this, ".mdl") ||
+			String_Ends_With_Caseless (s_this, ".md3") ||
+			String_Ends_With_Caseless (s_this, ".spr") ||
+			String_Ends_With_Caseless (s_this, ".obj") ||
+			String_Contains (s_this, ".") == false)
+		{
+			// Stay
+		} else {
+			continue; // Disqualified
+		}
+
+		// Preserve the result to a variable
+		// outside the for loop in case there is only one match
+		c_strlcpy (sthisy, s_prefix_copy);
+		c_strlcat (sthisy, s_this);
+
+		char *sxy = sthisy;
+		//File_URL_Edit_Remove_Extension (sxy);
+
+		SPARTIAL_EVAL_
+
+		num_matches ++;
+	} // for
+
+	// Baker: Don't offer a trailing slash if there is a dot in it, probably a .mdl or other file
+	if (num_matches == 1 && String_Contains(ac->s_match_alphalast_a, ".") == false) {
+		// If only one match, we indicate the intention to help
+		// the autocompletion "enter the folder"
+		if (String_Match (s_prefix, ac->s_match_alphalast_a)) {
+			// Completely replace search results
+			freenull_ (ac->s_match_after_a)
+			freenull_ (ac->s_match_alphalast_a);
+			freenull_ (ac->s_match_alphatop_a);
+			freenull_ (ac->s_match_before_a);
+
+			c_strlcpy (sthisy, s_prefix);
+			c_strlcat (sthisy, "/");
+
+			char *sxy = sthisy;
+			SPARTIAL_EVAL_
+		}
+	}
+
+	stringlistfreecontents(&list);
+
+	return num_matches;
+}
+
+
+int GetAnimatedGIF_Count (const char *s_prefix)
 {
 	autocomplete_t *ac = &_g_autocomplete;
 
@@ -1088,11 +1206,10 @@ int GetShowModelList_Count (const char *s_prefix)
 	// game pathos tends to be "id1/" here
 	// game pathos tends to be "id1/progs/"
 	listdirectory	(&list, gamepathos /*fs_gamedir*/, fs_all_files_empty_string);
-	
-	CatList (&list, gamepathos, s_prefix_filename_only, "*.mdl");
-	CatList (&list, gamepathos, s_prefix_filename_only, "*.md3");
-	CatList (&list, gamepathos, s_prefix_filename_only, "*.spr");
-	CatList (&list, gamepathos, s_prefix_filename_only, "*.obj");
+
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.tga");
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.jpg");
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.png");
 
 	// SORT
 	stringlistsort (&list, /*uniq*/ fs_make_unique_true);
@@ -1108,10 +1225,7 @@ int GetShowModelList_Count (const char *s_prefix)
 		if (String_Starts_With_Caseless (s_this, s_prefix_filename_only) == false)
 			continue;
 
-		if (String_Ends_With_Caseless (s_this, ".mdl") || 
-			String_Ends_With_Caseless (s_this, ".md3") || 
-			String_Ends_With_Caseless (s_this, ".spr") || 
-			String_Ends_With_Caseless (s_this, ".obj") || 
+		if (String_Ends_With_Caseless (s_this, ".gif") ||
 			String_Contains (s_this, ".") == false)
 		{
 			// Stay
@@ -1134,7 +1248,7 @@ int GetShowModelList_Count (const char *s_prefix)
 
 	// Baker: Don't offer a trailing slash if there is a dot in it, probably a .mdl or other file
 	if (num_matches == 1 && String_Contains(ac->s_match_alphalast_a, ".") == false) {
-		// If only one match, we indicate the intention to help 
+		// If only one match, we indicate the intention to help
 		// the autocompletion "enter the folder"
 		if (String_Match (s_prefix, ac->s_match_alphalast_a)) {
 			// Completely replace search results
@@ -1142,7 +1256,7 @@ int GetShowModelList_Count (const char *s_prefix)
 			freenull_ (ac->s_match_alphalast_a);
 			freenull_ (ac->s_match_alphatop_a);
 			freenull_ (ac->s_match_before_a);
-			
+
 			c_strlcpy (sthisy, s_prefix);
 			c_strlcat (sthisy, "/");
 
@@ -1156,16 +1270,147 @@ int GetShowModelList_Count (const char *s_prefix)
 	return num_matches;
 }
 
-int GetGameCommands_Count (const char *s_prefix, const char *s_gamecommands_string)
+int GetShowTGAJPGPNGList_Count (const char *s_prefix)
+{
+	autocomplete_t *ac = &_g_autocomplete;
+
+	stringlist_t list;
+
+	char s_prefix_copy[1024] ;
+	char gamepathos[1024] ;
+	char s_prefix_filename_only[1024] ;
+	char sthisy[1024] ;
+
+	const char *safterpath = File_URL_SkipPath (s_prefix);
+		char sgdwork[1024];
+		c_strlcpy (sgdwork, fs_gamedir);
+		File_URL_Remove_Trailing_Unix_Slash (sgdwork);
+
+		const char *slastcom = File_URL_SkipPath(sgdwork);
+		char sgamedirlast[1024];
+		c_strlcpy (sgamedirlast, slastcom);
+		File_URL_Remove_Trailing_Unix_Slash (sgamedirlast);
+		// sgamedirlast is like "id1" or "travail" or whatever
+
+	WARP_X_ (Con_Folder_f)
+
+	// What is dir?
+	c_strlcpy  (s_prefix_copy, s_prefix);
+	if (String_Ends_With (s_prefix_copy, "/") == false)
+		File_URL_Edit_Reduce_To_Parent_Path_Trailing_Slash (s_prefix_copy);
+	c_strlcpy  (s_prefix_filename_only, safterpath);
+
+	c_strlcpy  (gamepathos, sgamedirlast); // "id1"
+	c_strlcat  (gamepathos, "/");
+	// fs_gamedir "C:\Users\Main\Documents/My Games/zircon/id1/"
+	// fs_gamedir "id1/"
+	// gamedirname1
+	if (s_prefix_copy[0])
+		c_strlcat  (gamepathos, s_prefix_copy);
+
+	if (s_prefix_copy[0] && String_Ends_With (gamepathos,  "/")==false) {
+		c_strlcat  (gamepathos, "/");		// Directory to list
+		c_strlcat  (s_prefix_copy, "/");
+	}
+
+	stringlistinit	(&list);
+	// game pathos tends to be "id1/" here
+	// game pathos tends to be "id1/progs/"
+	listdirectory	(&list, gamepathos /*fs_gamedir*/, fs_all_files_empty_string);
+
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.tga");
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.jpg");
+	CatList (&list, gamepathos, s_prefix_filename_only, "*.png");
+
+	// SORT
+	stringlistsort (&list, /*uniq*/ fs_make_unique_true);
+
+	int num_matches = 0;
+
+	for (int idx = 0; idx < list.numstrings; idx ++) {
+		char *s_this = list.strings[idx];
+
+		if (String_Is_Dot(s_this) || String_Is_DotDot(s_this))
+			continue; // ignore "." and ".." as filenames
+
+		if (String_Starts_With_Caseless (s_this, s_prefix_filename_only) == false)
+			continue;
+
+		if (String_Ends_With_Caseless (s_this, ".tga") ||
+			String_Ends_With_Caseless (s_this, ".jpg") ||
+			String_Ends_With_Caseless (s_this, ".png") ||
+			String_Contains (s_this, ".") == false)
+		{
+			// Stay
+		} else {
+			continue; // Disqualified
+		}
+
+		// Preserve the result to a variable
+		// outside the for loop in case there is only one match
+		c_strlcpy (sthisy, s_prefix_copy);
+		c_strlcat (sthisy, s_this);
+
+		char *sxy = sthisy;
+		//File_URL_Edit_Remove_Extension (sxy);
+
+		SPARTIAL_EVAL_
+
+		num_matches ++;
+	} // for
+
+	// Baker: Don't offer a trailing slash if there is a dot in it, probably a .mdl or other file
+	if (num_matches == 1 && String_Contains(ac->s_match_alphalast_a, ".") == false) {
+		// If only one match, we indicate the intention to help
+		// the autocompletion "enter the folder"
+		if (String_Match (s_prefix, ac->s_match_alphalast_a)) {
+			// Completely replace search results
+			freenull_ (ac->s_match_after_a)
+			freenull_ (ac->s_match_alphalast_a);
+			freenull_ (ac->s_match_alphatop_a);
+			freenull_ (ac->s_match_before_a);
+
+			c_strlcpy (sthisy, s_prefix);
+			c_strlcat (sthisy, "/");
+
+			char *sxy = sthisy;
+			SPARTIAL_EVAL_
+		}
+	}
+
+	stringlistfreecontents(&list);
+
+	return num_matches;
+}
+
+int GetGameCommands_Count (const char *s_prefix, ccs *s_gamecommands_string)
 {
 	// This process depends on this s_gamecommands_string having items.
 	if (s_gamecommands_string[0] == NULL_CHAR_0)
 		return 0;
 
-	stringlist_t matchedSet;
-	
-	stringlistinit	(&matchedSet); // this does not allocate, memset 0
 
+#if 1
+	stringlist_t matchedSet = {0};
+	char *s_za = Z_StrDup (s_gamecommands_string);
+	String_Edit_Trim (s_za);
+	//ccs *s_dbl = NULL;
+
+	while (strstr(s_za, " " " ")) {
+		size_t slenp1 = strlen(s_za) + ONE_CHAR_1;
+		String_Edit_Replace (s_za, slenp1, "  ", " "); // Replace 2x spaces with 1x space.
+	}
+
+	stringlistappend_split (&matchedSet, s_za, " ");
+	Mem_FreeNull_ (s_za);
+
+#endif
+
+
+#if 0
+	stringlist_t matchedSet;
+
+	stringlistinit	(&matchedSet); // this does not allocate, memset 0
 	const char	*s_space_delim		= " ";
 	int			s_len			= (int)strlen(s_gamecommands_string);
 	int			s_delim_len		= (int)strlen(s_space_delim);
@@ -1197,6 +1442,8 @@ int GetGameCommands_Count (const char *s_prefix, const char *s_gamecommands_stri
 
 		searchpos = (space_pos - s_gamecommands_string) + s_delim_len;
 	} // while
+#endif
+
 
 	// SORT plus unique-ify
 	stringlistsort (&matchedSet, fs_make_unique_true);
@@ -1217,3 +1464,39 @@ int GetGameCommands_Count (const char *s_prefix, const char *s_gamecommands_stri
 
 	return num_matches;
 }
+
+int GetModelPrecacheList_Count (const char *s_prefix)
+{
+	if (!r_refdef.scene.worldmodel)
+		return 0;
+
+	stringlist_t list = {0};
+
+	// Baker: Why 1?
+	for (int j = 1; j < MAX_MODELS_8192 && cl.model_name[j][0]; j ++) {
+		stringlistappend (&list, cl.model_name[j]);
+	} // for
+
+	// Sort
+
+	stringlistsort (&list, fs_make_unique_true);
+
+	int			num_matches = 0;
+
+	for (int idx = 0; idx < list.numstrings; idx ++) {
+		char *sxy =  list.strings[idx];
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false) {
+			continue;
+		}
+
+		SPARTIAL_EVAL_
+
+		num_matches ++;
+
+	} // idx
+
+	stringlistfreecontents (&list);
+
+	return num_matches;
+}
+

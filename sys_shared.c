@@ -570,7 +570,7 @@ void Sys_ProvideSelfFD(void)
 {
 	if (sys.selffd != -1)
 		return;
-	sys.selffd = FS_SysOpenFD(Sys_FindExecutableName(), "rb", false);
+	sys.selffd = FS_SysOpenFD(Sys_FindExecutableName(), "rb", /*nonblocking ?*/ false);
 }
 
 // for x86 cpus only...  (x64 has SSE2_PRESENT)

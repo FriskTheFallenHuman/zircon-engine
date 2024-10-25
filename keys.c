@@ -227,7 +227,7 @@ int Key_Console_Cursor_Move_Simplex(int cursor_now, int is_shifted)
 	const char *s = va(vabuf, sizeof(vabuf),
 		"START %d LENGTH %d DELTA %d SHIFTED? %d" NEWLINE, 
 		key_linepos, key_sellength, delta, is_shifted);
-	DebugPrintf (s);
+	DebugPrintLinef (s);
 #endif
 	return key_linepos; // Changed
 }
@@ -254,7 +254,7 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 		linesize = sizeof(chat_buffer);
 		linestart = 0;
 	}
-
+	
 	// Any non-shift action should clear the selection?
 	// Remember the typing of a normal key needs to stomp the selection
 
@@ -267,6 +267,17 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 		break; // while
 	} // while
 
+#if 1 // October 18 2024
+	if (key == K_CTRL && unicode == 0 && is_console) {
+		// Keydown only
+		WARP_X_ (SCR_InfoBar_f)
+		extern float scr_controldown_time;
+		extern cvar_t con_hints;
+		if (!scr_controldown_time && con_hints.value > 0)
+			scr_controldown_time = host.realtime; // Down start
+	}
+#endif
+
 	int ispaste =  (keydown[K_CTRL] && isin1 (key, 'v') ) ||
 					(keydown[K_SHIFT] && isin2 (key, K_INSERT, K_KP_INSERT) );
 
@@ -277,7 +288,8 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 
 		// clipboard retrievers: CTRL+V and SHIFT+INSERT
 
-		// Remove the selection, which should be several things really but these won't do their normal thing.
+		// Remove the selection, which could be several things really 
+		// but these won't do their normal thing.
 		int isremoveatom = (keydown[K_CTRL] && isin1 (key, 'x')) 
 						|| key == K_BACKSPACE || key == K_DELETE;
 
@@ -305,10 +317,12 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 
 		// If we are pasting, we delete the selection first.  If we are removing, obviously same.
 		if (ispaste || isremoveatom) {
-			Con_Undo_Point (q_undo_action_normal_0, q_was_a_space_false);
 			Partial_Reset ();
 			Key_Console_Delete_Selection_Move_Cursor_ClearSel ();
+			int j = 5;
 		}
+
+		linepos = is_console ? key_linepos : chat_bufferpos; // Update this variable
 
 		if (isremoveatom) {
 			// Already did everything we needed to do.  This is delete and backspace.
@@ -334,32 +348,41 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 		}
 
 		if ((cbd = Sys_GetClipboardData_Alloc()) != 0) {
-			int i;
+			int slen = strlen(cbd);
 #if 1
 			p = cbd;
-			while (*p)
-			{
-				if (*p == '\r' && *(p+1) == '\n')
-				{
+			while (*p) {
+				// Baker: Turn CRLF into "; "
+				if (*p == '\r' && *(p+1) == '\n') {
 					*p++ = ';';
 					*p++ = ' ';
 				}
+				// Baker: Turn backspace, newline, carriage return to ;
 				else if (*p == '\n' || *p == '\r' || *p == '\b')
 					*p++ = ';';
 				else
 					p++;
 			}
+			int slen2 = strlen(cbd);
 #else
 			strtok(cbd, "\n\r\b");
 #endif
-			i = (int)strlen(cbd);
+			int i = (int)strlen(cbd);
 			if (i + linepos >= MAX_INPUTLINE_16384)
 				i= MAX_INPUTLINE_16384 - linepos - 1;
 			if (i > 0) {
 				cbd[i] = 0;
+				int cursor0 = linepos + i;
+				// Baker: Copy ]frogs
+				//             ]GRAPESfrogs
+				char	*dest = &line[linepos + i];
+				char	*src  = &line[linepos];
+				int oldlinesize = linesize; // sizeof(key_line)
+				size_t  count = linesize  - linepos - i;
 				memmove(line + linepos + i, line + linepos, linesize - linepos - i);
 				memcpy(line + linepos, cbd, i);
 				linepos += i;
+				int j = 5;
 			}
 
 			Z_Free(cbd); // Baker: Sys_GetClipboardData_Alloc zallocs!
@@ -367,8 +390,106 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 		return linepos;
 	} // CTRL-V PASTE
 
+
+#if !defined(QUALKER) && !defined(OBJECTN) // CTRL-P Pause Freeze
+	if (key == 'p' && KM_CTRL && is_console) { // Baker: CTRL-P Pause Freeze
+		// (XU) kx: CTRL-P - pause freeze
+		extern cvar_t sv_cheats;
+		if (gamemode == GAME_NORMAL) {
+			if (cl.islocalgame && sv_cheats.integer && r_refdef.scene.worldmodel) {
+				Cvar_SetValueQuick (&sv_freezenonclients, !sv_freezenonclients.integer);
+				Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-P: Pause freeze %s (sv_freezenonclients %d)\" silent", sv_freezenonclients.integer ? "ON" : "OFF", sv_freezenonclients.integer);
+			} else if (!sv_cheats.integer) {
+				Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-P: Pause freeze CANNOT cheats disabled\" silent");
+			} else {
+				Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-P: Pause freeze CANNOT - no map\" silent");
+			}
+		}		
+		return linepos;
+	}
+#endif
+
+#if !defined(QUALKER) && !defined(OBJECTN) // tool_inspector
+	if (key == 'i' && KM_CTRL && is_console) { // Baker: CTRL-I toggle tool_inspector
+		// (XU) kx: CTRL-I - toggle inspector
+		extern cvar_t showtex;
+		Cvar_SetValueQuick (&tool_inspector, !tool_inspector.integer);
+		Cvar_SetValueQuick (&showtex, tool_inspector.integer);
+		Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-I: toolinspector %d with showtex %d\" silent", tool_inspector.integer, showtex.integer);
+		return linepos;
+	}
+#endif
+
+#if !defined(QUALKER) && !defined(OBJECTN) // CTRL-SHIFT-P showpos
+	if (key == 'p' && KM_CTRL_SHIFT && is_console) { // Baker: CTRL-SHIFT-P showpos
+		extern cvar_t sv_cheats;
+		extern cvar_t showpos;
+		extern cvar_t showangles;
+		if (gamemode == GAME_NORMAL) {
+			if (1) {
+				Cvar_SetValueQuick (&showangles, !showpos.integer);
+				Cvar_SetValueQuick (&showpos, !showpos.integer);
+				Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-SHIFT-P: showpos/showangles %d\" silent", showpos.integer);
+			}
+		}		
+		return linepos;
+	}
+#endif
+
+#if !defined(QUALKER) && !defined(OBJECTN) // TRACELINE
+	if (key == 't' && KM_CTRL && is_console) { // Baker: CTRL_T traceline
+		extern cvar_t sv_cheats;
+		if (gamemode == GAME_NORMAL) {
+			if (!cl.islocalgame || !r_refdef.scene.worldmodel) {
+				Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-T: traceline can't -- no server map\" silent", sv_freezenonclients.integer ? "ON" : "OFF");
+			} if (!sv_cheats.integer) {
+				Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-T: traceline can't -- sv_cheats is 0\" silent", sv_freezenonclients.integer ? "ON" : "OFF");
+			} else if (tool_marker.integer) {
+				Cvar_SetValueQuick (&tool_marker, 0);
+				Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-T: traceline cleared \" silent");
+			} else {
+				Cbuf_AddTextLinef (cmd, "%s", "traceline");
+				Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-T: traceline marked\" silent");
+			}
+		}		
+		return linepos;
+	}
+
+#endif
+
+	if (key == 's' && KM_CTRL_SHIFT && is_console) { // Baker: CTRL-I toggle tool_inspector
+		// (XU) kx: CTRL-I - toggle inspector
+		//Cvar_SetValueQuick (&tool_inspector, !tool_inspector.integer);
+		int is_on = false;
+		// Baker Oct 5 2024 does not work? Why?: 
+		cvar_t *did_find = Cvar_FindVar (&cvars_all, "_saved_showfps", ALL_FLAGS_ANTIZERO);
+		if (did_find == NULL) {
+			// Exists
+			//Cbuf_AddTextLinef (cmd, "echo start");
+			//Cbuf_AddTextLinef (cmd, "echo start2");
+			Cbuf_AddTextLinef (cmd, "set _saved_viewsize $viewsize; viewsize 120");
+			Cbuf_AddTextLinef (cmd, "set _saved_crosshair $crosshair; crosshair 0");
+			Cbuf_AddTextLinef (cmd, "set _saved_showfps $showfps; showfps 0");
+			Cbuf_AddTextLinef (cmd, "set _saved_r_drawviewmodel $r_drawviewmodel; r_drawviewmodel 0");
+
+			Cbuf_AddTextLinef (cmd, "viewsize 120; showfps 0; r_drawviewmodel 0; crosshair 0");
+			//Cbuf_AddTextLinef (cmd, "echo end");
+			is_on = true;
+		} else {
+			Cbuf_AddTextLinef (cmd, "viewsize $_saved_viewsize; unset _saved_viewsize");
+			Cbuf_AddTextLinef (cmd, "crosshair $_saved_crosshair; unset _saved_crosshair");
+			Cbuf_AddTextLinef (cmd, "showfps $_saved_showfps; unset _saved_showfps");
+			Cbuf_AddTextLinef (cmd, "r_drawviewmodel $_saved_r_drawviewmodel; unset _saved_r_drawviewmodel");
+		}
+
+		Cbuf_AddTextLinef (cmd, "infobar 2 \"CTRL-SHIFT-S: screenshot settings = %s\" silent", is_on ? "ON" : "OFF" );
+		return linepos;
+	}
+
 	if (key == 'u' && KM_CTRL) { // like vi/readline ^u: delete currently edited line
 		// (XU) kx: CTRL-U - clear line
+		if (is_console)
+			Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-U: cleared edit line\" silent");
 		return Key_ClearEditLine(is_console); // SEL/UNDO CTRL-U covered since it calls Key_ClearEditLine
 	}
 
@@ -529,7 +650,7 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 
 			do {
 				k = line[--pos];
-				if (!(k == '\"' || k == ';' || k == ' ' || k == '\''))
+				if (!(k == '\"' || k == ';' || k == ' ' || k == '\'' || k == '/'))
 					break;
 			} while(pos > linestart); // skip all "; ' after the word
 
@@ -538,7 +659,7 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 
 			do {
 				k = line[--pos];
-				if (k == '\"' || k == ';' || k == ' ' || k == '\'')
+				if (k == '\"' || k == ';' || k == ' ' || k == '\''  || k == '/')
 				{
 					pos++;
 					break;
@@ -602,7 +723,7 @@ int Key_Parse_CommonKeys(cmd_state_t *cmd, qbool is_console, int key, int unicod
 			// So this is fine.
 			while (++pos < len) {
 				k = line[pos];
-				if (k == '\"' || k == ';' || k == ' ' || k == '\'')
+				if (k == '\"' || k == ';' || k == ' ' || k == '\'' || k == '/')
 					break;
 			} // while
 
@@ -812,6 +933,7 @@ Key_Console(cmd_state_t *cmd, int key, int unicode)
 			// (X) kx: CTRL-F - inert
 			// CTRL-F Baker: This does not affect line
 			Key_History_Find_All();
+			Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-F: find history command matching\" silent");
 			return;
 		}
 		// Search forwards/backwards, pointing the history's index to the
@@ -821,11 +943,14 @@ Key_Console(cmd_state_t *cmd, int key, int unicode)
 			// (X) kx: CTRL-SHIFT-R - inert
 			// CTRL-R Baker: This does not affect line
 			Key_History_Find_Forwards();
+			//if (is_console)
+			Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-SHIFT-R: find history forward\" silent");
 			return;
 		}
 		if (key == 'r' && KM_CTRL) {
 			// (X) kx: CTRL-R - inert
 			Key_History_Find_Backwards();
+			Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-R: find history backwards\" silent");
 			return;
 		}
 
@@ -834,6 +959,7 @@ Key_Console(cmd_state_t *cmd, int key, int unicode)
 			// (X) kx: CTRL-COMMA - stomps line
 			Partial_Reset_Undo_Clear_Selection_Reset (); // SEL/UNDO CTRL-COMMA sets current line
 			Key_History_First();
+			Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-COMMA: goto first command in history\" silent");
 			return;
 		}
 
@@ -841,6 +967,7 @@ Key_Console(cmd_state_t *cmd, int key, int unicode)
 			// (X) kx: CTRL-DOT - stomps line
 			Partial_Reset_Undo_Clear_Selection_Reset (); // SEL/UNDO CTRL-COMMA sets current line
 			Key_History_Last();
+			Cbuf_AddTextLinef (cmd, "infobar 3 \"CTRL-COMMA: goto most recent command in history\" silent");
 			return;
 		}
 	}

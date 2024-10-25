@@ -143,10 +143,12 @@ typedef struct q3deffect_s
 }
 q3deffect_t;
 
-#define Q3FACETYPE_FLAT 1 // common
-#define Q3FACETYPE_PATCH 2 // common
-#define Q3FACETYPE_MESH 3 // common
-#define Q3FACETYPE_FLARE 4 // rare (is this ever used?)
+#define Q3FACETYPE_FLAT 1	// common - Baker: MST_PLANAR
+#define Q3FACETYPE_PATCH 2	// common - Baker: MST_PATCH in q3map2 source
+#define Q3FACETYPE_MESH 3	// common - Baker: MST_TRIANGLE_SOUP
+#define Q3FACETYPE_FLARE 4	// rare (is this ever used?) - Baker: MST_FLARE in q3map2
+
+// Baker: MST_FOLIAGE is 5 in q3map2 source (Enemy Territory)
 
 typedef struct q3dface_s
 {

@@ -79,6 +79,8 @@ void Cvar_Audit_f(cmd_state_t *cmd)
 Cvar_FindVar
 ============
 */
+// Baker: "neededflags" is more than that.  give it ALL_FLAGS_ANTIZERO
+// if anything goes, otherwise nothing will be returned.
 cvar_t *Cvar_FindVar(cvar_state_t *cvars, const char *var_name, int neededflags)
 {
 	int hashindex;

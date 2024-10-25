@@ -195,7 +195,6 @@ cvar_t v_color_white_g = {CF_CLIENT | CF_ARCHIVE, "v_color_white_g", "1", "desir
 cvar_t v_color_white_b = {CF_CLIENT | CF_ARCHIVE, "v_color_white_b", "1", "desired color of white"};
 cvar_t v_psycho = {CF_CLIENT, "v_psycho", "0", "easter egg - R.I.P. zinx http://obits.al.com/obituaries/birmingham/obituary.aspx?n=christopher-robert-lais&pid=186080667"};
 
-
 cvar_t gl_finish = {CF_CLIENT, "gl_finish", "0", "make the cpu wait for the graphics processor at the end of each rendered frame (can help with strange input or video lag problems on some machines)"};
 
 cvar_t v_glslgamma_2d = {CF_CLIENT | CF_ARCHIVE, "v_glslgamma_2d", "1", "applies GLSL gamma to 2d pictures (HUD, fonts)"};
@@ -1124,7 +1123,9 @@ static void Force_CenterView_f(cmd_state_t *cmd)
 {
 	cl.viewangles[PITCH] = 0;
 	cl.viewangles[ROLL] = 0;
+	old_vid_kickme += 12; // Force_CenterView_f
 }
+
 
 static int gamma_forcenextframe = false;
 static float cachegamma, cachebrightness, cachecontrast, cacheblack[3], cachegrey[3], cachewhite[3], cachecontrastboost;
@@ -1406,12 +1407,12 @@ static void VID_OpenSystems(void)
 {
 	Key_ReleaseAll ();
 	R_Modules_Start();
-	S_Startup();
+	//S_Startup();
 }
 
 static void VID_CloseSystems(void)
 {
-	S_Shutdown();
+	//S_Shutdown();
 	R_Modules_Shutdown();
 	Key_ReleaseAll ();
 }
@@ -1422,6 +1423,8 @@ extern qbool vid_opened;
 void VID_Restart_f(cmd_state_t *cmd)
 {
 	char vabuf[1024];
+
+	//old_vid_kickme++;
 
 	// don't crash if video hasn't started yet
 	if (vid_commandlinecheck)
@@ -1523,6 +1526,7 @@ void VID_Start(void)
 			Sys_Error ("Video modes failed");
 	}
 	VID_OpenSystems();
+	S_Startup();
 }
 
 void VID_Stop(void)

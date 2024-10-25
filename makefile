@@ -76,9 +76,10 @@ endif
 # default targets
 TARGETS_DEBUG=sv-debug sdl-debug
 TARGETS_OBJECTN=sv-objectn sdl-objectn
+TARGETS_QUALKER=sv-qualker sdl-qualker
 TARGETS_PROFILE=sv-profile sdl-profile
 TARGETS_RELEASE=sv-release sdl-release
-TARGETS_ZIRCON=sv-release sdl-release sv-objectn sdl-objectn
+TARGETS_ZIRCON=sv-release sdl-release sv-objectn sdl-objectn sv-qualker sdl-qualker
 TARGETS_RELEASE_PROFILE=sv-release-profile sdl-release-profile
 TARGETS_NEXUIZ=sv-nexuiz sdl-nexuiz
 
@@ -110,6 +111,8 @@ ifeq ($(DP_MAKE_TARGET), linux)
 	EXE_SDLNEXUIZ=$(EXE_UNIXSDLNEXUIZ)
 	EXE_SVOBJECTN=$(EXE_UNIXSVOBJECTN)
 	EXE_SDLOBJECTN=$(EXE_UNIXSDLOBJECTN)
+	EXE_SVQUALKER=$(EXE_UNIXSVQUALKER)
+	EXE_SDLQUALKER=$(EXE_UNIXSDLQUALKER)
 
 	DP_LINK_SDL?=shared
 	DP_LINK_ZLIB?=shared
@@ -138,6 +141,8 @@ ifeq ($(DP_MAKE_TARGET), macosx)
 	EXE_SDLNEXUIZ=$(EXE_UNIXSDLNEXUIZ)
 	EXE_SVOBJECTN=$(EXE_UNIXSVOBJECTN)
 	EXE_SDLOBJECTN=$(EXE_UNIXSDLOBJECTN)
+	EXE_SVOBJECTN=$(EXE_UNIXSVQUALKER)
+	EXE_SDLOBJECTN=$(EXE_UNIXSDLQUALKER)
 
 	ifeq ($(word 2, $(filter -arch, $(CC))), -arch)
 		CFLAGS_MAKEDEP=
@@ -156,11 +161,11 @@ ifeq ($(DP_MAKE_TARGET), macosx)
 	TARGETS_DEBUG=sv-debug sdl-debug
 	TARGETS_PROFILE=sv-profile sdl-profile
 	TARGETS_OBJECTN=sv-objectn sdl-objectn
-	TARGETS_ZIRCON=sv-release sdl-release sv-objectn sdl-objectn
+	TARGETS_QUALKER=sv-qualker sdl-qualker
+	TARGETS_ZIRCON=sv-release sdl-release sv-objectn sdl-objectn sv-qualker sdl-qualker
 	TARGETS_RELEASE=sv-release sdl-release
 	TARGETS_RELEASE_PROFILE=sv-release-profile sdl-release-profile
 	TARGETS_NEXUIZ=sv-nexuiz sdl-nexuiz
-	TARGETS_OBJECTN=sv-objectn sdl-objectn
 endif
 
 # SunOS configuration (Solaris)
@@ -183,6 +188,8 @@ ifeq ($(DP_MAKE_TARGET), sunos)
 	EXE_SDLNEXUIZ=$(EXE_UNIXSDLNEXUIZ)
 	EXE_SVOBJECTN=$(EXE_UNIXSVOBJECTN)
 	EXE_SDLOBJECTN=$(EXE_UNIXSDLOBJECTN)
+	EXE_SVQUALKER=$(EXE_UNIXSVQUALKER)
+	EXE_SDLQUALKER=$(EXE_UNIXSDLQUALKER)
 
 	DP_LINK_SDL?=shared
 	DP_LINK_ZLIB?=shared
@@ -212,6 +219,8 @@ ifeq ($(DP_MAKE_TARGET), bsd)
 	EXE_SDLNEXUIZ=$(EXE_UNIXSDLNEXUIZ)
 	EXE_SVOBJECTN=$(EXE_UNIXSVOBJECTN)
 	EXE_SDLOBJECTN=$(EXE_UNIXSDLOBJECTN)
+	EXE_SVQUALKER=$(EXE_UNIXSVQUALKER)
+	EXE_SDLQUALKER=$(EXE_UNIXSDLQUALKER)
 
 	DP_LINK_SDL?=shared
 	DP_LINK_ZLIB?=shared
@@ -260,6 +269,8 @@ ifeq ($(DP_MAKE_TARGET), mingw)
 	EXE_SDLNEXUIZ=$(EXE_WINSDLNEXUIZ)
 	EXE_SVOBJECTN=$(EXE_UNIXSVOBJECTN)
 	EXE_SDLOBJECTN=$(EXE_UNIXSDLOBJECTN)
+	EXE_SVQUALKER=$(EXE_UNIXSVQUALKER)
+	EXE_SDLQUALKER=$(EXE_UNIXSDLQUALKER)
 
 	DP_LINK_SDL?=shared
 	DP_LINK_ZLIB?=dlopen

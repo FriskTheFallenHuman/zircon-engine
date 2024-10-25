@@ -2482,7 +2482,7 @@ void Cmd_ExecuteString (cmd_state_t *cmd, const char *text, cmd_source_t src, qb
 
 #if 1
 	if (developer_execstring.integer) {
-		DebugPrintf ("exec: " QUOTED_S, text);
+		DebugPrintLinef ("exec: " QUOTED_S, text);
 	}
 #endif
 

@@ -113,16 +113,18 @@ if (String_Match_Caseless(com_token, "{")) {
 			// buttonmap textures/causticBr/FWATER01.png textures/causticBr/FWATER02.png 
 			// 3 params, right?  So subtract 1 for number of frames.
 			layer->sh_numframes = min(numparameters - 1, TEXTURE_MAXFRAMES_64);
-			if (layer->sh_numframes != 2) {
-				Con_PrintLinef (CON_WARN "framemap supports only 2 textures at this time, %d frames specified", layer->sh_numframes);
-				if (layer->sh_numframes >= 2)
-					layer->sh_numframes = 2;
-				else layer->sh_numframes = 0;
-			}
+			//if (layer->sh_numframes != 2) {
+			//	Con_PrintLinef (CON_WARN "framemap supports only 2 textures at this time, %d frames specified", layer->sh_numframes);
+			//	if (layer->sh_numframes >= 2)
+			//		layer->sh_numframes = 2;
+			//	else layer->sh_numframes = 0;
+			//}
 			if (layer->sh_numframes) {
 				layer->sh_ptexturename = (char **) Mem_Alloc (q3shaders_mem, sizeof (char *) * layer->sh_numframes);
 				for (i = 0; i < layer->sh_numframes; i ++) {
-					layer->sh_ptexturename[i] = Mem_strdup (q3shaders_mem, parameter[i + 2]);
+					ccs *sss = parameter[i + 1];
+					layer->sh_ptexturename[i] = Mem_strdup (q3shaders_mem, 
+						sss /*parameter[i + 2]*/);
 				} // for
 			}
 		} else if (numparameters >= 2 && String_Match_Caseless(parameter[0], "rgbgen")) {
@@ -305,6 +307,7 @@ if (String_Match_Caseless(parameter[0], "surfaceparm") && numparameters >= 2) {
 	else if (String_Match_Caseless(parameter[1], "lava"))			shader.surfaceparms |= Q3SURFACEPARM_LAVA;
 	else if (String_Match_Caseless(parameter[1], "lightfilter"))	shader.surfaceparms |= Q3SURFACEPARM_LIGHTFILTER;
 	else if (String_Match_Caseless(parameter[1], "lightgrid"))		shader.surfaceparms |= Q3SURFACEPARM_LIGHTGRID;
+	else if (String_Match_Caseless(parameter[1], "monsterclip"))	{ /* Baker: Added, do nothing this is compile time makes surface do CONTENTSQ3_MONSTERCLIP or such */ }
 	else if (String_Match_Caseless(parameter[1], "metalsteps"))	shader.surfaceparms |= Q3SURFACEPARM_METALSTEPS;
 	else if (String_Match_Caseless(parameter[1], "nodamage"))		shader.surfaceparms |= Q3SURFACEPARM_NODAMAGE;
 	else if (String_Match_Caseless(parameter[1], "nodlight"))		shader.surfaceparms |= Q3SURFACEPARM_NODLIGHT;

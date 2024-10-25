@@ -848,8 +848,7 @@ static void VM_SV_tracetoss(prvm_prog_t *prog)
 	prog->xfunction->builtinsprofile += 600;
 
 	ent = PRVM_G_EDICT(OFS_PARM0);
-	if (ent == prog->edicts)
-	{
+	if (ent == prog->edicts) {
 		VM_WarningLinef (prog, "tracetoss: can not use world entity");
 		return;
 	}
@@ -869,6 +868,7 @@ static int checkpvsbytes;
 static unsigned char checkpvs[MAX_MAP_LEAFS_65536/8];
 #endif
 
+// Returns clients edict number for checkclient (which is monster find target)
 static int VM_SV_newcheckclient(prvm_prog_t *prog, int check)
 {
 	int		i;
@@ -932,7 +932,7 @@ it is not returned at all.
 name checkclient ()
 =================
 */
-int c_invis, c_notvis;
+int c_invis, c_notvis; // Baker: August 6 2024 -- Yay!  Some shitty globals.  And used for nothing so engine developer vars.
 static void VM_SV_checkclient(prvm_prog_t *prog)
 {
 	prvm_edict_t	*ent, *self;
@@ -941,16 +941,14 @@ static void VM_SV_checkclient(prvm_prog_t *prog)
 	VM_SAFEPARMCOUNT(0, VM_SV_checkclient);
 
 	// find a new check if on a new frame
-	if (sv.time - sv.lastchecktime >= 0.1)
-	{
+	if (sv.time - sv.lastchecktime >= 0.1) {
 		sv.lastcheck = VM_SV_newcheckclient(prog, sv.lastcheck);
 		sv.lastchecktime = sv.time;
 	}
 
 	// return check if it might be visible
 	ent = PRVM_EDICT_NUM(sv.lastcheck);
-	if (ent->free || PRVM_serveredictfloat(ent, health) <= 0)
-	{
+	if (ent->free || PRVM_serveredictfloat(ent, health) <= 0) {
 		VM_RETURN_EDICT(prog->edicts);
 		return;
 	}
@@ -964,8 +962,8 @@ static void VM_SV_checkclient(prvm_prog_t *prog)
 	if (sv.worldmodel && checkpvsbytes && !sv.worldmodel->brush.BoxTouchingPVS(sv.worldmodel, checkpvs, view, view))
 #endif
 	{
-		c_notvis++;
-		VM_RETURN_EDICT(prog->edicts);
+		c_notvis ++;
+		VM_RETURN_EDICT(prog->edicts); // Baker: I assume this returns 0 or world.
 		return;
 	}
 
@@ -1265,7 +1263,7 @@ static void VM_SV_walkmove(prvm_prog_t *prog)
 	dist = PRVM_G_FLOAT(OFS_PARM1);
 	settrace = prog->argc >= 3 && PRVM_G_FLOAT(OFS_PARM2);
 
-	if ( !( (int)PRVM_serveredictfloat(ent, flags) & (FL_ONGROUND|FL_FLY|FL_SWIM) ) )
+	if ( !( (int)PRVM_serveredictfloat(ent, flags) & (FL_ONGROUND_512|FL_FLY_1|FL_SWIM_2) ) )
 		return;
 
 	yaw = yaw*M_PI*2 / 360;
@@ -1324,28 +1322,27 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 	else
 		end[2] -= 256; // Quake, QuakeWorld
 
-	if (sv_gameplayfix_droptofloorstartsolid_nudgetocorrect.integer)
+	if (sv_gameplayfix_droptofloorstartsolid_nudgetocorrect.integer /*d:0 for Quake*/)
 		SV_NudgeOutOfSolid(ent);
 
 	VectorCopy(PRVM_serveredictvector(ent, origin), entorigin);
 	VectorCopy(PRVM_serveredictvector(ent, mins), entmins);
 	VectorCopy(PRVM_serveredictvector(ent, maxs), entmaxs);
-	trace = SV_TraceBox(entorigin, entmins, entmaxs, end, MOVE_NORMAL, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value);
-	if (trace.startsolid && sv_gameplayfix_droptofloorstartsolid.integer)
-	{
+	trace = SV_TraceBox(entorigin, entmins, entmaxs, end, MOVE_NORMAL, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value /*d: 16*/);
+	if (trace.startsolid && sv_gameplayfix_droptofloorstartsolid.integer /*d:1 for Quake in Zircon but not DarkPlaces Classic*/) {
 		vec3_t offset, org;
 		VectorSet(offset, 0.5f * (PRVM_serveredictvector(ent, mins)[0] + PRVM_serveredictvector(ent, maxs)[0]), 0.5f * (PRVM_serveredictvector(ent, mins)[1] + PRVM_serveredictvector(ent, maxs)[1]), PRVM_serveredictvector(ent, mins)[2]);
 		VectorAdd(PRVM_serveredictvector(ent, origin), offset, org);
-		trace = SV_TraceLine(org, end, MOVE_NORMAL, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value);
+		trace = SV_TraceLine(org, end, MOVE_NORMAL, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value /*d: 16*/);
 		VectorSubtract(trace.endpos, offset, trace.endpos);
 		if (trace.startsolid) {
-			Con_PrintLinef (CON_WARN "droptofloor at " VECTOR3_5d1F " (#%d %s) - COULD NOT FIX BADLY PLACED ENTITY", 
+			Con_DPrintLinef (CON_WARN "droptofloor at " VECTOR3_5d1F " (#%d %s) - COULD NOT FIX BADLY PLACED ENTITY", 
 				VECTOR3_SEND (PRVM_serveredictvector(ent, origin)),
 				PRVM_NUM_FOR_EDICT(ent),
 				PRVM_GetString(prog, PRVM_serveredictstring(ent, classname))
 			);
 			SV_LinkEdict(ent);
-			PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) | FL_ONGROUND;
+			PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) | FL_ONGROUND_512;
 			PRVM_serveredictedict(ent, groundentity) = 0;
 			PRVM_G_FLOAT(OFS_RETURN) = 1;
 		}
@@ -1359,10 +1356,10 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 				PRVM_GetString(prog, PRVM_serveredictstring(ent, classname))
 			);
 			VectorCopy (trace.endpos, PRVM_serveredictvector(ent, origin));
-			if (sv_gameplayfix_droptofloorstartsolid_nudgetocorrect.integer)
+			if (sv_gameplayfix_droptofloorstartsolid_nudgetocorrect.integer /*d:0 for Quake*/)
 				SV_NudgeOutOfSolid(ent);
 			SV_LinkEdict(ent);
-			PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) | FL_ONGROUND;
+			PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) | FL_ONGROUND_512;
 			PRVM_serveredictedict(ent, groundentity) = PRVM_EDICT_TO_PROG(trace.ent);
 			PRVM_G_FLOAT(OFS_RETURN) = 1;
 			// if support is destroyed, keep suspended (gross hack for floating items in various maps)
@@ -1376,7 +1373,7 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 			VectorCopy (trace.endpos, PRVM_serveredictvector(ent, origin));
 
 			SV_LinkEdict(ent);
-			PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) | FL_ONGROUND;
+			PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) | FL_ONGROUND_512;
 			PRVM_serveredictedict(ent, groundentity) = PRVM_EDICT_TO_PROG(trace.ent);
 			PRVM_G_FLOAT(OFS_RETURN) = 1;
 			// if support is destroyed, keep suspended (gross hack for floating items in various maps)
@@ -1476,7 +1473,7 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 		VectorCopy(trace.endpos, PRVM_serveredictvector(ent, origin));
 
 	SV_LinkEdict(ent);
-	PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) | FL_ONGROUND;
+	PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) | FL_ONGROUND_512;
 	PRVM_serveredictedict(ent, groundentity) = PRVM_EDICT_TO_PROG(trace.ent);
 	PRVM_G_FLOAT(OFS_RETURN) = 1;
 	// if support is destroyed, keep suspended (gross hack for floating items in various maps)
@@ -3341,6 +3338,13 @@ static void VM_SV_trailparticles(prvm_prog_t *prog)
 }
 
 //#337 void(float effectnum, vector origin, vector dir, float count) pointparticles (EXT_CSQC)
+WARP_X_ (VM_CL_pointparticles -> CL_ParticleEffect -> CL_ParticleBox -> CL_NewParticlesFromEffectinfo)
+WARP_X_ (svc_pointparticles1 -> CL_ParsePointParticles1 -> CL_ParticleEffect -> CL_ParticleBox -> CL_NewParticlesFromEffectinfo)
+
+WARP_X_ (CL_NewParticle superboss)
+// Baker: Write effectnum, org, velocity, count to CL
+// Baker: Spike says better would be precache the particles effectnums with name
+// Baker: Particle effect nums are very fragile.
 static void VM_SV_pointparticles(prvm_prog_t *prog)
 {
 	int effectnum, count;
@@ -3354,8 +3358,7 @@ static void VM_SV_pointparticles(prvm_prog_t *prog)
 	VectorCopy(PRVM_G_VECTOR(OFS_PARM1), org);
 	VectorCopy(PRVM_G_VECTOR(OFS_PARM2), vel);
 	count = bound(0, (int)PRVM_G_FLOAT(OFS_PARM3), 65535);
-	if (count == 1 && !VectorLength2(vel))
-	{
+	if (count == 1 && !VectorLength2(vel)) {
 		// 1+2+12=15 bytes
 		MSG_WriteByte(&sv.datagram, svc_pointparticles1);
 		MSG_WriteShort(&sv.datagram, effectnum);

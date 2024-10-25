@@ -1075,7 +1075,11 @@ static void GL_SetupTextureParameters(int flags, textype_t textype, int texturet
 	CHECKGLERROR
 }
 
-static void R_UploadPartialTexture(gltexture_t *glt, const unsigned char *data, int fragx, int fragy, int fragz, int fragwidth, int fragheight, int fragdepth)
+// Baker: LM_OID
+
+WARP_X_CALLERS_ (R_RealGetTexture)
+static void R_UploadPartialTexture (gltexture_t *glt, const unsigned char *data, int fragx, int fragy, 
+								   int fragz, int fragwidth, int fragheight, int fragdepth)
 {
 	if (data == NULL)
 		Sys_Error ("R_UploadPartialTexture " QUOTED_S ": partial update with NULL pixels", glt->identifier);
@@ -1484,7 +1488,7 @@ static rtexture_t *R_SetupTexture(rtexturepool_t *rtexturepool, const char *iden
 	} // sw
 
 
-	R_UploadFullTexture(glt, data); // Baker: UPLOAD HERE qglTexImage2D
+	R_UploadFullTexture(glt, data); // Baker: UPLOAD HERE qglTexImage2D - Baker: LM_OID
 	if (glt->flags & TEXF_ALLOWUPDATES)
 		glt->bufferpixels = (unsigned char *)Mem_Alloc(texturemempool, glt->tilewidth*glt->tileheight*glt->tiledepth*glt->sides*glt->bytesperpixel);
 
@@ -2434,6 +2438,9 @@ int R_TextureFlags(rtexture_t *rt)
 	return rt ? ((gltexture_t *)rt)->flags : 0;
 }
 
+// Baker: LM_OID
+
+WARP_X_ (R_UpdateTexture)
 void R_UpdateTexture(rtexture_t *rt, const unsigned char *data, int x, int y, int z, int width, int height, int depth, int combine)
 {
 	gltexture_t *glt = (gltexture_t *)rt;

@@ -64,8 +64,7 @@ void R_SkyStartFrame(void)
 	skyrenderlater = false;
 	// we can scissor the sky to just the relevant area
 	Vector4Clear(skyscissor);
-	if (r_sky.integer)
-	{
+	if (r_sky.integer /*d: 1*/) {
 		if (skyboxskinframe[0] || skyboxskinframe[1] || skyboxskinframe[2] || skyboxskinframe[3] || skyboxskinframe[4] || skyboxskinframe[5])
 			skyrenderbox = true;
 		else if (r_refdef.scene.worldmodel && r_refdef.scene.worldmodel->brush.solidskyskinframe)
@@ -85,7 +84,7 @@ static void R_UnloadSkyBox(void)
 	int c = 0;
 	for (i = 0;i < 6; i ++) {
 		if (skyboxskinframe[i]) {
-			R_SkinFrame_PurgeSkinFrame (skyboxskinframe[i]);
+			R_SkinFrame_PurgeSkinFrame (skyboxskinframe[i]); // s->base, s->glow = NULL, s->loadsequence = 0 etc.
 			c++;
 		}
 		skyboxskinframe[i] = NULL;
@@ -297,6 +296,7 @@ static const unsigned short skyboxelement3s[6*2*3] =
 	20, 22, 23
 };
 
+WARP_X_CALLERS_ (R_Sky R_RenderScene R_RenderView)
 static void R_SkyBox(void)
 {
 	int i;
@@ -368,6 +368,7 @@ static void skyspherecalc(void)
 		skysphere_element3i[i] = skysphere_element3s[i];
 }
 
+// Baker: This is Q1 sky without a skybox
 static void R_SkySphere(void)
 {
 	double speedscale;
@@ -401,20 +402,18 @@ void R_Sky(void)
 	Matrix4x4_Invert_Simple(&skyinversematrix, &skymatrix);
 
 	// Baker: r_sky_scissor default is 1
-	if (r_sky_scissor.integer) {
+	if (r_sky_scissor.integer /*d: 1*/) {
 		// if the scissor is empty just return
 		if (skyscissor[2] == 0 || skyscissor[3] == 0)
 			return;
 		GL_Scissor(skyscissor[0], skyscissor[1], skyscissor[2], skyscissor[3]);
 		GL_ScissorTest(true);
 	}
-	if (skyrendersphere)
-	{
+	if (skyrendersphere) {
 		// this does not modify depth buffer
 		R_SkySphere();
 	}
-	else if (skyrenderbox)
-	{
+	else if (skyrenderbox) {
 		// this does not modify depth buffer
 		R_SkyBox();
 	}

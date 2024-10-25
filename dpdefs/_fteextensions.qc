@@ -186,7 +186,7 @@ pr_dumpplatform -o fteextensions
 #define FTE_CSQC_RENDERTARGETS /* VF_RT_DESTCOLOUR exists and can be used to redirect any rendering to a texture instead of the screen. */
 #define FTE_CSQC_REVERB /* Specifies that the mod can create custom reverb effects. Whether they will actually be used or not depends upon the sound driver. */
 #define FTE_CSQC_WINDOWCAPTION /* Provides csqc with the ability to change the window caption as displayed when running windowed or in the task bar when switched out. */
-#define FTE_ENT_SKIN_CONTENTS /* self.skin = CONTENTS_WATER; makes a brush entity into water. use -16 for a ladder. */
+#define FTE_ENT_SKIN_CONTENTS /* self.skin = CONTENTS_WATER_NEG3; makes a brush entity into water. use -16 for a ladder. */
 #define FTE_ENT_UNIQUESPAWNID
 #define FTE_EXTENDEDTEXTCODES
 #define FTE_FORCESHADER /* Allows csqc to override shaders on models with an explicitly named replacement. Also allows you to define shaders with a fallback if it does not exist on disk. */
@@ -419,7 +419,7 @@ void end_sys_globals;
 .float lerpfrac;	/* If 0, use frame1 only. If 1, use frame2 only. Mix them together for values between. */
 #endif
 #if defined(CSQC) || defined(SSQC)
-.float skin;	/* The skin index to use. on a bsp entity, setting this to 1 will switch to the 'activated' texture instead. A negative value will be understood as a replacement contents value, so setting it to CONTENTS_WATER will make a movable pool of water. */
+.float skin;	/* The skin index to use. on a bsp entity, setting this to 1 will switch to the 'activated' texture instead. A negative value will be understood as a replacement contents value, so setting it to CONTENTS_WATER_NEG3 will make a movable pool of water. */
 .float effects;	/* Lots of random flags that change random effects. See EF_* constants. */
 .vector mins;	/* The minimum extent of the model (ie: the bottom-left coordinate relative to the entity's origin). Change via setsize. May also be changed by setmodel. */
 .vector maxs;	/* like mins, but in the other direction. */
@@ -1098,8 +1098,8 @@ const float STUFFCMD_BROADCAST = 4;	/* The stuffcmd will be broadcast server-wid
 const float STUFFCMD_UNRELIABLE = 8;	/* The stuffcmd might not arrive. It might also get there faster than ones sent over the reliable channel. */
 #endif
 #if defined(CSQC) || defined(SSQC)
-const float FL_FLY = 1;
-const float FL_SWIM = 2;
+const float FL_FLY_1 = 1;
+const float FL_SWIM_2 = 2;
 const float FL_CLIENT = 8;
 const float FL_INWATER = 16;
 const float FL_MONSTER = 32;
@@ -1109,8 +1109,8 @@ const float FL_GODMODE = 64;
 const float FL_NOTARGET = 128;
 #endif
 #if defined(CSQC) || defined(SSQC)
-const float FL_ITEM = 256;
-const float FL_ONGROUND = 512;
+const float FL_ITEM_256 = 256;
+const float FL_ONGROUND_512 = 512;
 const float FL_PARTIALGROUND = 1024;
 const float FL_WATERJUMP = 2048;
 #endif
@@ -2668,10 +2668,17 @@ void(vector pos, vector sz, string pic, vector srcpos, vector srcsz, vector rgb,
 #endif
 #if defined(CSQC) || defined(MENU)
 void(vector pivot, vector mins, vector maxs, string pic, vector rgb, float alpha, float angle) drawrotpic = #0:drawrotpic; /*
-		Draws an image rotating at the pivot. To rotate in the center, use mins+maxs of half the size with mins negated. Angle is in degrees. */
+		Draws an image rotating at the pivot. 
+		  To rotate in the center, use mins+maxs of half 
+		  the size with mins negated. Angle is in degrees. */
 
-void(vector pivot, vector mins, vector maxs, string pic, vector txmin, vector txsize, vector rgb, vector alphaandangles) drawrotsubpic = #0:drawrotsubpic; /*
-		Overcomplicated draw function for over complicated people. Positions follow drawrotpic, while texture coords follow drawsubpic. Due to argument count limitations in builtins, the alpha value and angles are combined into separate fields of a vector (tip: use fteqcc's [alpha, angle] feature. */
+void(vector pivot, vector mins, vector maxs, string pic, 
+	 vector txmin, vector txsize, vector rgb, vector alphaandangles) drawrotsubpic = #0:drawrotsubpic; /*
+		Overcomplicated draw function for over complicated people. 
+		Positions follow drawrotpic, while texture coords follow 
+		drawsubpic. Due to argument count limitations in builtins, the alpha value 
+		and angles are combined into separate fields of a vector 
+		(tip: use fteqcc's [alpha, angle] feature. */
 
 #endif
 #ifdef CSQC

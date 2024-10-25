@@ -263,7 +263,7 @@ void Pak_Accum_Texture_Dependencies (stringlist_t *ptexture_dependency_list, con
 
 // Not captured:
 // misc_mdl_entities, misc_mdl_illusionary, sounds, cdtrack
-void Dependencies_For_This_Model (model_t *m, stringlist_t *ptexture_dependency_list,
+void Texture_Dependencies_For_This_Model (model_t *m, stringlist_t *ptexture_dependency_list,
 								  stringlist_t *ptexture_shader_dependency_list,
 								  stringlist_t *pshader_name_list,
 								  stringlist_t *pshader_textblock_dependency_list, int is_print_stuff)
@@ -337,8 +337,50 @@ void Dependencies_For_This_Model (model_t *m, stringlist_t *ptexture_dependency_
 
 }
 
+
+//	ccs *s_entities = worldmodel->brush.entities;
+void Sound_Dependencies_For_This_Model (model_t *m, 
+	stringlist_t *psound_dependency_list, ccs *s_entities, ccs *s_ext_, int is_print_stuff)
+{
+	char *src_za = Z_StrDup (s_entities);
+
+	ccs *s_findthis_za = Z_StrDupf("%s\"", s_ext_); // Add trailing "
+	int slen_findthis = strlen(s_findthis_za);
+	char *s_current_start = Z_StrDup (s_entities);
+	// Scan for .ogg
+	char *s_found;
+	while (ASSIGN (s_found = strstr (s_current_start, s_findthis_za)) ) {
+		// Now search backwards
+		// We need to stupidly null terminate at beyond point.
+		char *s_beyond = s_found + slen_findthis - ONE_CHAR_1; // s_beyond is on final quote
+		s_beyond[1] = NULL_CHAR_0;
+
+		ccs *s_begin = String_Find_Reverse (s_current_start, "\"sound/");
+		if (!s_begin) {
+			// Found a string with no start.
+			int j = 5; // THIS IS "BAD"
+			break;
+		}
+		s_begin ++; // Skip the starting "
+		
+
+		int slen = s_beyond - s_begin;
+		ccs *s_instance_za = Z_StrDup_Len_Z (s_begin, slen);
+		stringlistappend (psound_dependency_list, s_instance_za);
+		Mem_FreeNull_ (s_instance_za);
+
+		// Update current start for next iteration
+		s_current_start = &s_beyond[2];
+	}
+	Mem_FreeNull_ (src_za);
+	Mem_FreeNull_ (s_findthis_za);
+	
+}
+
 // Baker: A filecopy that does not use the operating system and the date and time are not
 // preserved.
+// Returns 0 on failure.
+// Baker: FS_FileCopy_Shitty s_src is from path system, the s_dst is REAL FILE output
 fs_offset_t FS_FileCopy_Shitty (const char *s_src, const char *s_dst)
 {
 	fs_offset_t src_filesize; // fs_offset_t is int64_t even on 32 bit
@@ -492,15 +534,17 @@ static void R_Pak_This_Map_f (cmd_state_t *cmd)
 		return;
 	}
 
+	// Baker: We don't require args? August 21 2024
+	// Baker: No args is test mode, it does NOT write 
+
 	//if (Cmd_Argc (cmd) < 2) {
-	//	Con_PrintLinef ("usage: %s <folder>" NEWLINE "copies texture, skybox, shader dependencies to a folder", Cmd_Argv(cmd, 0));
 	//	Con_PrintLinef ("usage: %s <folder>" NEWLINE "copies texture, skybox, shader dependencies to a folder", Cmd_Argv(cmd, 0));
 	//	return;
 	//}
 
 	const char *s_folder_dest_write = Cmd_Argv (cmd, 1);
 
-	// Light protection against user accidentially typing something stupid
+	// Mild protection against user accidentially typing something stupid
 	if (is_test == false &&
 		(String_Match_Caseless (s_folder_dest_write, "maps") ||
 		String_Match_Caseless (s_folder_dest_write, "scripts") ||
@@ -517,6 +561,8 @@ static void R_Pak_This_Map_f (cmd_state_t *cmd)
 
 	if (is_test == false) Con_PrintLinef ("folder is %s", s_folder_dest_write);
 
+	stringlist_t sound_dependency_list = {0};
+	
 	stringlist_t texture_dependency_list = {0};
 	stringlist_t texture_shader_dependency_list = {0};
 	stringlist_t shader_textblock_dependency_list  = {0};
@@ -533,10 +579,15 @@ static void R_Pak_This_Map_f (cmd_state_t *cmd)
 	c_dpsnprintf1 (s_num, "%f", host_hoststartup_unique_num);
 	String_Edit_Replace (s_num, sizeof(s_num), ".", "_");
 	c_dpsnprintf2 (s_scripts_out, "%s/scripts/map_%s.shader", s_folder_dest_write, s_num);
+#if 0
+	c_dpsnprintf2 (s_scripts_out, "%s/scripts/map_%s.shader", s_folder_dest_write, cl.worldbasename);
+#endif
 
 	if (is_test)
 		goto test_no_write1;
 
+#if 1 // Baker: Not sure we should trust this ...
+	// Baker: This was written to pak multiple maps with one shader.
 	f = FS_OpenRealFile (s_scripts_out, "rb", fs_quiet_FALSE);  // WRITE-EON pak this map
 	if (f) {
 		FS_Close (f); f = NULL;
@@ -561,14 +612,36 @@ static void R_Pak_This_Map_f (cmd_state_t *cmd)
 		ShaderParseText_Proc (s_text_alloc, 	&shader_name_list, &shader_textblock_dependency_list);
 		Mem_Free (s_text_alloc);
 	}
+#endif
 
 test_no_write1:
-	Dependencies_For_This_Model (
+	Texture_Dependencies_For_This_Model (
 		m,
 		&texture_dependency_list,
 		&texture_shader_dependency_list,
 		&shader_name_list,
 		&shader_textblock_dependency_list,
+		/*is print stuff?*/ false
+	);
+
+	ccs *s_entities = cl.worldmodel->brush.entities;
+
+	void Sound_Dependencies_For_This_Model (model_t *m, 
+	stringlist_t *psound_dependency_list, ccs *s_entities, ccs *s_ext_, int is_print_stuff);
+
+	Sound_Dependencies_For_This_Model (
+		m,
+		&sound_dependency_list,
+		s_entities,
+		".ogg",
+		/*is print stuff?*/ false
+	);
+
+	Sound_Dependencies_For_This_Model (
+		m,
+		&sound_dependency_list,
+		s_entities,
+		".wav",
 		/*is print stuff?*/ false
 	);
 
@@ -580,8 +653,13 @@ test_no_write1:
 		stringlistsort (&shader_name_list, fs_make_unique_false);
 	}
 
+	stringlistsort (&sound_dependency_list, fs_make_unique_true);
+	
 	stringlistsort (&texture_dependency_list, fs_make_unique_false);
 	stringlistsort (&texture_shader_dependency_list, fs_make_unique_false);
+	
+
+	stringlistprint (&sound_dependency_list,         "Sound (ogg/wav) In Map     ", Con_PrintLinef);
 
 	stringlistprint (&texture_dependency_list,         "Raw Textures In Map     ", Con_PrintLinef);
 	stringlistprint (&texture_shader_dependency_list,  "Textures Within Shaders ", Con_PrintLinef);
@@ -607,6 +685,14 @@ file_copy_start:
 		written_bytes += FS_FileCopy_Shitty (s_src, s_dest);
 	} // next
 
+	targ = &sound_dependency_list;
+	for (int idx = 0; idx < targ->numstrings; idx ++) {
+		char *s_src = targ->strings[idx];
+		char s_dest[MAX_QPATH_128];
+		c_dpsnprintf2 (s_dest, "%s/%s", s_folder_dest_write, s_src);
+		written_bytes += FS_FileCopy_Shitty (s_src, s_dest);
+	} // next
+
 	targ = &texture_shader_dependency_list;
 	for (int idx = 0; idx < targ->numstrings; idx ++) {
 		char *s_src = targ->strings[idx];
@@ -622,12 +708,13 @@ file_copy_end:
 	//char s_scripts_out[MAX_QPATH_128];
 
 	//char s_num[MAX_QPATH_128];
-	c_dpsnprintf1 (s_num, "%f", host_hoststartup_unique_num);
-	String_Edit_Replace (s_num, sizeof(s_num), ".", "_");
-	c_dpsnprintf2 (s_scripts_out, "%s/scripts/map_%s.shader", s_folder_dest_write, s_num);
+	//c_dpsnprintf1 (s_num, "%f", host_hoststartup_unique_num);
+	//String_Edit_Replace (s_num, sizeof(s_num), ".", "_");
+	//c_dpsnprintf2 (s_scripts_out, "%s/scripts/map_%s.shader", s_folder_dest_write, s_num);
 
-	c_dpsnprintf1 (s_scripts_out, "%s/scripts/map.shader", s_folder_dest_write);
+	//c_dpsnprintf1 (s_scripts_out, "%s/scripts/map.shader", s_folder_dest_write);
 	//qfile_t *
+	
 	f = FS_OpenRealFile (s_scripts_out, "wb", fs_quiet_FALSE);  // WRITE-EON Baker: pak_this_map
 	if (!f) {
 		Con_PrintLinef ("Couldn't open file " QUOTED_S, s_scripts_out);
@@ -641,9 +728,27 @@ file_copy_end:
 	} // next
 	FS_Close (f); f = NULL;
 
+#if 1 // July 9 2024 - Map
+	va_super (s_mapin, MAX_QPATH_128, "maps/%s.bsp", cl.worldbasename);
+	va_super (s_mapout, MAX_QPATH_128, "%s/maps/%s.bsp", s_folder_dest_write, cl.worldbasename);
+	fs_offset_t is_ok = FS_FileCopy_Shitty (s_mapin, s_mapout); // src ->dest
+	if (is_ok == 0) {
+		Con_PrintLinef ("File copy " QUOTED_S " to " QUOTED_S " failed ", s_mapin, s_mapout);
+	}
+#endif
+
+#if 1 // September 30 2024 - .map too
+	va_super (s_dotmapin, MAX_QPATH_128, "maps/%s.map", cl.worldbasename);
+	va_super (s_dotmapout, MAX_QPATH_128, "%s/maps/%s.map", s_folder_dest_write, cl.worldbasename);
+	is_ok = FS_FileCopy_Shitty (s_dotmapin, s_dotmapout); // src ->dest
+	if (is_ok == 0) {
+		Con_PrintLinef ("File copy " QUOTED_S " to " QUOTED_S " failed ", s_dotmapin, s_dotmapout);
+	}
+#endif
 
 script_write_fail:
 test_is_done:
+	stringlistfreecontents (&sound_dependency_list);
 	stringlistfreecontents (&texture_dependency_list);
 	stringlistfreecontents (&texture_shader_dependency_list);
 	stringlistfreecontents (&shader_textblock_dependency_list);

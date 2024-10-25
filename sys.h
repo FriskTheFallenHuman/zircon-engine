@@ -209,9 +209,9 @@ void Sys_PrintfToTerminal (const char *fmt, ...) DP_FUNC_PRINTF(1);
 	// I use it for console debugging during times that console printing
 	// not workable for feedback
 	//void Sys_PrintToTerminal2(const char *text);
-	void DebugPrintf (const char *fmt, ...);
+	void DebugPrintLinef (const char *fmt, ...);
 #else
-	#define DebugPrintf(fmt, ...)
+	#define DebugPrintLinef(fmt, ...)
 #endif
 
 
@@ -283,7 +283,8 @@ typedef void *sys_handle_t; // Baker
 	int System_Process_Is_Still_Running_Neg1_Error (sys_handle_t pid, /*reply*/ int *p_exit_code);
 	qbool System_Process_Terminate_Did_Terminate_Console_App (sys_handle_t pid);
 	qbool System_Process_Close_Did_Close (sys_handle_t pid);
-	qbool Sys_ShellExecute (const char *s);
+	qbool Sys_ShellExecute_NonBlocking (ccs *s_exename, ccs *s_args_or_null);
+	qbool Sys_ShellExecute_Wait (ccs *s_exename, ccs *s_args_or_null);
 	int Sys_Clipboard_Set_Image_BGRA_Is_Ok (const unsigned *bgra, int width, int height);
 	unsigned *Sys_Clipboard_Get_Image_BGRA_Malloc (int *outwidth, int *outheight);
 #endif // _WIN32

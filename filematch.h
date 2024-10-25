@@ -1,3 +1,5 @@
+// filematch.h
+
 /*
 Copyright (C) 2006-2021 DarkPlaces contributors
 
@@ -43,6 +45,16 @@ typedef struct _floatlist_s {
 	int		count;
 } floatlist_s;
 
+typedef struct _voidlist_s {
+	const void	**vloats;
+	int			maxsize;
+	int			count;
+} voidlist_s;
+
+void voids_add1 (voidlist_s *vlist, const void *p);
+void voids_freecontents (voidlist_s *vlist);
+
+
 void floats_add1 (floatlist_s *flist, float p);
 void floats_add2 (floatlist_s *flist, float px, float py);
 void floats_add3 (floatlist_s *flist, float px, float py, float pz);
@@ -86,6 +98,9 @@ void stringlistfreecontents(stringlist_t *list);
 void stringlistappend(stringlist_t *list, const char *text);
 void stringlistappend_len (stringlist_t *list, const char *text, int text_len);
 int stringlistappend_split_delimiter_linenumbers (stringlist_t *plist, ccs *s, ccs *delimiter);
+
+#define stringlist_last(LISTX) LISTX.strings[LISTX.numstrings - 1]
+#define stringlist_lastp(PLISTX) PLISTX->strings[PLISTX->numstrings - 1]
 
 int stringlistappendfilelines_did_load (stringlist_t *plist, ccs *file, int is_number_column);
 
@@ -131,7 +146,6 @@ void stringlistappend_split (stringlist_t *plist, ccs *text_in, ccs *s_delimiter
 
 int stringlistappend_from_dir_pattern (stringlist_t *p_stringlist, const char *s_optional_dir_no_slash, const char *s_optional_dot_extension, int wants_strip_extension);
 
-
 /*LINE WORD -> SPLIT*/
 void stringlistappend_tokenize_qcquotes (stringlist_t *plist, const char *text);
 
@@ -144,5 +158,139 @@ void stringlistappend_textlines_len_cr_scrub (stringlist_t *plist, const char *t
 void stringlist_from_delim (stringlist_t *p_stringlist, const char *s_space_delimited);
 int stringlist_find_index (stringlist_t *p_stringlist, ccs *s_find_this);
 
+// SEPT 28 2024
 
-#endif
+typedef struct _brushrow_st {
+	vec3_t a;			// ( 480 704 -260 )
+	vec3_t b;			// ( 480 672 -260 )
+	vec3_t c;			// ( 480 704 -132 )
+	char *pbrtexture;	// common/caulk
+	vec4_t xtra1;		// [ 0 1 0 0 ]
+	vec4_t xtra2;		// [ 0 0 -1 0 ]
+	int trail_count;	// There are 3 or more at the end... supposedly it can go up to 8
+//( 32768 -34816 10240 ) ( 32768 -34816 -512 ) ( 32768 34816 10240 ) sky/treefall_nite_sky [ 0 1 0 -0 ] 
+//		[ 0 0 -1 -0 ] 0 0.5 0.5 // 3 numbers
+//( 34816 34816 10240 ) ( 34816 34816 -512 ) ( 34816 -34816 10240 ) common/caulk [ 0 1 0 -0 ] [ 0 0 -1 -0 ] 
+//		              0 0.5 0.5 0 160 0 // 6 numbers
+
+	double ftrail[8];	// -0 1 1 0 160 0
+} brushrow_s;
+
+typedef struct _brushrowlist_st {
+	int				maxsize;
+	int				count;
+	brushrow_s		*brushrow;	// PAGE
+} brushrowlist_t;
+
+typedef struct _patchrow_st {
+// ( -126 -192 128 8 0 ) ( -126 -192 384 8 -6 ) ( -126 -192 640 8 -12 )
+	float flots[300];
+} patchrow_s;
+
+// list of // ( -126 -192 128 8 0 ) ( -126 -192 384 8 -6 ) ( -126 -192 640 8 -12 )
+typedef struct _patchrowlist_st {
+	int maxsize;
+	int count;
+	patchrow_s		*patchrow;	// PAGE
+} patchrowlist_t;
+
+typedef struct _brush_st {
+	brushrowlist_t	brushrowlist;
+	int				is_a_patch;
+
+	char			*texture;	// liquids_lava/lava_blue_LX_1000_alpha_50  bare texture 
+	float			rows;		// ( 9 3 536870920 16 1000 ) always 5 per column
+	float			cols;
+	float			other3[3];
+	patchrowlist_t	patchrowlist; // ( -126 -192 128 8 0 ) ( -126 -192 384 8 -6 ) ( -126 -192 640 8 -12 )
+
+} brush_s;
+
+//	patchDef2
+//	{
+//		liquids_lava/lava_blue_LX_1000_alpha_50
+//		( 9 3 536870920 16 1000 )
+//		(
+//			(
+//				( -126 -192 128 0 0 )
+//				( -126 -192 384 0 -6 )
+//				( -126 -192 640 0 -12 )
+//			)
+//			(MORE LIKE THESE)
+//			(
+//				( -126 -192 128 8 0 ) ( -126 -192 384 8 -6 ) ( -126 -192 640 8 -12 )
+//			)
+//		)
+//	}
+//}
+
+typedef struct _brushlist_st {
+	/// maxstrings changes as needed, causing reallocation of strings[] array
+	int				maxsize;
+	int				count;
+	brush_s			*brush;		// PAGE
+} brushlist_t;
+
+typedef struct _entity_st { // p_ent
+	stringlist_t	pairslist;	
+	brushlist_t		brushlist;
+} entityx_t;
+
+
+typedef struct _entitylist_st {
+	/// maxstrings changes as needed, causing reallocation of strings[] array
+	int maxsize;
+	int count;
+	entityx_t		*entity; // p_ent (PAGE)
+} entitylist_t;
+
+void brushrowlistfreecontents (brushrowlist_t *list);
+brushrow_s *brushrowlist_add (brushrowlist_t *list);
+
+void brushlistfreecontents(brushlist_t *list);
+brush_s *brushlist_add (brushlist_t *list);
+
+void patchrowlistfreecontents (patchrowlist_t *list);
+patchrow_s *patchrowlist_add (patchrowlist_t *list);
+
+void entitylistfreecontents(entitylist_t *list);
+entityx_t *entitylist_add (entitylist_t *list);
+void entitylist_print_console (entitylist_t *plist); // Baker: Recursive printing brushes and patches to console.
+
+void entitylist_to_clipboard (entitylist_t *plist);
+
+void entitylist_translate_epairs (entitylist_t *list, vec3_t vadd);
+void entitylist_translate_brushes (entitylist_t *list, vec3_t vadd);
+
+void entitylist_brush0_append (entitylist_t *list, entitylist_t *paste);
+void entitylist_nonworld_append (entitylist_t *list, entitylist_t *paste);
+
+void entitylist_set_replace_key_val (entitylist_t *plist, int entnum, ccs *key_force, ccs *val_force);
+
+int entitylist_atomize_entities_num_made (entitylist_t *plist, ccs *s0_plus_timestamp);
+
+void entitylist_nonworld_setthis (entitylist_t *plist, ccs *key_force, ccs *val_force);
+void entitylist_nonworld_set (entitylist_t *plist, stringlist_t *plistpairset);
+
+void entitylist_prefix_epairs (entitylist_t *plist, ccs *prefix);
+void entitylist_prefix_epairslist (entitylist_t *plist, ccs *prefix, stringlist_t *plist_prefixes);
+
+int entitylist_epairs_find_model_gen_entitynum (entitylist_t *plist, ccs *prefix);
+void entitylist_gen_models (entitylist_t *plist, int ex /*entnum*/);
+
+int entitylist_brush0_facer (entitylist_t *plist, int *pnum_faces);
+
+int entitylist__originmake_num_made (entitylist_t *plist, ccs *svaluetowrite);
+
+// BakerString_Destroy_And_Null_It (&bs);
+baker_string_t *entitylist_maptext_bsalloc (entitylist_t *plist);
+
+baker_string_t *CSG_Process_BSAlloc (ccs *datasrc); // Returns a (baker_string_t *) or NULL if no data
+
+// Returns NULL or value for key for the entity
+ccs *entitykeys_find_value (entityx_t *e, ccs *keyname);
+int entitylist_parsemaptxt (entitylist_t *plist, ccs *txt);
+
+#include "equat.h"
+
+#endif // FILEMATCH_H

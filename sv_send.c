@@ -1406,9 +1406,9 @@ void SV_WriteClientdataToMessage (client_t *client, prvm_edict_t *ent, sizebuf_t
 
 	bits = 0;
 
-	if ((int)PRVM_serveredictfloat(ent, flags) & FL_ONGROUND)
+	if ((int)PRVM_serveredictfloat(ent, flags) & FL_ONGROUND_512)
 		bits |= SU_ONGROUND;
-	if (PRVM_serveredictfloat(ent, waterlevel) >= 2)
+	if (PRVM_serveredictfloat(ent, waterlevel) >= WATERLEVEL_SWIMMING_2 /*2*/)
 		bits |= SU_INWATER;
 	if (PRVM_serveredictfloat(ent, idealpitch))
 		bits |= SU_IDEALPITCH;

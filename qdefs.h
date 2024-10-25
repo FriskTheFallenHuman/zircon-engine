@@ -92,9 +92,9 @@
 
 #define	MAXTRACKS_256				256		///< max CD track index
 
-// 0 to NUM_AMBIENTS - 1 = water, etc
-// NUM_AMBIENTS to NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 - 1 = normal entity sounds
-// NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS_512 to total_channels = static sounds
+// 0 to NUM_AMBIENTS_4 - 1 = water, etc
+// NUM_AMBIENTS_4 to NUM_AMBIENTS_4 + MAX_DYNAMIC_CHANNELS_512 - 1 = normal entity sounds
+// NUM_AMBIENTS_4 + MAX_DYNAMIC_CHANNELS_512 to total_channels = static sounds
 
 #define	MAX_DYNAMIC_CHANNELS_512	512
 #define	MAX_CHANNELS_8196			(8192 + 4)
@@ -104,7 +104,7 @@
 #define	PAINTBUFFER_SIZE_2048		2048
 #define	MAX_BINDMAPS_8				8
 #define	MAX_PARTICLES_INITIAL_8192	8192	///< initial allocation for cl.particles
-#define	MAX_PARTICLES				1048576	///< upper limit on cl.particles size
+#define	MAX_PARTICLES_1048576		1048576	///< upper limit on cl.particles size
 #define	MAX_ENTITIES_INITIAL_256	256		///< initial size of cl.entities
 #define	MAX_STATICENTITIES_4096		4096	///< limit on size of cl.static_entities
 

@@ -42,7 +42,10 @@ extern qbool mem_bigendian;
 
 #define POOLNAMESIZE 128
 // if set this pool will be printed in memlist reports
-#define POOLFLAG_TEMP 1
+#define POOLFLAG_TEMP		1
+
+#define POOLFLAG_NONE_0		0
+#define MEMPARENT_NULL		NULL
 
 typedef struct memheader_s
 {
@@ -135,6 +138,10 @@ void _Mem_CheckSentinelsGlobal(const char *filename, int fileline);
 qbool Mem_IsAllocated(mempool_t *pool, const void *data);
 
 char *_Mem_strdup (mempool_t *pool, const char *s, const char *filename, int fileline);
+
+
+char *Mem_strdupf (mempool_t *pool, const char *fmt, ...) DP_FUNC_PRINTF(2);
+
 
 /// Returns the current size of an allocation
 // not a macro so that it doesn't allow the size to be changed.

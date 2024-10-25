@@ -16,7 +16,7 @@ oject_s *Form_Create_From_String (ccs *s)
 
 	const char **wordray = stringlist_nullterm_add (&words);
 	for (/*nada*/ ; *wordray; *wordray ++) {
-		if (DO_PRINT) { DebugPrintf ("Word %s", *wordray); }
+		if (DO_PRINT) { DebugPrintLinef ("Word %s", *wordray); }
 
 		things_s *thing = Thing_Find (*wordray);
 
@@ -64,7 +64,7 @@ oject_s *Form_Create_From_String (ccs *s)
 			
 			// PROCESS PROPERTY
 			ccs *s_value = *wordray;
-			if (DO_PRINT) {DebugPrintf ("Property %s = " QUOTED_S, s_prop, s_value); }
+			if (DO_PRINT) {DebugPrintLinef ("Property %s = " QUOTED_S, s_prop, s_value); }
 			qbool is_ok;
 			is_ok = Property_Set_By_String_After_Freeing_Is_Ok (k, thing, s_value);
 			continue;
@@ -86,7 +86,7 @@ oject_s *Form_Create_From_String (ccs *s)
 		//		break;
 		//	}
 		//	ccs *s_builtin = *wordray;
-		//	if (DO_PRINT) {DebugPrintf ("Event %s fires " QUOTED_S, s_event, s_builtin);}
+		//	if (DO_PRINT) {DebugPrintLinef ("Event %s fires " QUOTED_S, s_event, s_builtin);}
 		//	qbool is_ok;
 		//	is_ok = Event_Set_By_String_Is_Ok (k, thing, builtin_thing);
 		//	continue;

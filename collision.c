@@ -188,7 +188,7 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 
 	// check if there are too many planes and skip the brush
 	if (numoriginalplanes >= maxplanesbuf) {
-		Con_PrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many planes for buffer");
+		Con_DPrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many planes for buffer");
 		return NULL;
 	}
 
@@ -247,19 +247,19 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 				break;
 		}
 		if (k < pnumpoints) {
-			Con_PrintLinef ("Collision_NewBrushFromPlanes: warning: polygon point does not lie on at least 3 planes");
+			Con_DPrintLinef ("Collision_NewBrushFromPlanes: warning: polygon point does not lie on at least 3 planes");
 			//return NULL;
 		}
 
 		// check if there are too many polygon vertices for buffer
 		if (pnumpoints > pmaxpoints_64) {
-			Con_PrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many points for buffer");
+			Con_DPrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many points for buffer (64)");
 			return NULL;
 		}
 
 		// check if there are too many triangle elements for buffer
 		if (numelementsbuf + (pnumpoints - 2) * 3 > maxelementsbuf) {
-			Con_PrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many triangle elements for buffer");
+			Con_DPrintLinef ("Collision_NewBrushFromPlanes: failed to build collision brush: too many triangle elements for buffer %d", maxelementsbuf);
 			return NULL;
 		}
 
@@ -353,7 +353,7 @@ colbrushf_t *Collision_NewBrushFromPlanes(mempool_t *mempool, int numoriginalpla
 
 	// if no triangles or points could be constructed, then this routine failed but the brush is not discarded
 	if (numelementsbuf < 12 || numpointsbuf < 4)
-		Con_PrintLinef ("Collision_NewBrushFromPlanes: unable to rebuild triangles/points for collision brush: %d triangles, %d planes (input was %d planes), %d vertices", numelementsbuf / 3, numplanesbuf, numoriginalplanes, numpointsbuf);
+		Con_DPrintLinef ("Collision_NewBrushFromPlanes: unable to rebuild triangles/points for collision brush: %d triangles, %d planes (input was %d planes), %d vertices", numelementsbuf / 3, numplanesbuf, numoriginalplanes, numpointsbuf);
 
 	// validate plane distances
 	for (j = 0;j < numplanesbuf;j++)

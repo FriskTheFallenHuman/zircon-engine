@@ -64,8 +64,10 @@ typedef struct gamemode_info_s
 
 static const gamemode_info_t gamemode_info [GAME_COUNT] =
 {// game						basegame					prog_name				cmdline						gamename					gamenetworkfiltername    basegame  modgame      screenshot      userdir             // commandline option
-#ifdef OBJECTN
-{ GAME_NORMAL,          GAME_NORMAL,        "",            "-objectn",          "ObjectN",          "ObjectN",          "data",    NULL,      "ObjectN",      "ObjectN"      },
+#if defined(OBJECTN)
+{ GAME_NORMAL,					GAME_NORMAL,				"",						"-objectn",					"ObjectN",					"ObjectN",					"data",    NULL,      "ObjectN",      "ObjectN"      },
+#elif defined(QUALKER)
+{ GAME_NORMAL,					GAME_NORMAL,				"",						"-objectn",					"Q.U.A.L.K.E.R.",			"QUALKER",					"data",    NULL,      "QUALKER",      "QUALKER"      },
 #else
 { GAME_NORMAL,					GAME_NORMAL,				"",						"-quake",					"Zircon Beta-Quake",		"DarkPlaces-Quake",			"id1",		NULL,			"dp",				"zircon"			}, // COMMANDLINEOPTION: Game: -quake runs the game Quake (default)
 #endif

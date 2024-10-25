@@ -268,6 +268,7 @@ static void CL_BeginDownloads_DP (qbool aborteddownload)
 			CL_KeepaliveMessage(true);
 			dpsnprintf(soundname, sizeof(soundname), "sound/%s", cl.sound_name[cl.downloadsound_current]);
 			if (!FS_FileExists(soundname) && !FS_FileExists(cl.sound_name[cl.downloadsound_current])) {
+				Con_PrintLinef ("Sound %s not found", soundname);
 				if (cl_serverextension_download.integer && cls.netcon && !sv.active) {
 					//CL_ForwardToServerf(va(vabuf, sizeof(vabuf), "download %s", soundname));
 					if (Have_Zircon_Ext_CLHard_CHUNKS_ACTIVE)

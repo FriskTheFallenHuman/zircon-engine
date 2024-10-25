@@ -568,6 +568,7 @@ skipwhite:
 	}
 }
 
+WARP_X_CALLERS_ (Commit_To_Cname)
 char *COM_Parse_FTE (const char *data, char *out, size_t outlen)
 {
 	int		c;
@@ -980,6 +981,160 @@ skipwhite:
 
 	return true;
 }
+
+// Baker:
+word_e COM_ParseToken_EQ_Tokenize (const char **datapointer, const char **ps_start, const char **ps_beyond)
+{
+	qbool return_on_newline = true;
+	const char *data = *datapointer;
+	*ps_start = NULL;
+	*ps_beyond = NULL;
+
+	int len = 0, c;
+	com_token[0] = 0;
+
+	if (!data) {
+		//*datapointer = NULL;	// Baker: I'd rather have the cursor on the beyond
+		*ps_beyond = *datapointer = data;  return word_none_0;
+	}
+
+	// Baker: Advance cursor past whitespace (space, tab, newline, carriage *ps_beyond = data; return
+
+skipwhite:
+	// line endings:		UNIX: \n			Mac: \r		Windows: \r\n
+	
+	//#define ISWHITESPACE(ch) (!(ch) || (ch) == ' ' || (ch) == '\t' || (ch) == '\r' || (ch) == '\n')
+	for ( ; isin3 (*data, NULL_CHAR_0, SPACE_CHAR_32, TAB_CHAR_9); data ++) {
+		if (*data == 0) {
+			// end of string
+			//*datapointer = NULL;	// Baker: I'd rather have the cursor on the beyond
+			*ps_beyond = *datapointer = data; return word_none_0;
+		}
+	}
+
+	// Baker: If we are here, we are NOT at a space, tab or NULL
+
+	// handle Windows line ending
+	if (data[0] == '\r' && data[1] == '\n')
+		data++;
+
+	// Baker: // Comment
+	if (data[0] == '/' && data[1] == '/') {
+		// Baker: Advance past anything stopping at newline or carriage *ps_beyond = data; return
+		while (*data && *data != '\n' && *data != '\r')
+			data++;
+		goto skipwhite;
+	}
+
+	// Baker: /* Inline comment*/
+	else if (data[0] == '/' && data[1] == '*') {
+		// comment
+		data++;
+		// Baker: This can only exit on end of string or "*/"
+		while (*data && (data[0] != '*' || data[1] != '/'))
+			data++;
+		if (*data)
+			data++;
+		if (*data)
+			data++;
+		goto skipwhite;
+	}
+
+	// Baker: "quoted string" or 'quoted string'
+	else if (*data == '\"' || *data == '\'') {
+datawrite_quote: if (!*ps_start) *ps_start = data;
+		char quote = *data;
+		// quoted string
+		for (data++;*data && *data != quote; data ++) {
+			c = *data;
+			// Baker: Converting \n and \t to newline and tab characters inside quoted strings
+			if (*data == '\\') {
+				data++;
+				c = *data;
+				if (c == 'n')
+					c = '\n';
+				else if (c == 't')
+					c = '\t';
+			}
+			if (len < (int)sizeof(com_token) - 1) {
+				com_token[len++] = c;
+			}
+		}
+		com_token[len] = 0;
+		if (*data == quote)
+			data++;
+		*ps_beyond = *datapointer = data; return quote == '\"' ? word_string_5 : word_multichar_6;
+	}
+
+	// Baker: carriage *ps_beyond = data; return -- gets converted to newline.  And then exits.
+	else if (*data == '\r') {
+		// translate Mac line ending to UNIX
+datawrite_newline: if (!*ps_start) *ps_start = data;
+		com_token[len++] = '\n'; data++;
+		com_token[len] = 0;
+		*ps_beyond = *datapointer = data; return word_newline_10;
+	}
+
+	// Baker: Parse out single character.
+	// ch 33 "!" to 47 "/"
+	// ch 58 ":" to 64 "@"
+	// more ...
+
+	// Baker: digit or .digit
+	else if (isdigit(*data) || isin1(*data, '.') && isdigit(data[1] )  ) {
+datawrite_numeric: if (!*ps_start) *ps_start = data;
+		for (; isdigit(*data) || isin1(*data, '.'); data ++)
+			if (len < (int)sizeof(com_token) - 1) {
+				com_token[len++] = *data;
+			}
+
+		com_token[len] = 0;
+		*ps_beyond = *datapointer = data; return word_numeric_2;
+	}
+
+	// Baker: Alpha or underscore
+	else if (isalpha(*data) || isin1(*data, '_') ) {
+datawrite_alpha: if (!*ps_start) *ps_start = data;
+		// Baker: Stop at non-alpha, non-numeric, non-underscore
+		for (; isalpha(*data) || isdigit(*data) || isin1(*data, '_') ; data ++)
+			if (len < (int)sizeof(com_token) - 1)
+				com_token[len++] = *data;
+		com_token[len] = 0;
+		*ps_beyond = *datapointer = data; return word_alphanumeric_1;
+	}
+
+	//else if (isin9(*data, '\n', '{', '}', ')', '(', ']', '[', ':', ',', ';') ) {
+	//	// single character
+	//	com_token[len++] = *data++;
+	//	com_token[len] = 0;
+	//	*datapointer = data;
+	//	*ps_beyond = data; return true;
+	//}
+
+	// Baker: Some sort of non-alphanumeric valid ascii that isn't whitespace.
+	else if (in_range (EXCLAIM_CHAR_33, *data, CHAR_TILDE_126)) {
+datawrite_punct: if (!*ps_start) *ps_start = data;
+		// single character
+		com_token[len++] = *data++;
+		com_token[len] = 0;
+		*ps_beyond = *datapointer = data; return word_punct_4;
+	}
+
+	// Baker: Twilight Zone member ... this shouldn't hit
+	// We have control characters or something or ascii 127 or > 128
+	else {
+		// regular word
+		for (; !isin5 (*data, NULL_CHAR_0, SPACE_CHAR_32, TAB_CHAR_9, NEWLINE_CHAR_10, CARRIAGE_RETURN_CHAR_13) 
+			   && !isin10(*data, '\n', '{', '}', ')', '(', ']', '[', ':', ',', ';')
+				; data++)
+datawrite_twilight: if (!*ps_start) *ps_start = data;
+			if (len < (int)sizeof(com_token) - 1)
+				com_token[len++] = *data;
+		com_token[len] = 0;
+		*ps_beyond = *datapointer = data; return word_invalid_9;
+	}
+}
+
 
 /*
 ===============
@@ -2053,6 +2208,7 @@ char *string_zlib_decompress_alloc (unsigned char *data_binary_of_compressed_tex
 // Destroys.  Returns null.  No string table.
 void BakerString_Destroy_And_Null_It (baker_string_t **pdst)
 {
+	if (*pdst == NULL) return; // Already freed
 	baker_string_t *dst = (*pdst);
 	const char *old_string_to_free = dst->string; //iif(dst->bufsize, dst->string, NULL);
 
@@ -2115,6 +2271,19 @@ void BakerString_Set (baker_string_t *dst, int s_len, const char *s)
 }
 
 // Baker: Do not have string to cat be inside the string receiving cat. This version does not allow that.
+void BakerString_CatC (/*modify*/ baker_string_t *dst, const char *s)
+{
+	int slen = strlen(s);
+	BakerString_Cat_No_Collide (dst, slen, s);
+}
+
+void BakerString_CatCFmt  (/*modify*/ baker_string_t *dst, const char *fmt, ...)
+{
+	VA_EXPAND_ALLOC (text, text_slen, bufsiz, fmt);
+	BakerString_Cat_No_Collide (dst, text_slen, text);
+	VA_EXPAND_ALLOC_FREE (text);
+}
+	
 void BakerString_Cat_No_Collide (/*modify*/ baker_string_t *dst, size_t s_len, const char *s)
 {
 	int new_len				= dst->length + s_len;
@@ -2175,6 +2344,16 @@ double File_Time (const char *path_to_file)
 	return (double)st_buf.st_mtime;
 }
 
+
+char *Mem_strdupf (mempool_t *pool, const char *fmt, ...)
+{
+	VA_EXPAND_ALLOC (text, text_slen, bufsiz, fmt);
+	char *out = (char *)Mem_strdup(pool, text);
+	
+	VA_EXPAND_ALLOC_FREE (text);
+	return out;
+}
+
 char *Z_StrDupf (const char *fmt, ...)
 {
 	VA_EXPAND_ALLOC (text, text_slen, bufsiz, fmt);
@@ -2204,6 +2383,15 @@ void Z_StrDup_Len_Z_Realloc (char **ps, const char *s, int slen)
 	(*ps) = Z_StrDup_Len_Z (s, slen);
 }
 
+WARP_X_ (String_Repeat_Alloc)
+char *Z_StrRepeat_Z (char ch, int count)
+{
+	size_t sizealloc = count + ONE_SIZEOF_NULL_TERM_1;
+	char *sout = (char *)Mem_Alloc (zonemempool, count + 1);
+	memset (&sout[0], ch, count);
+
+	return sout;
+}
 
 // Null terminated copy
 char *_c_strlcpy_size_z (char *dst, size_t dst_sizeof, const char *src, size_t src_length)
@@ -2217,4 +2405,186 @@ char *_c_strlcpy_size_z (char *dst, size_t dst_sizeof, const char *src, size_t s
 //#include "pak.c.h" // Works, don't do it
 
 #include "baker_mem_read.c.h"
+
+
+bgra4 *Image_Bilinear_Resize_ZAlloc (const bgra4 *rgba, int width, int height, int new_width, int new_height)
+{
+	size_t sizealloc = sizeof(unsigned int) * (new_width * new_height);
+    /*RETURNING_ALLOC___*/ bgra4 *temp_o = (bgra4 *)Mem_Alloc (zonemempool, sizealloc);
+    int a, b, col, d, x, y, index, i, j ;
+    float x_ratio = ((float)(width-1))/new_width ;
+    float y_ratio = ((float)(height-1))/new_height ;
+    float x_diff, y_diff, blue, red, green ;
+    int offset = 0 ;
+    for (i=0;i<new_height;i++) {
+        for (j=0;j<new_width;j++) {
+            x = (int)(x_ratio * j) ;
+            y = (int)(y_ratio * i) ;
+            x_diff = (x_ratio * j) - x ;
+            y_diff = (y_ratio * i) - y ;
+            index = (y*width+x) ;
+            a = rgba[index] ;
+            b = rgba[index+1] ;
+            col = rgba[index+width] ;
+            d = rgba[index+width+1] ;
+
+            // blue element
+            // Yb = Ab(1-width)(1-height) + Bb(width)(1-height) + Cb(height)(1-width) + Db(wh)
+            blue = (a&0xff)*(1-x_diff)*(1-y_diff) + (b&0xff)*(x_diff)*(1-y_diff) +
+                   (col&0xff)*(y_diff)*(1-x_diff)   + (d&0xff)*(x_diff*y_diff);
+
+            // green element
+            // Yg = Ag(1-width)(1-height) + Bg(width)(1-height) + Cg(height)(1-width) + Dg(wh)
+            green = ((a>>8)&0xff)*(1-x_diff)*(1-y_diff) + ((b>>8)&0xff)*(x_diff)*(1-y_diff) +
+                    ((col>>8)&0xff)*(y_diff)*(1-x_diff)   + ((d>>8)&0xff)*(x_diff*y_diff);
+
+            // red element
+            // Yr = Ar(1-width)(1-height) + Br(width)(1-height) + Cr(height)(1-width) + Dr(wh)
+            red = ((a>>16)&0xff)*(1-x_diff)*(1-y_diff) + ((b>>16)&0xff)*(x_diff)*(1-y_diff) +
+                  ((col>>16)&0xff)*(y_diff)*(1-x_diff)   + ((d>>16)&0xff)*(x_diff*y_diff);
+
+            temp_o[offset++] =
+                    0xff000000 | // hardcode alpha
+                    ((((int)red)<<16)&0xff0000) |
+                    ((((int)green)<<8)&0xff00) |
+                    ((int)blue) ;
+        }
+    }
+    RETURNING___ return temp_o ;
+}
+
+// Draw Quad = true if ok, false if not
+int Image_Rect_Fill3 (void *pels, unsigned rowbytes, int x, int y, int paint_width, int paint_height, int pixel_bytes, unsigned fill_color)
+{
+	byte *buf = (byte *)pels;
+//	int rowbytes = pix_width * pixel_bytes;
+	int startoffset = y * rowbytes + x * pixel_bytes;
+	int i, j, bufoffset;
+	int pix_width = rowbytes / pixel_bytes; // Because we reinterpret the buffer as short or unsigned for first row paint
+	// Non-byte pixels must fill the first row immediately
+
+#ifdef _DEBUG
+	if (paint_width < 0 || paint_height < 0) {
+		Con_PrintLinef ("Negative size");
+		return false;
+	}
+#endif
+
+	switch (pixel_bytes)
+	{
+	case 2: // Short
+		for (i = 0; i < paint_width; i ++)
+			((short *)buf)[y * pix_width + x + i] = (short)fill_color; // Fill first row
+		break;
+
+	case RGBA_4: // 4, unsigned
+		for (i = 0; i < paint_width; i ++)
+			((unsigned *)buf)[y * pix_width + x + i] = fill_color; // Fill first row
+		break;
+
+	default: // Hopefully default is 1
+		break;
+	}
+
+	for (j = 0, bufoffset = startoffset; j < paint_height; y ++, j++, bufoffset += rowbytes)
+	{
+		// Single byte pixels: memset.  multi-byte pixels: skip first row we already filled, then memcpy it
+		if (pixel_bytes == 1) memset (&buf[bufoffset], fill_color, paint_width); // byte pixels just memset
+		else if (j > 0) memcpy (&buf[bufoffset], &buf[startoffset], paint_width * pixel_bytes);
+	}
+
+	return true;
+}
+
+#define c_rint(x)	((x) > 0 ? (int)((x) + 0.5) : (int)((x) - 0.5))
+
+void sImage_Format_Buffer (byte *buf, int w, int h, int pixel_bytes, unsigned fillcolor)
+{
+//	if (pixel_bytes == RGBA_4) Image_Rect_Fill (fillcolor,0,0,w,h,buf,w,h,pixel_bytes);  // unsigned
+	if (pixel_bytes == RGBA_4) {
+		size_t rowbytes = w * RGBA_4;
+		Image_Rect_Fill3 (buf, rowbytes, 0, 0, w, h, pixel_bytes, fillcolor);  // unsigned
+			//if (pixel_bytes == RGBA_4) Image_Rect_Fill3 (buf,w*h*pixel_bytes,0,0,w,h,pixel_bytes,fillcolor);  // unsigned
+	}
+	else if (pixel_bytes == 1) memset (buf, fillcolor, w * h);
+	else {
+		// log_fatal ("Invalid pixel_bytes"); // We can actually handle 2 above using same text as if (pixel_bytes == RGBA_4)
+	}
+}
+
+// Literal, if you want to clamp src/dst coords and width, do it in another function
+void Image_Paste_Sub_Image (void *dst, unsigned dst_rowbytes, int dst_x, int dst_y,
+				   const void *src, unsigned src_rowbytes, int src_x, int src_y, int paste_width, int paste_height, int pixel_bytes)
+{
+	int r;
+	byte *bdst = (byte *)dst;
+	byte *bsrc = (byte *)src;
+
+	size_t paste_rowbytes = paste_width * pixel_bytes; // Amount to copy per row
+
+	int dst_offset = dst_y * dst_rowbytes + dst_x * pixel_bytes;
+	int src_offset = src_y * src_rowbytes + src_x * pixel_bytes;
+
+	for (r = 0; r < paste_height; r++, dst_offset += dst_rowbytes, src_offset += src_rowbytes)
+		memcpy (&bdst[dst_offset], &bsrc[src_offset], paste_rowbytes);
+}
+
+
+/*ALLOC___ */void *Image_Enlarge_Canvas_ZAlloc (const void *pels, int width, int height, int pixel_bytes, int new_width, int new_height, unsigned fillcolor, int is_centered)
+{
+	/*RETURNING_ALLOC___ */byte *temp_o = (byte *)Mem_Alloc (zonemempool, pixel_bytes * new_width * new_height);
+
+	if (fillcolor != 0) sImage_Format_Buffer (temp_o, new_width, new_height, pixel_bytes, fillcolor);
+
+	if (is_centered)
+	{
+		int center_x = c_rint ((new_width - width) / 2.0);
+		int center_y = c_rint ((new_height - height) / 2.0);
+		Image_Paste_Sub_Image (temp_o, new_width * pixel_bytes, center_x, center_y, pels, width * pixel_bytes, 0, 0, width, height, pixel_bytes);
+	}
+	else Image_Paste_Sub_Image (temp_o, new_width * pixel_bytes, 0, 0, pels, width * pixel_bytes, 0, 0, width, height, pixel_bytes);
+	
+	RETURNING___ return (void *)temp_o;
+}
+
+qbool JPEG_SaveImage_preflipped (const char *filename, int width, int height, unsigned char *data);
+void Image_CopyMux(unsigned char *outpixels, const unsigned char *inpixels, int inputwidth, int inputheight, qbool inputflipx, qbool inputflipy, qbool inputflipdiagonal, int numoutputcomponents, int numinputcomponents, int *outputinputcomponentindices);
+
+int Image_Save_JPEG_Is_Ok (ccs *filename, bgra4 *pels_bgra, int width, int height)
+{
+	rgb3 *noalphabuffer_3 = (rgb3 *)Mem_Alloc (tempmempool, width * height * RGB_3);
+	int	indices[4] = {2,1,0,3}; // BGRA
+	Image_CopyMux (noalphabuffer_3, (byte *)pels_bgra, width, height,
+		/*flipx*/ false, /*flipy*/ true, /*flipdiagonal*/ false, 3, 4, indices);
+
+	int is_ok = JPEG_SaveImage_preflipped (filename, width, height, noalphabuffer_3);
+
+	Mem_FreeNull_ (noalphabuffer_3);
+	return is_ok;
+}
+
+static int _StringToFileIsOk (ccs *filename, ccs *s, int shall_warn)
+{
+	qfile_t *f = FS_OpenRealFile (filename, "wb", fs_quiet_FALSE); // WRITE-EON obj model adjust
+	if (!f) {
+		if (shall_warn) Con_PrintLinef ("Couldn't open file " QUOTED_S, filename);
+		return false; // failed
+	}
+
+	FS_PrintLinef (f, s);
+	FS_CloseNULL_ (f);
+	if (shall_warn) Con_PrintLinef ("Wrote " QUOTED_S, filename);
+
+	return true; // Success
+}
+
+int StringToFileConPrintIsOk (ccs *filename, ccs *s)
+{
+	return _StringToFileIsOk (filename, s, /*shall warn?*/ true);
+}
+
+int StringToFileIsOk (ccs *filename, ccs *s)
+{
+	return _StringToFileIsOk (filename, s, /*shall warn?*/ false);
+}
 

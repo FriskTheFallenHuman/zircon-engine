@@ -130,7 +130,9 @@ static void mod_shutdown(void)
 	if (is_game_switch) {
 		//Mod_PurgeUnused (); // Baker .. loadmodel: stuff from prior gamedir persisted
 		Mod_PurgeALL ();
+#ifdef CONFIG_MENU
 		S_PurgeALL (); //S_PurgeUnused();
+#endif
 		is_game_switch = false; // Baker r9062: This is where.
 	} else {
 		// Could be ALT-TAB or vid restart
@@ -186,6 +188,7 @@ Mod_InitOnce
 static void Mod_Print_f(cmd_state_t *cmd);
 static void Mod_Precache_f(cmd_state_t *cmd);
 static void Mod_Decompile_f(cmd_state_t *cmd);
+static void Mod_TextureFindPos_f(cmd_state_t *cmd);
 static void Mod_GenerateLightmaps_f(cmd_state_t *cmd);
 void Mod_InitOnce (void)
 {
@@ -212,6 +215,7 @@ void Mod_InitOnce (void)
 	Cmd_AddCommand(CF_CLIENT, "modellist", Mod_Print_f, "prints a list of loaded models");
 	Cmd_AddCommand(CF_CLIENT, "modelprecache", Mod_Precache_f, "load a model");
 	Cmd_AddCommand(CF_CLIENT, "modeldecompile", Mod_Decompile_f, "exports a model in several formats for editing purposes");
+	Cmd_AddCommand(CF_CLIENT, "texturefindpos", Mod_TextureFindPos_f, "finds the position of the first instance of a texture in a map.  Partial texture names allowed [Zircon]");
 	Cmd_AddCommand(CF_CLIENT, "mod_generatelightmaps", Mod_GenerateLightmaps_f, "rebuilds lighting on current worldmodel");
 }
 
@@ -1440,7 +1444,7 @@ static int Mod_LoadQ3Shaders_EnumerateWaveFunc(const char *s)
 	if (String_Match_Caseless(s, "inversesawtooth")) return offset | Q3WAVEFUNC_INVERSESAWTOOTH;
 	if (String_Match_Caseless(s, "noise"))           return offset | Q3WAVEFUNC_NOISE;
 	if (String_Match_Caseless(s, "none"))            return offset | Q3WAVEFUNC_NONE;
-	Con_DPrintf ("Mod_LoadQ3Shaders: unknown wavefunc %s\n", s);
+	Con_DPrintLinef ("Mod_LoadQ3Shaders: unknown wavefunc %s", s);
 	return offset | Q3WAVEFUNC_NONE;
 }
 
@@ -1882,9 +1886,12 @@ nothing                GL_ZERO GL_ONE
 			}
 			if (shader->numlayers >= 2
 			 && shader->layers[1].alphagen.alphagen == Q3ALPHAGEN_VERTEX
-			 && (shader->layers[0].blendfunc[0] == GL_ONE && shader->layers[0].blendfunc[1] == GL_ZERO && !shader->layers[0].alphatest)
-			 && ((shader->layers[1].blendfunc[0] == GL_SRC_ALPHA && shader->layers[1].blendfunc[1] == GL_ONE_MINUS_SRC_ALPHA)
-				 || (shader->layers[1].blendfunc[0] == GL_ONE && shader->layers[1].blendfunc[1] == GL_ZERO && shader->layers[1].alphatest)))
+			 && (shader->layers[0].blendfunc[0] == GL_ONE && shader->layers[0].blendfunc[1] == GL_ZERO && 
+			   !shader->layers[0].alphatest)
+			 && ((shader->layers[1].blendfunc[0] == GL_SRC_ALPHA && shader->layers[1].blendfunc[1] == 
+			   GL_ONE_MINUS_SRC_ALPHA)
+				 || (shader->layers[1].blendfunc[0] == GL_ONE && 
+				 shader->layers[1].blendfunc[1] == GL_ZERO && shader->layers[1].alphatest)))
 			{
 				// terrain blend or certain other effects involving alphatest over a regular layer
 				terrainbackgroundlayer = 0;
@@ -2301,7 +2308,7 @@ tag_torso,
 					skinfileitem = (skinfileitem_t *)Mem_Alloc(loadmodel->mempool, sizeof(skinfileitem_t));
 					skinfileitem->next = skinfile->items;
 					skinfile->items = skinfileitem;
-					c_strlcpy (skinfileitem->name, word[1]); //, sizeof (skinfileitem->name));
+					c_strlcpy (skinfileitem->skname, word[1]); //, sizeof (skinfileitem->name));
 					c_strlcpy (skinfileitem->replacement, word[2]); //, sizeof (skinfileitem->replacement));
 				}
 				else
@@ -2321,7 +2328,7 @@ tag_torso,
 				skinfileitem = (skinfileitem_t *)Mem_Alloc(loadmodel->mempool, sizeof(skinfileitem_t));
 				skinfileitem->next = skinfile->items;
 				skinfile->items = skinfileitem;
-				c_strlcpy (skinfileitem->name, word[0]);//, sizeof (skinfileitem->name));
+				c_strlcpy (skinfileitem->skname, word[0]);//, sizeof (skinfileitem->name));
 				c_strlcpy (skinfileitem->replacement, word[2]);//, sizeof (skinfileitem->replacement));
 			}
 			else
@@ -2563,7 +2570,7 @@ WARP_X_ (RSurf_ActiveModelEntity Mod_MDL_AnimateVertices ALIASXPRIME Mod_IDP0_Lo
 
 // Baker: It must be precached.
 WARP_X_CALLERS_ (Mod_Decompile_f)
-static void Mod_Decompile_OBJ (model_t *model, const char *rawname, const char *filename, const char *mtlfilename, const char *originalfilename, int framenumz)
+static void Mod_Decompile_OBJ (model_t *model, const char *rawname, const char *filename, const char *mtlfilename, const char *originalfilename, int framenumz, int submodelnum)
 {
 	int submodelindex, vertexindex, surfaceindex, triangleindex, textureindex, countvertices = 0, countsurfaces = 0, countfaces = 0, counttextures = 0;
 	int a, b, c;
@@ -2690,7 +2697,7 @@ static void Mod_Decompile_OBJ (model_t *model, const char *rawname, const char *
 			int a = etri[0]+1, b = etri[1]+1, c = etri[2]+1;
 
 			vec3_t p0, p1, p2;
-			vec3_t center;
+			//vec3_t center;
 		
 			WARP_X_ (NORMAL Collision_CalcPlanesForTriangleBrushFloat Mod_IDP0_Load)
 
@@ -2747,7 +2754,11 @@ static void Mod_Decompile_OBJ (model_t *model, const char *rawname, const char *
 			outbufferpos += jj;
 	}
 
-	for (submodelindex = 0;submodelindex < max(1, model->brush.numsubmodels);submodelindex++) {
+	int start_index		= submodelnum ? submodelnum + 0 : 0;
+	int beyond_index	= submodelnum ? submodelnum + 1 : max(1, model->brush.numsubmodels);
+
+	//for (submodelindex = 0; submodelindex < max(1, model->brush.numsubmodels); submodelindex ++) {
+	for (submodelindex = start_index; submodelindex < beyond_index; submodelindex ++) {
 		jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, "o %d\n", submodelindex);
 		if (jj > 0)
 			outbufferpos += jj;
@@ -2989,7 +3000,7 @@ static void Mod_Decompile_f(cmd_state_t *cmd)
 
 	c_strlcpy (inname, Cmd_Argv(cmd, 1));
 	FS_StripExtension(inname, basename, sizeof(basename));
-
+	
 	mod = Mod_ForName(inname, false, true, inname[0] == '*' ? cl.model_name[1] : NULL);
 
 	if (!mod) {
@@ -2997,8 +3008,10 @@ static void Mod_Decompile_f(cmd_state_t *cmd)
 		return;
 	}
 
+	int submodelindexwanted = 0;
 	if (mod->brush.submodel) {
 		// if we're decompiling a submodel, be sure to give it a proper name based on its parent
+		submodelindexwanted = atoi(&inname[1]);
 		FS_StripExtension(cl.model_name[1], outname, sizeof(outname));
 		c_dpsnprintf2 (basename, "%s/%s", outname, mod->model_name);
 		dpreplacechar (basename, '*', '_'); // Baker r7061: Model decompile, windows will not allow * in a file name
@@ -3018,7 +3031,7 @@ obj_export:
 		int framenumz = atoi(arg2);
 		c_dpsnprintf1 (outname, "%s_decompiled.obj", basename);
 		c_dpsnprintf1 (mtlname, "%s_decompiled.mtl", basename);
-		Mod_Decompile_OBJ (mod, inname, outname, mtlname, inname,framenumz);
+		Mod_Decompile_OBJ (mod, inname, outname, mtlname, inname, framenumz, submodelindexwanted);
 	}
 
 	// export SMD if possible (only for skeletal models)
@@ -3095,6 +3108,68 @@ obj_export:
 			FS_WriteFile(va(vabuf, sizeof(vabuf), "%s_decompiled.framegroups", basename), framegroupstextbuffer, (fs_offset_t)framegroupstextsize);
 	}
 }
+
+WARP_X_ (Mod_Decompile_OBJ)
+static void Mod_TextureFindPos (model_t *model, ccs *swanted)
+{
+
+	for (int submodelindex = 0;submodelindex < max(1, model->brush.numsubmodels);submodelindex++) {
+		model_t *submodel = model->brush.numsubmodels ? model->brush.submodels[submodelindex] : model;
+		for (int surfaceindex = submodel->submodelsurfaces_start;surfaceindex < submodel->submodelsurfaces_end;surfaceindex++) {
+			const msurface_t *surface = model->data_surfaces + surfaceindex;
+			ccs *texname = (surface->texture && surface->texture->name[0]) ? surface->texture->name : "default";
+
+			//for (triangleindex = 0, e = model->surfmesh.data_element3i + surface->num_firsttriangle * 3;
+			//	triangleindex < surface->num_triangles;triangleindex++, e += 3) {
+			//} // for
+			if (String_Contains_Caseless (texname, swanted)) {
+				va_super (sorg, 1024, VECTOR3_LOSSLESS, VECTOR3_SEND(surface->mins));
+				Clipboard_Set_Text (sorg);
+				Con_PrintLinef ("First occurance of texture: %s at " VECTOR3_LOSSLESS " to " VECTOR3_LOSSLESS, texname, VECTOR3_SEND(surface->mins), VECTOR3_SEND(surface->maxs));
+				Con_PrintLinef ("Location copied to clipboard");
+				Con_PrintLinef ("setpos and press CTRL-V paste can take you there");
+				return;
+			}
+		} // for
+	}
+
+	Con_PrintLinef ("No instances of texture %s were found", swanted);
+}
+
+
+static void Mod_TextureFindPos_f(cmd_state_t *cmd)
+{	
+	if (!r_refdef.scene.worldmodel) {
+		Con_PrintLinef ("No map running");
+	}
+	
+	if (Cmd_Argc(cmd) > 2 || Cmd_Argc(cmd) == 1) {
+		Con_PrintLinef ("usage: texturefindpos <partial or full texturename>");
+		return;
+	}
+
+	ccs *swanted = Cmd_Argv (cmd, 1);
+	ccs *sworld = cl.model_name[1];
+
+	model_t *mod = Mod_ForName(sworld, /*crash?*/ false, /*checkdisk*/ false, NULL);
+
+	if (!mod) {
+		Con_PrintLinef ("Can't load world model");
+		return;
+	}
+
+	if (!mod->surfmesh.num_triangles) {
+		Con_PrintLinef ("Empty model (or sprite)");
+		return;
+	}
+
+	if (mod->surfmesh.num_triangles) {
+		// [0] modeldecompile [1]progs/player.mdl [2] framenum		
+		Mod_TextureFindPos (mod, swanted);
+	}
+
+}
+
 
 void Mod_AllocLightmap_Init(mod_alloclightmap_state_t *state, mempool_t *mempool, int width, int height)
 {
@@ -4004,7 +4079,7 @@ static void Mod_GenerateLightmaps_CreateLightmaps(model_t *model)
 		if (!surface->num_triangles)
 			continue;
 		lightmapindex = mod_generatelightmaps_lightmaptriangles[surface->num_firsttriangle].lightmapindex;
-		surface->lightmaptexture = model->brushq3.data_lightmaps[lightmapindex];
+		surface->lightmaptexture = model->brushq3.data_lightmaps[lightmapindex]; // LM_OID
 		surface->deluxemaptexture = model->brushq3.data_deluxemaps[lightmapindex];
 		surface->lightmapinfo = NULL;
 	}
@@ -4065,7 +4140,7 @@ static void Mod_GenerateLightmaps(model_t *model)
 	Mod_GenerateLightmaps_UnweldTriangles(model);
 	Mod_GenerateLightmaps_CreateTriangleInformation(model);
 	Mod_GenerateLightmaps_CreateLights(model);
-	if (!mod_q3bsp_nolightmaps.integer)
+	if (!mod_q3bsp_nolightmaps.integer /*d: 0*/)
 		Mod_GenerateLightmaps_CreateLightmaps(model);
 	Mod_GenerateLightmaps_UpdateVertexColors(model);
 	Mod_GenerateLightmaps_UpdateLightGrid(model);
@@ -4162,11 +4237,11 @@ texture_t *Mod_Mesh_GetTexture(model_t *mod, const char *name, int defaultdrawfl
 	t->mesh_defaultmaterialflags = defaultmaterialflags;
 	switch (defaultdrawflags & DRAWFLAG_MASK)
 	{
-	case DRAWFLAG_ADDITIVE:
+	case DRAWFLAG_ADDITIVE: // q3map2 blendfunc add
 		t->basematerialflags |= MATERIALFLAG_ADD | MATERIALFLAG_BLENDED;
 		t->currentmaterialflags = t->basematerialflags;
 		break;
-	case DRAWFLAG_MODULATE:
+	case DRAWFLAG_MODULATE: // q3map2 calls this?
 		t->basematerialflags |= MATERIALFLAG_CUSTOMBLEND | MATERIALFLAG_BLENDED;
 		t->currentmaterialflags = t->basematerialflags;
 		t->customblendfunc[0] = GL_DST_COLOR;
@@ -4178,7 +4253,7 @@ texture_t *Mod_Mesh_GetTexture(model_t *mod, const char *name, int defaultdrawfl
 		t->customblendfunc[0] = GL_DST_COLOR;
 		t->customblendfunc[1] = GL_SRC_COLOR;
 		break;
-	case DRAWFLAG_SCREEN:
+	case DRAWFLAG_SCREEN: // sort of like q3map2 blendfunc filter which is gl_zero gl_src_color
 		t->basematerialflags |= MATERIALFLAG_CUSTOMBLEND | MATERIALFLAG_BLENDED;
 		t->currentmaterialflags = t->basematerialflags;
 		t->customblendfunc[0] = GL_ONE_MINUS_DST_COLOR;
@@ -4465,3 +4540,5 @@ void Mod_Shaders_Query (feed_fn_t myfeed_shall_stop)
 		} // for entry
 	} // for hash
 }
+
+

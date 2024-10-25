@@ -38,7 +38,8 @@ void Map_Append_Pairs (stringlist_t *plist)
 		}
 
 		stringlistappendf2	(&ezdev->listaccum, "Supports wateralpha?", "%s", cl.worldmodel->brush.supportwateralpha ? "Yes" : "No");
-		stringlistappendf2	(&ezdev->listaccum, "Has visibility data?", "%s", cl.worldmodel->brush.num_pvsclusters != 0 ? "Yes" : "No");
+		//stringlistappendf2	(&ezdev->listaccum, "Has visibility data?", "%s", cl.worldmodel->brush.num_pvsclusters != 0 ? "Yes" : "No");
+		stringlistappendf2	(&ezdev->listaccum, "Has visibility data?", "%s", cl.worldmodel->brush.is_vised ? "Yes" : "No");
 
 		va_super (levelshotname_jpg, MAX_QPATHX2_256, "levelshots/%s.jpg", cl.worldbasename);
 		stringlistappendf2	(&ezdev->listaccum, "Has levelshots/mapname.tga?", "%s", cl.levelshotsname[0] ? cl.levelshotsname : "(No)");
@@ -131,6 +132,7 @@ void Map_Append_Pairs (stringlist_t *plist)
 
 
 WARP_X_ (CL_Models_Query)
+// Baker: October 18 2024 - n1 = num tri
 qbool EZDev_Models_Feed_Shall_Stop_Fn (int idx, ccs *key, ccs *value, ccs *a, ccs *b, ccs *c,
 							   int64_t n0, int64_t n1, int64_t n2)
 {
@@ -143,10 +145,15 @@ qbool EZDev_Models_Feed_Shall_Stop_Fn (int idx, ccs *key, ccs *value, ccs *a, cc
 		if (key[0] == '*')
 			return false;
 
-	// 2 columns .. modelindex,modelname as key,n0
+	// 3 columns .. modelindex,modelname as key,n0,numtri
 	int modelindex = n0;
+	int numtriangles = n1;
 	stringlistappendf (&ezdev->listaccum, "%d", modelindex);
 	stringlistappendf (&ezdev->listaccum, key);
+	stringlistappendf (&ezdev->listaccum, "%d", numtriangles);
+	stringlistappendf (&ezdev->listaccum, "%s", a); // width
+	stringlistappendf (&ezdev->listaccum, "%s", b); // depth
+	stringlistappendf (&ezdev->listaccum, "%s", c); // height
 
 	return false; // Shall stop
 }
@@ -414,12 +421,12 @@ EXO___ char *DevTabSelectOnChange (oject_s *ktab)
 
 	case lw_models_1: // Models
 
-		numcolumns = 2;
+		numcolumns = 6; // October 18 2024
 
 		CL_Models_Query (EZDev_Models_Feed_Shall_Stop_Fn);
 
-		iserr += Object_Property_Set		(ezdev->klist, "ColumnWidths", "150, 400");
-		iserr += Object_Property_Set		(ezdev->klist, "ColumnHeaders", "ModelIndex,Model");
+		iserr += Object_Property_Set		(ezdev->klist, "ColumnWidths", "120, 350, 150, 150, 150, 150");
+		iserr += Object_Property_Set		(ezdev->klist, "ColumnHeaders", "ModelIndex,Model,NumTriangles,Width,Depth,Height");
 
 		if (ezdev->listaccum.numstrings == 0) {
 			stringlistappend (&ezdev->listaccum, "");
@@ -608,9 +615,11 @@ EXO___ char *DevTabSelectOnChange (oject_s *ktab)
 			
 			va_super (entname, MAX_QPATH_128, "%s.ent", cl.worldnamenoextension);
 			char *entities_alloc = (char *)FS_LoadFile(entname, tempmempool, fs_quiet_true, fs_size_ptr_null);
-			int slenplus1 = strlen(entities_alloc) + ONE_CHAR_1;
-			String_Edit_Replace_Memory_Constant (entities_alloc, slenplus1, "\r", "");
-			char *entities = entities_alloc ? entities_alloc : cl.worldmodel->brush.entities;
+			if (entities_alloc) {
+				int slenplus1 = strlen(entities_alloc) + ONE_CHAR_1;
+				String_Edit_Replace_Memory_Constant (entities_alloc, slenplus1, "\r", "");
+			}
+			char *entities = entities_alloc ? entities_alloc : cl.worldmodel->brush.entities;	
 			//int stringlistappend_split_delimiter_linenumbers (stringlist_t *plist, ccs *file, ccs *delimiter)
 			stringlistappend_split_delimiter_linenumbers (&ezdev->listaccum, entities, NEWLINE);
 

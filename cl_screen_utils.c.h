@@ -69,7 +69,7 @@ int Screenshot_Jpeg_Prep_RenderBuffer_Is_Ok (int width, int height)
 	return true; // Ok!
 }
 
-byte *Screenshot_To_Jpeg_Blob_ZAlloc_512_320 (size_t *pblobsizeout) //
+byte *Screenshot_To_Jpeg_Blob_ZAlloc_512_320 (size_t *pblobsizeout) // 
 {
 #pragma message ("TODO: Make Screenshot_To_Jpeg_String_Malloc_512_320 call this")
 	int width = SAVEGAME_PIC_WIDTH_512;
@@ -88,7 +88,7 @@ byte *Screenshot_To_Jpeg_Blob_ZAlloc_512_320 (size_t *pblobsizeout) //
 	return data_allocz;
 }
 
-char *Screenshot_To_Jpeg_String_Malloc_512_320 (void) //
+char *Screenshot_To_Jpeg_String_Malloc_512_320 (void) // 
 {
 	int width = SAVEGAME_PIC_WIDTH_512;
 	int height = SAVEGAME_PIC_HEIGHT_320;
@@ -796,7 +796,7 @@ void levels_shot_decide_map_and_act (int after_this_idx0)
 		Vid_SetWindowTitlef (gamename);
 		Con_PrintLinef ("Levelshots process completed!");
 	} else {
-
+		
 		maplist_s *mm = &m_maplist[idx];
 
 		// WRITE A SCREENSHOT FAILED IMAGE FIRST
@@ -814,7 +814,7 @@ void levels_shot_decide_map_and_act (int after_this_idx0)
 		}
 
 		Mem_FreeNull_ (jpeg_failed_za);
-
+		
 		Cbuf_AddTextLinef (cmd_local, "map %s", mm->s_name_after_maps_folder_a);
 		cls.levelshots_index_plus1 = PLUS1(idx);
 	}
@@ -849,11 +849,14 @@ static void R_LevelShot_Maps_All_f (cmd_state_t *cmd)
 {
 //extern maplist_s m_maplist[MAXMAPLIST_4096];
 //extern int m_maplist_count;
-
+	ccs *prefix = "";
+	if (Cmd_Argc(cmd) == 2) {
+		prefix = Cmd_Argv(cmd, 1);
+	}
 	WARP_X_ (M_Menu_Maps_f)
-
+	
 		// Fill it ...
-	GetMapList("", NULL, 0, /*is_menu_fill*/ true, /*autocompl*/ false, /*suppress*/ false);
+	GetMapList(prefix, NULL, 0, /*is_menu_fill*/ true, /*autocompl*/ false, /*suppress*/ false);
 
 	if (m_maplist_count) {
 		levels_shot_decide_map_and_act (not_found_neg1);

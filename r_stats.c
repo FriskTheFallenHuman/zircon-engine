@@ -291,7 +291,9 @@ void R_TimeReport_EndFrame(void)
 "dynamic%5i count%5i surfaces%7i vertices%7i triangles\n"
 "%s"
 , r_refdef.stats[r_stat_timedelta], loc ? "Location: " : "", loc ? loc->name : "", cl.time, r_refdef.view.colorscale
-, r_refdef.stats[r_stat_renders], r_refdef.view.origin[0], r_refdef.view.origin[1], r_refdef.view.origin[2], r_refdef.view.forward[0], r_refdef.view.forward[1], r_refdef.view.forward[2]
+, r_refdef.stats[r_stat_renders], r_refdef.view.origin[0], 
+r_refdef.view.origin[1], 
+r_refdef.view.origin[2], r_refdef.view.forward[0], r_refdef.view.forward[1], r_refdef.view.forward[2]
 , viewleaf ? (int)(viewleaf - r_refdef.scene.worldmodel->brush.data_leafs) : -1, viewleaf ? viewleaf->clusterindex : -1, viewleaf ? viewleaf->areaindex : -1, viewleaf ? viewleaf->numleafbrushes : 0, viewleaf ? viewleaf->numleafsurfaces : 0, viewleaf ? R_CountLeafTriangles(r_refdef.scene.worldmodel, viewleaf) : 0
 , r_refdef.stats[r_stat_world_surfaces], r_refdef.stats[r_stat_world_triangles], r_refdef.stats[r_stat_entities], r_refdef.stats[r_stat_entities_surfaces], r_refdef.stats[r_stat_entities_triangles]
 , r_refdef.stats[r_stat_world_leafs], r_refdef.stats[r_stat_world_portals], r_refdef.stats[r_stat_particles], cl.num_particles, r_refdef.stats[r_stat_drawndecals], r_refdef.stats[r_stat_totaldecals], r_refdef.stats[r_stat_quality]

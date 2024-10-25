@@ -122,7 +122,7 @@ qbool SV_movestep (prvm_edict_t *ent, vec3_t move, qbool relink, qbool noenemy, 
 	VectorCopy(PRVM_serveredictvector(ent, maxs), entmaxs);
 
 // flying monsters don't step up
-	if ( (int)PRVM_serveredictfloat(ent, flags) & (FL_SWIM | FL_FLY) )
+	if ( (int)PRVM_serveredictfloat(ent, flags) & (FL_SWIM_2 | FL_FLY_1) )
 	{
 	// try one move with vertical motion, then one without
 		for (i=0 ; i<2 ; i++)
@@ -148,7 +148,7 @@ qbool SV_movestep (prvm_edict_t *ent, vec3_t move, qbool relink, qbool noenemy, 
 			if (trace.fraction == 1)
 			{
 				VectorCopy(trace.endpos, traceendpos);
-				if (((int)PRVM_serveredictfloat(ent, flags) & FL_SWIM) && !(SV_PointSuperContents(traceendpos) & SUPERCONTENTS_LIQUIDSMASK))
+				if (((int)PRVM_serveredictfloat(ent, flags) & FL_SWIM_2) && !(SV_PointSuperContents(traceendpos) & SUPERCONTENTS_LIQUIDSMASK))
 					return false;	// swim monster left water
 
 				VectorCopy (traceendpos, PRVM_serveredictvector(ent, origin));
@@ -192,7 +192,7 @@ qbool SV_movestep (prvm_edict_t *ent, vec3_t move, qbool relink, qbool noenemy, 
 				SV_LinkEdict(ent);
 				SV_LinkEdict_TouchAreaGrid(ent);
 			}
-			PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) & ~FL_ONGROUND;
+			PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) & ~FL_ONGROUND_512;
 			return true;
 		}
 
@@ -222,7 +222,7 @@ qbool SV_movestep (prvm_edict_t *ent, vec3_t move, qbool relink, qbool noenemy, 
 		PRVM_serveredictfloat(ent, flags) = (int)PRVM_serveredictfloat(ent, flags) & ~FL_PARTIALGROUND;
 
 // gameplayfix: check if reached pretty steep plane and bail
-	if ( ! ( (int)PRVM_serveredictfloat(ent, flags) & (FL_SWIM | FL_FLY) ) && sv_gameplayfix_nostepmoveonsteepslopes.integer )
+	if ( ! ( (int)PRVM_serveredictfloat(ent, flags) & (FL_SWIM_2 | FL_FLY_1) ) && sv_gameplayfix_nostepmoveonsteepslopes.integer )
 	{
 		if (trace.plane.normal[ 2 ] < 0.5)
 		{
@@ -428,7 +428,7 @@ void VM_SV_MoveToGoal(prvm_prog_t *prog)
 	goal = PRVM_PROG_TO_EDICT(PRVM_serveredictedict(ent, goalentity));
 	dist = PRVM_G_FLOAT(OFS_PARM0);
 
-	if ( !( (int)PRVM_serveredictfloat(ent, flags) & (FL_ONGROUND|FL_FLY|FL_SWIM) ) )
+	if ( !( (int)PRVM_serveredictfloat(ent, flags) & (FL_ONGROUND_512|FL_FLY_1|FL_SWIM_2) ) )
 	{
 		PRVM_G_FLOAT(OFS_RETURN) = 0;
 		return;

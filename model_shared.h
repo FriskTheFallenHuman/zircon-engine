@@ -402,7 +402,7 @@ typedef struct msurface_s
 	// lightmaptexture rebuild information not used in q3bsp
 	msurface_lightmapinfo_t *lightmapinfo; // q1bsp
 	// fog volume info in q3bsp
-	struct q3deffect_s* effect; // q3bsp
+	struct q3deffect_s *effect; // q3bsp
 
 	// mesh information for collisions (only used by q3bsp curves)
 	int num_firstcollisiontriangle; // q3bsp only
@@ -654,7 +654,7 @@ extern struct cvar_s r_mipnormalmaps;
 typedef struct skinfileitem_s
 {
 	struct skinfileitem_s *next;
-	char name[MAX_QPATH_128];
+	char skname[MAX_QPATH_128];
 	char replacement[MAX_QPATH_128];
 }
 skinfileitem_t;

@@ -57,7 +57,9 @@ cvar_t developer_extra = {CF_CLIENT | CF_SERVER, "developer_extra", "0", "prints
 cvar_t developer_insane = {CF_CLIENT | CF_SERVER, "developer_insane", "0", "prints huge streams of information about internal workings, entire contents of files being read/written, etc.  Not recommended!"};
 cvar_t developer_loadingfile_fs = {CF_CLIENT | CF_SERVER, "developer_loadingfile_fs","0", "prints name and size of every file loaded via the FS_LoadFile function (which is almost everything)"};
 cvar_t developer_loading = {CF_CLIENT | CF_SERVER, "developer_loading","0", "prints information about files as they are loaded or unloaded successfully"};
-cvar_t developer_spawnfunction_warnings = {CF_CLIENT | CF_SERVER, "developer_spawnfunction_warnings","-3", "whether to print no spawn function warnings 0 = never, 1 = always, -3 = yes, but not for non-Quake map formats [Zircon]"}; // Baker: -3 means yes except for Quake 3 maps because Quake 3 maps almost always have entities that no QC would have a spawn function for
+
+// Baker: Changed default to 1.  Do -3 to suppress for Q3 map format
+cvar_t developer_spawnfunction_warnings = {CF_CLIENT | CF_SERVER, "developer_spawnfunction_warnings","1", "whether to print no spawn function warnings 0 = never, 1 = always, -3 = yes, but not for non-Quake map formats [Zircon]"}; // Baker: -3 means yes except for Quake 3 maps because Quake 3 maps almost always have entities that no QC would have a spawn function for
 cvar_t developer_entityparsing = {CF_CLIENT, "developer_entityparsing", "0", "prints detailed network entities information each time a packet is received"};
 cvar_t developer_execstring = {CF_CLIENT | CF_SERVER | CF_ARCHIVE, "developer_execstring", "0", "prints detailed on command executing to debug console [Zircon]"};
 
@@ -316,8 +318,19 @@ static void Host_AddConfigText(cmd_state_t *cmd)
 
 #ifdef CONFIG_MENU
 	if (cls.state != ca_dedicated) {
-		Cbuf_InsertText(cmd, "alias +zoom " QUOTED_STR("set _saved_fov $fov; fov 20") "; alias -zoom " QUOTED_STR("fov $_saved_fov") NEWLINE);
-		Cbuf_InsertText(cmd, "set _saved_fov $fov" NEWLINE);
+		Cbuf_InsertText (cmd, "alias +zoom " QUOTED_STR("set _saved_fov $fov; fov 20") "; alias -zoom " QUOTED_STR("fov $_saved_fov") NEWLINE);
+		Cbuf_InsertText (cmd, "set _saved_fov $fov" NEWLINE);
+#if 0
+		if (gamemode == GAME_NORMAL && !Sys_CheckParm ("-game") && 0) {
+			switch (rand() % 5) { // MOTD
+			case 0: Cbuf_InsertText (cmd, "infobar 3 \"Tip: CTRL-L clears the console\" silent");
+			case 1: Cbuf_InsertText (cmd, "infobar 3 \"Tip: Don't eat yellow snow\" silent");
+			case 2: Cbuf_InsertText (cmd, "infobar 3 \"Tip: Don't eat white snow\" silent");
+			case 3: Cbuf_InsertText (cmd, "infobar 3 \"Tip: Don't eat red snow\" silent");
+			case 4: Cbuf_InsertText (cmd, "infobar 3 \"Tip: Don't eat green snow\" silent");
+			} // sw
+		}
+#endif
 	}
 #endif // CONFIG_MENU
 
@@ -618,7 +631,7 @@ int LOC_GetDecode (const char *s)
 }
 
 char s_decodebuf[16384];
-#define ASSIGN(x) (x)
+
 
 const char *LOC_GetString (const char *stxt)
 {
@@ -800,6 +813,20 @@ static void Host_InitOnce (void)
 	c_dpsnprintf3 (engineversion, "%s %s %s", gamename, os, buildstring);
 	Con_PrintLinef ("%s\n", engineversion);
 
+#ifdef QUALKER
+	// Baker r8002: Zircon console name
+	const char *sfmt = "%s " // ...
+		#if defined(_WIN32) && defined(_WIN64)
+			"64 "
+		#endif // CORE_SDL
+		#ifdef CORE_SDL
+			"SDL2 "
+		#endif // CORE_SDL
+		#if defined (_DEBUG) || defined (DEBUG) // MAC 2nd one
+			"(D) "
+		#endif // _DEBUG
+		"%s";
+#else
 	// Baker r8002: Zircon console name
 	const char *sfmt = "%s " // ...
 		#if defined(_WIN32) && defined(_WIN64)
@@ -815,6 +842,7 @@ static void Host_InitOnce (void)
 			"(D) "
 		#endif // _DEBUG
 		"%s";
+#endif
 
 	c_dpsnprintf2 (engineversionshort, sfmt, gamename, buildstringshort);
 

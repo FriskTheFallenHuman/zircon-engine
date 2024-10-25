@@ -1001,8 +1001,29 @@ void CL_Models_Query (feed_fn_t myfeed_shall_stop)
 		return;
 
 	for (int j = 1; j < MAX_MODELS_8192 && cl.model_name[j][0]; j ++) {
+		WARP_X_ (EZDev_Models_Feed_Shall_Stop_Fn)
+		int num_tri = 0;
 
-		qbool shall_stop = myfeed_shall_stop (-1, cl.model_name[j], "", NULL, NULL, NULL, j, 1, 2);
+		char sizea[64] = {0};
+		char sizeb[64] = {0};
+		char sizec[64] = {0};
+		if (cl.model_precache[j]) {
+			model_t *mod = cl.model_precache[j];
+			
+			vec3_t	mins; VectorCopy (mod->normalmins, mins);
+			vec3_t	maxs; VectorCopy (mod->normalmaxs, maxs);
+			vec3_t	sizs; VectorSubtract (maxs, mins, sizs);
+
+			dpsnprintf (sizea, sizeof(sizea), "%5.1f", sizs[0]); 
+			dpsnprintf (sizeb, sizeof(sizeb), "%5.1f", sizs[1]); 
+			dpsnprintf (sizec, sizeof(sizec), "%5.1f", sizs[2]); 
+
+			if (mod->surfmesh.num_triangles) {
+				num_tri = mod->surfmesh.num_triangles;
+			}
+		}
+		qbool shall_stop = myfeed_shall_stop (-1, cl.model_name[j], "", /*a*/ sizea, sizeb, sizec, j, num_tri, 2);
+
 		if (shall_stop)
 			return;
 	} // for

@@ -1,0 +1,31 @@
+#include <windows.h> // include for version info constants
+
+#define APPLICATION_NAME "Zircon"
+#define APPLICATION_COMPANY "Zircon"
+#define APPLICATION_VERSION "1.1.1"
+
+1 ICON DISCARDABLE "OBJECTN2-Windows-XP-48px.ico"
+2 ICON DISCARDABLE "OBJECTN-Windows-XP-48px.ico"
+
+
+1 VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILETYPE VFT_APP
+{
+  BLOCK "StringFileInfo"
+	 {
+		 BLOCK "040904E4"
+		 {
+			 VALUE "CompanyName", APPLICATION_NAME
+			 VALUE "FileVersion", APPLICATION_VERSION
+			 VALUE "FileDescription", APPLICATION_NAME
+			 VALUE "InternalName", APPLICATION_NAME
+			 VALUE "LegalCopyright", APPLICATION_COMPANY
+			 VALUE "LegalTrademarks", ""
+			 VALUE "OriginalFilename", APPLICATION_NAME ".exe"
+			 VALUE "ProductName", APPLICATION_NAME
+			 VALUE "ProductVersion", APPLICATION_VERSION
+		 }
+	 }
+}

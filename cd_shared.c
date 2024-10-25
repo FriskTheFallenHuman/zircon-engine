@@ -130,7 +130,7 @@ static void CDAudio_Play_byName (const char *trackname, qbool looping, qbool try
 	sfx_t *sfx;
 	char filename[MAX_QPATH_128];
 
-	CL_StartVideo();
+	CL_StartVideo();                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 
 	if (!enabled)
 		return;
