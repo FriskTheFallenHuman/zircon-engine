@@ -80,6 +80,7 @@ void SV_Savegame_to (prvm_prog_t *prog, char **p_string, const char *name, int i
 			lightstyles = i + 1;
 
 	qbool isserver = prog == SVVM_prog;
+	qbool is_autosave = String_Match (AUTOSAVE_NAME_AUTOSAVE0_SAV, name);
 
 	// Baker: Cleanup
 	if (k_save) {
@@ -96,7 +97,8 @@ void SV_Savegame_to (prvm_prog_t *prog, char **p_string, const char *name, int i
 		k_save = BakerString_Create_Malloc ("");
 	} else {
 		// Save To File Start
-		Con_PrintLinef ("Saving game to %s...", name);
+		if (is_autosave == false)
+			Con_PrintLinef ("Saving game to %s...", name);
 		f_save = FS_OpenRealFile(name, "wb", fs_quiet_FALSE); //  WRITE-EON savegameto ... DONE
 		if (!f_save) {
 			Con_PrintLinef ("ERROR: couldn't open.");
@@ -211,6 +213,12 @@ intermap_no_globals:
 			Flex_Writef ("sv.sound_precache %d %s" NEWLINE, i, sv.sound_precache[i]);
 
 	// Baker: odd is normal for the first write.
+
+	float CDAudio_GetPosition (void);
+	float cdtrack_seconds_into = CDAudio_GetPosition();
+	if (cdtrack_seconds_into != -1) {
+		Flex_Writef ("sv.cdtrack_seconds_into %g" NEWLINE, cdtrack_seconds_into);
+	}
 
 	if (is_intermap_siv_write) {
 		// Baker: Intermap does not do stringbuffers because it does not do globals.
@@ -367,10 +375,12 @@ intermap_no_siv_write_no_stringbuffers:
 	} else {
 		FS_Close (f_save); f_save = NULL;
 	}
-	Con_PrintLinef ("done.");
+
+	if (is_autosave == false)
+		Con_PrintLinef ("done.");
 }
 
-static qbool SV_CanSave(void)
+static qbool SV_CanSave(qbool is_autosave)
 {
 	prvm_prog_t *prog = SVVM_prog;
 	if (SV_IsLocalServer() == 1)
@@ -379,18 +389,22 @@ static qbool SV_CanSave(void)
 		// FIXME: This only checks if the first player is dead?
 		if ((svs.clients[0].active && PRVM_serveredictfloat(svs.clients[0].edict, deadflag)))
 		{
-			Con_PrintLinef ("Can't savegame with a dead player");
+			if (is_autosave == false)
+				Con_PrintLinef ("Can't savegame with a dead player");
 			return false;
 		}
 
 		if (host.hook.CL_Intermission && host.hook.CL_Intermission())
 		{
-			Con_PrintLinef ("Can't save in intermission.");
+			if (is_autosave == false)
+				Con_PrintLinef ("Can't save in intermission.");
 			return false;
 		}
 	}
-	else
-		Con_PrintLinef (CON_WARN "Warning: saving a multiplayer game may have strange results when restored (to properly resume, all players must join in the same player slots and then the game can be reloaded).");
+	else {
+		if (is_autosave == false)
+			Con_PrintLinef (CON_WARN "Warning: saving a multiplayer game may have strange results when restored (to properly resume, all players must join in the same player slots and then the game can be reloaded).");
+	}
 	return true;
 }
 
@@ -471,9 +485,6 @@ void SV_Savegame_f (cmd_state_t *cmd)
 		return;
 	}
 
-	if (SV_CanSave() == false) // Baker: dead player check, intermission check, multiplayer save warning
-		return;
-
 	if (Cmd_Argc(cmd) != 2) {
 		Con_PrintLinef ("save <savename> : save a game");
 		return;
@@ -484,6 +495,10 @@ void SV_Savegame_f (cmd_state_t *cmd)
 		Con_PrintLinef ("Relative pathnames are not allowed.");
 		return;
 	}
+
+	qbool is_autosave = String_Match (AUTOSAVE_NAME_AUTOSAVE0_SAV, s_savename);
+	if (SV_CanSave(is_autosave) == false) // Baker: dead player check, intermission check, multiplayer save warning
+		return;
 
 	int have_intermap = false;
 	int v_enable_intermap_offset = PRVM_ED_FindGlobalOffset(prog, "enable_intermap");
@@ -750,6 +765,7 @@ intermap_no_sv_loadgame_no_sv_paused:
 
 	prog->num_edicts = entnum;
 	sv.time = time;
+	sv.cdtrack_seconds_into = 0;
 
 	// Baker: Reset intermap siv list
 	stringlistfreecontents (&sv_intermap_siv_list); // .SIV clear "loadgame"
@@ -814,6 +830,10 @@ intermap_no_sv_loadgame_no_sv_paused:
 						strlcpy(sv.sound_precache[i], com_token, sizeof(sv.sound_precache[i]));
 					else
 						Con_PrintLinef ("unsupported sound %d " QUOTED_S, i, com_token);
+				}
+				else if (String_Match(com_token, "sv.cdtrack_seconds_into")) {
+					COM_Parse_Basic (&t); f = atof(com_token);
+					sv.cdtrack_seconds_into = f; // z
 				}
 				else if (String_Match(com_token, "sv.serverflags")) {
 					COM_Parse_Basic (&t); // Flags

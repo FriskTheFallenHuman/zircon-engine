@@ -111,7 +111,9 @@ static void M_ServerList_Draw (void)
 	M_Background (640, vid_conheight.integer, q_darken_true);
 
 	ServerList_GetPlayerStatistics(&statnumplayers, &statmaxplayers);
-	s = va(vabuf, sizeof(vabuf), "%d/%d masters %d/%d servers %d/%d players", masterreplycount, masterquerycount, serverreplycount, serverquerycount, statnumplayers, statmaxplayers);
+	s = va(vabuf, sizeof(vabuf), "%d/%d masters %d/%d servers %d/%d players", 
+		masterreplycount, masterquerycount, 
+		serverreplycount, serverquerycount, statnumplayers, statmaxplayers);
 	M_PrintBronzey((640 - strlen(s) * 8) / 2, 32, s);
 	if (*m_return_reason)
 		M_Print(16, menu_height - 8, m_return_reason);

@@ -276,9 +276,9 @@ static int Add_SaveFile (char *sxy)
 
 	File_URL_Edit_Remove_Extension (sxy);
 
-	const char *s_kills = strstr(comment, "kills: ");
+	const char *s_kills = strstr(comment, "kills:"); // Nov 14 2024 removed space
 	if (s_kills) {
-		s_kills += STRINGLEN("kills: ");
+		s_kills += STRINGLEN("kills:"); // Nov 14 2024 removed space
 	} else
 		s_kills = "";
 

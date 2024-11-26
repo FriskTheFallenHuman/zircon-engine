@@ -4265,31 +4265,48 @@ void FS_DirPat_f(cmd_state_t *cmd)
 
 #ifdef CONFIG_MENU
 
-
+// Baker: Make this do any color configuration.
 void FS_ColorPcts_f (cmd_state_t *cmd)
 {
 	ccs *s_color = Cmd_Argv(cmd, 1);
+	char s_color_hex[12] = "0x"; // #333
+
 	// 0x8f3933  0xRRGGBB
+	if (String_Starts_With (s_color, "#") && strlen(s_color) == 4) {			
+		s_color_hex[2] = s_color[1];
+		s_color_hex[3] = s_color[1];
+		s_color_hex[4] = s_color[2];
+		s_color_hex[5] = s_color[2];
+		s_color_hex[6] = s_color[3];
+		s_color_hex[7] = s_color[3];
+		s_color_hex[8] = 0; // Null term
+		s_color = s_color_hex;
+		Con_PrintLinef ("s_color_hex = " QUOTED_S, s_color_hex);
+		// And let "0x" catch it
+	}
 
-	// #define readints(array, n)		
+	else if (String_Starts_With (s_color, "#") && strlen(s_color) == 7) {
+		c_strlcat (s_color_hex, &s_color[1]);
+		s_color = s_color_hex;
+		Con_PrintLinef ("s_color_hex = " QUOTED_S, s_color_hex);
+		// And let "0x" catch it
+	}
+
 	if (String_Starts_With (s_color, "0x")) {
-#ifdef _WIN32
-    #define STRTOI64_FN					_strtoi64
-#else
-	#define STRTOI64_FN					strtoll
-#endif
-
-		// Convert the hexadecimal string to a long long integer
-		#define HEX_BASE_16 16
-		
+		// Convert the hexadecimal string to a long long integer		
 		int64_t ourhex64 = STRTOI64_FN (s_color, /*end pointer*/ NULL, HEX_BASE_16);   // aka strtoll str to long long
-		int is_okay = (errno == 0); // ERANGE is the usual bad value according to docs, means can't be represented with size available.
+		//int is_okay = (errno == 0); // ERANGE is the usual bad value according to docs, means can't be represented with size available.
 
-            // blue element
-            // Yb = Ab(1-width)(1-height) + Bb(width)(1-height) + Cb(height)(1-width) + Db(wh)
         int red =   ((ourhex64>>16) & 0xff);
 		int green = ((ourhex64>> 8) & 0xff);
 		int blue  = ((ourhex64>> 0) & 0xff);
+
+		vec3_t v = {red, green, blue};
+		char *s_color_escape_za = Color_Code_ZAlloc_Or_Null(v);
+
+		if (s_color_escape_za) {
+			Con_PrintLinef ("(%sCOLOR" CON_WHITE")", s_color_escape_za);
+		}
 
 		Con_PrintLinef ("red: %d green: %d blue: %d", red, green, blue);
 
@@ -4303,6 +4320,8 @@ void FS_ColorPcts_f (cmd_state_t *cmd)
 
 		Con_PrintLinef (s);
 		Con_PrintLinef ("Copied to clipboard");
+
+		Mem_FreeNull_ (s_color_escape_za);
 		return;
 	}
 
@@ -4311,17 +4330,39 @@ void FS_ColorPcts_f (cmd_state_t *cmd)
 		return;
 	}
 
-	float r = atof(Cmd_Argv(cmd, 1)) / 255.0;
-	float g = atof(Cmd_Argv(cmd, 2)) / 255.0;
-	float b = atof(Cmd_Argv(cmd, 3)) / 255.0 ;
+	vec3_t v = { atof(Cmd_Argv(cmd, 1)) , atof(Cmd_Argv(cmd, 2)), atof(Cmd_Argv(cmd, 3)) };
 
-	va_super (s, 1024, "%4.2f %4.2f %4.2f", r, g, b);
-	//va_super (s2, 1024,  FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT, r, g, b);
-	Clipboard_Set_Text (s);
+	int is_percent_color = in_range(0, v[0], 1) && in_range(0, v[1], 1) && in_range(0, v[2], 1);
+	int is_255_color = in_range(0, v[0], 255) && in_range(0, v[1], 255) && in_range(0, v[2], 255);
 
-	Con_PrintLinef (s);
-	Con_PrintLinef ("Copied to clipboard");
+	char *s_color_escape_za = Color_Code_ZAlloc_Or_Null(v);
 
+	if (s_color_escape_za) {
+		Con_PrintLinef ("(%sCOLOR" CON_WHITE")", s_color_escape_za);
+	}
+
+	if (is_percent_color) {
+		float r = v[0] * 255.0;
+		float g = v[1] * 255.0;
+		float b = v[2] * 255.0;
+		Con_PrintLinef ("Color 0-255: %d %d %d", (int)r, (int)b, (int)g );
+		Con_PrintLinef ("Hex        : %x %x %x", (int)r, (int)b, (int)g );
+	} else if (is_255_color) {
+		float rhex = v[0];
+		float bhex = v[1];
+		float ghex = v[2];
+		float r = v[0] / 255.0;
+		float g = v[1] / 255.0;
+		float b = v[2] / 255.0 ;
+
+		Con_PrintLinef ("Color 0-255: %d %d %d", (int)rhex, (int)bhex, (int)ghex );
+		Con_PrintLinef ("Hex        : %x %x %x", (int)rhex, (int)bhex, (int)ghex );
+		va_super (s, 1024, "%4.2f %4.2f %4.2f", r, g, b);
+		Clipboard_Set_Text (s);
+		Con_PrintLinef (s);
+		Con_PrintLinef ("Copied to clipboard");
+	}
+	Mem_FreeNull_ (s_color_escape_za);
 }
 
 void FS_BitAtomize_f (cmd_state_t *cmd)
@@ -4693,7 +4734,7 @@ void FS_JpegSplit_f (cmd_state_t *cmd)
 	stringlistappend_from_dir_pattern (&slist, s_folder, ".png", q_strip_exten_false);
 	stringlistappend_from_dir_pattern (&slist, s_folder, ".tga", q_strip_exten_false);
 
-	Con_PrintLinef ("%d results" NEWLINE, slist.numstrings);
+	Con_PrintLinef ("%d results %s" NEWLINE, slist.numstrings, is_write ?  "(" CON_BRONZE "Writing .jpgs" CON_WHITE ")" : "("CON_CYAN "Test only" CON_WHITE ")" );
 
 
 	for (int idx = 0; idx < slist.numstrings; idx ++) {
@@ -4701,10 +4742,12 @@ void FS_JpegSplit_f (cmd_state_t *cmd)
 
 		Vid_SetWindowTitlef ("%d/%d %s", idx, slist.numstrings, s_name);
 
-		Con_PrintLinef ("%4d: %s", idx, s_name);
+		
 
-		if (is_write == false)
+		if (is_write == false) {
+			Con_PrintLinef ("%4d: %s", idx, s_name);
 			goto free_data_continue;
+		}
 
 		char s_name_out[MAX_QPATH_128];
 		c_strlcpy (s_name_out, s_name);
@@ -4737,7 +4780,8 @@ void FS_JpegSplit_f (cmd_state_t *cmd)
 			}
 		} // for
 
-		Con_PrintLinef ("Image has alpha = %d", is_alpha_channel);
+		//Con_PrintLinef ("Image has alpha = %d", is_alpha_channel);
+		Con_PrintLinef ("%4d: alpha? %s - %s", idx, is_alpha_channel? CON_BRONZE "Y" CON_WHITE : "N", s_name);
 
 #if 0
 		int is_ok_clip =
@@ -4932,7 +4976,7 @@ void R_ShaderPrint_f (cmd_state_t *cmd)
 		cltrace.fraction = 2.0;
 
 		trace_t CL_TraceLine(const vec3_t start, const vec3_t end, int type, prvm_edict_t *passedict, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask, float extend, qbool hitnetworkbrushmodels, int hitnetworkplayers, int *hitnetworkentity, qbool hitcsqcentities, qbool hitsurfaces);
-		cltrace = CL_TraceLine(org, dest, MOVE_HITMODEL, NULL,
+		cltrace = CL_TraceLine(org, dest, MOVE_HITMODEL_4, NULL,
 				SUPERCONTENTS_SOLID | SUPERCONTENTS_WATER | SUPERCONTENTS_SLIME |
 				SUPERCONTENTS_LAVA | SUPERCONTENTS_SKY
 			,
@@ -5344,6 +5388,44 @@ void TimeString_Fill_YYYYMMDD_HHMMSSAM (char *timestring, size_t timestring_size
 
 }
 
+void PathWork_CSG(int csg_argnum, char *mappath_fill, size_t mappath_fill_size)
+{
+		// Baker: With C:/galaxy/zircon_beta_gcc.exe -csg C:\galaxy\zircon\maps\aafter
+		//char mappath[MAX_OSPATH];
+		ccs *mapfullpath = sys.argv[csg_argnum /*j*/ + 1];
+
+		c_strlcpy (fs_csg_basedir, mapfullpath); // fs_csg_basedir	now ..."C:\galaxy\zircon\maps\aafter"
+		File_URL_Edit_SlashesForward_Like_Unix (fs_csg_basedir); // fs_csg_basedir	"C:/galaxy/zircon/maps/aafter"
+
+		strlcpy (mappath_fill, fs_csg_basedir, mappath_fill_size);
+		if (String_Ends_With_Caseless (mappath_fill, ".map") == false)
+			strlcat (mappath_fill, ".map", mappath_fill_size);
+
+		// Baker: We get Windows style map path without .map
+		// "C:/galaxy/zircon_beta_gcc.exe -csg C:\galaxy\zircon\maps\treefall_auto1
+		// The parent folder should be our basedir?
+		// Or is it 2 up?
+
+		char *lastslash = strrchr(fs_csg_basedir, '/');
+		if (lastslash) {
+			*lastslash = 0;
+			if (lastslash)
+				lastslash = strrchr(fs_csg_basedir, '/');
+			*lastslash = 0;
+		}
+
+		c_strlcpy (fs_basedir, fs_csg_basedir);
+		// fs_basedir	0x01f54810 "C:/galaxy/zircon"	char [260]
+		// fs_csg_basedir	0x01f55238 "C:/galaxy/zircon"	char [260]
+
+		int i = (int)strlen (fs_basedir);
+		if (i > 0 && (fs_basedir[i-1] == '\\' || fs_basedir[i-1] == '/'))
+			fs_basedir[i-1] = 0;
+		//is_forced = true; // // Baker r1001: -nohome is the behavior on Windows and Mac
+		chdir (fs_basedir); // Baker: We are in the "c:/galaxy/zircon" here!  (not c:\galaxy!)
+}
+
+
 static void FS_Init_Dir (void)
 {
 	const char *p;
@@ -5363,52 +5445,13 @@ static void FS_Init_Dir (void)
 	if (j && j + 1 < sys.argc) {
 		// Baker: With -csg
 		char mappath[MAX_OSPATH];
-		ccs *mapfullpath = sys.argv[j+1];
-
-		c_strlcpy (fs_csg_basedir, mapfullpath);
-		// fs_csg_basedir	is now ... 0x01f55238 "C:\galaxy\zircon\maps\aafter"
-
-		//C:/galaxy/zircon_beta_gcc.exe -csg C:\galaxy\zircon\maps\aafter
-
-		File_URL_Edit_SlashesForward_Like_Unix (fs_csg_basedir);
-		// fs_csg_basedir	"C:/galaxy/zircon/maps/aafter"
-
-		c_strlcpy (mappath, fs_csg_basedir);
-		if (String_Ends_With_Caseless (mappath, ".map") == false)
-			c_strlcat (mappath, ".map");
-
-		// Baker: We get Windows style map path without .map
-		// "C:/galaxy/zircon_beta_gcc.exe -csg C:\galaxy\zircon\maps\treefall_auto1
-		// The parent folder should be our basedir?
-		// Or is it 2 up?
-
-		char *lastslash;
-		lastslash = strrchr(fs_csg_basedir, '/');
-		if (lastslash) {
-			*lastslash = 0;
-			if (lastslash)
-				lastslash = strrchr(fs_csg_basedir, '/');
-			*lastslash = 0;
-		}
-
-		c_strlcpy (fs_basedir, fs_csg_basedir);
-		// fs_basedir	0x01f54810 "C:/galaxy/zircon"	char [260]
-		// fs_csg_basedir	0x01f55238 "C:/galaxy/zircon"	char [260]
-
-
-		i = (int)strlen (fs_basedir);
-		if (i > 0 && (fs_basedir[i-1] == '\\' || fs_basedir[i-1] == '/'))
-			fs_basedir[i-1] = 0;
-		is_forced = true; // // Baker r1001: -nohome is the behavior on Windows and Mac
-		chdir (fs_basedir); // Baker: We are in the "c:/galaxy/zircon" here!  (not c:\galaxy!)
+		PathWork_CSG (j, mappath, sizeof(mappath) );
 
 		// Do the command here and exit?
 		size_t bytes = 0;
-		char *sin = (char *)File_To_Memory_Alloc (mappath, &bytes);
-		// mappath	0x0019b55c "C:/galaxy/zircon/maps/aafter.map"	char [260]
+		char *sin = (char *)File_To_Memory_Alloc (mappath, &bytes); // mappath	0x0019b55c "C:/galaxy/zircon/maps/aafter.map"	char [260]
 
-		if (!sin)
-			exit (0); // Couldn't open map
+		if (!sin) exit (1); // Couldn't open map
 
 		// Baker: We are assuming the decal process applies.
 
@@ -5431,6 +5474,51 @@ static void FS_Init_Dir (void)
 				exit (1); // Couldn't reopen map
 		}
 #endif
+
+#if 1 // ENTITY CLONE "_clone_trigger" "trigger_push" //
+		//.. takes the func_group and creates a copy with specified name.
+		// all brushes will have common/trigger
+		int do_try_clone_trigger = String_Contains (sin, "_clone_trigger");
+		while (do_try_clone_trigger) {
+			entitylist_t list_map1 = {0};	// aafter.map
+			baker_string_t *bsout = NULL;
+			
+			char timestring [64]; TimeString_Fill_YYYYMMDD_HHMMSSAM (timestring, sizeof(timestring));
+			char *snewval_za = Z_StrDupf ("0 - %s", timestring); // looks like "0 - 20241005 10:12 AM"
+
+			// PARSE THE MAP
+			int isok = entitylist_parsemaptxt (&list_map1, sin);
+			if (isok == false) exit (1); // failed to parse
+
+			int num_entities_made = entitylist_clone_as_trigger_entities_num_made (&list_map1, snewval_za);
+			
+			if (!num_entities_made) {
+				goto false_alarm_clone_trigger;
+			}
+			
+			bsout = entitylist_maptext_bsalloc (&list_map1);
+			if (!bsout) exit (1); // This would be bad.
+
+			// RE-WRITE
+			int isok2 = File_String_To_File (mappath, bsout->string);
+			BakerString_Destroy_And_Null_It (&bsout);
+			
+			if (isok2 == false)
+				exit (1); // Couldn't write file
+
+			// REFRESH SOURCE
+			freenull_ (sin); // Free the map data -- then reload it
+			sin = (char *)File_To_Memory_Alloc (mappath, &bytes);
+			if (!sin)
+				exit (1); // Couldn't reopen map
+
+false_alarm_clone_trigger:
+			Mem_FreeNull_ (snewval_za);
+			BakerString_Destroy_And_Null_It (&bsout);
+			entitylistfreecontents	(&list_map1);
+			break;
+		} // while
+#endif // CLONE
 
 #if 1 // ENTITY BRUSH DIVIDER
 		int do_try_brush2ent = String_Contains (sin, "_atomize");
@@ -5481,7 +5569,7 @@ false_alarm_atomize:
 			entitylist_t list_map1 = {0};	// aafter.map
 			baker_string_t *bsout = NULL;
 			
-			// "brushfacer" "0 - 20241005 10:12 AM"
+			// "_brushfacer" "0 - 20241005 10:12 AM"
 			char timestring [64];
 			TimeString_Fill_YYYYMMDD_HHMMSSAM (timestring, sizeof(timestring));
 			char *snewval_za = Z_StrDupf ("0 - %s", timestring);
@@ -5524,13 +5612,13 @@ false_alarm_origin_brush:
 #endif // ORIGIN MAKER
 
 #if 1 // BRUSHFACER
-		int do_try_brushfacer = String_Contains (sin, "brushfacer");
+		int do_try_brushfacer = String_Contains (sin, "_brushfacer");
 		while (do_try_brushfacer) {
 			entitylist_t list_map1 = {0};	// aafter.map
 			baker_string_t *bsout = NULL;
 
 
-			// "brushfacer" "0 - 20241005 10:12 AM"
+			// "_brushfacer" "0 - 20241005 10:12 AM"
 			char timestring [64];
 			TimeString_Fill_YYYYMMDD_HHMMSSAM (timestring, sizeof(timestring));
 
@@ -5540,7 +5628,7 @@ false_alarm_origin_brush:
 			int isok = entitylist_parsemaptxt (&list_map1, sin);
 			if (isok == false) exit (1); // failed to parse
 
-			ccs *val = entitykeys_find_value (&list_map1.entity[0], "brushfacer");
+			ccs *val = entitykeys_find_value (&list_map1.entity[0], "_brushfacer");
 			if (!val) goto false_alarm; // not a worldspawn key
 
 			if (atoi(val) <= 0) goto false_alarm; // "brushfacer" value is zero or less (disabled)
@@ -5552,7 +5640,7 @@ false_alarm_origin_brush:
 
 			Con_PrintLinef ("Num faces %d, num up faces %d", num_faces, num_upfaces);
 
-			entitylist_set_replace_key_val (&list_map1, /*world*/ 0, "brushfacer", snewval_za);
+			entitylist_key_set_replace_val (&list_map1, /*world*/ 0, "_brushfacer", snewval_za);
 			
 			bsout = entitylist_maptext_bsalloc (&list_map1);
 			if (!bsout) exit (1); // This would be bad.
@@ -5621,7 +5709,6 @@ false_alarm:
 			if (COM_Parse_Basic(&datasrc) == false) exit (1); // parse failure
 			jlast = atoi (com_token);	// 10
 			// jlast	3	int
-
 
 			// Parse move
 			val = entitykeys_find_value (&list_map1.entity[0], "map_include_move");
@@ -5768,6 +5855,73 @@ false_alarm:
 		exit (0); // success
 	} // CSG
 #endif // CSG PROCESS
+
+#if 1 // Q13
+	/*int */ j = Sys_CheckParm("-q13");
+	if (j && j + 1 < sys.argc) {
+
+		char mappath[MAX_OSPATH];
+		PathWork_CSG (j, mappath, sizeof(mappath) );
+
+		// We ONLY support Valve 220.  Have JACK save it first.
+		size_t bytes = 0;
+		char *sin = (char *)File_To_Memory_Alloc (mappath, &bytes); // mappath	0x0019b55c "C:/galaxy/zircon/maps/aafter.map"	char [260]
+
+		if (!sin) exit (0); // Couldn't open map
+
+		File_URL_Edit_Remove_Extension (mappath);
+		c_strlcat (mappath, "_out");
+		c_strlcat (mappath, ".map");
+		// Baker: Q1 to Q3 map ...
+		// 1.  sky anything must become something else
+		// 2.  Lights will need the radius flag.
+		// 3.  star anything must become # something
+
+		entitylist_t list_map1 = {0};	// aafter.map
+		
+		char timestring [64]; TimeString_Fill_YYYYMMDD_HHMMSSAM (timestring, sizeof(timestring));
+		char *snewval_za = Z_StrDupf ("0 - %s", timestring); // looks like "0 - 20241005 10:12 AM"
+
+		// PARSE THE MAP
+		int isok = entitylist_parsemaptxt (&list_map1, sin);
+		if (isok == false) exit (1); // failed to parse
+
+		//ccs *val_x = entity_key_get_value (p_ent_world, "q1_converted_q3");
+		//if (val_x && atoi(val_x) > 0)
+		//	exit (0); // Already did it!
+
+		//stringlistappend (&p_ent->pairslist, "spawnflags"); // KEY
+		//stringlistappend (&p_ent->pairslist, "1"); // RADIUS LIGHT
+
+
+		// Now what?
+		//entitylist_change_textures_q1 (&list_map1, "skies/blackbox_sky", "id1wad");
+		entitylist_change_textures_q1 (&list_map1, "skies/purplenebula_sky_low", "id1wad");
+
+
+		baker_string_t *bsout = entitylist_maptext_bsalloc (&list_map1);
+		if (!bsout) exit (1); // This would be bad.
+
+		// RE-WRITE
+		int isok2 = File_String_To_File (mappath, bsout->string);
+		BakerString_Destroy_And_Null_It (&bsout);
+			
+		if (isok2 == false) exit (1); // Couldn't write file
+
+			//// REFRESH SOURCE
+			//freenull_ (sin); // Free the map data -- then reload it
+			//sin = (char *)File_To_Memory_Alloc (mappath, &bytes);
+			//if (!sin)
+			//	exit (1); // Couldn't reopen map
+
+
+		Mem_FreeNull_ (snewval_za);
+		entitylistfreecontents	(&list_map1);
+
+		freenull_ (sin); // Free the map data
+		exit (0); // success
+	} // CSG
+#endif // BSP TO Q3 PROCESS
 
 	i = Sys_CheckParm ("-basedir");
 	if (i && i < sys.argc-1) {

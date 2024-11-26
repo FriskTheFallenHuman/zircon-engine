@@ -1165,6 +1165,8 @@ typedef struct client_state_s
 	int qw_monsters_modelindexes_qw_monster_id[48];
 	int qw_monsters_modelindexes_count;
 
+	int did_qw_modelindexes; // October 25
+
 	vec3_t qw_intermission_origin;
 	vec3_t qw_intermission_angles;
 

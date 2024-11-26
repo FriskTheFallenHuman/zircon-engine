@@ -58,7 +58,7 @@ cvar_t scr_loadingscreen_barheight = {CF_CLIENT, "scr_loadingscreen_barheight", 
 cvar_t scr_loadingscreen_maxfps = {CF_CLIENT, "scr_loadingscreen_maxfps", "10", "maximum FPS for loading screen so it will not update very often (this reduces loading time with lots of models)"}; // Baker r1462: Faster load times.
 cvar_t scr_infobar_height = {CF_CLIENT, "scr_infobar_height", "8", "the height of the infobar items"};
 //cvar_t vid_conwidthauto = {CF_CLIENT | CF_ARCHIVE, "vid_conwidthauto", "1", "automatically update vid_conwidth to match aspect ratio"}; // Baker r0005: 2d sizing needs this removed as is not using value in calc
-cvar_t vid_conwidth = {CF_CLIENT | CF_ARCHIVE, "vid_conwidth", "640", "virtual width of 2D graphics system (note: changes may be overwritten, see vid_conwidthauto)"};
+cvar_t vid_conwidth = {CF_CLIENT | CF_ARCHIVE, "vid_conwidth", "640", "virtual width of 2D graphics system (note: changes may be overwritten)"};
 cvar_t vid_conheight = {CF_CLIENT | CF_ARCHIVE, "vid_conheight", "480", "virtual height of 2D graphics system"};
 
 cvar_t vid_pixelheight = {CF_CLIENT | CF_ARCHIVE, "vid_pixelheight", "1", "adjusts vertical field of vision to account for non-square pixels (1280x1024 on a CRT monitor for example)"};
@@ -1249,6 +1249,8 @@ doitanyway:
 
 	Con_DPrintLinef ("yfactor_mag_360 %f", yfactor_mag_360);
 
+	Cvar_SetValueQuick (&vid_magnification_factor, yfactors);
+
 	Cvar_SetValueQuick(&vid_conheight, 399.5); // Evile!
 
     scale_width_360 =  vid.width * yfactor_mag_360;
@@ -2271,7 +2273,7 @@ void CL_Screen_Init(void)
 	Cmd_AddCommand(CF_CLIENT, "jpegextractfromsave", SCR_jpegextract_from_savegame_f, "extract a jpeg from a save and copy to clipboard [Zircon]");
 	Cmd_AddCommand(CF_CLIENT, "gifclip", SCR_gifclip_f, "copy gif frame to clipboard [Zircon]");
 
-	// Cmd_AddCommand(CF_CLIENT, "reclip", SCR_reclip_f, "copy and paste text from clipboard (might scrub out oddball characters) [Zircon]");
+	 Cmd_AddCommand(CF_CLIENT, "reclip", SCR_reclip_f, "copy and paste text from clipboard (might scrub out oddball characters) [Zircon]");
 	// Cmd_AddCommand(CF_CLIENT, "csgtool", SCR_csgtool_f, "Run as csg for J.A.C.K. map editor [Zircon]");
 	// Cmd_AddCommand(CF_CLIENT, "csgtool_clipboard", SCR_csgtool_clipboard_f, "Run as csg for J.A.C.K. map editor [Zircon]");
 	// Cmd_AddCommand(CF_CLIENT, "csgtool2_pasteat_clipboard", SCR_csgtool2_pasteat_clipboard_f, "Run as csg for J.A.C.K. map editor [Zircon]");
@@ -2285,6 +2287,7 @@ void CL_Screen_Init(void)
 
 	Cmd_AddCommand(CF_CLIENT, "atan2", SCR_atan2_f, "atan2 [Zircon]");
 	Cmd_AddCommand(CF_CLIENT, "eq", SCR_eq_f, "Equation calculator [Zircon]");
+	Cmd_AddCommand(CF_CLIENT, "hex", SCR_hex_f, "Decimal to hex [Zircon]");
 	Cmd_AddCommand(CF_CLIENT, "eq_tests", SCR_eqtests_f, "Equation tests [Zircon]");
 	
 	Cmd_AddCommand(CF_CLIENT, "vectornormal3", SCR_vectornormal3_f, "Calculate vector normal for 3 points [Zircon]");

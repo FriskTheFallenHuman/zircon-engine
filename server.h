@@ -57,6 +57,9 @@ typedef struct server_floodaddress_s
 }
 server_floodaddress_t;
 
+#define AUTOSAVE_INTERVAL_90		90.0
+#define AUTOSAVE_NAME_AUTOSAVE0_SAV	"_auto_save_0.sav"
+
 typedef struct server_s
 {
 	/// false if only a net client
@@ -74,6 +77,8 @@ typedef struct server_s
 	double frametime;
 
 	unsigned int spawnframe; // signals SV_Frame() to reset its timers
+		// Baker: looks like: tell SV_Frame() to reset its timers  sv.spawnframe = host.superframecount;
+
 
 	// performance data
 	float perf_cpuload;
@@ -114,6 +119,8 @@ typedef struct server_s
 	float		intermap_totaltimeatlastexit;	// intermap totaltime in a map when it was last exited
 	float		intermap_surplustime;			// intermap totaltime in world accumulated at changelevel (totaltime + sv.time = total game time)
 
+	float		cdtrack_seconds_into;
+	float		sv_autosave_time;
 	WARP_X_ (sv_siv_list)
 	//char		intermap_map_set[MAX_INPUTLINE_16384]; // Every .siv saved updates this
 											// When saving we do not do the map we are on.
@@ -372,7 +379,7 @@ typedef struct client_s
 #define MOVETYPE_FOLLOW_12			12		///< track movement of aiment
 #define MOVETYPE_FAKEPUSH_13		13		///< tenebrae's push that doesn't push
 #define MOVETYPE_PHYSICS_32			32		///< indicates this object is physics controlled
-#define MOVETYPE_FLY_WORLDONLY_33	33		///< like MOVETYPE_FLY_5, but uses MOVE_WORLDONLY for all its traces; objects of this movetype better be SOLID_NOT_0 or SOLID_TRIGGER_1 please, or else...
+#define MOVETYPE_FLY_WORLDONLY_33	33		///< like MOVETYPE_FLY_5, but uses MOVE_WORLDONLY_3 for all its traces; objects of this movetype better be SOLID_NOT_0 or SOLID_TRIGGER_1 please, or else...
 
 #define MOVETYPE_BOAT_34			34		// Experimental for boats
 
@@ -509,6 +516,8 @@ extern cvar_t sv_gameplayfix_nogravityonground;
 extern cvar_t sv_gameplayfix_setmodelrealbox;
 extern cvar_t sv_gameplayfix_slidemoveprojectiles;
 extern cvar_t sv_gameplayfix_fiendjumpfix;
+extern cvar_t sv_gameplayfix_nosquashentities;
+
 extern cvar_t sv_gameplayfix_monsterinterpolate;
 
 extern cvar_t sv_gameplayfix_stepdown;
@@ -740,6 +749,9 @@ extern cvar_t sv_players_walk_thru_players;
 extern cvar_t sv_save_screenshots;
 extern cvar_t halflifebsp, sv_mapformat_is_quake2,  sv_mapformat_is_quake3;
 extern cvar_t _last;
+
+extern cvar_t sv_autosave;
+
 //extern cvar_t sv_gameplayfix_swimflag_collides_liquids;
 
 void VMX_SV_precache_model (prvm_prog_t *prog, const char *s_model);

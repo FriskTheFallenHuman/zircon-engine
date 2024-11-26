@@ -123,7 +123,11 @@ static int EntityState5_DeltaBits(const entity_state_t *o, const entity_state_t 
 #if 1
 		if (false == VectorCompare(o->bbx_mins, n->bbx_mins) || false == VectorCompare(o->bbx_maxs, n->bbx_maxs))
 			bits |= E5_BBOX_S27;
+
+		if (o->health_z != n->health_z || o->max_health_z != n->health_z)
+			bits |= E5_ZIRCON_MONSTER_INFO_28;
 #endif
+
 		if (o->modelindex != n->modelindex)
 			bits |= E5_MODEL;
 		if (o->frame != n->frame)
@@ -235,6 +239,11 @@ void EntityState5_WriteUpdate(int number, const entity_state_t *s, int changedbi
 		if (Have_Flag (bits, E5_BBOX_S27) &&
 			false == Have_Zircon_Ext_Flag_SV_HCL(ZIRCON_EXT_SERVER_SENDS_BBOX_TO_CLIENT_64))
 				Flag_Remove_From (bits, E5_BBOX_S27);
+		if (Have_Flag (bits, E5_ZIRCON_MONSTER_INFO_28) &&
+			false == Have_Zircon_Ext_Flag_SV_HCL(ZIRCON_EXT_SERVER_SENDS_MONSTER_INFO_256))
+				Flag_Remove_From (bits, E5_ZIRCON_MONSTER_INFO_28 );
+
+
 bits_final:
 
 		if (bits >= 256)
@@ -270,6 +279,19 @@ bits_final:
 				MSG_WriteCoord13i (msg, s->bbx_maxs[0]);
 				MSG_WriteCoord13i (msg, s->bbx_maxs[1]);
 				MSG_WriteCoord13i (msg, s->bbx_maxs[2]);
+				// ZIRCON_EXT_SERVER_SENDS_BBOX_TO_CLIENT_64
+			}
+
+			if (Have_Flag (bits, E5_ZIRCON_MONSTER_INFO_28)) { // GOOD1
+				MSG_WriteShort(msg, s->health_z);
+				MSG_WriteShort(msg, s->max_health_z);
+				// Short size
+				//MSG_WriteCoord13i (msg, s->zircon_zinfo[0]);
+				//MSG_WriteCoord13i (msg, s->zircon_zinfo[1]);
+				//MSG_WriteCoord13i (msg, s->zircon_zinfo[2]);
+				//MSG_WriteCoord13i (msg, s->zircon_zinfo[0]);
+				//MSG_WriteCoord13i (msg, s->zircon_zinfo[1]);
+				//MSG_WriteCoord13i (msg, s->zircon_zinfo[2]);
 				// ZIRCON_EXT_SERVER_SENDS_BBOX_TO_CLIENT_64
 			}
 

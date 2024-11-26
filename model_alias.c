@@ -1540,7 +1540,7 @@ int Mod_IDP0_Load(model_t *mod, void *buffer, void *bufferend) // Baker: Alias m
 
 //				}
 
-				if (1 || developer_loading.integer) {
+				if (developer_loading.integer) {
 					Con_PrintLinef ("model " QUOTED_S " frame #%d tag #%d triangle %d" QUOTED_S, 
 					loadmodel->model_name, 
 					posenum, // Frame number?  But why ...

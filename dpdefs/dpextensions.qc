@@ -3,9 +3,9 @@
 
 //definitions that id Software left out:
 //these are passed as the 'nomonsters' parameter to traceline/tracebox (yes really this was supported in all quake engines, nomonsters is misnamed)
-float MOVE_NORMAL = 0; // same as FALSE
-float MOVE_NOMONSTERS = 1; // same as TRUE
-float MOVE_MISSILE = 2; // save as movement with .movetype == MOVETYPE_FLYMISSILE
+float MOVE_NORMAL_0 = 0; // same as FALSE
+float MOVE_NOMONSTERS_1 = 1; // same as TRUE
+float MOVE_MISSILE_2 = 2; // save as movement with .movetype == MOVETYPE_FLYMISSILE
 
 //checkextension function
 //idea: expected by almost everyone
@@ -531,7 +531,7 @@ void(entity e, entity tagentity, string tagname) setattachment = #443; // attach
 //movetype definitions:
 float MOVETYPE_FLY_WORLDONLY = 33;
 //description:
-//like MOVETYPE_FLY, but does all traces with MOVE_WORLDONLY, and is ignored by MOVETYPE_PUSH. Should only be combined with SOLID_NOT and SOLID_TRIGGER.
+//like MOVETYPE_FLY, but does all traces with MOVE_WORLDONLY_3, and is ignored by MOVETYPE_PUSH. Should only be combined with SOLID_NOT and SOLID_TRIGGER.
 
 //DP_NULL_MODEL
 //idea: Chris
@@ -1120,7 +1120,7 @@ void(entity ent, entity ignore) tracetoss = #64;
 //idea: LadyHavoc
 //darkplaces implementation: LadyHavoc
 //constant definitions:
-float MOVE_HITMODEL = 4;
+float MOVE_HITMODEL_4 = 4;
 //description:
 //allows traces to hit alias models (not sprites!) instead of entity boxes, use as the nomonsters parameter to trace functions, note that you can hit invisible model entities (alpha < 0 or EF_NODRAW or model "", it only checks modelindex)
 
@@ -1128,9 +1128,9 @@ float MOVE_HITMODEL = 4;
 //idea: LadyHavoc
 //darkplaces implementation: LadyHavoc
 //constant definitions:
-float MOVE_WORLDONLY = 3;
+float MOVE_WORLDONLY_3 = 3;
 //description:
-//allows traces to hit only world (ignoring all entities, unlike MOVE_NOMONSTERS which hits all bmodels), use as the nomonsters parameter to trace functions
+//allows traces to hit only world (ignoring all entities, unlike MOVE_NOMONSTERS_1 which hits all bmodels), use as the nomonsters parameter to trace functions
 
 //DP_QC_UNLIMITEDTEMPSTRINGS
 //idea: divVerent

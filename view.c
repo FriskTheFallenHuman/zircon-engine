@@ -603,7 +603,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 				chase_dest[1] = vieworg[1] - forward[1] * camback + up[1] * camup;
 				chase_dest[2] = vieworg[2] - forward[2] * camback + up[2] * camup;
 				// trace from first person view location to our chosen third person view location
-				trace = CL_TraceLine(vieworg, chase_dest, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
+				trace = CL_TraceLine(vieworg, chase_dest, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
 				VectorCopy(trace.endpos, bestvieworg);
 				offset[2] = 0;
 				for (offset[0] = -16;offset[0] <= 16;offset[0] += 8)
@@ -614,7 +614,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 						chase_dest[0] = vieworg[0] - forward[0] * camback + up[0] * camup + offset[0];
 						chase_dest[1] = vieworg[1] - forward[1] * camback + up[1] * camup + offset[1];
 						chase_dest[2] = vieworg[2] - forward[2] * camback + up[2] * camup + offset[2];
-						trace = CL_TraceLine(vieworg, chase_dest, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
+						trace = CL_TraceLine(vieworg, chase_dest, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
 						if (bestvieworg[2] > trace.endpos[2])
 							bestvieworg[2] = trace.endpos[2];
 					}
@@ -638,7 +638,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 				chase_dest[0] = vieworg[0] + forward[0] * dist;
 				chase_dest[1] = vieworg[1] + forward[1] * dist;
 				chase_dest[2] = vieworg[2] + forward[2] * dist + camup;
-				trace = CL_TraceLine(vieworg, chase_dest, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
+				trace = CL_TraceLine(vieworg, chase_dest, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
 				VectorMAMAM(1, trace.endpos, 8, forward, 4, trace.plane.normal, vieworg);
 			}
 		}
@@ -733,13 +733,13 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 						bob_height_check_dest[0] = vieworg[0];
 						bob_height_check_dest[1] = vieworg[1];
 						bob_height_check_dest[2] = vieworg[2] + cl_bob_limit.value * 1.1f;
-						trace = CL_TraceLine(vieworg, bob_height_check_dest, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY | (cl_bob_limit_heightcheck_dontcrosswatersurface.integer ? SUPERCONTENTS_LIQUIDSMASK : 0), 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
+						trace = CL_TraceLine(vieworg, bob_height_check_dest, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY | (cl_bob_limit_heightcheck_dontcrosswatersurface.integer ? SUPERCONTENTS_LIQUIDSMASK : 0), 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
 						trace1fraction = trace.fraction;
 
 						bob_height_check_dest[0] = vieworg[0];
 						bob_height_check_dest[1] = vieworg[1];
 						bob_height_check_dest[2] = vieworg[2] + cl_bob_limit.value * -0.5f;
-						trace = CL_TraceLine(vieworg, bob_height_check_dest, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY | (cl_bob_limit_heightcheck_dontcrosswatersurface.integer ? SUPERCONTENTS_LIQUIDSMASK : 0), 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
+						trace = CL_TraceLine(vieworg, bob_height_check_dest, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY | (cl_bob_limit_heightcheck_dontcrosswatersurface.integer ? SUPERCONTENTS_LIQUIDSMASK : 0), 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
 						trace2fraction = trace.fraction;
 
 						bob_limit *= min(trace1fraction, trace2fraction);

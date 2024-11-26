@@ -243,10 +243,10 @@ trace_t CL_TracePoint(const vec3_t start, int type, prvm_edict_t *passedict, int
 	cliptrace.worldstartsolid = cliptrace.bmodelstartsolid = cliptrace.startsolid;
 	if (cliptrace.startsolid || cliptrace.fraction < 1)
 		cliptrace.ent = prog ? prog->edicts : NULL;
-	if (type == MOVE_WORLDONLY)
+	if (type == MOVE_WORLDONLY_3)
 		goto finished;
 
-	if (type == MOVE_MISSILE) {
+	if (type == MOVE_MISSILE_2) {
 		// LadyHavoc: modified this, was = -15, now -= 15
 		for (i = 0;i < 3;i++) {
 			clipmins2[i] -= 15;
@@ -284,7 +284,7 @@ trace_t CL_TracePoint(const vec3_t start, int type, prvm_edict_t *passedict, int
 			entity_render_t *ent = &cl.entities[cl.brushmodel_entities[i]].render;
 			
 #if 1
-			// Baker: POINT 1 ILLUSINARY Do not collide with func_illusionary PHYSICAL
+			// Baker: POINT 1 ILLUSIONARY Do not collide with func_illusionary PHYSICAL
 			if (/*brush*/ Have_Flag (hitnetworkplayers, HITT_PLAYERS_PLUS_SOLIDS_2) && Have_Flag (ent->crflags, RENDER_SOLID_NOT_BAKER_256))
 				continue;
 #endif
@@ -424,7 +424,7 @@ skipnetworkplayers:
 
 		if (PRVM_clientedictfloat(touch, solid) < SOLID_BBOX_2)
 			continue;
-		if (type == MOVE_NOMONSTERS && PRVM_clientedictfloat(touch, solid) != SOLID_BSP_4)
+		if (type == MOVE_NOMONSTERS_1 && PRVM_clientedictfloat(touch, solid) != SOLID_BSP_4)
 			continue;
 
 		if (passedict)
@@ -442,7 +442,7 @@ skipnetworkplayers:
 			if (clipgroup && clipgroup == (int)PRVM_clientedictfloat(touch, clipgroup))
 				continue;
 			// don't clip points against points (they can't collide)
-			if (VectorCompare(PRVM_clientedictvector(touch, mins), PRVM_clientedictvector(touch, maxs)) && (type != MOVE_MISSILE || !((int)PRVM_clientedictfloat(touch, flags) & FL_MONSTER_32)))
+			if (VectorCompare(PRVM_clientedictvector(touch, mins), PRVM_clientedictvector(touch, maxs)) && (type != MOVE_MISSILE_2 || !((int)PRVM_clientedictfloat(touch, flags) & FL_MONSTER_32)))
 				continue;
 		}
 
@@ -450,7 +450,7 @@ skipnetworkplayers:
 
 		// might interact, so do an exact clip
 		model = NULL;
-		if ((int) PRVM_clientedictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL)
+		if ((int) PRVM_clientedictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL_4)
 			model = CL_GetModelFromEdict(touch);
 		if (model)
 			Matrix4x4_CreateFromQuakeEntity(&matrix, PRVM_clientedictvector(touch, origin)[0], PRVM_clientedictvector(touch, origin)[1], PRVM_clientedictvector(touch, origin)[2], PRVM_clientedictvector(touch, angles)[0], PRVM_clientedictvector(touch, angles)[1], PRVM_clientedictvector(touch, angles)[2], 1);
@@ -486,7 +486,7 @@ trace_t CL_TraceLine(const vec3_t start, const vec3_t end, int type,
 					 int skipmaterialflagsmask, 
 					 float extend, 
 					 qbool hitnetworkbrushmodels, 
-					 int hitnetworkplayers, 
+					 int hitnetworkplayers, // THIS: HITT_PLAYERS_PLUS_SOLIDS_2
 					 int *hitnetworkentity, qbool hitcsqcentities, qbool hitsurfaces)
 {
 	prvm_prog_t *prog = CLVM_prog;
@@ -531,10 +531,10 @@ trace_t CL_TraceLine(const vec3_t start, const vec3_t end, int type,
 	cliptrace.worldstartsolid = cliptrace.bmodelstartsolid = cliptrace.startsolid;
 	if (cliptrace.startsolid || cliptrace.fraction < 1)
 		cliptrace.ent = prog ? prog->edicts : NULL;
-	if (type == MOVE_WORLDONLY)
+	if (type == MOVE_WORLDONLY_3)
 		goto finished;
 
-	if (type == MOVE_MISSILE) {
+	if (type == MOVE_MISSILE_2) {
 		// LadyHavoc: modified this, was = -15, now -= 15
 		for (i = 0;i < 3;i++)
 		{
@@ -574,8 +574,9 @@ trace_t CL_TraceLine(const vec3_t start, const vec3_t end, int type,
 			entity_render_t *ent = &cl.entities[cl.brushmodel_entities[i]].render;
 			
 #if 1
-			// Baker: LINE 1 ILLUSINARY Do not collide with func_illusionary PHYSICAL
-			if (/*brush*/ Have_Flag (hitnetworkplayers, HITT_PLAYERS_PLUS_SOLIDS_2) && Have_Flag (ent->crflags, RENDER_SOLID_NOT_BAKER_256))
+			// Baker: LINE 1 ILLUSIONARY Do not collide with func_illusionary PHYSICAL
+			if (/*brush*/ Have_Flag (hitnetworkplayers, HITT_PLAYERS_PLUS_SOLIDS_2) && 
+				Have_Flag (ent->crflags, RENDER_SOLID_NOT_BAKER_256))
 				continue;
 #endif
 
@@ -713,7 +714,7 @@ skipnetworkplayers:
 		// Baker: Skip SOLID_NOT_0 and SOLID_TRIGGER_1
 		if (PRVM_clientedictfloat(touch, solid) < SOLID_BBOX_2)
 			continue;
-		if (type == MOVE_NOMONSTERS && PRVM_clientedictfloat(touch, solid) != SOLID_BSP_4)
+		if (type == MOVE_NOMONSTERS_1 && PRVM_clientedictfloat(touch, solid) != SOLID_BSP_4)
 			continue;
 
 		if (passedict) {
@@ -730,7 +731,7 @@ skipnetworkplayers:
 			if (clipgroup && clipgroup == (int)PRVM_clientedictfloat(touch, clipgroup))
 				continue;
 			// don't clip points against points (they can't collide)
-			if (VectorCompare(PRVM_clientedictvector(touch, mins), PRVM_clientedictvector(touch, maxs)) && (type != MOVE_MISSILE || !((int)PRVM_clientedictfloat(touch, flags) & FL_MONSTER_32)))
+			if (VectorCompare(PRVM_clientedictvector(touch, mins), PRVM_clientedictvector(touch, maxs)) && (type != MOVE_MISSILE_2 || !((int)PRVM_clientedictfloat(touch, flags) & FL_MONSTER_32)))
 				continue;
 		}
 
@@ -738,7 +739,7 @@ skipnetworkplayers:
 
 		// might interact, so do an exact clip
 		model = NULL;
-		if ((int) PRVM_clientedictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL)
+		if ((int) PRVM_clientedictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL_4)
 			model = CL_GetModelFromEdict(touch);
 		if (model)
 			Matrix4x4_CreateFromQuakeEntity(&matrix, PRVM_clientedictvector(touch, origin)[0], PRVM_clientedictvector(touch, origin)[1], PRVM_clientedictvector(touch, origin)[2], PRVM_clientedictvector(touch, angles)[0], PRVM_clientedictvector(touch, angles)[1], PRVM_clientedictvector(touch, angles)[2], 1);
@@ -747,7 +748,7 @@ skipnetworkplayers:
 		Matrix4x4_Invert_Simple(&imatrix, &matrix);
 		VectorCopy(PRVM_clientedictvector(touch, mins), touchmins);
 		VectorCopy(PRVM_clientedictvector(touch, maxs), touchmaxs);
-		if (type == MOVE_MISSILE && (int)PRVM_clientedictfloat(touch, flags) & FL_MONSTER_32)
+		if (type == MOVE_MISSILE_2 && (int)PRVM_clientedictfloat(touch, flags) & FL_MONSTER_32)
 			Collision_ClipToGenericEntity(&trace, model, touch->priv.server->frameblend, &touch->priv.server->skeleton, touchmins, touchmaxs, bodysupercontents, &matrix, &imatrix, clipstart, clipmins2, clipmaxs2, clipend, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, extend);
 		else
 			Collision_ClipLineToGenericEntity(&trace, model, touch->priv.server->frameblend, &touch->priv.server->skeleton, touchmins, touchmaxs, bodysupercontents, &matrix, &imatrix, clipstart, clipend, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, extend, hitsurfaces);
@@ -767,7 +768,7 @@ CL_Move
 ==================
 */
 trace_t CL_TraceBox (const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, 
-					 /*MOVE_NORMAL*/ int type, 
+					 /*MOVE_NORMAL_0*/ int type, 
 		prvm_edict_t *passedict /*usually self*/, 
 		int hitsupercontentsmask, 
 		int skipsupercontentsmask, 
@@ -842,10 +843,10 @@ trace_t CL_TraceBox (const vec3_t start, const vec3_t mins, const vec3_t maxs, c
 	cliptrace.worldstartsolid = cliptrace.bmodelstartsolid = cliptrace.startsolid;
 	if (cliptrace.startsolid || cliptrace.fraction < 1)
 		cliptrace.ent = prog ? prog->edicts : NULL;
-	if (type == MOVE_WORLDONLY)
+	if (type == MOVE_WORLDONLY_3)
 		goto finished;
 
-	if (type == MOVE_MISSILE) {
+	if (type == MOVE_MISSILE_2) {
 		// LadyHavoc: modified this, was = -15, now -= 15
 		for (i = 0;i < 3;i++)
 		{
@@ -897,7 +898,7 @@ trace_t CL_TraceBox (const vec3_t start, const vec3_t mins, const vec3_t maxs, c
 			entity_render_t *ent = &cl.entities[cl.brushmodel_entities[i]].render;
 			
 #if 1
-			// Baker: BOX 1 ILLUSINARY Do not collide with func_illusionary PHYSICAL
+			// Baker: BOX 1 ILLUSIONARY Do not collide with func_illusionary PHYSICAL
 			if (/*brush*/ Have_Flag (hitnetworkplayers, HITT_PLAYERS_PLUS_SOLIDS_2) && Have_Flag (ent->crflags, RENDER_SOLID_NOT_BAKER_256))
 				continue;
 #endif
@@ -1037,7 +1038,7 @@ skipnetworkplayers:
 
 		if (PRVM_clientedictfloat(touch, solid) < SOLID_BBOX_2)
 			continue;
-		if (type == MOVE_NOMONSTERS && PRVM_clientedictfloat(touch, solid) != SOLID_BSP_4)
+		if (type == MOVE_NOMONSTERS_1 && PRVM_clientedictfloat(touch, solid) != SOLID_BSP_4)
 			continue;
 
 		if (passedict) {
@@ -1054,7 +1055,7 @@ skipnetworkplayers:
 			if (clipgroup && clipgroup == (int)PRVM_clientedictfloat(touch, clipgroup))
 				continue;
 			// don't clip points against points (they can't collide)
-			if (pointtrace && VectorCompare(PRVM_clientedictvector(touch, mins), PRVM_clientedictvector(touch, maxs)) && (type != MOVE_MISSILE || !((int)PRVM_clientedictfloat(touch, flags) & FL_MONSTER_32)))
+			if (pointtrace && VectorCompare(PRVM_clientedictvector(touch, mins), PRVM_clientedictvector(touch, maxs)) && (type != MOVE_MISSILE_2 || !((int)PRVM_clientedictfloat(touch, flags) & FL_MONSTER_32)))
 				continue;
 		}
 
@@ -1062,7 +1063,7 @@ skipnetworkplayers:
 
 		// might interact, so do an exact clip
 		model = NULL;
-		if ((int) PRVM_clientedictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL)
+		if ((int) PRVM_clientedictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL_4)
 			model = CL_GetModelFromEdict(touch);
 		if (model)
 			Matrix4x4_CreateFromQuakeEntity(&matrix, PRVM_clientedictvector(touch, origin)[0], PRVM_clientedictvector(touch, origin)[1], PRVM_clientedictvector(touch, origin)[2], PRVM_clientedictvector(touch, angles)[0], PRVM_clientedictvector(touch, angles)[1], PRVM_clientedictvector(touch, angles)[2], 1);
@@ -1122,7 +1123,7 @@ trace_t CL_Cache_TraceLineSurfaces(const vec3_t start, const vec3_t end, int typ
 	cliptrace.worldstartsolid = cliptrace.bmodelstartsolid = cliptrace.startsolid;
 	if (cliptrace.startsolid || cliptrace.fraction < 1)
 		cliptrace.ent = prog ? prog->edicts : NULL;
-	if (type == MOVE_WORLDONLY)
+	if (type == MOVE_WORLDONLY_3)
 		goto finished;
 
 	// create the bounding box of the entire move
@@ -1168,7 +1169,7 @@ trace_t CL_Cache_TraceLineSurfaces(const vec3_t start, const vec3_t end, int typ
 		// animated models are not suitable for caching
 		if ((touch->priv.server->frameblend[0].rlerp != 1.0 || touch->priv.server->frameblend[0].subframe != 0) || touch->priv.server->skeleton.relativetransforms)
 			continue;
-		if (type == MOVE_NOMONSTERS && PRVM_clientedictfloat(touch, solid) != SOLID_BSP_4)
+		if (type == MOVE_NOMONSTERS_1 && PRVM_clientedictfloat(touch, solid) != SOLID_BSP_4)
 			continue;
 		Matrix4x4_CreateFromQuakeEntity(&matrix, PRVM_clientedictvector(touch, origin)[0], PRVM_clientedictvector(touch, origin)[1], PRVM_clientedictvector(touch, origin)[2], PRVM_clientedictvector(touch, angles)[0], PRVM_clientedictvector(touch, angles)[1], PRVM_clientedictvector(touch, angles)[2], 1);
 		Matrix4x4_Invert_Simple(&imatrix, &matrix);

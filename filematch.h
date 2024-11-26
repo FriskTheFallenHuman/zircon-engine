@@ -239,9 +239,10 @@ typedef struct _entity_st { // p_ent
 
 typedef struct _entitylist_st {
 	/// maxstrings changes as needed, causing reallocation of strings[] array
-	int maxsize;
-	int count;
+	int				maxsize;
+	int				count;
 	entityx_t		*entity; // p_ent (PAGE)
+	qbool			is_old_q1_format;
 } entitylist_t;
 
 void brushrowlistfreecontents (brushrowlist_t *list);
@@ -265,9 +266,10 @@ void entitylist_translate_brushes (entitylist_t *list, vec3_t vadd);
 void entitylist_brush0_append (entitylist_t *list, entitylist_t *paste);
 void entitylist_nonworld_append (entitylist_t *list, entitylist_t *paste);
 
-void entitylist_set_replace_key_val (entitylist_t *plist, int entnum, ccs *key_force, ccs *val_force);
+void entitylist_key_set_replace_val (entitylist_t *plist, int entnum, ccs *key_force, ccs *val_force);
 
 int entitylist_atomize_entities_num_made (entitylist_t *plist, ccs *s0_plus_timestamp);
+int entitylist_clone_as_trigger_entities_num_made (entitylist_t *plist, ccs *s0_plus_timestamp);
 
 void entitylist_nonworld_setthis (entitylist_t *plist, ccs *key_force, ccs *val_force);
 void entitylist_nonworld_set (entitylist_t *plist, stringlist_t *plistpairset);
@@ -290,6 +292,10 @@ baker_string_t *CSG_Process_BSAlloc (ccs *datasrc); // Returns a (baker_string_t
 // Returns NULL or value for key for the entity
 ccs *entitykeys_find_value (entityx_t *e, ccs *keyname);
 int entitylist_parsemaptxt (entitylist_t *plist, ccs *txt);
+
+//int entitylist_parsemaptxt_old_q1 (entitylist_t *plist, ccs *txt);
+
+int entitylist_change_textures_q1 (entitylist_t *plist, ccs *s_sky_texture, ccs *s_textures_folder); // Returns a (baker_string_t *) or NULL if no data
 
 #include "equat.h"
 

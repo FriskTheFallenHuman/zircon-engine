@@ -129,7 +129,7 @@ const char **stringlist_nullterm_add (stringlist_t *list)
 		if (oldstrings)
 			Z_Free(oldstrings);
 	}
-	
+
 	list->strings[list->numstrings] = NULL; //Z_StrDup(text);
 	//list->numstrings++;
 	return (const char **)list->strings;
@@ -139,7 +139,7 @@ const char **stringlist_nullterm_add (stringlist_t *list)
 int stringlistappendfilelines_did_load (stringlist_t *plist, ccs *file, int is_number_column)
 {
 	fs_offset_t filesize = 0;
-	char *sa = (char *)FS_LoadFile(file, tempmempool, fs_quiet_true, &filesize); 
+	char *sa = (char *)FS_LoadFile(file, tempmempool, fs_quiet_true, &filesize);
 	// FS_LoadFile Always appends a 0 byte.
 	if (!sa)
 		return false;
@@ -156,7 +156,7 @@ int stringlistappendfilelines_did_load (stringlist_t *plist, ccs *file, int is_n
 			stringlistappend (plist, listugly.strings[n]);
 		} // for
 		stringlistfreecontents (&listugly);
-	} 
+	}
 	else {
 		stringlistappend_split (plist, sa, NEWLINE);
 	}
@@ -167,7 +167,7 @@ int stringlistappendfilelines_did_load (stringlist_t *plist, ccs *file, int is_n
 
 int stringlistappend_split_delimiter_linenumbers (stringlist_t *plist, ccs *s, ccs *delimiter)
 {
-	//String_Edit_Whitespace_To_Space_Except_Newline (sa);	
+	//String_Edit_Whitespace_To_Space_Except_Newline (sa);
 	stringlist_t listugly = {0};
 	stringlistappend_split (&listugly, s, delimiter);
 	for (int n = 0; n < listugly.numstrings; n ++) {
@@ -194,7 +194,7 @@ void stringlistappend (stringlist_t *list, const char *text)
 		if (oldstrings)
 			Z_Free(oldstrings);
 	}
-	
+
 	list->strings[list->numstrings] = Z_StrDup(text);
 	list->numstrings++;
 }
@@ -257,7 +257,7 @@ void stringlistappend_len (stringlist_t *list, const char *text, int text_len)
 		if (oldstrings)
 			Z_Free(oldstrings);
 	}
-	
+
 	list->strings[list->numstrings] = (char *)Z_MemDup_Z (text, text_len);
 	list->numstrings++;
 }
@@ -409,7 +409,7 @@ void stringlistappendfssearch (stringlist_t *plist, fssearch_t *t)
 {
 	if (!t)
 		return;
-	
+
 	for (int idx = 0; idx < t->numfilenames; idx++) {
 		char *sxy = t->filenames[idx];
 		stringlistappend (plist, sxy);
@@ -460,7 +460,7 @@ static int stringlistsort_start_length_cmp(const void *_a, const void *_b)
 	File_URL_Edit_Remove_Extension (sb);
 
 	int result = 0;
-#if 1 
+#if 1
 	// Safety checks
 	int slena = strlen (sa);
 	int slenb = strlen (sb);
@@ -471,7 +471,7 @@ static int stringlistsort_start_length_cmp(const void *_a, const void *_b)
 	}
 
 	if (slenb < sstart + slength) {
-		result = strcasecmp(sa, sb); // This is not right, but repeatably consistent in the sort order 
+		result = strcasecmp(sa, sb); // This is not right, but repeatably consistent in the sort order
 		goto failout; // Too short
 	}
 #endif
@@ -479,7 +479,7 @@ static int stringlistsort_start_length_cmp(const void *_a, const void *_b)
 	memmove (sa, &sa[sstart], slength + 1); // +1 to copy the null too
 	memmove (sb, &sb[sstart], slength + 1); // +1 to copy the null too
 
-	result = strcasecmp(sa, sb); 
+	result = strcasecmp(sa, sb);
 
 failout:
 
@@ -520,7 +520,7 @@ void stringlistsort_custom(stringlist_t *list, qbool uniq, int myfunc(const void
 
 	qsort(&list->strings[0], list->numstrings, sizeof(list->strings[0]), myfunc);
 
-	// If Make Unique ... 
+	// If Make Unique ...
 	if (uniq) {
 		// i: the item to read
 		// j: the item last written
@@ -627,7 +627,7 @@ void listdirectory(stringlist_t *list, const char *basepath, const char *path)
 #endif
 
 // Baker: Usage:
-// stringlist_t matchedSet;	
+// stringlist_t matchedSet;
 // stringlistinit	(&matchedSet); // this does not allocate, memset 0
 //
 // stringlist_from_delim (&matchedSet, mystring);
@@ -724,7 +724,7 @@ void voids_add1 (voidlist_s *vlist, const void *p)
 		vlist->maxsize += 4096;
 		vlist->vloats = (const void **)Mem_Realloc (zonemempool, vlist->vloats, sizeof(ccs *) * vlist->maxsize);
 	}
-	
+
 	vlist->vloats[vlist->count++] = (const void *)p;
 }
 
@@ -735,7 +735,7 @@ void floats_add1 (floatlist_s *flist, float p)
 		flist->maxsize += 4096;
 		flist->floats = (float *)Mem_Realloc (zonemempool, flist->floats, sizeof(float) * flist->maxsize);
 	}
-	
+
 	flist->floats[flist->count++] = p;
 }
 
@@ -746,7 +746,7 @@ void floats_add2 (floatlist_s *flist, float px, float py)
 		flist->maxsize += 4096;
 		flist->floats = (float *)Mem_Realloc (zonemempool, flist->floats, sizeof(float) * flist->maxsize);
 	}
-	
+
 	flist->floats[flist->count++] = px;
 	flist->floats[flist->count++] = py;
 }
@@ -758,7 +758,7 @@ void floats_add3 (floatlist_s *flist, float px, float py, float pz)
 		flist->maxsize += 4096;
 		flist->floats = (float *)Mem_Realloc (zonemempool, flist->floats, sizeof(float) * flist->maxsize);
 	}
-	
+
 	flist->floats[flist->count++] = px;
 	flist->floats[flist->count++] = py;
 	flist->floats[flist->count++] = pz;
@@ -792,7 +792,7 @@ char *int32s_join_delim_zalloc (int32list_s *ilist, ccs *s_delimiter_elements, i
 	char *s_comma_join_z = stringlist_join_delim_zalloc (&list, s_delimiter_elements, shall_quote);
 	stringlistfreecontents (&list); // done with this, thank you
 
-	return s_comma_join_z; 
+	return s_comma_join_z;
 }
 
 char *floats_join_delim12_delim_zalloc (floatlist_s *flist, int number_per_vert, ccs *s_delimiter12, ccs *s_delimiter_elements, int shall_quote)
@@ -823,7 +823,7 @@ char *floats_join_delim12_delim_zalloc (floatlist_s *flist, int number_per_vert,
 		for (int seq = 0; seq < number_per_vert; seq ++) {
 			int jidx = idx + seq;
 			ccs *s = list.strings[jidx];
-			
+
 			if (seq > 0)
 				c_strlcat (buf, s_delimiter12); // precat
 			c_strlcat (buf, s);
@@ -837,7 +837,7 @@ char *floats_join_delim12_delim_zalloc (floatlist_s *flist, int number_per_vert,
 	stringlistfreecontents (&group_of_spaced_floats); // done with this, thank you
 	stringlistfreecontents (&list); // done with this, thank you
 
-	return s_comma_join_z; 
+	return s_comma_join_z;
 }
 
 
@@ -864,7 +864,7 @@ int floats_append_parse_space_comma_num_elements_ignored (floatlist_s *flist, cc
 	stringlist_t tmplist = {0};
 
 	for (int n = 0; n < rlist.numstrings; n ++) {
-		// SPLIT ON SPACES	
+		// SPLIT ON SPACES
 		char *selem = rlist.strings[n];
 		String_Edit_Trim(selem);
 
@@ -882,7 +882,7 @@ int floats_append_parse_space_comma_num_elements_ignored (floatlist_s *flist, cc
 	} // while
 
 	stringlistfreecontents(&rlist);
-	
+
 	return num_elements_ignored;
 }
 
@@ -914,7 +914,7 @@ void int32s_add1 (int32list_s *ilist, int p)
 		ilist->maxsize += 4096;
 		ilist->ints = (int *)Mem_Realloc (zonemempool, ilist->ints, sizeof(int) * ilist->maxsize);
 	}
-	
+
 	ilist->ints[ilist->count++] = p;
 }
 
@@ -925,7 +925,7 @@ void int32s_add2 (int32list_s *ilist, int px, int py)
 		ilist->maxsize += 4096;
 		ilist->ints = (int *)Mem_Realloc (zonemempool, ilist->ints, sizeof(int) * ilist->maxsize);
 	}
-	
+
 	ilist->ints[ilist->count++] = px;
 	ilist->ints[ilist->count++] = py;
 }
@@ -943,7 +943,7 @@ void int32s_add3 (int32list_s *ilist, int px, int py, int pz)
 		ilist->maxsize += 4096;
 		ilist->ints = (int *)Mem_Realloc (zonemempool, ilist->ints, sizeof(int) * ilist->maxsize);
 	}
-	
+
 	ilist->ints[ilist->count++] = px;
 	ilist->ints[ilist->count++] = py;
 	ilist->ints[ilist->count++] = pz;
@@ -979,11 +979,11 @@ int int32s_append_split_dequote (int32list_s *ilist, ccs *s_value, ccs *s_delimi
 		// SPLIT ON DELIMITER
 		char *selem = rlist.strings[n];
 		int d = atoi(selem);
-		int32s_add1 (ilist, d);	
+		int32s_add1 (ilist, d);
 	} // while
 
 	stringlistfreecontents(&rlist);
-	
+
 	return num_elements_ignored;
 }
 
@@ -1112,7 +1112,7 @@ int stringlistappend_from_dir_pattern (stringlist_t *p_stringlist, ccs *s_option
 			c_strlcat (s_pattern, s_ext);
 	}
 	else	c_dpsnprintf1 (s_pattern, "*%s", s_ext);
-	
+
 	t = FS_Search(s_pattern, fs_caseless_true, fs_quiet_true, fs_pakfile_null, fs_gamedironly_false);
 
 	if (t && t->numfilenames > 0) {
@@ -1159,10 +1159,10 @@ brushrow_s *brushrowlist_add (brushrowlist_t *list)
 {
 	if (list->count >= list->maxsize) {
 		list->maxsize += 4096;
-		list->brushrow = (brushrow_s *)Mem_Realloc(zonemempool, 
+		list->brushrow = (brushrow_s *)Mem_Realloc(zonemempool,
 			list->brushrow, list->maxsize * sizeof(brushrow_s) );
 	}
-	
+
 	brushrow_s *p_brushrow = &list->brushrow[list->count ++]; // Incremented count
 	return p_brushrow;
 }
@@ -1200,10 +1200,10 @@ brush_s *brushlist_add (brushlist_t *list)
 {
 	if (list->count >= list->maxsize) {
 		list->maxsize += 4096;
-		list->brush = (brush_s *)Mem_Realloc(zonemempool, 
-			list->brush, list->maxsize * sizeof(brush_s) );		
+		list->brush = (brush_s *)Mem_Realloc(zonemempool,
+			list->brush, list->maxsize * sizeof(brush_s) );
 	}
-	
+
 	brush_s *p_brush = &list->brush[list->count ++]; // Incremented count
 	return p_brush;
 }
@@ -1232,10 +1232,10 @@ patchrow_s *patchrowlist_add (patchrowlist_t *list)
 {
 	if (list->count >= list->maxsize) {
 		list->maxsize += 4096;
-		list->patchrow = (patchrow_s *)Mem_Realloc(zonemempool, 
+		list->patchrow = (patchrow_s *)Mem_Realloc(zonemempool,
 			list->patchrow, list->maxsize * sizeof(patchrow_s) );
 	}
-	
+
 	patchrow_s *p_patchrow = &list->patchrow[list->count ++]; // Incremented count
 	return p_patchrow;
 }
@@ -1266,17 +1266,17 @@ entityx_t *entitylist_add (entitylist_t *list)
 {
 	if (list->count >= list->maxsize) {
 		list->maxsize += 4096;
-		list->entity = (entityx_t *)Mem_Realloc(zonemempool, 
-			list->entity, list->maxsize * sizeof(entityx_t) );		
+		list->entity = (entityx_t *)Mem_Realloc(zonemempool,
+			list->entity, list->maxsize * sizeof(entityx_t) );
 	}
-	
+
 	entityx_t *pe = &list->entity[list->count ++]; // Incremented count
 	return pe;
 }
 
 entityx_t *entitylist_add_at_1_shiftup (entitylist_t *list)
 {
-	int newidx = list->count; // live: 480 
+	int newidx = list->count; // live: 480
 
 	// 0
 	// 1
@@ -1292,10 +1292,10 @@ entityx_t *entitylist_add_at_1_shiftup (entitylist_t *list)
 
 	entityx_t *pstart1 = &list->entity[1];
 	entityx_t *p2 = &list->entity[2];
-	entityx_t *p479 = &list->entity[newidx - 1];
-	entityx_t *p480 = &list->entity[newidx];
+	//entityx_t *p479 = &list->entity[newidx - 1];
+	//entityx_t *p480 = &list->entity[newidx];
 	size_t struct_size = sizeof(*pstart1); // 1 to 479 get moved to 2 thru 480.  This 479 entries.
-	
+
 	entityx_t *pdest  = &list->entity[2];
 	size_t movesize = struct_size * move_num_entries;
 	memmove (p2, pstart1, movesize);
@@ -1339,7 +1339,7 @@ baker_string_t *entitylist_maptext_bsalloc (entitylist_t *plist)
 		} // epairs
 		for (int bx = 0; bx < p_ent->brushlist.count; bx ++) {
 			brush_s *p_brush = &p_ent->brushlist.brush[bx];
-			
+
 			BakerString_CatCFmt (bs_maptext, "{" NEWLINE);
 
 			if (p_brush->is_a_patch == false) {
@@ -1347,9 +1347,9 @@ baker_string_t *entitylist_maptext_bsalloc (entitylist_t *plist)
 				for (int brow = 0; brow < p_brush->brushrowlist.count; brow ++) {
 					brushrow_s *pbr = &p_brush->brushrowlist.brushrow[brow];
 
-					BakerString_CatCFmt (bs_maptext, 					
-						"( " VECTOR3_G  " ) " 
-						"( " VECTOR3_G  " ) " 
+					BakerString_CatCFmt (bs_maptext,
+						"( " VECTOR3_G  " ) "
+						"( " VECTOR3_G  " ) "
 						"( " VECTOR3_G  " ) "
 						" %s "
 						"[ " VECTOR4_G " ] "
@@ -1379,7 +1379,7 @@ i_am_patch:
 					// ( 9 3 0 0 0 )
 					BakerString_CatCFmt (bs_maptext, "( " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " " FLOAT_LOSSLESS_FORMAT " )" NEWLINE, p_brush->rows, p_brush->cols, p_brush->other3[0], p_brush->other3[1], p_brush->other3[2]);
 					BakerString_CatCFmt (bs_maptext, "(" NEWLINE);
-		
+
 					for (int prow = 0; prow < p_brush->patchrowlist.count; prow ++) {
 						patchrow_s *ppr = &p_brush->patchrowlist.patchrow[prow];
 						BakerString_CatCFmt (bs_maptext, "( " NEWLINE);
@@ -1396,7 +1396,7 @@ i_am_patch:
 						}
 						BakerString_CatCFmt (bs_maptext, " )" NEWLINE);
 					}
-					
+
 					BakerString_CatCFmt (bs_maptext, ")" NEWLINE);
 					BakerString_CatCFmt (bs_maptext, "}" NEWLINE);
 			}
@@ -1478,12 +1478,12 @@ void entitylist_translate_epairs (entitylist_t *plist, vec3_t vadd)
 			COM_Parse_Basic(&val);	vorg[1] = atof (com_token);
 			COM_Parse_Basic(&val);	vorg[2] = atof (com_token);
 			VectorAdd (vadd, vorg, vorg); // Translate
-			
+
 			char *newval = Z_StrDupf (VECTOR3_LOSSLESS, VECTOR3_SEND(vorg));
 			Mem_FreeNull_ (p_ent->pairslist.strings[kx + 1]);
 			p_ent->pairslist.strings[kx + 1] = newval;
 
-			// ASSUME MAXIMUM OF A SINGLE "origin" per entity, 
+			// ASSUME MAXIMUM OF A SINGLE "origin" per entity,
 			// SO ..
 			break;	// GET OUT!
 		} // epairs
@@ -1513,13 +1513,13 @@ void entitylist_translate_brushes (entitylist_t *plist, vec3_t vadd)
 					VectorAdd (vadd, pbr->b, pbr->b); // Translate
 					VectorAdd (vadd, pbr->c, pbr->c); // Translate
 #if 1 // OCTOBER 3 2024 - TEXTURELOCK
-					//             matrix factor * distance * 
+					//             matrix factor * distance *
 					// [ 1 0 0 459.715 ] [ 0 0 -1 -122.714 ] 0 0.7 0.35 134217728 0 0
 					//if (String_Contains(pbr->pbrtexture, "armu")) {
 					//	int j = 5;
 					//}
-					double xscale  = pbr->ftrail[1];  // 
-					double yscale  = pbr->ftrail[2]; 
+					double xscale  = pbr->ftrail[1];  //
+					double yscale  = pbr->ftrail[2];
 #if 0
 					double xshift = pbr->xtra1[0] * vadd[0] / xscale;
 					double yshift = pbr->xtra2[0] * vadd[2] / yscale;
@@ -1531,7 +1531,7 @@ void entitylist_translate_brushes (entitylist_t *plist, vec3_t vadd)
 					double newyshift = pbr->xtra2[3] + yshift;
 					pbr->xtra1[3] = newxshift;
 					pbr->xtra2[3] = newyshift;
-					
+
 #endif
 				} // row
 			} else {
@@ -1544,7 +1544,7 @@ void entitylist_translate_brushes (entitylist_t *plist, vec3_t vadd)
 					} // col
 				} // row
 			} // if
-		} // brush		
+		} // brush
 	} // entities in .map
 }
 
@@ -1580,7 +1580,7 @@ void entitylist_brush0_append (entitylist_t *plist, entitylist_t *paste)
 				dbr->pbrtexture = Z_StrDup (rbr->pbrtexture);
 			} // brushrow
 		} else {
-			// PATCH		
+			// PATCH
 			for (int prow = 0; prow < r_brush->patchrowlist.count; prow ++) {
 				patchrow_s *rpr = &r_brush->patchrowlist.patchrow[prow];
 				patchrow_s *dpr = patchrowlist_add (&d_brush->patchrowlist);
@@ -1635,7 +1635,7 @@ void entitylist_nonworld_append (entitylist_t *plist, entitylist_t *paste)
 					dbr->pbrtexture = Z_StrDup (rbr->pbrtexture);
 				} // brushrow
 			} else {
-				// PATCH		
+				// PATCH
 				for (int prow = 0; prow < r_brush->patchrowlist.count; prow ++) {
 					patchrow_s *rpr = &r_brush->patchrowlist.patchrow[prow];
 					patchrow_s *dpr = patchrowlist_add (&d_brush->patchrowlist);
@@ -1668,9 +1668,9 @@ void entity_add_brush_origin_from_bbox (entityx_t *p_ent, vec3_t brmins, vec3_t 
 
 
 	brushrow_s *br = brushrowlist_add (&p_brush->brushrowlist);
-	//          ( [XH] [YH] [ZH] )                ( [XH] [YH] [ZL] )          ( [XH] [YL] [ZH] ) 
+	//          ( [XH] [YH] [ZH] )                ( [XH] [YH] [ZL] )          ( [XH] [YL] [ZH] )
 	VectorSet (br->a, XH, YH, ZH); VectorSet (br->b, XH, YH, ZL); VectorSet (br->c, XH, YL, ZH);
-	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	//553648128 16512 0
 	br->pbrtexture = Z_StrDup ("common/origin");
@@ -1678,35 +1678,35 @@ void entity_add_brush_origin_from_bbox (entityx_t *p_ent, vec3_t brmins, vec3_t 
 	br = brushrowlist_add (&p_brush->brushrowlist); // 2 - all numbers identical to 1 except abc
 	//( [XL] [YL] [ZH] ) ( [XL] [YL] [ZL] ) ( [XL] [YH] [ZH] ) common/caulk [ 0 1 0 -20.4 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XL, YL, ZH); VectorSet (br->b, XL, YL, ZL); VectorSet (br->c, XL, YH, ZH);
-	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
 
 	br = brushrowlist_add (&p_brush->brushrowlist); // 3
 	//( [XH] [YL] [ZH] ) ( [XH] [YL] [ZL] ) ( [XL] [YL] [ZH] ) common/caulk [ 1 0 0 20 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XH, YL, ZH); VectorSet (br->b, XH, YL, ZL); VectorSet (br->c, XL, YL, ZH);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
 
 	br = brushrowlist_add (&p_brush->brushrowlist); // 4 - all numbers identical to 3 except abc
 	// ( [XL] [YH] [ZH] ) ( [XL] [YH] [ZL] ) ( [XH] [YH] [ZH] ) common/caulk [ 1 0 0 20 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XL, YH, ZH); VectorSet (br->b, XL, YH, ZL); VectorSet (br->c, XH, YH, ZH);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
 
 	br = brushrowlist_add (&p_brush->brushrowlist); // 5
 	// ( [XL] [YH] [ZL] ) ( [XL] [YL] [ZL] ) ( [XH] [YH] [ZL] ) common/caulk [ 1 0 0 20 ] [ 0 -1 0 20.4 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XL, YH, ZL); VectorSet (br->b, XL, YL, ZL); VectorSet (br->c, XH, YH, ZL);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
-	
+
 	br = brushrowlist_add (&p_brush->brushrowlist); // 6 - all ident to 5 except a b c
 	// ( [XH] [YL] [ZH] ) ( [XL] [YL] [ZH] ) ( [XH] [YH] [ZH] ) common/caulk [ 1 0 0 20 ] [ 0 -1 0 20.4 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XH, YL, ZH); VectorSet (br->b, XL, YL, ZH); VectorSet (br->c, XH, YH, ZH);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
 
@@ -1742,7 +1742,7 @@ void bounds_expand (const vec3_t v, vec3_t loz, vec3_t hiz)
 int entity_make_origin_brush_num_made (entityx_t *p_ent, ccs *s0_plus_timestamp)
 {
 	int num_made = 0;
-	
+
 	vec3_t brmins = { 999999,  999999,  999999};
 	vec3_t brmaxs = {-999999, -999999, -999999};
 
@@ -1809,7 +1809,7 @@ int entitylist__originmake_num_made (entitylist_t *plist, ccs *s0_plus_timestamp
 		if (pval == NULL /*wants__originmake == false*/)
 			continue;
 
-		// SO WE 
+		// SO WE
 		vec3_t brmins = { 999999,  999999,  999999};
 		vec3_t brmaxs = {-999999, -999999, -999999};
 
@@ -1837,7 +1837,7 @@ int entitylist__originmake_num_made (entitylist_t *plist, ccs *s0_plus_timestamp
 		if (are_any_brushes) {
 			num_made ++;
 			entity_add_brush_origin_from_bbox (p_ent, brmins, brmaxs);
-			
+
 
 #if 1
 			entity_key_set_value_is_ok (p_ent, "_originmake", s0_plus_timestamp);
@@ -1854,12 +1854,12 @@ int entitylist__originmake_num_made (entitylist_t *plist, ccs *s0_plus_timestamp
 	return num_made;
 }
 
-
 int entitylist_atomize_entities_num_made (entitylist_t *plist, ccs *s0_plus_timestamp)
 {
 	int num_made = 0;
 	for (int ex = 1 /*after world!*/; ex < plist->count; ex ++) {
 		entityx_t	*r_ent = &plist->entity[ex];
+		entityx_t	*d_ent_final = NULL;
 
 		// Check early out scenario ...
 		if (r_ent->brushlist.count == 0)
@@ -1869,7 +1869,7 @@ int entitylist_atomize_entities_num_made (entitylist_t *plist, ccs *s0_plus_time
 
 		if (brush2ent_idx == not_found_neg1)
 			continue; // "_atomize" Does not exist for entity.
-		
+
 		ccs *val = r_ent->pairslist.strings[brush2ent_idx + 1];
 
 		// It "_atomize" value has anything that is NOT a leading 0 -- ... we run it
@@ -1883,7 +1883,7 @@ clone_brush_or_patch:
 			brush_s *r_brush = &r_ent->brushlist.brush[bx];
 
 			// TURN THIS BRUSH INTO A NEW ENTITY.
-			entityx_t *d_ent = entitylist_add(plist);
+			entityx_t *d_ent = d_ent_final = entitylist_add(plist);
 
 			// STAGE: COPY ENTITY KEYS/VALUES except "_atomize"
 			for (int kx = 0; kx < r_ent->pairslist.numstrings; kx += 2) {
@@ -1924,7 +1924,7 @@ clone_brush_or_patch:
 					dbr->pbrtexture = Z_StrDup (rbr->pbrtexture);
 				} // brushrow
 			} else {
-				// PATCH		
+				// PATCH
 				for (int prow = 0; prow < r_brush->patchrowlist.count; prow ++) {
 					patchrow_s *rpr = &r_brush->patchrowlist.patchrow[prow];
 					patchrow_s *dpr = patchrowlist_add (&d_brush->patchrowlist);
@@ -1940,12 +1940,23 @@ clone_brush_or_patch:
 		// THIS ENTITY HAD ATOMIZATION ... CHANGE THE CLASSNAME "_func_wall_processed"
 		num_made ++;
 
+		if (d_ent_final) {
+			int idx_for_cnt = entity_key_idx_for_name(d_ent_final, "cnt");
+			if (idx_for_cnt == not_found_neg1) {
+				// Mark the final brush created with "cnt" "-1" so QuakeC
+				// knows it is the last one.
+				stringlistappend (&d_ent_final->pairslist, "cnt"); // KEY
+				stringlistappend (&d_ent_final->pairslist, "-1"); // VALUE
+			} else {
+				int isok = entity_key_set_value_is_ok (d_ent_final, "cnt", "-1");
+			}
+		} // d_ent_final
+
 		ccs *s_classname =  entity_key_get_value(r_ent, "classname");
 		int isok = true;
 		if (s_classname) {
 			va_super (snewval, /*slen*/ 64, "_" "%s" "_processed", s_classname);
 
-			
 			// 1. CHANGE CLASSNAME.  (WHY?  So Quake doesn't know what it is and ignores it.)
 			//       WHY?  Not ready to delete entities yet.
 			// 2. CHANGE "_atomize" to 0
@@ -1963,8 +1974,99 @@ clone_brush_or_patch:
 	return num_made;
 }
 
+entityx_t *entity_clone_trigger_brush_as (entitylist_t *plist, entityx_t *r_ent, ccs *s_newclassname)
+{
+	// CLONE ENTITY AS A TRIGGER BRUSH
+	entityx_t *d_ent = entitylist_add(plist);
 
-void entitylist_set_replace_key_val (entitylist_t *plist, int entnum, ccs *key_force, ccs *val_force)
+	// STAGE: COPY ENTITY KEYS/VALUES except "_atomize"
+	for (int kx = 0; kx < r_ent->pairslist.numstrings; kx += 2) {
+		ccs *key = r_ent->pairslist.strings[kx + 0];
+		ccs *val = r_ent->pairslist.strings[kx + 1];
+
+		if (String_Isin1(key, "_clone_trigger"))
+			continue; // DO NOT DO THESE
+		
+		if (String_Isin1(key, "classname")) {
+			int j = 5;
+		}
+		stringlistappend (&d_ent->pairslist, key); // KEY
+		stringlistappend (&d_ent->pairslist, val); // VALUE
+	} // epairs
+
+	int isok = entity_key_set_value_is_ok (d_ent, "classname", s_newclassname);
+	int j = 5;
+
+	for (int bx = 0; bx < r_ent->brushlist.count; bx ++) {
+		brush_s *r_brush = &r_ent->brushlist.brush[bx];
+
+		// STAGE: COPY PATCH STUFF STORED IN R_BRUSH  ...
+		if (r_brush->is_a_patch) {
+			continue; // Not eligible.
+		}
+
+		brush_s *d_brush = brushlist_add (&d_ent->brushlist); // CREATE BRUSH FOR DEST
+
+		d_brush->is_a_patch = false; //r_brush->is_a_patch; // Yes, but we aren't a patch.
+
+		// STAGE: COPY REAL BRUSH ROWS
+		for (int brow = 0; brow < r_brush->brushrowlist.count; brow ++) {
+			brushrow_s *rbr = &r_brush->brushrowlist.brushrow[brow];
+			brushrow_s *dbr = brushrowlist_add(&d_brush->brushrowlist);
+
+			memcpy (dbr, rbr, sizeof(*rbr)); // Cloning the brush row numbers
+			dbr->pbrtexture = Z_StrDup ("common/trigger");
+		} // brushrow
+		
+	} // brushes in entity
+
+	return d_ent;
+}
+
+// Find entities.  If has "_clone_trigger" "new classname"
+// Copy the entity brush with common/trigger texture
+// This is NOT atomize.
+
+
+// 2 possibilities ...
+// func_group --> _clone_trigger -> trigger_pushable (BAD but supported, harder in map editor.)
+// trigger_pushable --> func_group (GOOD, easier in map editor.)
+int entitylist_clone_as_trigger_entities_num_made (entitylist_t *plist, ccs *s0_plus_timestamp)
+{
+	int num_made = 0;
+	for (int ex = 1 /*after world!*/; ex < plist->count; ex ++) {
+		entityx_t	*r_ent = &plist->entity[ex];
+
+		// Check early out scenario ...
+		if (r_ent->brushlist.count == 0)
+			continue; // No brushes
+
+		ccs *_clone_trigger_val = entity_key_get_value (r_ent, "_clone_trigger");
+
+		if (_clone_trigger_val == NULL)
+			continue; // "_clone_trigger" Does not exist for entity.
+
+		int is_func_group = String_Match (_clone_trigger_val, "func_group");
+		ccs *val_old_classname = entity_key_get_value(r_ent, "classname");
+		ccs *val_new_classname = is_func_group ? val_old_classname : _clone_trigger_val;
+		
+		// If it is composed of only patches it still makes an entity and mapper is a knucklehead.
+		entityx_t *d_ent = entity_clone_trigger_brush_as(plist, r_ent, val_new_classname);
+
+		// If is_func_group ... change our classname to func_group.
+		if (is_func_group) {
+			entity_key_set_value_is_ok (r_ent, "classname", "func_group");
+		}
+
+		num_made ++;
+	} // entities in .map
+
+	return num_made;
+}
+
+
+
+void entitylist_key_set_replace_val (entitylist_t *plist, int entnum, ccs *key_force, ccs *val_force)
 {
 	entityx_t *p_ent = &plist->entity[entnum];
 	int did_set = false;
@@ -1975,17 +2077,17 @@ void entitylist_set_replace_key_val (entitylist_t *plist, int entnum, ccs *key_f
 		if (String_Match(key, key_force) == false)
 			continue;
 		//ccs *val = p_ent->pairslist.strings[kx + 1];
-		
+
 		char *newval = Z_StrDup (val_force);
 		Mem_FreeNull_ (p_ent->pairslist.strings[kx + 1]);
 		p_ent->pairslist.strings[kx + 1] = newval;
 		did_set = true;
 
-		// ASSUME MAXIMUM OF A SINGLE "origin" per entity, 
+		// ASSUME MAXIMUM OF A SINGLE "origin" per entity,
 		// SO ..
 		break;	// GET OUT!
 	} // epairs
-	
+
 	if (!did_set) {
 		// COULDN'T FIND FOR THIS ENTITY, ADD IT
 		stringlistappend (&p_ent->pairslist, key_force); // KEY
@@ -1997,7 +2099,7 @@ void entitylist_nonworld_setthis (entitylist_t *plist, ccs *key_force, ccs *val_
 {
 	for (int ex = 1; ex < plist->count; ex ++) { // NON-WORLD, WE START AT 1
 		entityx_t	*p_ent = &plist->entity[ex];
-		
+
 		int did_set = false;
 
 		for (int kx = 0; kx < p_ent->pairslist.numstrings; kx += 2) {
@@ -2006,13 +2108,13 @@ void entitylist_nonworld_setthis (entitylist_t *plist, ccs *key_force, ccs *val_
 			if (String_Match(key, key_force) == false)
 				continue;
 			//ccs *val = p_ent->pairslist.strings[kx + 1];
-			
+
 			char *newval = Z_StrDup (val_force);
 			Mem_FreeNull_ (p_ent->pairslist.strings[kx + 1]);
 			p_ent->pairslist.strings[kx + 1] = newval;
 			did_set = true;
 
-			// ASSUME MAXIMUM OF A SINGLE "origin" per entity, 
+			// ASSUME MAXIMUM OF A SINGLE "origin" per entity,
 			// SO ..
 			break;	// GET OUT!
 		} // epairs
@@ -2062,7 +2164,7 @@ void entitylist_prefix_epairslist (entitylist_t *plist, ccs *prefix, stringlist_
 		entityx_t	*p_ent = &plist->entity[ex];
 		for (int kx = 0; kx < p_ent->pairslist.numstrings; kx += 2) {
 			ccs *key = p_ent->pairslist.strings[kx + 0];
-			
+
 			//if (String_Isin2(key,"targetname","target")== false )
 			//	continue;
 
@@ -2138,25 +2240,25 @@ static void genbrush (entitylist_t *plist, ccs *s)
 
 	brush_s *d_brush;
 	brushrow_s *br;
-	
+
 	d_brush = brushlist_add (&d_ent->brushlist); // CREATE BRUSH FOR DEST
-	
+
 	// 221 83.4 67.3
-	
-	// ( [XH] [YH] [ZH] ) ( [XH] [YH] [ZL] ) ( [XH] [YL] [ZH] ) common/caulk 
+
+	// ( [XH] [YH] [ZH] ) ( [XH] [YH] [ZL] ) ( [XH] [YL] [ZH] ) common/caulk
 		// [ 0 1 0 -20.4 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 
 	br = brushrowlist_add (&d_brush->brushrowlist);
-	//          ( [XH] [YH] [ZH] )                ( [XH] [YH] [ZL] )          ( [XH] [YL] [ZH] ) 
+	//          ( [XH] [YH] [ZH] )                ( [XH] [YH] [ZL] )          ( [XH] [YL] [ZH] )
 	VectorSet (br->a, XH, YH, ZH); VectorSet (br->b, XH, YH, ZL); VectorSet (br->c, XH, YL, ZH);
-	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 0, 160, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/caulk");
 
 	br = brushrowlist_add (&d_brush->brushrowlist); // 2 - all numbers identical to 1 except abc
 	//( [XL] [YL] [ZH] ) ( [XL] [YL] [ZL] ) ( [XL] [YH] [ZH] ) common/caulk [ 0 1 0 -20.4 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XL, YL, ZH); VectorSet (br->b, XL, YL, ZL); VectorSet (br->c, XL, YH, ZH);
-	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 0, 160, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/caulk");
 
@@ -2164,28 +2266,28 @@ static void genbrush (entitylist_t *plist, ccs *s)
 	//( [XH] [YL] [ZH] ) ( [XH] [YL] [ZL] ) ( [XL] [YL] [ZH] ) common/caulk [ 1 0 0 20 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	//( 221 0 67.3 ) ( 221 0 0 ) ( 0 0 67.3 ) common/caulk [ 1 0 0 20 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XH, YL, ZH); VectorSet (br->b, XH, YL, ZL); VectorSet (br->c, XL, YL, ZH);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 0, 160, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/caulk");
 
 	br = brushrowlist_add (&d_brush->brushrowlist); // 4 - all numbers identical to 3 except abc
 	// ( [XL] [YH] [ZH] ) ( [XL] [YH] [ZL] ) ( [XH] [YH] [ZH] ) common/caulk [ 1 0 0 20 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XL, YH, ZH); VectorSet (br->b, XL, YH, ZL); VectorSet (br->c, XH, YH, ZH);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 0, 160, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/caulk");
 
 	br = brushrowlist_add (&d_brush->brushrowlist); // 5
 	// ( [XL] [YH] [ZL] ) ( [XL] [YL] [ZL] ) ( [XH] [YH] [ZL] ) common/caulk [ 1 0 0 20 ] [ 0 -1 0 20.4 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XL, YH, ZL); VectorSet (br->b, XL, YL, ZL); VectorSet (br->c, XH, YH, ZL);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 0, 160, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/caulk");
-	
+
 	br = brushrowlist_add (&d_brush->brushrowlist); // 6 - all ident to 5 except a b c
 	// ( [XH] [YL] [ZH] ) ( [XL] [YL] [ZH] ) ( [XH] [YH] [ZH] ) common/caulk [ 1 0 0 20 ] [ 0 -1 0 20.4 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XH, YL, ZH); VectorSet (br->b, XL, YL, ZH); VectorSet (br->c, XH, YH, ZH);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 0, 160, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/caulk");
 
@@ -2193,9 +2295,9 @@ static void genbrush (entitylist_t *plist, ccs *s)
 
 
 	br = brushrowlist_add (&d_brush->brushrowlist);
-	//          ( [XH] [YH] [ZH] )                ( [XH] [YH] [ZL] )          ( [XH] [YL] [ZH] ) 
+	//          ( [XH] [YH] [ZH] )                ( [XH] [YH] [ZL] )          ( [XH] [YL] [ZH] )
 	VectorSet (br->a, XH, YH, ZH); VectorSet (br->b, XH, YH, ZL); VectorSet (br->c, XH, YL, ZH);
-	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	//553648128 16512 0
 	br->pbrtexture = Z_StrDup ("common/origin");
@@ -2203,35 +2305,35 @@ static void genbrush (entitylist_t *plist, ccs *s)
 	br = brushrowlist_add (&d_brush->brushrowlist); // 2 - all numbers identical to 1 except abc
 	//( [XL] [YL] [ZH] ) ( [XL] [YL] [ZL] ) ( [XL] [YH] [ZH] ) common/caulk [ 0 1 0 -20.4 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XL, YL, ZH); VectorSet (br->b, XL, YL, ZL); VectorSet (br->c, XL, YH, ZH);
-	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 0, 1, 0, -20.4 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
 
 	br = brushrowlist_add (&d_brush->brushrowlist); // 3
 	//( [XH] [YL] [ZH] ) ( [XH] [YL] [ZL] ) ( [XL] [YL] [ZH] ) common/caulk [ 1 0 0 20 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XH, YL, ZH); VectorSet (br->b, XH, YL, ZL); VectorSet (br->c, XL, YL, ZH);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
 
 	br = brushrowlist_add (&d_brush->brushrowlist); // 4 - all numbers identical to 3 except abc
 	// ( [XL] [YH] [ZH] ) ( [XL] [YH] [ZL] ) ( [XH] [YH] [ZH] ) common/caulk [ 1 0 0 20 ] [ 0 0 -1 6.29999 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XL, YH, ZH); VectorSet (br->b, XL, YH, ZL); VectorSet (br->c, XH, YH, ZH);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, 0, -1, 6.29999 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
 
 	br = brushrowlist_add (&d_brush->brushrowlist); // 5
 	// ( [XL] [YH] [ZL] ) ( [XL] [YL] [ZL] ) ( [XH] [YH] [ZL] ) common/caulk [ 1 0 0 20 ] [ 0 -1 0 20.4 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XL, YH, ZL); VectorSet (br->b, XL, YL, ZL); VectorSet (br->c, XH, YH, ZL);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
-	
+
 	br = brushrowlist_add (&d_brush->brushrowlist); // 6 - all ident to 5 except a b c
 	// ( [XH] [YL] [ZH] ) ( [XL] [YL] [ZH] ) ( [XH] [YH] [ZH] ) common/caulk [ 1 0 0 20 ] [ 0 -1 0 20.4 ] 0 0.5 0.5 0 160 0
 	VectorSet (br->a, XH, YL, ZH); VectorSet (br->b, XL, YL, ZH); VectorSet (br->c, XH, YH, ZH);
-	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 ); 
+	Vector4Set (br->xtra1, 1, 0, 0, 20 ); Vector4Set (br->xtra2, 0, -1, 0, 20.4 );
 	Vector6Set (br->ftrail, 0, 0.5, 0.5, 553648128, 16512, 0); br->trail_count = 6;
 	br->pbrtexture = Z_StrDup ("common/origin");
 
@@ -2285,7 +2387,7 @@ int entitylist_brush0_facer (entitylist_t *plist, int *pnum_faces)
 			brush_s *p_brush = &p_ent->brushlist.brush[bx];
 			if (p_brush->is_a_patch)
 				continue; // WE DON'T DO THESE
-				
+
 			// REAL BRUSH
 			for (int brow = 0; brow < p_brush->brushrowlist.count; brow ++) {
 				brushrow_s *pbr = &p_brush->brushrowlist.brushrow[brow];
@@ -2294,7 +2396,7 @@ int entitylist_brush0_facer (entitylist_t *plist, int *pnum_faces)
 
 				vec3_t pba; VectorSubtract (pbr->b, pbr->a, pba);
 				vec3_t pca; VectorSubtract (pbr->c, pbr->a, pca);
-				
+
 				vec3_t cross; CrossProduct (pba, pca, cross);
 
 				int is_up_brush = false;
@@ -2309,12 +2411,93 @@ int entitylist_brush0_facer (entitylist_t *plist, int *pnum_faces)
 
 			} // row
 
-		} // brush		
+		} // brush
 	} // entities in .map
 	if (pnum_faces)
 		*pnum_faces = num_faces;
 	return num_upwards_faces;
 }
+
+int entitylist_change_textures_q1 (entitylist_t *plist, ccs *s_sky_texture, ccs *s_textures_folder) // Returns a (baker_string_t *) or NULL if no data
+{
+	entityx_t	*p_ent_world = &plist->entity[0];
+	stringlistappend (&p_ent_world->pairslist, "_keeplights"); // KEY
+	stringlistappend (&p_ent_world->pairslist, "1"); // RADIUS LIGHT
+
+
+	int num_faces = 0;
+	for (int ex = 0; ex < plist->count; ex ++) { // WORLD + ALL
+		entityx_t	*p_ent = &plist->entity[ex];
+
+		for (int bx = 0; bx < p_ent->brushlist.count; bx ++) {
+			brush_s *p_brush = &p_ent->brushlist.brush[bx];
+
+			if (p_brush->is_a_patch)
+				continue; // WE DON'T DO THESE
+
+			// REAL BRUSH
+			for (int brow = 0; brow < p_brush->brushrowlist.count; brow ++) {
+				brushrow_s *pbr = &p_brush->brushrowlist.brushrow[brow];
+
+				int slen = strlen(pbr->pbrtexture);
+				for (int j = 0; j < slen; j ++) {
+					int ch = pbr->pbrtexture[j];
+					if (isupper(ch)) {
+						int ch2 = tolower (ch);
+						pbr->pbrtexture[j] = ch2;
+					}
+				}
+
+				num_faces ++;
+
+				// STAR * TO POUNDER #
+				if (pbr->pbrtexture[0] == '*')
+					pbr->pbrtexture[0] = '#';
+				else if (String_Starts_With (pbr->pbrtexture, "sky")) {
+					Mem_FreeNull_ (pbr->pbrtexture);
+					pbr->pbrtexture = Z_StrDup (s_sky_texture);
+					continue;
+				}
+
+
+				// There are no extensions on textures
+				// ( -3392 -696 848 ) ( -3392 -696 0 ) ( -3392 -152 848 ) texturecan/others_0029_facade [ 0 1 0 128 ] [ 0 0 -1 480 ] 0 0.5 0.5
+				//va_super (s_texture_rename, 64, "%s/%s", "textures/id1wad", pbr->pbrtexture);
+				// NO TEXTURES FOLDER
+
+				va_super (s_texture_rename, 64, "%s/%s", s_textures_folder, pbr->pbrtexture);
+				Mem_FreeNull_ (pbr->pbrtexture);
+				pbr->pbrtexture = Z_StrDup (s_texture_rename);
+			} // row
+		} // brush
+	} // entities in .map
+
+	// Add "spawnflags" "1" to all "light" entities.
+	for (int ex = 0; ex < plist->count; ex ++) {
+		entityx_t	*p_ent = &plist->entity[ex];
+		for (int kx = 0; kx < p_ent->pairslist.numstrings; kx += 2) {
+			ccs *key = p_ent->pairslist.strings[kx + 0];
+			ccs *val = p_ent->pairslist.strings[kx + 1];
+
+
+			if (String_Isin1(key,"classname") && /*String_Isin1*/  String_Starts_With(val, "light")) {
+				stringlistappend (&p_ent->pairslist, "spawnflags"); // KEY
+				stringlistappend (&p_ent->pairslist, "1"); // RADIUS LIGHT
+				break;
+			}
+
+			// _KEEPLIGHTS fool!
+			//} else if (String_Isin1(key,"classname") && String_Starts_With(val, "light")) {
+			//	// Baker: light_ anything gets nuked by q3map2
+			//	// light_small_wall_torch -> qight_small_wall_torch
+			//	p_ent->pairslist.strings[kx + 1][0] = 'q';
+			//}
+		} // epairs
+	} // entities in .map
+
+	return num_faces;
+}
+
 
 
 #include "eq_zparse.c.h"

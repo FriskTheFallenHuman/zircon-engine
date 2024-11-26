@@ -1081,6 +1081,17 @@ datawrite_newline: if (!*ps_start) *ps_start = data;
 	// more ...
 
 	// Baker: digit or .digit
+	else if (*data == '0' && data[1] == 'x') {
+datawrite_hex_numeric: if (!*ps_start) *ps_start = data;
+		for (; isalpha(*data) || isdigit(*data) || isin1(*data, '.'); data ++)
+			if (len < (int)sizeof(com_token) - 1) {
+				com_token[len++] = *data;
+			}
+
+		com_token[len] = 0;
+		*ps_beyond = *datapointer = data; return word_numeric_2;
+	}
+
 	else if (isdigit(*data) || isin1(*data, '.') && isdigit(data[1] )  ) {
 datawrite_numeric: if (!*ps_start) *ps_start = data;
 		for (; isdigit(*data) || isin1(*data, '.'); data ++)
@@ -2588,3 +2599,65 @@ int StringToFileIsOk (ccs *filename, ccs *s)
 	return _StringToFileIsOk (filename, s, /*shall warn?*/ false);
 }
 
+char hex_digit_for_0_to_15 (int num) 
+{
+    if (num >= 0 && num <= 9) {
+        return num + '0'; 
+    } else if (num >= 10 && num <= 15) {
+        return num - 10 + 'A'; 
+    } else {
+        return '?';  // Invalid digit
+    }
+}
+
+char *Color_Code_ZAlloc_Or_Null (vec3_t vin) // Returns ^x832 or closest color code
+{
+	vec3_t v;
+	VectorCopyDestSrc (v, vin); // v <-- from vin
+	char *s_color_escape_za = NULL;
+
+	int is_empty = !v[0] && !v[1] && !v[2];
+	if (is_empty)
+		return NULL; // No values at all
+	
+	int is_overbright_percent_color = in_range(0, v[0], 8) && in_range(0, v[1], 8) && in_range(0, v[2], 8);
+
+	if (is_overbright_percent_color) {
+		// Cap them?  FAIL: Just makes it white
+		VectorNormalize (v); // Normalize to 1
+	}
+
+	int is_percent_color = in_range(0, v[0], 1) && in_range(0, v[1], 1) && in_range(0, v[2], 1);
+
+	if (is_percent_color) {
+		char s_color[6]; // ^x888_ = "^x";
+		int pct[3];
+		pct[0] = floor((v[0] * 15)+0.5); pct[1] = floor((v[1] * 15)+0.5); pct[2] = floor((v[2] * 15)+0.5);
+		s_color[0] = '^'; s_color[1] = 'x';
+		s_color[2] = hex_digit_for_0_to_15(pct[0]); s_color[3] = hex_digit_for_0_to_15(pct[1]); s_color[4] = hex_digit_for_0_to_15(pct[2]);
+		s_color[5] = 0;
+		s_color_escape_za = Z_StrDup (s_color);
+		return s_color_escape_za;
+	}
+
+	int is_255_color = in_range(0, v[0], 255) && in_range(0, v[1], 255)
+		&& in_range(0, v[2], 255);
+
+	if (is_255_color) {
+		char s_color[6]; // ^x888_ = "^x";
+		int pct[3];
+		vec3_t v2;
+		VectorCopy (v, v2); // src, dest
+		VectorScale (v2, 1/256.0, v2);
+		pct[0] = floor((v2[0] * 15)+0.5); pct[1] = floor((v2[1] * 15)+0.5); pct[2] = floor((v2[2] * 15)+0.5);
+
+		s_color[0] = '^'; s_color[1] = 'x';
+		s_color[2] = hex_digit_for_0_to_15(pct[0]); s_color[3] = hex_digit_for_0_to_15(pct[1]); s_color[4] = hex_digit_for_0_to_15(pct[2]);
+
+
+		s_color[5] = 0;
+		s_color_escape_za = Z_StrDup (s_color);
+		return s_color_escape_za;
+	}
+	return NULL;
+}

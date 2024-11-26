@@ -93,7 +93,7 @@ typedef char filename_t[MAX_QPATH_128];
 #ifdef MAXTRACKS_256
 static filename_t remap[MAXTRACKS_256];
 #endif
-static int faketrack = -1;
+static int faketrack = -1; // Baker: faketrack is -1 if nothing playing.
 
 static qbool cdPlaying = false;
 static qbool cdPlayLooping = false;
@@ -234,7 +234,13 @@ void CDAudio_Play (int track, qbool looping)
 	if (music_playlist_index.integer >= 0)
 		return;
 	dpsnprintf(buf, sizeof(buf), "%d", (int) track);
-	CDAudio_Play_byName(buf, looping, q_tryreal_true, STARTPOS_0);
+	if (sv.cdtrack_seconds_into) {
+		CDAudio_Play_byName(buf, looping, q_tryreal_true, sv.cdtrack_seconds_into);
+		sv.cdtrack_seconds_into = 0;
+	} else {
+		CDAudio_Play_byName(buf, looping, q_tryreal_true, STARTPOS_0);
+	}
+	
 }
 
 float CDAudio_GetPosition (void)
@@ -254,9 +260,8 @@ void CDAudio_Stop (void)
 	// save the playlist position
 	CDAudio_StopPlaylistTrack();
 
-	if (faketrack != -1)
-	{
-		S_StopChannel (faketrack, true, true);
+	if (faketrack != -1) {
+		S_StopChannel (faketrack, /*lock mutex?*/ true, /*free sfx*/ true);
 		faketrack = -1;
 	}
 
@@ -346,6 +351,8 @@ static void CD_f(cmd_state_t *cmd)
 		return;
 	}
 
+	// 0  1    2 
+	// cd play ? startpos?
 	if (String_Match_Caseless (command, "play")) {
 		if (music_playlist_index.integer >= 0)
 			return;
@@ -448,7 +455,7 @@ static void CDAudio_StopPlaylistTrack(void)
 		// save position for resume
 		float position = CDAudio_GetPosition();
 		Cvar_SetValueQuick(&music_playlist_sampleposition[music_playlist_active], position >= 0 ? position : 0);
-	}
+		}
 	music_playlist_active = -1;
 	music_playlist_playing = 0; // not playing
 }

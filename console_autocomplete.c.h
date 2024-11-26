@@ -62,6 +62,48 @@ int GetSkyList_Count (const char *s_prefix)
 	return num_matches;
 }
 
+
+WARP_X_ (PRVM_ED_Eset_f PRVM_Fields_Query)
+int GetFieldListServer_Count (const char *s_prefix)
+{
+#ifdef CONFIG_MENU
+	ccs *VarType_For_EV (int ev);
+
+	prvm_prog_t *prog = SVVM_prog;
+	stringlist_t list = {0};
+	int num_matches = 0;
+
+	for (int idx = 0; idx < prog->numfielddefs; idx ++) {
+		mdef_t		*def	= &prog->fielddefs[idx];
+		int			type	= def->type;
+		int			vartype	= Flag_Remove(type, DEF_SAVEGLOBAL);
+		const char	*s_key0	= PRVM_GetString(prog, def->s_name);
+
+		ccs *s_type = VarType_For_EV(vartype);
+		if (strlen(s_key0) == 0)
+			continue; // Ignore blank
+		va_super (sxy, 1024, "%s // %s fieldnum #%d", s_key0, s_type, idx);
+		stringlistappend (&list, sxy);
+	} // for
+
+	stringlistsort (&list, fs_make_unique_true);
+
+	for (int idx = 0; idx < list.numstrings; idx++) {
+		const char *sxy =  list.strings[idx];
+		if (String_Starts_With_Caseless (sxy, s_prefix) == false)
+			continue;
+	
+		num_matches ++;
+		SPARTIAL_EVAL_
+	} // idx
+
+	stringlistfreecontents (&list);
+	return num_matches;
+#else
+	return 0;
+#endif
+}
+
 int GetTexMode_Count (const char *s_prefix)
 {
 	// This list has to be alpha sorted for

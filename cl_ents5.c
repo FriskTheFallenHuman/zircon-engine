@@ -40,13 +40,19 @@ static void EntityFrame5_CL_ReadFrame_ReadUpdate (entity_state_t *s, int number)
 	}
 
 	// Baker: Server should not send E5_BBOX_S27 if CL does not support
-	if (Have_Flag (bits, E5_BBOX_S27)) {
+	if (Have_Flag (bits, E5_BBOX_S27)) { // ZINFO1
 		s->bbx_mins[0] = MSG_ReadCoord13i(&cl_message);
 		s->bbx_mins[1] = MSG_ReadCoord13i(&cl_message);
 		s->bbx_mins[2] = MSG_ReadCoord13i(&cl_message);
 		s->bbx_maxs[0] = MSG_ReadCoord13i(&cl_message);
 		s->bbx_maxs[1] = MSG_ReadCoord13i(&cl_message);
 		s->bbx_maxs[2] = MSG_ReadCoord13i(&cl_message);
+	}
+
+	// Baker: Server should not send E5_ZIRCON_MONSTER_INFO_28 if CL does not support
+	if (Have_Flag (bits, E5_ZIRCON_MONSTER_INFO_28)) {
+		s->health_z = MSG_ReadShort (&cl_message);
+		s->max_health_z = MSG_ReadShort (&cl_message);
 	}
 
 	if (bits & E5_ORIGIN) {

@@ -124,6 +124,9 @@ cvar_t sv_gameplayfix_multiplethinksperframe = {CF_SERVER, "sv_gameplayfix_multi
 cvar_t sv_gameplayfix_noairborncorpse = {CF_SERVER, "sv_gameplayfix_noairborncorpse", "1", "causes entities (corpses, items, etc) sitting ontop of moving entities (players) to fall when the moving entity (player) is no longer supporting them"};
 cvar_t sv_gameplayfix_noairborncorpse_allowsuspendeditems = {CF_SERVER, "sv_gameplayfix_noairborncorpse_allowsuspendeditems", "1", "causes entities sitting ontop of objects that are instantaneously remove to float in midair (special hack to allow a common level design trick for floating items)"};
 
+cvar_t sv_gameplayfix_nosquashentities = {CF_SERVER, "sv_gameplayfix_nosquashentities", "0", "Entity hitboxes will not be resized or disabled when they are crushed by movers, and will continue to be affected by movers."};
+
+
 #if 111 //  - M1
 cvar_t sv_gameplayfix_nudgeoutofsolid = {CF_SERVER, "sv_gameplayfix_nudgeoutofsolid", "0", "attempts to fix physics errors (where an object ended up in solid for some reason)"};
 #else
@@ -250,6 +253,14 @@ cvar_t sv_mapformat_is_quake2 = {CF_SERVER, "sv_mapformat_is_quake2", "0", "indi
 cvar_t sv_mapformat_is_quake3 = {CF_SERVER, "sv_mapformat_is_quake3", "0", "indicates the current map is q3bsp format (useful to know because of different entity behaviors)"};
 
 cvar_t sv_writepicture_quality = {CF_SERVER | CF_ARCHIVE, "sv_writepicture_quality", "10", "WritePicture quality offset (higher means better quality, but slower)"};
+
+#ifdef CONFIG_MENU
+// CLIENT
+cvar_t sv_autosave = {CF_SERVER | CF_ARCHIVE, "sv_autosave", "1", "Automatic saving of single player progress every 90 seconds _auto_save_0.sav [Zircon]"};
+#else
+// DEDICATED SERVER - DEFAULTS 0
+cvar_t sv_autosave = {CF_SERVER | CF_ARCHIVE, "sv_autosave", "0", "Automatic saving of single player progress every 90 seconds _auto_save_0.sav [Zircon]"};
+#endif
 
 
 server_t sv;
@@ -2643,6 +2654,32 @@ static void SV_CheckTimeouts(void)
 			SV_DropClient(false, "Timed out");
 }
 
+WARP_X_CALLERS_ (SV_Frame)
+
+qbool SV_Autosave_Think_Did_Fire (void) 
+{
+	// Baker: If we are here (sv.time > sv.sv_autosave_time) passed
+				
+	prvm_prog_t *prog = SVVM_prog;
+	if (SV_IsLocalServer() == 0)
+		return false;
+
+	// singleplayer checks
+	// FIXME: This only checks if the first player is dead?
+	if ((svs.clients[0].active && PRVM_serveredictfloat(svs.clients[0].edict, deadflag))) {
+		//Con_PrintLinef ("Can't savegame with a dead player");
+		return false;
+	}
+
+	if (host.hook.CL_Intermission && host.hook.CL_Intermission()) {
+		//Con_PrintLinef ("Can't save in intermission.");
+		return false;
+	}
+
+	Cbuf_AddTextLinef (cmd_local, "save " AUTOSAVE_NAME_AUTOSAVE0_SAV);
+	return true;
+}
+
 /*
 ==================
 SV_TimeReport
@@ -2805,6 +2842,20 @@ double SV_Frame(double time)
 			if (framelimit > 1 && Sys_DirtyTime() >= aborttime)
 				break;
 		}
+
+#if 1
+		
+		if (sv.frametime && sv_autosave.integer) {
+			if (!sv.sv_autosave_time) {
+				sv.sv_autosave_time = sv.time + AUTOSAVE_INTERVAL_90;
+			} else if (sv.time > sv.sv_autosave_time) {
+				int did_save = SV_Autosave_Think_Did_Fire ();
+				sv.sv_autosave_time = sv.sv_autosave_time + AUTOSAVE_INTERVAL_90;
+				if (did_save)
+					Con_DPrintLinef ("Save at sv.time %g", sv.time);
+			}
+		}
+#endif
 
 		if (framecount > 1 && sv_lagreporting_strict.integer && reporting)
 			SV_BroadcastPrintf(CON_WARN "Server lag report: caught up %.1fms by running %d extra frames\n", advancetime * (framecount - 1) * 1000, framecount - 1);
@@ -3163,6 +3214,9 @@ void SV_InitOnce (void)
 	Cvar_RegisterVariable (&sv_gameplayfix_setmodelrealbox);
 	Cvar_RegisterVariable (&sv_gameplayfix_slidemoveprojectiles);
 	Cvar_RegisterVariable (&sv_gameplayfix_fiendjumpfix);
+	Cvar_RegisterVariable (&sv_gameplayfix_nosquashentities);
+	
+
 	Cvar_RegisterVariable (&sv_gameplayfix_monsterinterpolate);
 
 	Cvar_RegisterVariable (&sv_gameplayfix_stepdown);
@@ -3265,6 +3319,9 @@ void SV_InitOnce (void)
 	Cvar_RegisterVariable (&nehx19);
 	Cvar_RegisterVariable (&cutscene); // for Nehahra but useful to other mods as well
 
+	
+	Cvar_RegisterVariable (&sv_autosave);
+	
 	Cvar_RegisterVariable (&sv_autodemo_perclient);
 	Cvar_RegisterVariable (&sv_autodemo_perclient_nameformat);
 	Cvar_RegisterVariable (&sv_autodemo_perclient_discardable);

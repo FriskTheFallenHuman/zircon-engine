@@ -804,7 +804,18 @@ void AngleCalc_f (cmd_state_t *cmd)
 #ifdef CONFIG_MENU
 void SCR_reclip_f (cmd_state_t *cmd)
 {
-	ccs *s_z = Sys_GetClipboardData_Unlimited_ZAlloc();
+	// Baker: Does this fix FTE null character warning? YES OR NO.
+	// Baker: NO, and there aren't any.
+	// And it reports as last line, perhaps ending comments fucks up ftegui only
+	// because command line no issue.
+	// Ignore FTE gui.
+
+	char *s_z = Sys_GetClipboardData_Unlimited_ZAlloc();
+	int slen = strlen(s_z);
+	for (int j = 0; j < slen; j ++) {
+		if (s_z[j] == 0 || s_z[j] > 126)
+			s_z[j] = '@';
+	}
 	Con_PrintLinef ("Strlen is %f", (double)strlen(s_z) );
 	Clipboard_Set_Text (s_z);
 	Mem_FreeNull_ (s_z);

@@ -1,0 +1,184 @@
+zircon preprocessor.txt
+
+Map Pre-Processor Command Line
+========================================
+
+"-csg" (Command Line Parameter)
+
+ex: c:\quake\zircon.exe -csg C:\quake\id1\maps\mymap
+(Notice that .map extension optional)
+
+This runs zircon.exe as a .map pre-processor for Quake 3 map format expecting 
+the .map to be in J.A.C.K. Map Editor Valve 220 format.
+
+Q1 to Q3 Map Converter Command Line
+========================================
+
+"-q13" (Command Line Parameter)
+
+ex: c:\quake\zircon.exe -csg C:\quake\id1\maps\dm6
+(Notice that .map extension optional)
+
+This runs zircon.exe as a Quake 1 to Quake 3 map format converter.
+
+Output file will be: dm6_out.map (_out is appended)
+
+Details of Q1 to Q3 conversion ...
+--------------------
+Adds "_keeplights" "1" to worldspawn so that "light_torch_small_walltorch" 
+entities are not stripped from .bsp entities segment.
+
+Textures:
+
+Texture Prefix "SKY" (sky surfaces) becomes to "skies/purplenebula_sky_low"
+All other prefix ... "COP1_1" => "textures/id1wad/cop1_1"
+
+Lights:
+Adds "spawnflags" "1" (Radius lighting) to all entities with a classname 
+starting with "light".
+
+Quake 1 light utility uses radius lighting, Quake 3 light utility normally 
+uses sqrt fall-off unless spawnflags has bit 1 set.
+
+========================================
+Automatic Road Generation
+========================================
+
+"info_decal_start" to "info_decal_point"
+
+This is automatic road projection by using decal projection.
+
+The design is supposed to support START -> POINT1 -> POINT2 -> ... -> POINT_END
+although the current test map is 2 point (no current sample map uses the point
+series capability).
+
+Example:
+
+START:
+
+"classname" "info_decal_start" (a point entity like info_null)
+"texture" "decals_sh/dirtfield0" // Name of decal
+"targetname" "road1"
+"target" "roadend1"
+"drop" "32" // Downwards decal projection limit.
+"surface_size" "512 512"
+"jitter_x" "12"
+"step" "384" // If not provided, the value is 256.
+
+Alternative to "drop" is:
+"force_z" "-4" ... set decal projection endpoint Z to "-4"
+
+"jitter_y" is also available.
+
+END:
+
+"classname" "info_decal_point" (a point entity like info_null)
+"targetname" "roadend1"
+
+What occurs is that stepping in intervals of 384 ("step"), decal projection 
+start points are set and and "info_null" projection end points are created 
+downwards dropping by 32 ("drop") units depth.
+
+========================================
+Pre-Processor Keys
+========================================
+
+_clone_trigger (Entity Key)
+Ex: "_clone_trigger" "trigger_push"
+========================================
+
+Takes a func_group entity and creates a "trigger_push" (whatever classname
+indicated by the value) with all key and values using same brushes and covers
+them with "common/trigger".  The idea is to create trigger entities exactly 
+matching the brush area.
+
+Final new brush for an entity gets (to allow QuakeC to know last member):
+"cnt" "-1"
+
+New brushes get texture:
+"common/trigger"
+
+_atomize (Entity Key)
+Ex: "_atomize" ""
+========================================
+
+Using a "func_wall" as an example ...
+
+Turns one func_wall into several.  Each brush becomes a func_wall with same
+key/values as parent (except _atomize is removed).
+
+Parent func_wall becomes: "_func_wall_preprocessed"
+
+_originmake (Entity key)
+Ex: "_originmake" ""
+========================================
+
+Creates an origin brush for the entity the size of the entity bounding box and 
+textures it with "common/origin".
+
+New brushes get texture:
+"common/origin"
+
+_brushfacer (World key)
+Ex: "_brushfacer" ""
+========================================
+
+Finds all upwards facing brush surfaces and changes texture to "textures/up" 
+for bulk optimization of .map source made with a terrain generator.
+
+The idea is that you set all textures in the terrain to "common/caulk" and 
+let "_brushfacer" turn the visible upwards facing textures in "textures/up" 
+which you may then replace with "textures/stone1" or whatever you had in mind.
+
+Up facing surfaces get texture:
+"textures/up"
+
+Automatic road generation (Special Entity Classnames)
+========================================
+
+scans for "info_decal_start" and "info_decal_point" 
+to generate roads between points. TODO: full detail.
+
+========================================
+Pre-Processor Import Other .Maps
+========================================
+
+"map_include_prefix_start_end" (World key)
+Ex: "map_include_prefix_start_end" "around 2 16"
+========================================
+
+The map will import the entirety of "around2.map" to "around16.map" discarding
+their worldspawn keys and ....
+
+1) paste each map at "map_include_move" "8192 0 0"
+2) Adding 2048 to Z coordinate with each paste "map_include_step" "2048"
+3) Prefixing "targetname" and "target" with "around2_"
+
+"targetname" "t13" ====> "targetname" "around2_t13"
+"target" "t13" ====> "target" "around2_t13"
+
+4) Prefixing "door_name", "attach_to", "controller" because of
+   "map_include_name_fields" "door_name attach_to controller"
+   
+"door_name" "door1" ===> "around2_door1"
+"attach_to" "door1" ===> "around2_door1"
+"controller" "door1" ===> "around2_door1"
+
+5) It will see "map_include_set" "invaders_bossname invaders1"
+5b) And set ALL entities to have "invaders_bossname" "invaders1"
+
+6) It will see "map_include_change" "invaders_round"
+6b) And set ALL entities to have "invaders_round" "2"
+
+
+
+
+
+
+
+
+
+
+
+
+

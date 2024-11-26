@@ -555,6 +555,7 @@ entity_state_active_t;
 
 // this was 96 bytes, now 168 bytes (32bit) or 176 bytes (64bit)
 // Baker: increased by widening flags from unsigned char to unsigned (+3 bytes)
+// Baker: October 29 2024 - 210 bytes (on 32 bit)
 typedef struct entity_state_s
 {
 	// ! means this is not sent to client
@@ -600,6 +601,19 @@ typedef struct entity_state_s
 #if 1
 	vec3_t	bbx_mins;	// Baker: bbox mins/maxes for non-bsp E5_BBOX_S27
 	vec3_t	bbx_maxs;	// Baker: bbox mins/maxes for non-bsp E5_BBOX_S27
+
+	short	health_z; // Baker: E5_ZIRCON_MONSTER_INFO_28
+	short	max_health_z; // Baker: E5_ZIRCON_MONSTER_INFO_28
+
+	WARP_X_ (qw_monsters MONSTER_QW_ARMY_0 GE_MONSTERTYPEQW_505 GE_MONSTERCHAIN_EX_513)
+
+	// monster_qw_type_idx_plus1		not_found_neg1 (LOOKED, IT ISN'T THERE)
+	// monster_qw_type_idx_plus1		0 (HAVEN'T LOOKED)
+	// monster_qw_type_idx_plus1		1 (MONSTER_QW_ARMY_0)
+	char	monster_qw_type_idx_plus1;	// NOT_FOUND_NEG1 or MONSTER_QW_ARMY_0 (1)
+
+	// OLDIE CHAIN TYPE ...
+	short	chain_net; // Baker: Not network.  Technically does not need to be in this?
 #endif
 }
 entity_state_t;
@@ -941,7 +955,7 @@ void EntityFrame4_CL_ReadFrame(void);
 // unused
 #define E5_BBOX_S27 (1<<27) // Baker
 // unused
-#define E5_UNUSED28 (1<<28)
+#define E5_ZIRCON_MONSTER_INFO_28 (1<<28)
 // unused
 #define E5_UNUSED29 (1<<29)
 // unused

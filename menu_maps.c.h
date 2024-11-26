@@ -112,7 +112,9 @@ void M_Menu_Maps_f(cmd_state_t *cmd)
 		mapeo.superh = SAVEGAME_PIC_HEIGHT_320;
 		mapeo.is_fixed_size = false;
 	}
-	//mapeo_oldmaplistcursor = -1;//
+
+	// Baker: October 30 2024 - Overkill ... do it anyway ..
+	mapeo_oldmaplistcursor = -1;
 
 	startrow = not_found_neg1, endrow = not_found_neg1;
 

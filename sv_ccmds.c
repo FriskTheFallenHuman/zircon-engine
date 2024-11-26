@@ -1974,7 +1974,7 @@ static void SV_Ent_Create_f(cmd_state_t *cmd)
 		VectorSet(temp, 65536, 0, 0);
 		Matrix4x4_Transform(&view, temp, dest);
 
-		trace = SV_TraceLine(org, dest, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value);
+		trace = SV_TraceLine(org, dest, MOVE_NORMAL_0, NULL, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value);
 
 		dpsnprintf(buf, sizeof(buf), "%g %g %g", trace.endpos[0], trace.endpos[1], trace.endpos[2]);
 		PRVM_ED_ParseEpair(prog, ed, PRVM_ED_FindField(prog, "origin"), buf, false);
@@ -2070,7 +2070,7 @@ static void SV_Ent_Remove_f(cmd_state_t *cmd)
 		VectorSet(temp, 65536, 0, 0);
 		Matrix4x4_Transform(&view, temp, dest);
 
-		trace = SV_TraceLine(org, dest, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY, 0, 0, collision_extendmovelength.value);
+		trace = SV_TraceLine(org, dest, MOVE_NORMAL_0, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY, 0, 0, collision_extendmovelength.value);
 
 		if (trace.ent)
 			ednum = (int)PRVM_EDICT_TO_PROG(trace.ent);

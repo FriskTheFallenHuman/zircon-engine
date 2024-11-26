@@ -156,6 +156,7 @@ extern struct cvar_s vid_fullscreen_height;	// Baker r0001 - ALT-ENTER support
 // Baker r0005: Autoscale 360p
 extern struct cvar_s vid_fullscreen_conscale;
 extern struct cvar_s vid_window_conscale;
+extern cvar_t vid_magnification_factor;
 
 extern float   yfactors;
 extern float   yfactor_mag_360;                    // output

@@ -244,6 +244,7 @@ const char *vm_sv_extensions[] = {
 	"ZIRCON_INTERMAP_VERSION_1",
 	"ZIRCON_PFLAGS_CORONA_ONLY_RENDERS",
 	
+	"ZIRCON_GETENTITY_1",
 
 	NULL,
 	//"EXT_CSQC" // not ready yet
@@ -392,6 +393,12 @@ static void VM_SV_setmodel(prvm_prog_t *prog)
 		VM_WarningLinef (prog, "setmodel: can not modify free entity");
 		return;
 	}
+#ifdef _DEBUG
+	ccs *s = PRVM_G_STRING(OFS_PARM1);
+	if (s[0] == '*') {
+		int j = 5;
+	}
+#endif
 	i = SV_ModelIndex(PRVM_G_STRING(OFS_PARM1), PRECACHE_MODE_1);
 	PRVM_serveredictstring(e, model) = PRVM_SetEngineString(prog, sv.model_precache[i]);
 	PRVM_serveredictfloat(e, modelindex) = i;
@@ -821,7 +828,7 @@ static trace_t SV_Trace_Toss(prvm_prog_t *prog, prvm_edict_t *tossent, prvm_edic
 		VectorCopy(PRVM_serveredictvector(tossent, origin), tossentorigin);
 		VectorCopy(PRVM_serveredictvector(tossent, mins), tossentmins);
 		VectorCopy(PRVM_serveredictvector(tossent, maxs), tossentmaxs);
-		trace = SV_TraceBox(tossentorigin, tossentmins, tossentmaxs, end, MOVE_NORMAL, tossent, SV_GenericHitSuperContentsMask(tossent), 0, 0, collision_extendmovelength.value);
+		trace = SV_TraceBox(tossentorigin, tossentmins, tossentmaxs, end, MOVE_NORMAL_0, tossent, SV_GenericHitSuperContentsMask(tossent), 0, 0, collision_extendmovelength.value);
 		VectorCopy (trace.endpos, PRVM_serveredictvector(tossent, origin));
 		PRVM_serveredictvector(tossent, velocity)[2] -= gravity;
 
@@ -1328,12 +1335,12 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 	VectorCopy(PRVM_serveredictvector(ent, origin), entorigin);
 	VectorCopy(PRVM_serveredictvector(ent, mins), entmins);
 	VectorCopy(PRVM_serveredictvector(ent, maxs), entmaxs);
-	trace = SV_TraceBox(entorigin, entmins, entmaxs, end, MOVE_NORMAL, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value /*d: 16*/);
+	trace = SV_TraceBox(entorigin, entmins, entmaxs, end, MOVE_NORMAL_0, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value /*d: 16*/);
 	if (trace.startsolid && sv_gameplayfix_droptofloorstartsolid.integer /*d:1 for Quake in Zircon but not DarkPlaces Classic*/) {
 		vec3_t offset, org;
 		VectorSet(offset, 0.5f * (PRVM_serveredictvector(ent, mins)[0] + PRVM_serveredictvector(ent, maxs)[0]), 0.5f * (PRVM_serveredictvector(ent, mins)[1] + PRVM_serveredictvector(ent, maxs)[1]), PRVM_serveredictvector(ent, mins)[2]);
 		VectorAdd(PRVM_serveredictvector(ent, origin), offset, org);
-		trace = SV_TraceLine(org, end, MOVE_NORMAL, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value /*d: 16*/);
+		trace = SV_TraceLine(org, end, MOVE_NORMAL_0, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value /*d: 16*/);
 		VectorSubtract(trace.endpos, offset, trace.endpos);
 		if (trace.startsolid) {
 			Con_DPrintLinef (CON_WARN "droptofloor at " VECTOR3_5d1F " (#%d %s) - COULD NOT FIX BADLY PLACED ENTITY", 
@@ -1435,9 +1442,9 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 	 * monsters: SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP
 	 * explobox: SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_CORPSE
 	 * which caused (startsolid == true) when, for example, a health was touching a monster.
-	 * Changing MOVE_NORMAL also fixes that, but other engines are using MOVE_NORMAL here.
+	 * Changing MOVE_NORMAL_0 also fixes that, but other engines are using MOVE_NORMAL_0 here.
 	 */
-	trace = SV_TraceBox(PRVM_serveredictvector(ent, origin), PRVM_serveredictvector(ent, mins), PRVM_serveredictvector(ent, maxs), end, MOVE_NORMAL, ent, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value);
+	trace = SV_TraceBox(PRVM_serveredictvector(ent, origin), PRVM_serveredictvector(ent, mins), PRVM_serveredictvector(ent, maxs), end, MOVE_NORMAL_0, ent, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value);
 	if (droptofloor_bsp_failcond(&trace))
 	{
 		if (sv_gameplayfix_droptofloorstartsolid.integer)
@@ -1450,7 +1457,7 @@ static void VM_SV_droptofloor(prvm_prog_t *prog)
 			VectorAdd(PRVM_serveredictvector(ent, origin), offset, org);
 			VectorAdd(end, offset, end);
 
-			trace = SV_TraceLine(org, end, MOVE_NORMAL, ent, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value);
+			trace = SV_TraceLine(org, end, MOVE_NORMAL_0, ent, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value);
 			if (droptofloor_bsp_failcond(&trace))
 			{
 				VM_WarningLinef (prog, "droptofloor at \"%f %f %f\": sv_gameplayfix_droptofloorstartsolid COULD NOT FIX badly placed entity " QUOTED_S, PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2], PRVM_GetString(prog, PRVM_gameedictstring(ent, classname)));
@@ -1588,7 +1595,7 @@ static void VM_SV_aim(prvm_prog_t *prog)
 // try sending a trace straight
 	VectorCopy (PRVM_serverglobalvector(v_forward), dir);
 	VectorMA (start, 2048, dir, end);
-	tr = SV_TraceLine(start, end, MOVE_NORMAL, ent, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY, 0, 0, collision_extendmovelength.value);
+	tr = SV_TraceLine(start, end, MOVE_NORMAL_0, ent, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY, 0, 0, collision_extendmovelength.value);
 	if (tr.ent && PRVM_serveredictfloat(((prvm_edict_t *)tr.ent), takedamage) == DAMAGE_AIM
 	&& (!teamplay.integer || PRVM_serveredictfloat(ent, team) <=0 || PRVM_serveredictfloat(ent, team) != PRVM_serveredictfloat(((prvm_edict_t *)tr.ent), team)) )
 	{
@@ -1619,7 +1626,7 @@ static void VM_SV_aim(prvm_prog_t *prog)
 		dist = DotProduct (dir, PRVM_serverglobalvector(v_forward));
 		if (dist < bestdist)
 			continue;	// to far to turn
-		tr = SV_TraceLine(start, end, MOVE_NORMAL, ent, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY, 0, 0, collision_extendmovelength.value);
+		tr = SV_TraceLine(start, end, MOVE_NORMAL_0, ent, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY, 0, 0, collision_extendmovelength.value);
 		if (tr.ent == check)
 		{	// can shoot at this one
 			bestdist = dist;
@@ -1817,6 +1824,9 @@ void Maybe_Prestore_Extra_Static_Attributes (prvm_prog_t *prog, prvm_edict_t *en
 
 	float f;
 	
+	int is_shorthand = true;
+	int alphanoshadow = 0;
+
 	int i;
 	//unsigned char cs_alpha = 255;
 	f = (PRVM_serveredictfloat(ent, alpha) * 255.0f); // ZERO is normal
@@ -1830,12 +1840,12 @@ void Maybe_Prestore_Extra_Static_Attributes (prvm_prog_t *prog, prvm_edict_t *en
 	prvm_vec_t *v;
 	//unsigned char cs_colormod[3] = {0};
 	v = PRVM_serveredictvector(ent, colormod);
-	if (VectorLength2(v))
-	{
+	if (VectorLength2(v)) {
 		extra_effects ++;
 		i = (int)(v[0] * 32.0f);cs_colormod[0] = bound(0, i, 255);
 		i = (int)(v[1] * 32.0f);cs_colormod[1] = bound(0, i, 255);
 		i = (int)(v[2] * 32.0f);cs_colormod[2] = bound(0, i, 255);
+		is_shorthand = false;
 	}
 
 	//unsigned char cs_scale = 16;
@@ -1843,6 +1853,15 @@ void Maybe_Prestore_Extra_Static_Attributes (prvm_prog_t *prog, prvm_edict_t *en
 	if (f) {
 		i = (int)f;
 		cs_scale = (unsigned char)bound(0, i, 255);
+		if (f == 16) {
+			is_shorthand = is_shorthand;
+		} else if (f == 0) {
+			is_shorthand = is_shorthand;
+		}
+		else {
+			is_shorthand = false;
+		}
+
 	}
 
 	//unsigned char cs_effects_additive1_fullbright2 = 0;
@@ -1851,11 +1870,13 @@ void Maybe_Prestore_Extra_Static_Attributes (prvm_prog_t *prog, prvm_edict_t *en
 	if (Have_Flag (i, EF_ADDITIVE_32))	{
 		extra_effects ++;
 		Flag_Add_To (cs_effects_additive1_fullbright2, EF_SHORTY_ADDITIVE_1);
+		is_shorthand = false;
 	}
 
 	if (Have_Flag (i, EF_FULLBRIGHT)) {
 		Flag_Add_To (cs_effects_additive1_fullbright2, EF_SHORTY_FULLBRIGHT_2);
 		extra_effects ++;
+		is_shorthand = false;
 	}
 
 	if (Have_Flag (i, EF_NOSHADOW)) {
@@ -1869,6 +1890,18 @@ void Maybe_Prestore_Extra_Static_Attributes (prvm_prog_t *prog, prvm_edict_t *en
 	char vabuf[1024];
 	char *sv_hint_string;
 	// alpha colormod0 colormod1   colormod2 effects scale = 6 numbers
+#if 1
+	sv_hint_string = "//!XX" NEWLINE;
+	if (is_shorthand) {
+		// Baker: Warning %c is not promoted to integer
+		// So it should be passed as unsigned char
+		// But some compilers might int32_t promote?
+		// "Narrow types such as char always get converted to int when passed in a function with ..."
+		// So let us be safe an assume we need to do (unsigned char)
+		sv_hint_string = va(vabuf, sizeof(vabuf), "//!%c%c" NEWLINE, 
+			(unsigned char)cs_alpha, (unsigned char)cs_effects_additive1_fullbright2);
+	}	
+#else
 	sv_hint_string = va(vabuf, sizeof(vabuf), HINT_MESSAGE_PREFIX "stor 6 %d %d %d %d %d %d" NEWLINE, 
 		cs_alpha,
 		cs_colormod[0],
@@ -1877,6 +1910,14 @@ void Maybe_Prestore_Extra_Static_Attributes (prvm_prog_t *prog, prvm_edict_t *en
 		cs_effects_additive1_fullbright2,
 		cs_scale
 	);
+#endif
+
+    //                    alpha 204
+	//                          0 1 2 NS SCALE 1/0
+	//Game hint: "stor" to "6 204 0 0 0 4 16"
+	// alpha noshadow "@ 204 4"
+
+
 	Con_DPrintLinef	("Sending before static: " QUOTED_S, sv_hint_string); // No newline, hint_string already has one
 	MSG_WriteByte	(&sv.signon, svc_stufftext);
 	MSG_WriteString (&sv.signon, sv_hint_string);
@@ -1910,6 +1951,8 @@ static void VM_SV_makestatic(prvm_prog_t *prog)
 	}
 
 	Maybe_Prestore_Extra_Static_Attributes (prog, ent);
+
+	int modelindex = (int)PRVM_serveredictfloat(ent, modelindex);
 
 	if (is_fitz) {
 		// Baker: This is radically different
@@ -1948,6 +1991,7 @@ static void VM_SV_makestatic(prvm_prog_t *prog)
 		else
 			MSG_WriteByte (&sv.signon, svc_spawnstatic);
 
+		int modelindex = (int)PRVM_serveredictfloat(ent, modelindex);
 		if (fitz_bits & B_FITZ_LARGEMODEL_1)
 			MSG_WriteShort (&sv.signon, (int)PRVM_serveredictfloat(ent, modelindex));
 		else

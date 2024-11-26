@@ -286,7 +286,7 @@ void CSQC_Predraw (prvm_edict_t *ed)
 		return;
 	b = PRVM_clientglobaledict(self);
 	PRVM_clientglobaledict(self) = PRVM_EDICT_TO_PROG(ed);
-	prog->ExecuteProgram(prog, PRVM_clientedictfunction(ed, predraw), "CSQC_Predraw: NULL function\n");
+	prog->ExecuteProgram(prog, PRVM_clientedictfunction(ed, predraw), "CSQC_Predraw: NULL function" NEWLINE);
 	PRVM_clientglobaledict(self) = b;
 }
 
@@ -1161,6 +1161,21 @@ void CL_VM_Init (void)
 
 	if (csprogsdata) {
 		csprogsdatacrc = CRC_Block(csprogsdata, (size_t)csprogsdatasize);
+
+		// AD CSQC Bypass
+		if (csprogsdatacrc == 59073) {
+			if (csprogsdatasize == 94990) {
+				// Arcane Dimensions 1.80 Final
+				// Cannot understand why their CSQC renders HUD funky ...
+				// So disable for now ...
+				if (csqc_enable.integer < 2) {
+					cl.csqc_loaded = false;
+					return;
+				}
+			}
+		}
+		// AD CSQC Bypass
+
 		if (csprogsdatacrc != requiredcrc || csprogsdatasize != requiredsize)
 		{
 			if (cls.demoplayback)

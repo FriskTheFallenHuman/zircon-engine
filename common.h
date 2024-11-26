@@ -155,6 +155,8 @@ WARP_X_ (DEFS: ZIRCON_PEXT ZIRCON_EXT_CHUNKED_2)
 #define ZIRCON_EXT_STATIC_ENT_ALPHA_COLORMOD_SCALE_32	32  // Baker: Static entities write alpha, colormod, scale
 #define ZIRCON_EXT_SERVER_SENDS_BBOX_TO_CLIENT_64		64
 #define ZIRCON_EXT_WALKTHROUGH_PLAYERS_IS_ACTIVE_128	128 // sv_players_walk_thru_players 1
+#define ZIRCON_EXT_SERVER_SENDS_MONSTER_INFO_256		256 // E5_ZIRCON_MONSTER_INFO_28
+// BAKER: LOOK DOWN AND HIT CL TOO!
 
 // to client 
 
@@ -166,6 +168,7 @@ WARP_X_ (DEFS: ZIRCON_PEXT ZIRCON_EXT_CHUNKED_2)
 	ZIRCON_EXT_STATIC_ENT_ALPHA_COLORMOD_SCALE_32 +	\
 	ZIRCON_EXT_SERVER_SENDS_BBOX_TO_CLIENT_64 +		\
 	ZIRCON_EXT_WALKTHROUGH_PLAYERS_IS_ACTIVE_128 +	\
+	ZIRCON_EXT_SERVER_SENDS_MONSTER_INFO_256 +		\
 	0 \
 	) // Ender
 
@@ -785,5 +788,10 @@ int StringToFileIsOk (ccs *filename, ccs *s);
 int StringToFileConPrintIsOk (ccs *filename, ccs *s);
 
 char *String_Find_Reverse (const char *s, const char *s_find);
+
+char hex_digit_for_0_to_15 (int num);
+
+char *Color_Code_ZAlloc_Or_Null (vec3_t v);
+
 
 #endif // ! COMMON_H

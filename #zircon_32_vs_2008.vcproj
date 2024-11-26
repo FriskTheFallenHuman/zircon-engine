@@ -1828,6 +1828,18 @@
 									RelativePath=".\zeq_tests.c.h"
 									>
 								</File>
+								<File
+									RelativePath=".\bundle\engine\zircon_developer.txt"
+									>
+								</File>
+								<File
+									RelativePath=".\bundle\engine\zircon_features.txt"
+									>
+								</File>
+								<File
+									RelativePath=".\bundle\engine\zircon_preprocessor.txt"
+									>
+								</File>
 							</Filter>
 						</Filter>
 					</Filter>

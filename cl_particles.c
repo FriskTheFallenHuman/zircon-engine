@@ -650,7 +650,7 @@ static void CL_EffectInfo_Dump_f (cmd_state_t *cmd)
 		return;
 	}
 
-	char *s_partial = Cmd_Argc(cmd) > 1 ? Cmd_Argv(cmd, 1) : "";
+	ccs *s_partial = Cmd_Argc(cmd) > 1 ? Cmd_Argv(cmd, 1) : "";
 
 	// Find it -- there can be more than one
 	WARP_X_ (CL_Particles_LoadEffectInfo)
@@ -816,14 +816,14 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 
 	char s_filenameout[MAX_QPATH_128];
 	c_strlcpy (s_filenameout, s_filename);
-	File_URL_Edit_Remove_Extension (s_filenameout);	
+	File_URL_Edit_Remove_Extension (s_filenameout);
 	//FS_StripExtension(s_filenameout, s_filename, sizeof(s_filenameout));
 	c_strlcat (s_filenameout, "_out");
 	c_strlcat (s_filenameout, ".obj");
 
 	fs_offset_t filesize;
 	unsigned char *filedata = FS_LoadFile (s_filename, tempmempool, fs_quiet_true, &filesize);
-	
+
 	if (filedata == NULL) {
 		Con_PrintLinef ("Couldn't open " QUOTED_S, s_filename);
 		return;
@@ -843,7 +843,7 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 	const char *text_before_vertex_section	= NULL;
 	const char *text_after_vertex_section	= NULL;
 	const char *text_end					= text_start + filesize;
-	
+
 	//int is_in_vertex_section = false;
 
 	const char *s_start_of_line = NULL;
@@ -854,8 +854,8 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 	float *obj_v = NULL;
 	int maxv = 0, numv = 0;
 
-	float minz[3] = { 9999999,  9999999,  9999999}; 
-	float maxz[3] = {-9999999, -9999999, -9999999}; 
+	float minz[3] = { 9999999,  9999999,  9999999};
+	float maxz[3] = {-9999999, -9999999, -9999999};
 	float sizz[3] = {0};
 	float cent[3] = {0};
 
@@ -871,9 +871,9 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 		// Read a line
 		while (1) {
 			// Baker: We are going false on skip comments to avoid skipping lines inside a multiline comment
-			if (false == COM_ParseToken_Simple(&text, 
-				/*return on newline?*/ true, 
-				/*parse backslash?*/ false, 
+			if (false == COM_ParseToken_Simple(&text,
+				/*return on newline?*/ true,
+				/*parse backslash?*/ false,
 				/*skip comments?*/ false)) {
 				is_eof = true;
 				break;
@@ -881,7 +881,7 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 			if (String_Match(com_token, NEWLINE))
 				break; // exit while
 			switch (argc) {
-			case 0: 
+			case 0:
 				argc++;
 				if (String_Match (com_token, "v")) {
 					is_a_vertex = true;
@@ -913,7 +913,7 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 				maxv = Largest(maxv * 2, 1024); // Allocate twice as many but never less than 1024
 				obj_v = (float *)Mem_Realloc(tempmempool, obj_v, maxv * sizeof(float[3]));
 			}
-			
+
 			obj_v[numv*3+0] = atof(argv[1]);
 			obj_v[numv*3+1] = atof(argv[2]);
 			obj_v[numv*3+2] = atof(argv[3]);
@@ -962,7 +962,7 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 	Con_PrintLinef ("Size   is " VECTOR3_5d1F, VECTOR3_SEND(sizz) );
 	Con_PrintLinef ("Center is " VECTOR3_5d1F, VECTOR3_SEND(cent) );
 	Con_PrintLinef ("=======");
-	
+
 	Con_PrintLinef ("To center, we subtract " VECTOR3_5d1F, VECTOR3_SEND(cent) );
 	//Con_PrintLinef ("Center is " VECTOR3_5d1F, VECTOR3_SEND(cent) );
 
@@ -974,7 +974,7 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 		Con_PrintLinef ("Model is precached as # %d", model_idx);
 		Con_PrintLinef (" mod->surfmesh.num_triangles:   %d", mod->surfmesh.num_triangles);
 		Con_PrintLinef (" mod->surfmesh.num_vertices:    %d", mod->surfmesh.num_vertices);
-	} else { 
+	} else {
 		Con_PrintLinef ("Model is not precached");
 	}
 
@@ -993,14 +993,14 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 
 	if (scaleup) {
 		Con_PrintLinef ("Performing scaling ..");
-		float minz[3] = { 9999999,  9999999,  9999999}; 
-		float maxz[3] = {-9999999, -9999999, -9999999}; 
+		float minz[3] = { 9999999,  9999999,  9999999};
+		float maxz[3] = {-9999999, -9999999, -9999999};
 
 		// Center first ..
 		for (int idx = 0; idx < numv; idx ++) {
 			obj_v[idx*3+0] -= cent[0];
 			obj_v[idx*3+1] -= cent[1];
-			obj_v[idx*3+2] -= cent[2];			
+			obj_v[idx*3+2] -= cent[2];
 		} // next
 		for (int idx = 0; idx < numv; idx ++) {
 			obj_v[idx*3+0] *= scaleup;
@@ -1057,7 +1057,7 @@ void CL_OBJModelAdjust_f (cmd_state_t *cmd)
 
 	freenull_ (s_before_alloc);
 	freenull_ (s_after_alloc);
-	
+
 	FS_Close (f); f = NULL;
 #endif
 
@@ -1072,8 +1072,8 @@ typedef struct {
 	char		*sname_za;		// The name of the group
 	char		*susemtl_za;	// The name of the texture
 	int32list_s	 facelist9;		// f  1039/1039/1039 1040/1040/1040 1041/1041/1041 (for triangles)
-	float minz[3];// = { 9999999,  9999999,  9999999}; 
-	float maxz[3];// = {-9999999, -9999999, -9999999}; 
+	float minz[3];// = { 9999999,  9999999,  9999999};
+	float maxz[3];// = {-9999999, -9999999, -9999999};
 	float sizz[3];
 	float cent[3];
 } gfaceset_s;
@@ -1088,8 +1088,8 @@ typedef struct {
 	int faceset_count;
 
 	int num_vertexs, num_faces;
-	float minz[3];// = { 9999999,  9999999,  9999999}; 
-	float maxz[3];// = {-9999999, -9999999, -9999999}; 
+	float minz[3];// = { 9999999,  9999999,  9999999};
+	float maxz[3];// = {-9999999, -9999999, -9999999};
 	float sizz[3];
 	float cent[3];
 
@@ -1147,23 +1147,23 @@ void facefill_recalc_face (gobj_s *g, int facegroup)
 
 			int triplet_idx0 = UNPLUS1(triplet_vertex_id1);
 			int vertex_idx0 = triplet_idx0 * 3;
-			
+
 			float f0 = g->v3.floats[vertex_idx0 + 0];
 			float f1 = g->v3.floats[vertex_idx0 + 1];
 			float f2 = g->v3.floats[vertex_idx0 + 2];
 
-			if (facey->maxz[0] < f0) facey->maxz[0] = f0; 
-			if (facey->maxz[1] < f1) facey->maxz[1] = f1; 
+			if (facey->maxz[0] < f0) facey->maxz[0] = f0;
+			if (facey->maxz[1] < f1) facey->maxz[1] = f1;
 			if (facey->maxz[2] < f2) facey->maxz[2] = f2;
-			if (facey->minz[0] > f0) facey->minz[0] = f0; 
-			if (facey->minz[1] > f1) facey->minz[1] = f1; 
+			if (facey->minz[0] > f0) facey->minz[0] = f0;
+			if (facey->minz[1] > f1) facey->minz[1] = f1;
 			if (facey->minz[2] > f2) facey->minz[2] = f2;
 
 		} // for
 	} // fidx
 
 	// Calc size, center
-	facey->sizz[0] = facey->maxz[0] - facey->minz[0], facey->sizz[1] = facey->maxz[1] - facey->minz[1], facey->sizz[2] = facey->maxz[2] - facey->minz[2];	
+	facey->sizz[0] = facey->maxz[0] - facey->minz[0], facey->sizz[1] = facey->maxz[1] - facey->minz[1], facey->sizz[2] = facey->maxz[2] - facey->minz[2];
 	facey->cent[0] = facey->minz[0] + facey->sizz[0] / 2.0, facey->cent[1] = facey->minz[1] + facey->sizz[1] / 2.0, facey->cent[2] = facey->minz[2] + facey->sizz[2] / 2.0;
 }
 
@@ -1182,29 +1182,29 @@ void facefill_from_lines (gobj_s *g, stringlist_t *plines, float scaleup_or_zero
 		int argc = Tokenize_Console_16384_Za_Return_Argc (tcx, s); // Clears tcx first
 
 		ccs *arg0 = tcx->tokens_za[0];
-		if (!arg0) 
+		if (!arg0)
 			continue;
 
 		ccs *arg1 = tcx->tokens_za[1], *arg2 = tcx->tokens_za[2], *arg3 = tcx->tokens_za[3];
 
-		if (String_Match (arg0, "v") ) { // v 131.965729 -75.185654 -260.450256			
+		if (String_Match (arg0, "v") ) { // v 131.965729 -75.185654 -260.450256
 			float f0 = atof(arg1), f1 = atof(arg2), f2 = atof(arg3);
 			floats_add3 (&g->v3, f0, f1, f2);
 			g->num_vertexs ++;
 			continue;
-		} 
+		}
 
 		if (String_Match (arg0, "vt") ) { // vt  0.759000 0.616000 0.000000
 			float f0 = atof(arg1), f1 = atof(arg2), f2 = atof(arg3);
 			floats_add3 (&g->vt3, f0, f1, f2);
 			continue;
-		} 
+		}
 
 		if (String_Match (arg0, "vn") ) { // vn  0.000000 -0.000000 -1.000000
 			float f0 = atof(arg1), f1 = atof(arg2), f2 = atof(arg3);
 			floats_add3 (&g->vn3, f0, f1, f2);
 			continue;
-		} 
+		}
 
 		if (String_Match (arg0, "f") ) { // f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 ...
 			// We are praying for f  1/1/1 2/2/2 3/3/3 (triangle)
@@ -1252,12 +1252,12 @@ void facefill_from_lines (gobj_s *g, stringlist_t *plines, float scaleup_or_zero
 			Con_PrintLinef ("New group with name %s idx %d", arg1, g->faceset_count);
 			g->faceset_count ++;
 			Z_StrDup_Realloc_ (g->factive->sname_za, arg1);
-			
+
 			// g
-			
+
 			// 2916
 			continue;
-		}		
+		}
 
 		if (String_Match (arg0, "mtllib") && argc > 1) {
 			Z_StrDup_Realloc_ (g->mtllib_za, arg1);
@@ -1272,7 +1272,7 @@ void facefill_from_lines (gobj_s *g, stringlist_t *plines, float scaleup_or_zero
 				Con_PrintLinef ("usemtl without factive %s", arg1);
 			}
 			continue;
-		}		
+		}
 
 	} // for
 
@@ -1292,11 +1292,11 @@ void facefill_from_lines (gobj_s *g, stringlist_t *plines, float scaleup_or_zero
 	} // for
 
 	// Calc size, center
-	g->sizz[0] = g->maxz[0] - g->minz[0], g->sizz[1] = g->maxz[1] - g->minz[1], g->sizz[2] = g->maxz[2] - g->minz[2];	
+	g->sizz[0] = g->maxz[0] - g->minz[0], g->sizz[1] = g->maxz[1] - g->minz[1], g->sizz[2] = g->maxz[2] - g->minz[2];
 	g->cent[0] = g->minz[0] + g->sizz[0] / 2.0, g->cent[1] = g->minz[1] + g->sizz[1] / 2.0, g->cent[2] = g->minz[2] + g->sizz[2] / 2.0;
 
 	// Print summaries
-	
+
 	Con_PrintLinef ("# Zircon .obj export");
 	Con_PrintLinef ("#");
 	Con_PrintLinef ("mtllib %s", g->mtllib_za);
@@ -1318,7 +1318,7 @@ void facefill_from_lines (gobj_s *g, stringlist_t *plines, float scaleup_or_zero
 
 	for (int j = 0; j < g->faceset_count; j ++) {
 		gfaceset_s *faceitem = &g->faceset[j];
-		
+
 		Con_PrintLinef ("g %s // idx %d", faceitem->sname_za, j);
 		Con_PrintLinef ("usemtl %s", faceitem->susemtl_za);
 		Con_PrintLinef ("faces = %d (div 9 = %f)", faceitem->facelist9.count, faceitem->facelist9.count / 9.0);
@@ -1335,7 +1335,7 @@ void facefill_from_lines (gobj_s *g, stringlist_t *plines, float scaleup_or_zero
 		float f2 = g->v3.floats[n + 2];
 
 		// Center first ..
-		f0 -= g->cent[0];	f1 -= g->cent[1];	f2 -= g->cent[2];			
+		f0 -= g->cent[0];	f1 -= g->cent[1];	f2 -= g->cent[2];
 
 		// Then scale
 		if (scaleup_or_zero) {
@@ -1426,9 +1426,9 @@ void facefill_write_to_stream (gobj_s *g, qfile_t *f)
 		numtriangles += (facey->facelist9.count / 9);
 	} // for
 	FS_PrintLinef (f, "# Total Triangles = %d", numtriangles);
-	
+
 	FS_PrintLinef (f, "g");
-	
+
 	// v 132.761963 -72.606422 -259.659790
 
 	floatlist_s *fs; ccs *stitle;
@@ -1482,7 +1482,7 @@ void facefill_write_to_stream (gobj_s *g, qfile_t *f)
 		FS_PrintLinef (f, "# group %d of %d", facegroup + 1, g->faceset_count);
 		FS_PrintLinef (f, "g %s", facey->sname_za);
 		FS_PrintLinef (f, "usemtl %s", facey->susemtl_za);
-	
+
 		int32list_s *ints;
 		ints = &facey->facelist9;// ccs *stitle = "vn";
 		for (int n = 0; n < ints->count; n += 9) {
@@ -1493,7 +1493,7 @@ void facefill_write_to_stream (gobj_s *g, qfile_t *f)
 
 			if (g->ifilterplus1) {
 				// REIDX
-				// So I have 
+				// So I have
 				// f  2542/2542/2542 2543/2543/2543 2544/2544/2544
 				// It probably writes as 1/1/1 2/2/2 3/3/3
 				face_reidx_setplus1(g, &d0, n + 0);
@@ -1550,8 +1550,8 @@ void facefill_calc_filter (gobj_s *g, int filter_idx1)
 				int vertex_idx0 = triplet_idx0 * 3;
 
 				g->masklist.ints[vertex_idx0 + 0] = MASK_USED_NEG1;
-				
-				float f0 = g->v3.floats[vertex_idx0 + 0];
+
+				//float f0 = g->v3.floats[vertex_idx0 + 0];
 			} // for
 		} // fidx
 	} // facegroup
@@ -1559,7 +1559,7 @@ void facefill_calc_filter (gobj_s *g, int filter_idx1)
 	// REIDX!
 	int idx1 = 1; // The current value is the NEXT one assigned
 	for (int n = 0; n < g->masklist.count; n += 3) {
-		int ndiv3 = n / 3;
+		//int ndiv3 = n / 3;
 		if (g->masklist.ints[n + 0] == MASK_USED_NEG1) {
 			g->masklist.ints[n + 0] = idx1; idx1 ++; // ASSIGNED
 		}
@@ -1580,12 +1580,12 @@ void CL_OBJModelSplit_f (cmd_state_t *cmd)
 	ccs *trailer = Cmd_Argc(cmd) == 4 ? Cmd_Argv(cmd, 3) : "_out";
 	int ifilterp1 = atoi(filter);//Cmd_Argv(cmd, 2); // If too few args what is this
 
-	//ccs *s_group = Cmd_Argv(cmd, 2); // 
+	//ccs *s_group = Cmd_Argv(cmd, 2); //
 
 	const char *s_filename = Cmd_Argv(cmd, 1);
 	fs_offset_t filesize;
 	char *filedata_za = (char *)FS_LoadFile (s_filename, tempmempool, fs_quiet_true, &filesize);
-	
+
 	if (filedata_za == NULL) {
 		Con_PrintLinef ("Couldn't open " QUOTED_S, s_filename);
 		return;
@@ -1603,7 +1603,7 @@ void CL_OBJModelSplit_f (cmd_state_t *cmd)
 
 		char s_filenameout[MAX_QPATH_128];
 		c_strlcpy (s_filenameout, s_filename);
-		File_URL_Edit_Remove_Extension (s_filenameout);	
+		File_URL_Edit_Remove_Extension (s_filenameout);
 		//c_strlcat (s_filenameout, "_out");
 		c_strlcat (s_filenameout, trailer); // "_out");
 		c_strlcat (s_filenameout, ".obj");
@@ -1652,15 +1652,15 @@ void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
 	const char *s_filename = Cmd_Argv(cmd, 1);
 	fs_offset_t filesize;
 	char *filedata_za = (char *)FS_LoadFile (s_filename, tempmempool, fs_quiet_true, &filesize);
-	
+
 	if (filedata_za == NULL) {
 		Con_PrintLinef ("Couldn't open " QUOTED_S, s_filename);
 		return;
 	}
-	
+
 	char s_filenameout[MAX_QPATH_128];
 	c_strlcpy (s_filenameout, s_filename);
-	File_URL_Edit_Remove_Extension (s_filenameout);	
+	File_URL_Edit_Remove_Extension (s_filenameout);
 	c_strlcat (s_filenameout, "_out");
 	c_strlcat (s_filenameout, ".obj");
 
@@ -1670,8 +1670,8 @@ void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
 	stringlistappend_split_lines_cr_scrub (&lines_list, filedata_za);
 
 	int num_vertexs = 0, num_faces = 0;
-	float minz[3] = { 9999999,  9999999,  9999999}; 
-	float maxz[3] = {-9999999, -9999999, -9999999}; 
+	float minz[3] = { 9999999,  9999999,  9999999};
+	float maxz[3] = {-9999999, -9999999, -9999999};
 
 	for (int n = 0; n < lines_list.numstrings; n ++) {
 		char *s = lines_list.strings[n];
@@ -1693,7 +1693,7 @@ void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
 
 			if (maxz[0] < f0) maxz[0] = f0; if (maxz[1] < f1) maxz[1] = f1; if (maxz[2] < f2) maxz[2] = f2;
 			if (minz[0] > f0) minz[0] = f0; if (minz[1] > f1) minz[1] = f1; if (minz[2] > f2) minz[2] = f2;
-			
+
 			num_vertexs ++;
 		} else if (String_Match (arg0, "f") ) {
 			// f
@@ -1701,7 +1701,7 @@ void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
 		} else if (String_Match (arg0, "g") && argc > 1) {
 			// g
 			Con_PrintLinef ("New group with name %s", arg1);
-		}		
+		}
 	} // for
 
 	Tokenize_Console_16384_FreeContents (tcx);
@@ -1725,7 +1725,7 @@ void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
 	Con_PrintLinef ("Size   is " VECTOR3_5d1F, VECTOR3_SEND(sizz) );
 	Con_PrintLinef ("Center is " VECTOR3_5d1F, VECTOR3_SEND(cent) );
 	Con_PrintLinef ("=======");
-	
+
 	Con_PrintLinef ("To center, we subtract " VECTOR3_5d1F, VECTOR3_SEND(cent) );
 
 	int model_idx = SV_ModelIndex (s_filename, PRECACHE_MODE_0); // Baker: 0 means we are not precaching
@@ -1735,15 +1735,15 @@ void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
 		Con_PrintLinef ("Model is precached as # %d", model_idx);
 		Con_PrintLinef (" mod->surfmesh.num_triangles:   %d", mod->surfmesh.num_triangles);
 		Con_PrintLinef (" mod->surfmesh.num_vertices:    %d", mod->surfmesh.num_vertices);
-	} else { 
+	} else {
 		Con_PrintLinef ("Model is not precached");
 	}
-	
+
 	if (is_write_file == false) {
 		Con_PrintLinef ("Skipping file write because scale not specified");
 		goto file_open_write_fail;
 	}
-	
+
 	qfile_t *f = FS_OpenRealFile (s_filenameout, "wb", fs_quiet_FALSE); // WRITE-EON obj model adjust
 	if (!f) {
 		Con_PrintLinef ("Couldn't open file " QUOTED_S, s_filenameout);
@@ -1758,7 +1758,7 @@ void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
 		int argc = Tokenize_Console_16384_Za_Return_Argc (tcx, s);
 
 		ccs *arg0 = tcx->tokens_za[0];
-		if (argc >= 3 && arg0 && String_Match (arg0, "v") ) {			
+		if (argc >= 3 && arg0 && String_Match (arg0, "v") ) {
 			float f0 = atof(tcx->tokens_za[1]);
 			float f1 = atof(tcx->tokens_za[2]);
 			float f2 = atof(tcx->tokens_za[3]);
@@ -1766,13 +1766,13 @@ void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
 			// Center first ..
 			f0 -= cent[0];
 			f1 -= cent[1];
-			f2 -= cent[2];			
+			f2 -= cent[2];
 
 			// Then scale
 			f0 *= scaleup;
 			f1 *= scaleup;
 			f2 *= scaleup;
-			
+
 			FS_Printf (f, "v %f %f %f" NEWLINE, f0, f1, f2);
 		} // "v"
 		else {
@@ -1780,7 +1780,7 @@ void CL_OBJModelAdjust2_f (cmd_state_t *cmd)
 		}
 	} // for
 
-	FS_Close (f); f = NULL;	
+	FS_Close (f); f = NULL;
 
 file_open_write_fail:
 	Tokenize_Console_16384_FreeContents (tcx);
@@ -1802,7 +1802,7 @@ void CL_Particles_Init (void)
 	Cmd_AddCommand(CF_CLIENT, "objmodeladjust", CL_OBJModelAdjust2_f, "center and scale an obj model [model] [scale]"); // Particles loaded in Render_InitOnce
 	Cmd_AddCommand(CF_CLIENT, "objmodelsplit", CL_OBJModelSplit_f, "split obj [model] [group # or - group#] - splits out a group member by number or excludes a group member (if negative number)"); // Particles loaded in Render_InitOnce
 	//Cmd_AddCommand(CF_CLIENT, "objmodeladjust2", , "center and scale an obj model [model] [scale]"); // Particles loaded in Render_InitOnce
-	
+
 	Cvar_RegisterVariable (&cl_particles);
 	Cvar_RegisterVariable (&cl_particles_quality);
 	Cvar_RegisterVariable (&cl_particles_alpha);
@@ -1870,13 +1870,13 @@ void CL_SpawnDecalParticleForPoint(const vec3_t org, float maxdist, float size, 
 WARP_X_CALLERS_ (many )
 
 /* SUPERBOSS*/
-particle_t *CL_NewParticle(const vec3_t sortorigin, unsigned short ptypeindex, int pcolor1, int pcolor2, 
-						   int ptex, float psize, float psizeincrease, float palpha, float palphafade, 
-						   float pgravity, float pbounce, float px, float py, float pz, 
-						   float pvx, float pvy, float pvz, float pairfriction, 
-						   float pliquidfriction, float originjitter, float velocityjitter, 
-						   qbool pqualityreduction, float lifetime, float stretch, pblend_t blendmode, 
-						   porientation_t orientation, int staincolor1, int staincolor2, 
+particle_t *CL_NewParticle(const vec3_t sortorigin, unsigned short ptypeindex, int pcolor1, int pcolor2,
+						   int ptex, float psize, float psizeincrease, float palpha, float palphafade,
+						   float pgravity, float pbounce, float px, float py, float pz,
+						   float pvx, float pvy, float pvz, float pairfriction,
+						   float pliquidfriction, float originjitter, float velocityjitter,
+						   qbool pqualityreduction, float lifetime, float stretch, pblend_t blendmode,
+						   porientation_t orientation, int staincolor1, int staincolor2,
 						   int staintex, float stainalpha, float stainsize, float angle, float spin, float tint[4])
 {
 	int l1, l2, r, g, b;
@@ -1996,7 +1996,7 @@ particle_t *CL_NewParticle(const vec3_t sortorigin, unsigned short ptypeindex, i
 		part->typeindex = pt_spark;
 		part->bounce = 0;
 		VectorMA(part->org, lifetime, part->velpart, endvec);
-		trace = CL_TraceLine(part->org, endvec, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_LIQUIDSMASK, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
+		trace = CL_TraceLine(part->org, endvec, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_LIQUIDSMASK, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
 		part->die = cl.time + lifetime * trace.fraction;
 		part2 = CL_NewParticle(endvec, pt_raindecal, pcolor1, pcolor2, tex_rainsplash, part->size, part->size * 20, part->alpha, part->alpha / 0.4, 0, 0, trace.endpos[0] + trace.plane.normal[0], trace.endpos[1] + trace.plane.normal[1], trace.endpos[2] + trace.plane.normal[2], trace.plane.normal[0], trace.plane.normal[1], trace.plane.normal[2], 0, 0, 0, 0, pqualityreduction, 0, 1, PBLEND_ADD, PARTICLE_ORIENTED_DOUBLESIDED, -1, -1, -1, 1, 1, 0, 0, NULL);
 		if (part2)
@@ -2021,7 +2021,7 @@ particle_t *CL_NewParticle(const vec3_t sortorigin, unsigned short ptypeindex, i
 		vec3_t endvec;
 		trace_t trace;
 		VectorMA(part->org, lifetime, part->vel, endvec);
-		trace = CL_TraceLine(part->org, endvec, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY, true, false, NULL, false);
+		trace = CL_TraceLine(part->org, endvec, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY, true, false, NULL, false);
 		part->delayedcollisions = cl.time + lifetime * trace.fraction - 0.1;
 	}
 #endif
@@ -2091,7 +2091,7 @@ void CL_SpawnDecalParticleForPoint(const vec3_t org, float maxdist, float size, 
 	{
 		VectorRandom(org2);
 		VectorMA(org, maxdist, org2, org2);
-		trace = CL_TraceLine(org, org2, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, 0, collision_extendmovelength.value, true, false, &hitent, false, true);
+		trace = CL_TraceLine(org, org2, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, 0, collision_extendmovelength.value, true, false, &hitent, false, true);
 		// take the closest trace result that doesn't end up hitting a NOMARKS
 		// surface (sky for example)
 		if (bestfrac > trace.fraction && !(trace.hitq3surfaceflags & Q3SURFACEFLAG_NOMARKS))
@@ -3061,12 +3061,14 @@ void CL_ParticleExplosion (const vec3_t org)
 					{
 						VectorRandom(v2);
 						VectorMA(org, 128, v2, v);
-						trace = CL_TraceLine(org, v, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
+						trace = CL_TraceLine(org, v, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
 					}
 					while (k++ < 16 && trace.fraction < 0.1f);
 					VectorSubtract(trace.endpos, org, v2);
 					VectorScale(v2, 2.0f, v2);
-					CL_NewParticle(org, pt_spark, 0x903010, 0xFFD030, tex_particle, 1.0f, 0, lhrandom(0, 255), 512, 0, 0, org[0], org[1], org[2], v2[0], v2[1], v2[2], 0, 0, 0, 0, true, 0, 1, PBLEND_ADD, PARTICLE_SPARK, -1, -1, -1, 1, 1, 0, 0, NULL);
+					CL_NewParticle(org, pt_spark, 0x903010, 0xFFD030, tex_particle, 1.0f, 0,
+						lhrandom(0, 255), 512, 0, 0, org[0], org[1], org[2], v2[0], v2[1], v2[2],
+						0, 0, 0, 0, true, 0, 1, PBLEND_ADD, PARTICLE_SPARK, -1, -1, -1, 1, 1, 0, 0, NULL);
 				}
 			}
 		}
@@ -3181,7 +3183,7 @@ void CL_ParticleRain (const vec3_t mins, const vec3_t maxs, const vec3_t dir, in
 		if (!cl_particles_snow.integer) break;
 		// Baker: GAME_GOODVSBAD2, a 2003 long dead multiplayer only mod for DarkPlaces
 		// has particle size 20 here instead of 1
-		
+
 		while(count--)
 		{
 			k = particlepalette[colorbase + (rand()&3)];
@@ -4038,7 +4040,7 @@ void R_DrawParticles (void)
 //				if (p->bounce && cl.time >= p->delayedcollisions)
 				if (p->bounce && cl_particles_collisions.integer && VectorLength(p->velpart))
 				{
-					trace = CL_TraceLine(oldorg, p->org, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID | ((p->typeindex == pt_rain || p->typeindex == pt_snow) ? SUPERCONTENTS_LIQUIDSMASK : 0), 0, 0, collision_extendmovelength.value, true, false, &hitent, false, false);
+					trace = CL_TraceLine(oldorg, p->org, MOVE_NORMAL_0, NULL, SUPERCONTENTS_SOLID | ((p->typeindex == pt_rain || p->typeindex == pt_snow) ? SUPERCONTENTS_LIQUIDSMASK : 0), 0, 0, collision_extendmovelength.value, true, false, &hitent, false, false);
 					// if the trace started in or hit something of SUPERCONTENTS_NODROP
 					// or if the trace hit something flagged as NOIMPACT
 					// then remove the particle

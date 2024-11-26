@@ -147,6 +147,7 @@ cvar_t vid_window_height = {CF_CLIENT | CF_ARCHIVE, "_vid_window_height", "640",
 // Baker r0005: Autoscale 360p
 cvar_t vid_fullscreen_conscale = {CF_CLIENT | CF_ARCHIVE, "_vid_fullscreen_conscale", "1", "user set fullscreen 2d magnification factor [Zircon]"};
 cvar_t vid_window_conscale = {CF_CLIENT | CF_ARCHIVE, "_vid_window_conscale", "1", "user set windowed 2d magnification factor [Zircon]"};
+cvar_t vid_magnification_factor = {CF_CLIENT | CF_READONLY, "vid_magnification_factor", "0", "Current 360P magnification factor [Zircon]"};
 
 #pragma message ("vid_samples does not work")
 cvar_t vid_samples = {CF_CLIENT | CF_ARCHIVE, "vid_samples", "1", "how many anti-aliasing samples per pixel to request from the graphics driver (4 is recommended, 1 is faster)"};
@@ -1639,6 +1640,7 @@ void VID_Shared_InitOnce(void)
 	// Baker r0005: Autoscale 360p
 	Cvar_RegisterVariable(&vid_fullscreen_conscale);
 	Cvar_RegisterVariable(&vid_window_conscale);
+	Cvar_RegisterVariable(&vid_magnification_factor);
 
 	Cvar_RegisterVariable(&vid_bitsperpixel);
 	Cvar_RegisterVariable(&vid_samples);

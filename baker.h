@@ -152,6 +152,7 @@ typedef struct {
 #define NULL_CHAR_0						0
 #define SPACE_CHAR_32					32
 #define EXCLAIM_CHAR_33					33
+#define	CHAR_SQUOTE_39					39				// '\''		//#define CHAR_SQUOTE_39				39	(TOXIC to printf)
 #define	CHAR_DQUOTE_34					34				// '\"'		//#define CHAR_DQUOTE_34				34	(TOXIC to printf)
 #define TAB_CHAR_9						9
 #define NEWLINE_CHAR_10					10				// '\n'		//#define NEWLINE_CHAR_10				10

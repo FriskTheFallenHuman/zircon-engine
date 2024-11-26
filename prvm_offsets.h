@@ -699,6 +699,7 @@ PRVM_DECLARE_serverfieldfloat(erp)
 PRVM_DECLARE_serverfieldfloat(max_health)
 PRVM_DECLARE_serverfieldfloat(modelflags)
 PRVM_DECLARE_serverfieldfloat(modelindex)
+PRVM_DECLARE_serverfieldvector(monster_info1) // E5_ZIRCON_MONSTER_INFO_28 - Zircon
 PRVM_DECLARE_serverfieldfloat(movetype)
 PRVM_DECLARE_serverfieldfloat(nextthink)
 PRVM_DECLARE_serverfieldfloat(pflags)

@@ -32,6 +32,19 @@ void SCR_atan2_f (cmd_state_t *cmd)
 
 }
 
+void SCR_hex_f (cmd_state_t *cmd)
+{
+	if (Cmd_Argc (cmd) <= 1) {
+		Con_PrintLinef ("Decimal to hex: example " QUOTED_STR("hex 33") );
+	}
+
+	ccs *s = Cmd_Argv (cmd, 1);
+	int ival = atoi(s);
+
+	Con_PrintLinef ("Decimal %d is hex %x", ival, ival);
+
+}
+
 void SCR_eq_f (cmd_state_t *cmd)
 {
 	if (Cmd_Argc (cmd) <= 1) {
@@ -50,9 +63,7 @@ void SCR_eq_f (cmd_state_t *cmd)
 		
 		Con_PrintLinef ("All values are 64-bit floating point (double)");
 		Con_PrintLinef ("All bitwise operations as 32-bit signed integer (like QuakeC)");
-		Con_PrintLinef ("%s", "% modulus operator keeps floating remainder (like QuakeC) 4.1 % 4 == 0.1");
-		//operators_condump_as_line ();
-		
+		Con_PrintLinef ("%s", "% modulus operator keeps floating remainder (like QuakeC) 4.1 % 4 == 0.1");		
 		return;
 	}
 

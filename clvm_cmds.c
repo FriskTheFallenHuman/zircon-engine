@@ -270,8 +270,8 @@ static void CL_VM_SetTraceGlobals(prvm_prog_t *prog, const trace_t *trace, int s
 	PRVM_clientglobalfloat(trace_networkentity) = svent;
 }
 
-#define CL_HitNetworkBrushModels(move) !((move) == MOVE_WORLDONLY)
-#define CL_HitNetworkPlayers(move)     !((move) == MOVE_WORLDONLY || (move) == MOVE_NOMONSTERS)
+#define CL_HitNetworkBrushModels(move) !((move) == MOVE_WORLDONLY_3)
+#define CL_HitNetworkPlayers(move)     !((move) == MOVE_WORLDONLY_3 || (move) == MOVE_NOMONSTERS_1)
 
 // #16 void(vector v1, vector v2, float movetype, entity ignore) traceline
 static void VM_CL_traceline (prvm_prog_t *prog)
@@ -295,7 +295,23 @@ static void VM_CL_traceline (prvm_prog_t *prog)
 	if (VEC_IS_NAN(v1[0]) || VEC_IS_NAN(v1[1]) || VEC_IS_NAN(v1[2]) || VEC_IS_NAN(v2[0]) || VEC_IS_NAN(v2[1]) || VEC_IS_NAN(v2[2]))
 		prog->error_cmd("%s: NAN errors detected in traceline('%f %f %f', '%f %f %f', %d, entity %d)\n", prog->name, v1[0], v1[1], v1[2], v2[0], v2[1], v2[2], move, PRVM_EDICT_TO_PROG(ent));
 
-	trace = CL_TraceLine(v1, v2, move, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendtracelinelength.value, CL_HitNetworkBrushModels(move), CL_HitNetworkPlayers(move), &svent, true, false);
+	// Baker: Notes ...
+	// Zircon protocol extensions send solidity to avoid client prediction colliding against
+	// healthboxes (SOLID_TRIGGER) and func_illusionary (SOLID_NOT)
+	// however ... that also means we have choices here ...
+	// Our traceline will never hit healthboxes, we would require solid items.
+	// RENDER_SOLID_NOT_BAKER_256
+	// Conclusion: if we want to collide against these types of things, devise a use case and complete it.
+	// because we still won't know "what it is" very easily.  We don't classname and such.
+	int hitplayers_value;
+	if (move == MOVE_NETWORK_ENTITIES_BAKER_4096)
+		hitplayers_value = HITT_PLAYERS_PLUS_SOLIDS_2;
+	else hitplayers_value = CL_HitNetworkPlayers(move);
+
+	trace = CL_TraceLine(v1, v2, move, ent, CL_GenericHitSuperContentsMask(ent), 0, 0,
+		collision_extendtracelinelength.value, CL_HitNetworkBrushModels(move),
+		hitplayers_value, // Formerly: CL_HitNetworkPlayers(move),  October 27 2024
+		&svent, /*hitcsqc*/ true, /*hitsurfs*/ false);
 
 	CL_VM_SetTraceGlobals(prog, &trace, svent);
 //	R_TimeReport("traceline");
@@ -335,7 +351,15 @@ static void VM_CL_tracebox (prvm_prog_t *prog)
 	if (VEC_IS_NAN(v1[0]) || VEC_IS_NAN(v1[1]) || VEC_IS_NAN(v1[2]) || VEC_IS_NAN(v2[0]) || VEC_IS_NAN(v2[1]) || VEC_IS_NAN(v2[2]))
 		prog->error_cmd("%s: NAN errors detected in tracebox('%f %f %f', '%f %f %f', '%f %f %f', '%f %f %f', %d, entity %d)\n", prog->name, v1[0], v1[1], v1[2], m1[0], m1[1], m1[2], m2[0], m2[1], m2[2], v2[0], v2[1], v2[2], move, PRVM_EDICT_TO_PROG(ent));
 
-	trace = CL_TraceBox(v1, m1, m2, v2, move, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendtraceboxlength.value, CL_HitNetworkBrushModels(move), CL_HitNetworkPlayers(move), &svent, true);
+	int hitplayers_value;
+	if (move == MOVE_NETWORK_ENTITIES_BAKER_4096)
+		hitplayers_value = HITT_PLAYERS_PLUS_SOLIDS_2;
+	else hitplayers_value = CL_HitNetworkPlayers(move);
+
+
+	trace = CL_TraceBox(v1, m1, m2, v2, move, ent, CL_GenericHitSuperContentsMask(ent), 0, 0,
+		collision_extendtraceboxlength.value,
+		CL_HitNetworkBrushModels(move), hitplayers_value/*CL_HitNetworkPlayers(move)*/, &svent, true);
 
 	CL_VM_SetTraceGlobals(prog, &trace, svent);
 //	R_TimeReport("tracebox");
@@ -371,7 +395,7 @@ static trace_t CL_Trace_Toss (prvm_prog_t *prog, prvm_edict_t *tossent, prvm_edi
 		VectorCopy(PRVM_clientedictvector(tossent, origin), start);
 		VectorCopy(PRVM_clientedictvector(tossent, mins), mins);
 		VectorCopy(PRVM_clientedictvector(tossent, maxs), maxs);
-		trace = CL_TraceBox(start, mins, maxs, end, MOVE_NORMAL, tossent, CL_GenericHitSuperContentsMask(tossent), 0, 0, collision_extendmovelength.value, true, HITT_PLAYERS_1_NOTAMOVE, NULL, true);
+		trace = CL_TraceBox(start, mins, maxs, end, MOVE_NORMAL_0, tossent, CL_GenericHitSuperContentsMask(tossent), 0, 0, collision_extendmovelength.value, true, HITT_PLAYERS_1_NOTAMOVE, NULL, true);
 		VectorCopy (trace.endpos, PRVM_clientedictvector(tossent, origin));
 
 		if (trace.fraction < 1)
@@ -583,7 +607,7 @@ static void VM_CL_droptofloor (prvm_prog_t *prog)
 		end[2] -= 256; // Quake, QuakeWorld
 #endif
 
-	trace = CL_TraceBox(start, mins, maxs, end, MOVE_NORMAL, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, HITT_PLAYERS_1_NOTAMOVE, NULL, true);
+	trace = CL_TraceBox(start, mins, maxs, end, MOVE_NORMAL_0, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, HITT_PLAYERS_1_NOTAMOVE, NULL, true);
 
 	if (trace.fraction != 1)
 	{
@@ -661,7 +685,7 @@ realcheck:
 	start[0] = stop[0] = (mins[0] + maxs[0])*0.5;
 	start[1] = stop[1] = (mins[1] + maxs[1])*0.5;
 	stop[2] = start[2] - 2*sv_stepheight.value;
-	trace = CL_TraceLine(start, stop, MOVE_NORMAL, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, true, NULL, true, false);
+	trace = CL_TraceLine(start, stop, MOVE_NORMAL_0, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, true, NULL, true, false);
 
 	if (trace.fraction == 1.0)
 		return;
@@ -675,7 +699,7 @@ realcheck:
 			start[0] = stop[0] = x ? maxs[0] : mins[0];
 			start[1] = stop[1] = y ? maxs[1] : mins[1];
 
-			trace = CL_TraceLine(start, stop, MOVE_NORMAL, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, true, NULL, true, false);
+			trace = CL_TraceLine(start, stop, MOVE_NORMAL_0, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, true, NULL, true, false);
 
 			if (trace.fraction != 1.0 && trace.endpos[2] > bottom)
 				bottom = trace.endpos[2];
@@ -1174,7 +1198,7 @@ static void VM_CL_R_AddDynamicLight (prvm_prog_t *prog)
 	Matrix4x4_FromVectors(&matrix, forward, left, up, org);
 
 	R_RTLight_Update(&r_refdef.scene.templights[r_refdef.scene.numlights], false, &matrix, col, style, cubemapname, castshadow, coronaintensity, coronasizescale, ambientscale, diffusescale, specularscale, LIGHTFLAG_NORMALMODE | LIGHTFLAG_REALTIMEMODE);
-	r_refdef.scene.lights[r_refdef.scene.numlights] = 
+	r_refdef.scene.lights[r_refdef.scene.numlights] =
 		&r_refdef.scene.templights[r_refdef.scene.numlights];
 	r_refdef.scene.numlights++;
 	t = Sys_DirtyTime() - t;if (t < 0 || t >= 1800) t = 0;
@@ -1385,8 +1409,10 @@ void VM_drawcharacter(prvm_prog_t *prog)
 		return;
 	}
 
-	if (pos[2] || scale[2])
-		VM_WarningLinef (prog, "VM_drawcharacter: z value%c from %s discarded",(pos[2] && scale[2]) ? 's' : 0,((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
+	if (developer.integer) {
+		if (pos[2] || scale[2])
+			VM_WarningLinef (prog, "VM_drawcharacter: z value%c from %s discarded",(pos[2] && scale[2]) ? 's' : 0,((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
+	}
 
 	if (!scale[0] || !scale[1])
 	{
@@ -1442,8 +1468,10 @@ void VM_drawstring(prvm_prog_t *prog)
 		return;
 	}
 
-	if (pos[2] || scale[2])
-		VM_WarningLinef (prog, "VM_drawstring: z value%s from %s discarded",(pos[2] && scale[2]) ? "s" : " ",((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
+	if (developer.integer) {
+		if (pos[2] || scale[2])
+			VM_WarningLinef (prog, "VM_drawstring: z value%s from %s discarded",(pos[2] && scale[2]) ? "s" : " ",((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
+	}
 
 	getdrawfontscale(prog, &sx, &sy);
 	DrawQ_String_Scale(pos[0], pos[1], string, 0, scale[0], scale[1], sx, sy, rgb[0], rgb[1], rgb[2], PRVM_G_FLOAT(OFS_PARM4), flag, NULL, true, getdrawfont(prog));
@@ -1508,8 +1536,10 @@ void VM_drawcolorcodedstring(prvm_prog_t *prog)
 		return;
 	}
 
-	if (pos[2] || scale[2])
-		VM_WarningLinef (prog, "VM_drawcolorcodedstring: z value%s from %s discarded",(pos[2] && scale[2]) ? "s" : " ",((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
+	if (developer.integer) {
+		if (pos[2] || scale[2])
+			VM_WarningLinef (prog, "VM_drawcolorcodedstring: z value%s from %s discarded",(pos[2] && scale[2]) ? "s" : " ",((pos[2] && scale[2]) ? "pos and scale" : (pos[2] ? "pos" : "scale")));
+	}
 
 	getdrawfontscale(prog, &sx, &sy);
 	DrawQ_String_Scale(pos[0], pos[1], string, 0, scale[0], scale[1], sx, sy, rgb[0], rgb[1], rgb[2], alpha, flag, NULL, false, getdrawfont(prog));
@@ -1776,8 +1806,10 @@ void VM_drawpic(prvm_prog_t *prog)
 		return;
 	}
 
-	if (pos[2] || size[2])
-		VM_WarningLinef (prog, "VM_drawpic: z value%s from %s discarded",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
+	if (developer.integer) {
+		if (pos[2] || size[2])
+			VM_WarningLinef (prog, "VM_drawpic: z value%s from %s discarded",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
+	}
 
 	DrawQ_Pic(pos[0], pos[1], Draw_CachePic_Flags (picname, CACHEPICFLAG_NOTPERSISTENT), size[0], size[1], rgb[0], rgb[1], rgb[2], PRVM_G_FLOAT(OFS_PARM4), flag);
 	PRVM_G_FLOAT(OFS_RETURN) = 1;
@@ -1827,8 +1859,8 @@ void VM_drawrotpic(prvm_prog_t *prog)
 	if (pos[2] || size[2] || org[2])
 		VM_WarningLinef (prog, "VM_drawrotpic: z value from pos/size/org discarded");
 
-	DrawQ_RotPic(pos[0], pos[1], Draw_CachePic_Flags(picname, CACHEPICFLAG_NOTPERSISTENT), 
-		size[0], size[1], org[0], org[1], 
+	DrawQ_RotPic(pos[0], pos[1], Draw_CachePic_Flags(picname, CACHEPICFLAG_NOTPERSISTENT),
+		size[0], size[1], org[0], org[1],
 		PRVM_G_FLOAT(OFS_PARM4), rgb[0], rgb[1], rgb[2], PRVM_G_FLOAT(OFS_PARM6), flag);
 	PRVM_G_FLOAT(OFS_RETURN) = 1;
 }
@@ -1877,9 +1909,10 @@ void VM_drawsubpic(prvm_prog_t *prog)
 		return;
 	}
 
-	if (pos[2] || size[2])
-		VM_WarningLinef (prog, "VM_drawsubpic: z value%s from %s discarded",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
-
+	if (developer.integer) {
+		if (pos[2] || size[2])
+			VM_WarningLinef (prog, "VM_drawsubpic: z value%s from %s discarded",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
+	}
 	DrawQ_SuperPic(pos[0], pos[1], Draw_CachePic_Flags (picname, CACHEPICFLAG_NOTPERSISTENT),
 		size[0], size[1],
 		srcPos[0],              srcPos[1],              rgb[0], rgb[1], rgb[2], alpha,
@@ -1919,8 +1952,10 @@ void VM_drawfill(prvm_prog_t *prog)
 		return;
 	}
 
-	if (pos[2] || size[2])
-		VM_WarningLinef (prog, "VM_drawfill: z value%s from %s discarded",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
+	if (developer.integer) {
+		if (pos[2] || size[2])
+			VM_WarningLinef (prog, "VM_drawfill: z value%s from %s discarded",(pos[2] && size[2]) ? "s" : " ",((pos[2] && size[2]) ? "pos and size" : (pos[2] ? "pos" : "size")));
+	}
 
 	DrawQ_Fill(pos[0], pos[1], size[0], size[1], rgb[0], rgb[1], rgb[2], PRVM_G_FLOAT(OFS_PARM3), flag);
 	PRVM_G_FLOAT(OFS_RETURN) = 1;
@@ -2170,7 +2205,7 @@ static void VM_CL_pointparticles (prvm_prog_t *prog)
 	CL_ParticleEffect(i, n, f, f, v, v, NULL, prog->argc >= 5 ? (int)PRVM_G_FLOAT(OFS_PARM4) : 0);
 }
 
-//#502 void(float effectnum, entity own /*Baker: owner*/, vector origin_from, vector origin_to, 
+//#502 void(float effectnum, entity own /*Baker: owner*/, vector origin_from, vector origin_to,
 // vector dir_from, vector dir_to, float count, float extflags) boxparticles (DP_CSQC_BOXPARTICLES)
 static void VM_CL_boxparticles (prvm_prog_t *prog)
 {
@@ -2589,7 +2624,7 @@ static void VM_CL_makestatic (prvm_prog_t *prog)
 		return;
 	}
 
-	if (cl.num_static_entities < cl.max_static_entities)
+	if (cl.num_static_entities < cl.max_static_entities) // MAX_STATICENTITIES_4096
 	{
 		int renderflags;
 		entity_t *staticent = &cl.static_entities[cl.num_static_entities++];
@@ -3282,7 +3317,7 @@ static int CL_GetEntityLocalTagMatrix(prvm_prog_t *prog, prvm_edict_t *ent, int 
 extern cvar_t cl_bob;
 extern cvar_t cl_bobcycle;
 extern cvar_t cl_bobup;
-WARP_X_CALLERS_ (VM_CL_gettaginfo, CSQC_AddRenderEdict ) 
+WARP_X_CALLERS_ (VM_CL_gettaginfo, CSQC_AddRenderEdict )
 // Baker: gettaginfo (DP_QC_GETTAGINFO)
 int CL_GetTagMatrix (prvm_prog_t *prog, matrix4x4_t *out, prvm_edict_t *ent, int tagindex, prvm_vec_t *returnshadingorigin)
 {
@@ -3763,7 +3798,7 @@ static void VM_CL_ParticleThemeFree (prvm_prog_t *prog)
 // float(vector org, vector dir, [float theme]) particle
 // returns 0 if failed, 1 if succesful
 WARP_X_ (VORTEXPARTICLE)
-static void VM_CL_SpawnParticle (prvm_prog_t *prog)
+static void VM_CL_SpawnParticle (prvm_prog_t *prog) // spawnparticle, quickparticle
 {
 	vec3_t org, dir;
 	vmparticletheme_t *theme;
@@ -3777,7 +3812,7 @@ static void VM_CL_SpawnParticle (prvm_prog_t *prog)
 		PRVM_G_FLOAT(OFS_RETURN) = 0;
 		return;
 	}
-	//                                             0   1   2 
+	//                                             0   1   2
 	VectorCopy(PRVM_G_VECTOR(OFS_PARM0), org); // org dir  theme
 	VectorCopy(PRVM_G_VECTOR(OFS_PARM1), dir);
 
@@ -3998,8 +4033,191 @@ static void VM_CL_SpawnParticleDelayed (prvm_prog_t *prog)
 
 // float(float entitynum, float whatfld) getentity;
 // vector(float entitynum, float whatfld) getentityvec;
+// string(float entitynum, float whatfld) getentitystring; // Baker ... NO?
 // querying engine-drawn entity
 // VorteX: currently it's only tested with whatfld = 1..7
+
+typedef struct {
+	int		monster_entnum;
+	vec3_t	morigin;			// SECRET ORIGIN
+	vec3_t	morigin2d;
+	vec3_t	mabove2d;
+	vec3_t	size3d;
+	//vec3_t	mins2d;
+	//vec3_t	maxs2d;
+	int		qw_monster_type_plus1;
+} chain_net_256_t;
+
+chain_net_256_t chain_netters[256]; // 31 max?
+int num_chain_netters;
+
+WARP_X_ (VM_CL_project)
+//static int stringlistsort_cmp(const void *a, const void *b)
+static int chain_net_sort_cmp(const void *a, const void *b)
+{
+	return ((chain_net_256_t *)a)->morigin2d[2] /*zdepth*/ < ((chain_net_256_t *)b)->morigin2d[2] /*zdepth*/;
+}
+
+void cs_project_from_view (vec3_t vout, const matrix4x4_t *pM_invview, const vec3_t morg)
+{
+	matrix4x4_t m;
+	memcpy (&m, pM_invview, sizeof(m) );
+
+	vec3_t v;
+
+	Matrix4x4_Transform(&m, morg, v);
+	if (v_flipped.integer)
+		v[1] = -v[1];
+	VectorSet(vout, vid_conwidth.integer * (0.5*(1.0+v[1]/v[0]/-r_refdef.view.frustum_x)), vid_conheight.integer * (0.5*(1.0+v[2]/v[0]/-r_refdef.view.frustum_y)),
+		v[0]); // a = b,c,d
+}
+
+void cs_project_xyz_from_view (vec3_t vout, const matrix4x4_t *pM_invview, const vec3_t morg, float x, float y, float z)
+{
+	vec3_t vfinal;
+	VectorCopyDestSrc (vfinal, morg);
+	vfinal[0] += x;
+	vfinal[1] += y;
+	vfinal[2] += z;
+
+	cs_project_from_view (vout, pM_invview, vfinal);
+}
+
+// GE_MONSTERCHAIN_OPEN_513 exclusively.
+void Fill_Chain_Net (void)
+{
+	num_chain_netters = 0;
+	matrix4x4_t m_invview;
+	Matrix4x4_Invert_Full(&m_invview, &r_refdef.view.matrix);
+	vec3_t vieworg;
+	VectorCopy(cl.csqc_vieworigin, vieworg);
+
+	// Baker: cl.num_entities is a number like 312
+	for (int j = 1; j < cl.num_entities; j ++) {
+		if (!cl.entities_active[j])
+			continue; // Not active
+
+		if (Have_Flag (cl.entities[j].state_current.sflags, RENDER_STEP) == false)
+			continue; // Not a monster
+
+		if (num_chain_netters >= ARRAY_COUNT(chain_netters))
+			continue; // Too many
+
+		if (cl.entities[j].state_current.monster_qw_type_idx_plus1 == 0) {
+			int QW_Is_Step_ModelIndex_Plus1(int qw_modelindex);
+			void QW_CL_FindModelNumbers (void);
+
+			// Figure out what it is
+			if (cl.did_qw_modelindexes == false) {
+				QW_CL_FindModelNumbers ();
+			}
+			WARP_X_ (MONSTER_QW_HELL_KNIGHT_10)
+			int monster_idx_p1 = QW_Is_Step_ModelIndex_Plus1 (cl.entities[j].state_current.modelindex);
+			WARP_X_ (MONSTER_QW_ARMY_0) // idx is 1 to 13.  Or 0
+			ccs *s = cl.entities[j].render.model->model_name;
+			if (monster_idx_p1 == 0) {
+				cl.entities[j].state_current.monster_qw_type_idx_plus1 = not_found_neg1;
+			} else {
+				cl.entities[j].state_current.monster_qw_type_idx_plus1 = monster_idx_p1;
+			}
+
+		}
+
+		// Baker: Monster origin
+		WARP_X_ (VM_CL_project)
+
+		chain_net_256_t *enet = &chain_netters[num_chain_netters ++];
+		enet->monster_entnum = j;
+
+		// Get monster origin
+		Matrix4x4_OriginFromMatrix(&cl.entities[j].render.matrix, enet->morigin);
+
+		cs_project_from_view (enet->morigin2d, &m_invview, enet->morigin);
+
+		cs_project_xyz_from_view (enet->mabove2d, &m_invview, enet->morigin, 0, 0, cl.entities[j].state_current.bbx_maxs[2]);
+	} // for
+
+	if (num_chain_netters) {
+		size_t sz = sizeof(chain_netters[0]);
+		qsort(&chain_netters[0], num_chain_netters, sizeof(chain_netters[0]),  chain_net_sort_cmp);
+	}
+}
+
+int Fill_Secret_Chain_Net (void)
+{
+	entitylist_t list_map1 = {0};	// aafter.map
+	int is_ok = false;
+	num_chain_netters = 0;
+	baker_string_t *bsa = NULL;
+	char *entities = cl.worldmodel->brush.entities, *entities_zalloc = NULL;
+
+	va_super (entname, MAX_QPATH_128, "%s.ent", cl.worldnamenoextension);
+
+	if ((entities_zalloc = (char *)FS_LoadFile(entname, tempmempool, fs_quiet_true, fs_size_ptr_null))) {
+		// Loaded from .ent file.
+		entities = entities_zalloc;
+	}
+
+	int isok = entitylist_parsemaptxt (&list_map1, entities);
+	if (isok == false) goto exitor; // failed to parse
+
+	entitylist_t *plist = &list_map1;
+
+	//{
+	//"classname" "trigger_secret"
+	//"model" "*50"
+	//}
+
+	for (int ex = 0; ex < plist->count; ex ++) { // WORLD + ALL
+		entityx_t	*r_ent = &plist->entity[ex];
+		int wanted = false;
+		char modelname[MAX_QPATH_128] = {0};
+		for (int j = 0; j < r_ent->pairslist.numstrings; j += 2) {
+			ccs *key = r_ent->pairslist.strings[j + 0];
+			ccs *val = r_ent->pairslist.strings[j + 1];
+			if (String_Match (key, "classname") && String_Match (val, "trigger_secret")) {
+				wanted = true;
+			}
+			if (String_Match (key, "model")) {
+				c_strlcpy (modelname, val);
+			}
+
+		} // pairs
+
+		while (wanted && modelname[0] && modelname[0]=='*') {
+			model_t *mod = NULL; // VM_CL_setmodel
+			mod = Mod_ForName(modelname, false, true, modelname[0] == '*' ? cl.model_name[1] : NULL);
+			if (!mod)
+				break; // Can't do it.
+
+			chain_net_256_t *enet = &chain_netters[num_chain_netters ++];
+			VectorAdd		(mod->normalmins, mod->normalmaxs, enet->morigin);
+			VectorScale		(enet->morigin, 0.5, enet->morigin); // (e.absmin + e.absmax) * 0.5
+			VectorSubtract	(mod->normalmaxs, mod->normalmins, enet->size3d);
+			enet->monster_entnum = atoi(&modelname[1]);
+			break;
+		}
+	} // entities in .map
+
+	//bsa = entitylist_maptext_bsalloc (&list_map1);
+	//	Clipboard_Set_Text (bsa->string);
+	//if (!bsa) goto exitor;// This would be bad.
+
+	is_ok = true;
+
+exitor:
+	entitylistfreecontents (&list_map1);
+	BakerString_Destroy_And_Null_It (&bsa);
+	Mem_FreeNull_ (entities_zalloc);
+
+	return is_ok;
+}
+
+// Baker: Unknown field simply returns 0
+	int QW_Is_Step_ModelIndex_Plus1(int qw_modelindex);
+	void QW_CL_FindModelNumbers (void);
+
+
 static void VM_CL_GetEntity (prvm_prog_t *prog)
 {
 	int entnum, fieldnum;
@@ -4007,73 +4225,281 @@ static void VM_CL_GetEntity (prvm_prog_t *prog)
 	VM_SAFEPARMCOUNT(2, VM_CL_GetEntity);
 
 	entnum = PRVM_G_FLOAT(OFS_PARM0);
-	if (entnum < 0 || entnum >= cl.num_entities)
-	{
-		PRVM_G_FLOAT(OFS_RETURN) = 0;
-		return;
-	}
 	fieldnum = PRVM_G_FLOAT(OFS_PARM1);
-	switch(fieldnum)
-	{
-		case 0: // active state
+	// Baker: early entnum for secrets, this logic does not apply
+	if (fieldnum != GE_PP_SECRETCHAIN_GET_521) {
+		if (entnum < 0 || entnum >= cl.num_entities)
+		{
+			PRVM_G_FLOAT(OFS_RETURN) = 0;
+			return;
+		}
+	}
+
+
+	switch(fieldnum) {
+		case GE_MAXENTS_NEG1: // FTE returns max entities.
+			// Baker: cl.num_entities "every network entity we've seen this game"
+			PRVM_G_FLOAT(OFS_RETURN) = cl.num_entities;
+			break;
+
+		case GE_HEALTH_500:
+			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].state_current.health_z;
+			break;
+
+		case GE_MAX_HEALTH_501:
+			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].state_current.max_health_z;
+			break;
+
+		case GE_MONSTERTYPEHACK_503: {
+			ccs *s_model = cl.entities[entnum].render.model->model_name;
+
+			#define MATCHME_(smatch, val) if (String_Match (s_model, smatch)) { PRVM_G_FLOAT(OFS_RETURN) = val; break; }
+			while (1) {
+				MATCHME_ ("progs/boss.mdl", MONSTER_INFO_BOSS_11)
+				MATCHME_ ("progs/demon.mdl", MONSTER_INFO_DEMON_12)
+				MATCHME_ ("progs/dog.mdl", MONSTER_INFO_DOG_13)
+				MATCHME_ ("progs/enforcer.mdl", MONSTER_INFO_ENFORCER_14)
+				MATCHME_ ("progs/fish.mdl", MONSTER_INFO_FISH_15)
+				MATCHME_ ("progs/hknight.mdl", MONSTER_INFO_HELL_KNIGHT_16)
+				MATCHME_ ("progs/knight.mdl", MONSTER_INFO_KNIGHT_17)
+				MATCHME_ ("progs/ogre.mdl", MONSTER_INFO_OGRE_18)
+				MATCHME_ ("progs/oldone.mdl", MONSTER_INFO_OLDONE_19)
+				MATCHME_ ("progs/player.mdl", MONSTER_INFO_PLAYER_1)
+				MATCHME_ ("progs/shalrath.mdl", MONSTER_INFO_SHALRATH_20)
+				MATCHME_ ("progs/shambler.mdl", MONSTER_INFO_SHAMBLER_21)
+				MATCHME_ ("progs/soldier.mdl", MONSTER_INFO_ARMY_10)
+				MATCHME_ ("progs/tarbaby.mdl", MONSTER_INFO_TARBABY_22)
+				MATCHME_ ("progs/wizard.mdl", MONSTER_INFO_WIZARD_23)
+				MATCHME_ ("progs/zombie.mdl", MONSTER_INFO_ZOMBIE_24)
+
+				PRVM_G_FLOAT(OFS_RETURN) = MONSTER_INFO_UNKNOWN_MONSTER_2;
+				break;
+			} // while 1
+			break; // switch break
+		} // case GE_MONSTERTYPEHACK_503
+
+		case GE_RENDERFLAGS_504: // RENDER_STEP is primary one we care about.
+			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].state_current.sflags;
+			break;
+
+		// Baker: Returns -2 (identification failed) or MONSTER_QW_ARMY_0 or MONSTER_QW_HELL_KNIGHT_10 and such
+		// How this returns if entity is not a monster is undefined at this time.
+		case GE_MONSTERTYPEQW_505:
+			if (cl.entities[entnum].state_current.monster_qw_type_idx_plus1 == 0) {
+				// Not found Figure out what it is
+
+				// Init if necessary.
+				if (cl.did_qw_modelindexes == false) {
+					QW_CL_FindModelNumbers ();
+				}
+
+				WARP_X_ (MONSTER_QW_ARMY_0, MONSTER_QW_HELL_KNIGHT_10)
+				int monster_idx_p1 = QW_Is_Step_ModelIndex_Plus1(cl.entities[entnum].state_current.modelindex);
+
+#ifdef _DEBUG
+				ccs *s = cl.entities[entnum].render.model->model_name; // DEBUG
+#endif
+				// MARK THE ACTUAL ENTITIES so no future lookup required
+				if (monster_idx_p1 == 0) {
+					// Couldn't identify
+					cl.entities[entnum].state_current.monster_qw_type_idx_plus1 = not_found_neg1;
+				} else {
+					cl.entities[entnum].state_current.monster_qw_type_idx_plus1 = monster_idx_p1;
+				}
+			}
+			PRVM_G_FLOAT(OFS_RETURN) = UNPLUS1(cl.entities[entnum].state_current.monster_qw_type_idx_plus1);
+			break;
+
+		case GE_ENTITYBOX2D_506: {
+			// ----  We return maxs
+			// |                          |
+			//                          --- mins is returned in v_up.
+			// v_forward is size 2d
+			// Project all 8 corners ...
+			// GE_ORIGIN
+
+			matrix4x4_t m_invview;
+			Matrix4x4_Invert_Full(&m_invview, &r_refdef.view.matrix);
+			vec3_t morigin3d;
+
+			Matrix4x4_OriginFromMatrix(&cl.entities[entnum].render.matrix, morigin3d);
+
+#define box_mins cl.entities[entnum].state_current.bbx_mins
+#define box_maxs cl.entities[entnum].state_current.bbx_maxs
+
+			vec3_t v2, v2mins, v2maxs;
+		#define RECT_BBEXPAND(v2,v2mins,v2maxs) \
+			if (v2[0] < v2mins[0]) v2mins[0] = v2[0]; \
+			if (v2[1] < v2mins[1]) v2mins[1] = v2[1]; \
+			if (v2[0] > v2maxs[0]) v2maxs[0] = v2[0]; \
+			if (v2[1] > v2maxs[1]) v2maxs[1] = v2[1] // Ender
+
+			// First corner, set all
+			cs_project_xyz_from_view (v2, &m_invview, morigin3d, box_mins[0], box_mins[1], box_mins[2] ); // 000
+			VectorCopyDestSrc (v2mins, v2);
+			VectorCopyDestSrc (v2maxs, v2);
+
+			// For remaining 7 corners, expand box
+			cs_project_xyz_from_view (v2, &m_invview, morigin3d, box_mins[0], box_mins[1], box_maxs[2] ); RECT_BBEXPAND(v2,v2mins,v2maxs); // 001
+			cs_project_xyz_from_view (v2, &m_invview, morigin3d, box_mins[0], box_maxs[1], box_mins[2] ); RECT_BBEXPAND(v2,v2mins,v2maxs); // 010
+			cs_project_xyz_from_view (v2, &m_invview, morigin3d, box_mins[0], box_maxs[1], box_maxs[2] ); RECT_BBEXPAND(v2,v2mins,v2maxs); // 011
+			cs_project_xyz_from_view (v2, &m_invview, morigin3d, box_maxs[0], box_mins[1], box_mins[2] ); RECT_BBEXPAND(v2,v2mins,v2maxs); // 100
+			cs_project_xyz_from_view (v2, &m_invview, morigin3d, box_maxs[0], box_mins[1], box_maxs[2] ); RECT_BBEXPAND(v2,v2mins,v2maxs); // 101
+			cs_project_xyz_from_view (v2, &m_invview, morigin3d, box_maxs[0], box_maxs[1], box_mins[2] ); RECT_BBEXPAND(v2,v2mins,v2maxs); // 110
+			cs_project_xyz_from_view (v2, &m_invview, morigin3d, box_maxs[0], box_maxs[1], box_maxs[2] ); RECT_BBEXPAND(v2,v2mins,v2maxs); // 111
+
+#undef box_mins
+#undef box_maxs
+			VectorCopy(v2maxs, PRVM_G_VECTOR(OFS_RETURN));
+			VectorCopy(v2mins, PRVM_clientglobalvector(v_up));
+			break;
+		}
+
+		case GE_MONSTERCHAINFIND_512: {
+			// if entnum is 0, do a search
+			// If entnum is non-zero, return the next
+			if (entnum == 0) {
+				int first_entnum = 0;
+				int prev_entnum = 0;
+				for (int j = 1; j < cl.num_entities; j ++) {
+					if (!cl.entities_active[j])
+						continue; // Not active
+
+					if (Have_Flag (cl.entities[j].state_current.sflags, RENDER_STEP) == false)
+						continue; // Not a monster
+
+					// ACTIVE
+					if (first_entnum == 0) {
+						first_entnum = j;
+					}
+					if (prev_entnum) {
+						cl.entities[prev_entnum].state_current.chain_net = j;
+					}
+					prev_entnum = j;
+				} // for
+				if (prev_entnum)
+					cl.entities[prev_entnum].state_current.chain_net = 0; // PREV NEXT IS 0
+				PRVM_G_FLOAT(OFS_RETURN) = first_entnum;
+			} else {
+				PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].state_current.chain_net;
+			}
+			break;
+		}
+
+		case GE_MONSTERCHAIN_OPEN_513:
+			Fill_Chain_Net ();
+			PRVM_G_FLOAT(OFS_RETURN) = num_chain_netters; //
+			break;
+
+		case GE_MONSTERCHAIN_GET_514:
+			if (entnum >= 0 && entnum < num_chain_netters) {
+				chain_net_256_t *enet = &chain_netters[entnum];
+				VectorCopy(enet->morigin,	PRVM_clientglobalvector(v_forward));	// Origin
+				VectorCopy(enet->morigin2d, PRVM_clientglobalvector(v_right));
+				VectorCopy(enet->mabove2d,	PRVM_clientglobalvector(v_up));
+				PRVM_clientglobalfloat(trace_dphitcontents) =
+					UNPLUS1(cl.entities[enet->monster_entnum].state_current.monster_qw_type_idx_plus1);
+
+				PRVM_G_FLOAT(OFS_RETURN) = enet->monster_entnum;
+			}
+			break;
+
+		case GE_PP_SECRETCHAIN_OPEN_520:
+			Fill_Secret_Chain_Net ();
+			PRVM_G_FLOAT(OFS_RETURN) = num_chain_netters;
+			break;
+
+		case GE_PP_SECRETCHAIN_GET_521:
+			if (entnum >= 0 && entnum < num_chain_netters) {
+				chain_net_256_t *enet = &chain_netters[entnum];
+				VectorCopy(enet->morigin, PRVM_clientglobalvector(v_forward));	// Origin
+				VectorCopy(enet->size3d, PRVM_clientglobalvector(v_up));	// Size
+				PRVM_G_FLOAT(OFS_RETURN) = enet->monster_entnum;
+			}
+			break;
+
+		case GE_MODELINDEX_200:
+			//s->modelindex
+			//VectorCopy(cl.entities[entnum].state_current.modelindex, PRVM_G_VECTOR(OFS_RETURN));
+			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].state_current.modelindex;
+			break;
+
+		// Baker: Use render. where possible over state_current
+		case GE_EFFECTS_202:
+			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].render.effects;
+			break;
+
+		// Baker: render frame is a blend so use current entity
+		case GE_FRAME_203:
+			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].state_current.frame;
+			break;
+
+		// Baker: Not going to dig into framegroupblend right now ...
+		case GE_ANGLES_204:
+			VectorCopy (cl.entities[entnum].state_current.angles, PRVM_G_VECTOR(OFS_RETURN));
+			break;
+
+		case GE_ACTIVE_0: // GE_ACTIVE - active state
 			PRVM_G_FLOAT(OFS_RETURN) = cl.entities_active[entnum];
 			break;
-		case 1: // origin
+		case GE_ORIGIN_1: // GE_ORIGIN - origin
 			Matrix4x4_OriginFromMatrix(&cl.entities[entnum].render.matrix, org);
 			VectorCopy(org, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 2: // forward
+		case GE_FORWARD_2: // forward
 			Matrix4x4_ToVectors(&cl.entities[entnum].render.matrix, forward, left, up, org);
 			VectorCopy(forward, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 3: // right
+		case GE_RIGHT_3: // right
 			Matrix4x4_ToVectors(&cl.entities[entnum].render.matrix, forward, left, up, org);
 			VectorNegate(left, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 4: // up
+		case GE_UP_4: // up
 			Matrix4x4_ToVectors(&cl.entities[entnum].render.matrix, forward, left, up, org);
 			VectorCopy(up, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 5: // scale
+		case GE_SCALE_5: // scale
 			PRVM_G_FLOAT(OFS_RETURN) = Matrix4x4_ScaleFromMatrix(&cl.entities[entnum].render.matrix);
 			break;
-		case 6: // origin + v_forward, v_right, v_up
+		case GE_ORIGIN5ANDVECTORS_6: // origin + v_forward, v_right, v_up
 			Matrix4x4_ToVectors(&cl.entities[entnum].render.matrix, forward, left, up, org);
-			VectorCopy(forward, PRVM_clientglobalvector(v_forward));
+			VectorCopy(forward, PRVM_clientglobalvector(v_forward));  // src -> dest
 			VectorNegate(left, PRVM_clientglobalvector(v_right));
-			VectorCopy(up, PRVM_clientglobalvector(v_up));
-			VectorCopy(org, PRVM_G_VECTOR(OFS_RETURN));
+			VectorCopy(up, PRVM_clientglobalvector(v_up)); // src -> dest
+			VectorCopy(org, PRVM_G_VECTOR(OFS_RETURN)); // src -> dest
 			break;
-		case 7: // alpha
+		case GE_ALPHA_7: // alpha
 			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].render.ralpha;
 			break;
-		case 8: // colormor
+		case GE_COLORMOD_8: // colormod (Baker: corrected typo)
 			VectorCopy(cl.entities[entnum].render.colormod, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 9: // pants colormod
+		case GE_PANTSCOLOR_9: // pants colormod
 			VectorCopy(cl.entities[entnum].render.colormap_pantscolor, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 10: // shirt colormod
+		case GE_SHIRTCOLOR_10: // shirt colormod
 			VectorCopy(cl.entities[entnum].render.colormap_shirtcolor, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 11: // skinnum
+		case GE_SKIN_11: // skinnum
 			PRVM_G_FLOAT(OFS_RETURN) = cl.entities[entnum].render.skinnum;
 			break;
-		case 12: // mins
-			VectorCopy(cl.entities[entnum].render.mins, PRVM_G_VECTOR(OFS_RETURN));
+		case GE_MINS_12: // mins
+			// VectorCopy(cl.entities[entnum].render.mins, PRVM_G_VECTOR(OFS_RETURN));
+			VectorCopy(cl.entities[entnum].state_current.bbx_mins, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 13: // maxs
-			VectorCopy(cl.entities[entnum].render.maxs, PRVM_G_VECTOR(OFS_RETURN));
+		case GE_MAXS_13: // maxs
+			// VectorCopy(cl.entities[entnum].render.maxs, PRVM_G_VECTOR(OFS_RETURN));
+			VectorCopy(cl.entities[entnum].state_current.bbx_maxs, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 14: // absmin
+		case GE_ABSMIN_14: // absmin
 			Matrix4x4_OriginFromMatrix(&cl.entities[entnum].render.matrix, org);
 			VectorAdd(cl.entities[entnum].render.mins, org, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 15: // absmax
+		case GE_ABSMAX_15: // absmax
 			Matrix4x4_OriginFromMatrix(&cl.entities[entnum].render.matrix, org);
 			VectorAdd(cl.entities[entnum].render.maxs, org, PRVM_G_VECTOR(OFS_RETURN));
 			break;
-		case 16: // light
+		case GE_MODELLIGHT_AMBIENT_16: // GE_MODELLIGHT_AMBIENT light
 			VectorMA(cl.entities[entnum].render.render_modellight_ambient, 0.5, cl.entities[entnum].render.render_modellight_diffuse, PRVM_G_VECTOR(OFS_RETURN));
 			break;
 		default:
@@ -4703,7 +5129,7 @@ realcheck:
 	start[0] = stop[0] = (mins[0] + maxs[0])*0.5;
 	start[1] = stop[1] = (mins[1] + maxs[1])*0.5;
 	stop[2] = start[2] - 2*sv_stepheight.value;
-	trace = CL_TraceLine(start, stop, MOVE_NOMONSTERS, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, false, NULL, true, false);
+	trace = CL_TraceLine(start, stop, MOVE_NOMONSTERS_1, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, false, NULL, true, false);
 
 	if (trace.fraction == 1.0)
 		return false;
@@ -4716,7 +5142,7 @@ realcheck:
 			start[0] = stop[0] = x ? maxs[0] : mins[0];
 			start[1] = stop[1] = y ? maxs[1] : mins[1];
 
-			trace = CL_TraceLine(start, stop, MOVE_NOMONSTERS, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, false, NULL, true, false);
+			trace = CL_TraceLine(start, stop, MOVE_NOMONSTERS_1, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, false, NULL, true, false);
 
 			if (trace.fraction != 1.0 && trace.endpos[2] > bottom)
 				bottom = trace.endpos[2];
@@ -4769,7 +5195,7 @@ static qbool CL_movestep (prvm_edict_t *ent, vec3_t move, qbool relink, qbool no
 					neworg[2] += 8;
 			}
 			VectorCopy(PRVM_clientedictvector(ent, origin), start);
-			trace = CL_TraceBox(start, mins, maxs, neworg, MOVE_NORMAL, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, HITT_PLAYERS_1_NOTAMOVE, &svent, true);
+			trace = CL_TraceBox(start, mins, maxs, neworg, MOVE_NORMAL_0, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, HITT_PLAYERS_1_NOTAMOVE, &svent, true);
 			if (settrace)
 				CL_VM_SetTraceGlobals(prog, &trace, svent);
 
@@ -4797,14 +5223,14 @@ static qbool CL_movestep (prvm_edict_t *ent, vec3_t move, qbool relink, qbool no
 	VectorCopy (neworg, end);
 	end[2] -= sv_stepheight.value*2;
 
-	trace = CL_TraceBox(neworg, mins, maxs, end, MOVE_NORMAL, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, true, &svent, true);
+	trace = CL_TraceBox(neworg, mins, maxs, end, MOVE_NORMAL_0, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, true, &svent, true);
 	if (settrace)
 		CL_VM_SetTraceGlobals(prog, &trace, svent);
 
 	if (trace.startsolid)
 	{
 		neworg[2] -= sv_stepheight.value;
-		trace = CL_TraceBox(neworg, mins, maxs, end, MOVE_NORMAL, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, HITT_PLAYERS_1_NOTAMOVE, &svent, true);
+		trace = CL_TraceBox(neworg, mins, maxs, end, MOVE_NORMAL_0, ent, CL_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value, true, HITT_PLAYERS_1_NOTAMOVE, &svent, true);
 		if (settrace)
 			CL_VM_SetTraceGlobals(prog, &trace, svent);
 		if (trace.startsolid)

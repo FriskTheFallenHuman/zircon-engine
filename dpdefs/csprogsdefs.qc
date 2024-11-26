@@ -249,9 +249,9 @@ const float SOLID_BSP						= 4;
 const float SOLID_CORPSE					= 5;
 
 // Quake Move Constants
-const float MOVE_NORMAL						= 0;
-const float MOVE_NOMONSTERS					= 1;
-const float MOVE_MISSILE					= 2;
+const float MOVE_NORMAL_0						= 0;
+const float MOVE_NOMONSTERS_1					= 1;
+const float MOVE_MISSILE_2					= 2;
 
 // Boolean Constants
 const float true	= 1;
@@ -1088,9 +1088,9 @@ float PRECACHE_PIC_MIPMAP = 8; // mipmap the texture for possibly better downsca
 //idea: LadyHavoc
 //darkplaces implementation: LadyHavoc
 //constant definitions:
-float MOVE_WORLDONLY = 3;
+float MOVE_WORLDONLY_3 = 3;
 //description:
-//allows traces to hit only world (ignoring all entities, unlike MOVE_NOMONSTERS which hits all bmodels), use as the nomonsters parameter to trace functions
+//allows traces to hit only world (ignoring all entities, unlike MOVE_NOMONSTERS_1 which hits all bmodels), use as the nomonsters parameter to trace functions
 
 //DP_SND_GETSOUNDTIME
 //idea: VorteX

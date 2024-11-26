@@ -2569,8 +2569,11 @@ extern cvar_t mod_obj_orientation;
 WARP_X_ (RSurf_ActiveModelEntity Mod_MDL_AnimateVertices ALIASXPRIME Mod_IDP0_Load)
 
 // Baker: It must be precached.
+// Baker: No return in this function.
 WARP_X_CALLERS_ (Mod_Decompile_f)
-static void Mod_Decompile_OBJ (model_t *model, const char *rawname, const char *filename, const char *mtlfilename, const char *originalfilename, int framenumz, int submodelnum)
+static void Mod_Decompile_OBJ (model_t *model, const char *rawname, const char *filename, 
+							   const char *mtlfilename, const char *originalfilename, int framenumz, 
+							   int submodelnum, ccs *printf_pattern, baker_string_t *bsa)
 {
 	int submodelindex, vertexindex, surfaceindex, triangleindex, textureindex, countvertices = 0, countsurfaces = 0, countfaces = 0, counttextures = 0;
 	int a, b, c;
@@ -2579,7 +2582,7 @@ static void Mod_Decompile_OBJ (model_t *model, const char *rawname, const char *
 	const float *v, *vn, *vt;
 	size_t jj;
 	size_t outbufferpos = 0;
-	size_t outbuffermax = 0x100000;
+	size_t outbuffermax = 0x100000; // 1 048 576
 	char *outbuffer = (char *) Z_Malloc(outbuffermax), *oldbuffer;
 	const msurface_t *surface;
 	const int maxtextures = 256;
@@ -2736,8 +2739,15 @@ static void Mod_Decompile_OBJ (model_t *model, const char *rawname, const char *
 			memcpy(outbuffer, oldbuffer, outbufferpos);
 			Z_Free(oldbuffer);
 		}
+
 		if (mod_obj_orientation.integer /*d: 1*/) {
 			// This is the norm
+			if (bsa) {
+				// Baker: Remember not to flip Y and Z
+				va_super (sbuf, 1024, "%g, %g, %g," NEWLINE, v[0], v[1], v[2]);
+				BakerString_CatC (bsa, sbuf);
+			}
+
 			jj = dpsnprintf(outbuffer + outbufferpos, outbuffermax - outbufferpos, 
 			"v %f %f %f"	NEWLINE
 			"vn %f %f %f"	NEWLINE
@@ -2975,6 +2985,7 @@ decompiles a model to editable files
 */
 
 // RSurf_ActiveModelEntity
+WARP_X_ (Mod_Decompile_OBJ)
 static void Mod_Decompile_f(cmd_state_t *cmd)
 {
 	int i, j, k, first, count;
@@ -3014,7 +3025,8 @@ static void Mod_Decompile_f(cmd_state_t *cmd)
 		submodelindexwanted = atoi(&inname[1]);
 		FS_StripExtension(cl.model_name[1], outname, sizeof(outname));
 		c_dpsnprintf2 (basename, "%s/%s", outname, mod->model_name);
-		dpreplacechar (basename, '*', '_'); // Baker r7061: Model decompile, windows will not allow * in a file name
+		// Baker r7061: Model decompile, windows will not allow * in a file name
+		dpreplacechar (basename, '*', '_'); 
 		outname[0] = 0;
 	}
 
@@ -3025,13 +3037,18 @@ static void Mod_Decompile_f(cmd_state_t *cmd)
 
 	// export OBJ if possible (not on sprites)
 obj_export:
+	
 	if (mod->surfmesh.num_triangles) {
+		// Baker: Comes here if we have triangles.
+		baker_string_t *bsa = BakerString_Create_Malloc ("");
 		// [0] modeldecompile [1]progs/player.mdl [2] framenum
 		ccs *arg2 = Cmd_Argv (cmd, 2);
 		int framenumz = atoi(arg2);
 		c_dpsnprintf1 (outname, "%s_decompiled.obj", basename);
 		c_dpsnprintf1 (mtlname, "%s_decompiled.mtl", basename);
-		Mod_Decompile_OBJ (mod, inname, outname, mtlname, inname, framenumz, submodelindexwanted);
+		Mod_Decompile_OBJ (mod, inname, outname, mtlname, inname, framenumz, submodelindexwanted, NULL, bsa);
+		Clipboard_Set_Text (bsa->string);
+		BakerString_Destroy_And_Null_It (&bsa);
 	}
 
 	// export SMD if possible (only for skeletal models)
@@ -3110,9 +3127,8 @@ obj_export:
 }
 
 WARP_X_ (Mod_Decompile_OBJ)
-static void Mod_TextureFindPos (model_t *model, ccs *swanted)
+static int Mod_TextureFindPos_Did_Find (model_t *model, ccs *swanted)
 {
-
 	for (int submodelindex = 0;submodelindex < max(1, model->brush.numsubmodels);submodelindex++) {
 		model_t *submodel = model->brush.numsubmodels ? model->brush.submodels[submodelindex] : model;
 		for (int surfaceindex = submodel->submodelsurfaces_start;surfaceindex < submodel->submodelsurfaces_end;surfaceindex++) {
@@ -3127,13 +3143,13 @@ static void Mod_TextureFindPos (model_t *model, ccs *swanted)
 				Clipboard_Set_Text (sorg);
 				Con_PrintLinef ("First occurance of texture: %s at " VECTOR3_LOSSLESS " to " VECTOR3_LOSSLESS, texname, VECTOR3_SEND(surface->mins), VECTOR3_SEND(surface->maxs));
 				Con_PrintLinef ("Location copied to clipboard");
-				Con_PrintLinef ("setpos and press CTRL-V paste can take you there");
-				return;
+				Con_PrintLinef ("setpos and press CTRL-V paste can take you there " CON_BRONZE "(you may wish to turn noclip on)");
+				return true;
 			}
 		} // for
 	}
 
-	Con_PrintLinef ("No instances of texture %s were found", swanted);
+	return false;
 }
 
 
@@ -3148,10 +3164,21 @@ static void Mod_TextureFindPos_f(cmd_state_t *cmd)
 		return;
 	}
 
+	
+	//ccs *swanted = swanted0;
 	ccs *swanted = Cmd_Argv (cmd, 1);
+	ccs *swanted1 = NULL; // 2nd check
+
+	int is_q1_animated = swanted[0] == '+';
+	char animatedname[1024];
+	if (is_q1_animated && swanted[1] && swanted[2]) {
+		c_dpsnprintf1 (animatedname, "+0%s", &swanted[2]);
+		swanted1 = animatedname;
+	}
+
 	ccs *sworld = cl.model_name[1];
 
-	model_t *mod = Mod_ForName(sworld, /*crash?*/ false, /*checkdisk*/ false, NULL);
+	model_t *mod = Mod_ForName(sworld, q_crash_false, q_checkdisk_false, q_parentname_NULL);
 
 	if (!mod) {
 		Con_PrintLinef ("Can't load world model");
@@ -3163,11 +3190,24 @@ static void Mod_TextureFindPos_f(cmd_state_t *cmd)
 		return;
 	}
 
-	if (mod->surfmesh.num_triangles) {
+	int did_find = false;
+	while (mod->surfmesh.num_triangles) {
 		// [0] modeldecompile [1]progs/player.mdl [2] framenum		
-		Mod_TextureFindPos (mod, swanted);
+		did_find = Mod_TextureFindPos_Did_Find (mod, swanted);
+
+		// If failed and is animated texture ... try the animated texture +0 variant
+		if (!did_find && swanted1) {
+			Con_PrintLinef ("Animated texture name not found " QUOTED_S " searching for base " 
+				QUOTED_S " ...", swanted, animatedname);
+
+			did_find = Mod_TextureFindPos_Did_Find (mod, swanted1);
+		}
+
+		break;
 	}
 
+	if (!did_find)
+		Con_PrintLinef ("No instances of texture %s were found", swanted);
 }
 
 

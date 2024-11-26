@@ -158,6 +158,31 @@ qbool EZDev_Models_Feed_Shall_Stop_Fn (int idx, ccs *key, ccs *value, ccs *a, cc
 	return false; // Shall stop
 }
 
+qbool EZDev_Sounds_Feed_Shall_Stop_Fn (int idx, ccs *key, ccs *value, ccs *a, ccs *b, ccs *c,
+							   int64_t n0, int64_t n1, int64_t n2)
+{
+	//va_super (sline, 1024, S_FMT_LEFT_PAD_20 " " S_FMT_LEFT_PAD_40, key, value);
+	if (key[0] == NULL_CHAR_0)
+		return false;
+
+	// No detail then don't do worldmap brush models like *40 (door or such)
+	if (ezdev->is_more_detail == false)
+		if (key[0] == '*')
+			return false;
+
+	// 3 columns .. modelindex,modelname as key,n0,numtri
+	int modelindex = n0;
+	int numtriangles = n1;
+	stringlistappendf (&ezdev->listaccum, "%d", modelindex);
+	stringlistappendf (&ezdev->listaccum, key);
+	//stringlistappendf (&ezdev->listaccum, "%d", numtriangles);
+	//stringlistappendf (&ezdev->listaccum, "%s", a); // width
+	//stringlistappendf (&ezdev->listaccum, "%s", b); // depth
+	//stringlistappendf (&ezdev->listaccum, "%s", c); // height
+
+	return false; // Shall stop
+}
+
 WARP_X_ (PRVM_Fields_Query)
 qbool EZDev_Fields_Feed_Shall_Stop_Fn (int idx, ccs *key, ccs *value, ccs *a, ccs *b, ccs *c,
 							   int64_t n0, int64_t n1, int64_t n2)
@@ -333,7 +358,9 @@ EXO___ char *DevTabSelectOnChange (oject_s *ktab)
 		(ezdev->ktab, "List",
 			"Entities,Models,Sounds,Textures,Shaders,"
 			"Globals,Fields,Map,Environment,"
-			"CSQC Ents,CSQC Globals,CSQC Fields,quake.rc,default.cfg,autoexec.cfg,config.cfg,BSP .Entities,rtlights"
+			"CSQC Ents,CSQC Globals,CSQC Fields,quake.rc,"
+			"default.cfg,autoexec.cfg,config.cfg,BSP .Entities,rtlights,"
+			"Zircon Manual,Zircon Developer,Map Pre-Processor"
 		);
 
 	// Query prep
@@ -370,7 +397,7 @@ EXO___ char *DevTabSelectOnChange (oject_s *ktab)
 		break;
 
 	case lw_map_7:
-	case lw_map_ents_16:
+	case lw_map_ents_16: // OnChange (1) No map
 	case lw_rtlights_17:
 
 		if (!cl.worldmodel) {
@@ -429,8 +456,14 @@ EXO___ char *DevTabSelectOnChange (oject_s *ktab)
 		iserr += Object_Property_Set		(ezdev->klist, "ColumnHeaders", "ModelIndex,Model,NumTriangles,Width,Depth,Height");
 
 		if (ezdev->listaccum.numstrings == 0) {
+			// Need  6
 			stringlistappend (&ezdev->listaccum, "");
 			stringlistappend (&ezdev->listaccum, "No precache model list");
+
+			stringlistappend (&ezdev->listaccum, "");
+			stringlistappend (&ezdev->listaccum, "");
+			stringlistappend (&ezdev->listaccum, "");
+			stringlistappend (&ezdev->listaccum, "");
 		}
 		break;
 
@@ -438,7 +471,7 @@ EXO___ char *DevTabSelectOnChange (oject_s *ktab)
 
 		numcolumns = 2;
 
-		CL_Sounds_Query (EZDev_Models_Feed_Shall_Stop_Fn);
+		CL_Sounds_Query (EZDev_Sounds_Feed_Shall_Stop_Fn);
 
 		iserr += Object_Property_Set		(ezdev->klist, "ColumnWidths", "150, 400");
 		iserr += Object_Property_Set		(ezdev->klist, "ColumnHeaders", "SoundIndex,Sound");
@@ -577,7 +610,7 @@ EXO___ char *DevTabSelectOnChange (oject_s *ktab)
 
 #define DOFILE(SFILEHERE) \
 		numcolumns = 2; \
-		iserr += Object_Property_Set		(ezdev->klist, "ColumnWidths", "70,600");	 \
+		iserr += Object_Property_Set		(ezdev->klist, "ColumnWidths", "70,1000");	 \
 		iserr += Object_Property_Set		(ezdev->klist, "ColumnHeaders", "Line,Text"); \
 		if (!stringlistappendfilelines_did_load(&ezdev->listaccum, SFILEHERE, /*numcol?*/ true)) { \
 			stringlistappend (&ezdev->listaccum, ""); \
@@ -604,7 +637,7 @@ EXO___ char *DevTabSelectOnChange (oject_s *ktab)
 		DOFILE("config.cfg");
 		break;
 
-	case lw_map_ents_16:
+	case lw_map_ents_16: // OnChange (2)
 
 		numcolumns = 2;
 
@@ -635,6 +668,23 @@ EXO___ char *DevTabSelectOnChange (oject_s *ktab)
 			DOFILE(rtlightsfilename);
 		}
 		break;
+
+	case lw_zircfeatures_18:
+
+		DOFILE("engine/zircon_features.txt");
+		break;
+
+	case lw_zircdev_19:
+
+		DOFILE("engine/zircon_developer.txt");
+		break;
+
+	case lw_zircpreproces_20:
+
+		DOFILE("engine/zircon_preprocessor.txt");
+		break;
+
+
 	} // sw
 
 nolistpossible:

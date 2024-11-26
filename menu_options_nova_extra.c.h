@@ -14,6 +14,8 @@ const char *get_overbright4_text (int level)
 	default:
 	case  0:	return "DarkPlaces";
 	case  1:	return "Quakespasm";
+	case  2:	return "Minimum Light 3";
+//	case  3:	return "Minimum Light 0.5";
 	}
 }
 
@@ -37,6 +39,8 @@ int get_bobbing2_rot()
 // Get the current level.  DarkPlaces 0, Quakespasm 1
 int get_overbright4_rot()
 {
+	if (r_minlight.value == 3) return 2;
+	//if (r_minlight.value == 0.5) return 3;
 	if (gl_overbright_models.value) return 1;	// Off
 	return 0;
 }
@@ -46,8 +50,10 @@ static void set_overbright4 (int level)
 {
 	switch (level) {
 	default:
-	case 0:  Cbuf_AddTextLine (cmd_local, "gl_overbright_models 0"); break; // DarkPlaces
-	case 1:  Cbuf_AddTextLine (cmd_local, "gl_overbright_models 1"); break; // Quakespasm
+	case 0:  Cbuf_AddTextLine (cmd_local, "gl_overbright_models 0; r_minlight 0"); break; // DarkPlaces
+	case 1:  Cbuf_AddTextLine (cmd_local, "gl_overbright_models 1; r_minlight 0"); break; // Quakespasm
+	case 2:  Cbuf_AddTextLine (cmd_local, "gl_overbright_models 0; r_minlight 3"); break; // Minimum Light 3
+	//case 3:  Cbuf_AddTextLine (cmd_local, "gl_overbright_models 0; r_minlight 0.5"); break; // Minimum Light 0.5
 	} // sw
 }
 

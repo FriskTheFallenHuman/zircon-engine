@@ -63,6 +63,12 @@ extern int globs;
 #include "com_infostring.h"
 #include "baker.h"
 
+#define HEX_BASE_16 16
+#ifdef _WIN32
+    #define STRTOI64_FN					_strtoi64
+#else
+	#define STRTOI64_FN					strtoll
+#endif
 
 
 // Baker: Function call clarity ...
@@ -181,6 +187,13 @@ extern int globs;
 #define q_is_fence_model_false			false // Quake .mdl with MF_FENCE 16384 set means color 255 is transparent
 #define q_is_sky_load_false				false
 
+#define q_crash_true					true
+#define q_crash_false					false
+
+#define q_checkdisk_true				true
+#define q_checkdisk_false				false
+
+#define q_parentname_NULL				NULL
 
 #define q_mouse_relative_false			false
 #define q_mouse_hidecursor_false		false

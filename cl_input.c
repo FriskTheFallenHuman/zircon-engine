@@ -875,7 +875,7 @@ static qbool CL_ClientMovement_UpdateStatus_Unstick (cl_clientmovement_state_t *
 	for (i = 0;i < NUMOFFSETS_27;i++) {
 		VectorAdd(offsets[i], s->origin, neworigin);
 		if (!CL_TraceBox(neworigin, cl.playercrouchmins, cl.playercrouchmaxs, neworigin, 
-			MOVE_NORMAL, s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_PLAYERCLIP, 
+			MOVE_NORMAL_0, s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_PLAYERCLIP, 
 			0, 0, collision_extendmovelength.value /*d: 16*/, true, 
 			/*HITT_PLAYERS_1*/ collide_type, NULL, true).startsolid)
 		{

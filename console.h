@@ -115,13 +115,14 @@ void Log_Printf(const char *logfilename, const char *fmt, ...) DP_FUNC_PRINTF(2)
 #define CON_WARN "^3"
 #define CON_ERROR "^3"
 
-#define CON_RED "^1"
-#define CON_BRONZE "^3"
-#define CON_WHITE "^7"
-
-#define CON_GREEN "^2"
-#define CON_CYAN "^5"
-#define CON_GRAY_50 "^x888"
+#define CON_RED			"^1"
+#define CON_GREEN		"^2"
+#define CON_BRONZE		"^3"
+#define CON_BLUE		"^4"	// Baker: Unreadable blue
+#define CON_CYAN		"^5"
+#define CON_MAGENTA		"^6"
+#define CON_WHITE		"^7"
+#define CON_GRAY_50		"^x888"
 
 
 // CON_MASK_PRINT is the default (Con_Print/Con_Printf)

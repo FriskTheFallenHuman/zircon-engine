@@ -1,0 +1,101 @@
+Developer With Extra Detail - Work In Progress - November 5 2024
+
+===================================================================================================
+
+1. "pos" - print current position.  Related: "showpos 1; showangles 1"
+
+	]pos
+	pos to clipboard: 
+	"origin" "  7 -1296  24"
+	"angles" "  2 -91   0"
+
+2. Map command shows how many triangles in the map (for optimization).
+
+	]map
+	map is around7
+
+	wateralpha?    Yes
+	vis data?      Yes
+	num triangles  136 (verts: 274)
+	normalmins/max (-2464.0 -2560.0 -256.0) (5632.0 2560.0 1056.0)
+	size           8096.0 5120.0 1312.0
+
+	Type "devinfo" for map worldspawn keys
+	
+   Note Quake 3 bsp format is triangle efficient and Quake 1 bsp format is triangle wasteful.
+   Quake 1 chops up surfaces for the WinQuake software renderer, creating large numbers of triangles.
+   Quake 3 map format uses few triangles for a brush and also removes unseened surfaces (common/caulk)
+   from the triangle rendering output.
+   
+
+3. "devinfo" -> map shows worldspawn keys.  If the map used a good modern map compiler that writes 
+   the compile command line to worldspawn, it will also show the compile command line.
+   
+   If you map, you may have a map you compiled 6 months ago and can't remember the compiler command
+   line to light the map ... use "devinfo".
+
+4. "edict" command expands certain fields as follows:
+	]edict 12
+	classname      monster_shambler
+	enemy          entity 1
+	flags          131616 (32 + 512 + 131072)
+	model          progs/shambler.mdl
+	modelindex     46
+	movetype       4 (movetype_step)
+	nextthink      4.81874228
+	origin         '-141.548157 -1011.69043 24.03125'
+	solid          3 (solid_slidebox)
+   
+   Note that "movetype" and "solid", the enumeration constant word is indicated.  For "colormod",
+   a color key will display showing the color.
+   
+   For "flags" and "spawnflags", the flag numbers that compose the number are printed "544 (32 + 512)"
+
+5. "texturefindpos floor" will find a location in the map using that texture.
+
+	]texturefindpos floor
+	First occurance of texture: textures/azirc0/floor_lite_slate at 1631 1535 -1 to 2145 2049 1
+	Location copied to clipboard
+	setpos and press CTRL-V paste can take you there
+	
+6. "copy tex" will copy the texturename to the clipboard (when "showtex 1" is active).
+
+	]copy tex
+	texturename "textures/trak5x_sh/floor_floor2f" copied to clipboard
+
+
+4. Mass JPEG conversion to JPEG with alpha channel support - "jpegsplit".
+
+   Example will convert all .tga and .png in the textures/ambientcg folder ...
+
+	] jpegsplit textures/ambientcg go // without go it will run a test that writes no files.
+	3 results (Writing .jpgs)
+
+	0: alpha? N - textures/ambientcg/Bricks018.tga
+	1: alpha? Y - textures/ambientcg/Fence996.tga
+	2: alpha? N - textures/ambientcg/MetalWalkway012.tga
+ 
+   Textures with alpha channel will write 2 files:
+   textures/ambientcg/Fence996.jpg		// the texture
+   textures/ambientcg/Fence996_alpha.jpg	// the alpha channel
+   
+   Note that jpeg _alpha textures are supported by not only Zircon/DarkPlaces but the q3map2.exe
+   Quake 3 map compiler.
+
+   Alpha textures: Remember Quake 3 map format, you need a shader for alpha masked textures like:
+   
+	textures/fence01
+	{
+	 surfaceparm alphashadow // lighting phase of Q3Map2 use alpha channel as mask for casting shadows
+	 surfaceparm trans // pre-computed visibility should not be blocked by this surface
+	 cull disable // default is cullback
+	 {
+	  map textures/fence01.tga
+	  alphaFunc GT0 // GT0 or LT128 or GE128
+	 }
+	 {
+	  map $lightmap
+	  blendfunc filter // shorthand for "blend gl_zero gl_src_color"
+	 }
+	}
+

@@ -165,7 +165,7 @@ void Collision_TraceBrushTriangleFloat(trace_t *trace, const colbrushf_t *thisbr
 // if the starting point is in a solid, it will be allowed to move out to an
 // open area, and trace.startsolid will be set
 //
-// type is one of the MOVE_ values such as MOVE_NOMONSTERS which skips box
+// type is one of the MOVE_ values such as MOVE_NOMONSTERS_1 which skips box
 // entities, only colliding with SOLID_BSP_4 entities (doors, lifts)
 //
 // passedict is excluded from clipping checks

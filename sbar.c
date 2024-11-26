@@ -1192,7 +1192,7 @@ void Sbar_ShowFPS(void)
 		memset(&cltrace, 0, sizeof(cltrace));
 		cltrace.fraction = 2.0;
 		
-		cltrace = CL_TraceLine(org, dest, MOVE_HITMODEL, NULL, 
+		cltrace = CL_TraceLine(org, dest, MOVE_HITMODEL_4, NULL, 
 				SUPERCONTENTS_SOLID | SUPERCONTENTS_WATER | SUPERCONTENTS_SLIME | 
 				SUPERCONTENTS_LAVA | SUPERCONTENTS_SKY
 			, 
@@ -1217,7 +1217,7 @@ void Sbar_ShowFPS(void)
 			svtrace.fraction = 2.0;
 			// ray hits models (even animated ones) and ignores translucent materials
 			if (showtex.integer < 5 && sv.active) {
-				svtrace = SV_TraceLine(org, dest, MOVE_HITMODEL, NULL, SUPERCONTENTS_SOLID, 0, 
+				svtrace = SV_TraceLine(org, dest, MOVE_HITMODEL_4, NULL, SUPERCONTENTS_SOLID, 0, 
 				MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value);
 			}
 

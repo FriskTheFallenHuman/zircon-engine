@@ -18,7 +18,7 @@ qbool ZDev_Globals_Feed_Shall_Stop_Fn (int idx, ccs *key, ccs *value, ccs *a, cc
 
 
 
-static ccs *VarType_For_EV (int ev)
+ccs *VarType_For_EV (int ev)
 {
 	switch (ev) {
 	case 0:				return "(type zero)";

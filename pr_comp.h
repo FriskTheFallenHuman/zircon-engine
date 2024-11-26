@@ -369,7 +369,7 @@ ddef32_t, dfield32_t, mdef_t;
 
 #define	DEF_SAVEGLOBAL	(1<<15)
 
-#define	MAX_PARMS	8
+#define	MAX_PARMS_8	8
 
 // Functions - 36 bytes each
 typedef struct dfunction_s
@@ -384,7 +384,7 @@ typedef struct dfunction_s
 	int32_t		s_file;			// source file defined in
 
 	int32_t			numparms;		// number of args
-	uint8_t			parm_size[MAX_PARMS]; // and size
+	uint8_t			parm_size[MAX_PARMS_8]; // and size
 }
 dfunction_t;
 
@@ -410,7 +410,7 @@ typedef struct mfunction_s
 	int32_t		s_file;			// source file defined in
 
 	int32_t		numparms;
-	uint8_t		parm_size[MAX_PARMS];
+	uint8_t		parm_size[MAX_PARMS_8];
 }
 mfunction_t;
 

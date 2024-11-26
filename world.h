@@ -25,11 +25,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "collision.h"
 
-#define MOVE_NORMAL     0
-#define MOVE_NOMONSTERS 1
-#define MOVE_MISSILE    2
-#define MOVE_WORLDONLY  3
-#define MOVE_HITMODEL   4
+#define MOVE_NORMAL_0						0
+#define MOVE_NOMONSTERS_1					1
+#define MOVE_MISSILE_2						2
+#define MOVE_WORLDONLY_3					3
+#define MOVE_HITMODEL_4						4
+
+#define	MOVE_NETWORK_ENTITIES_BAKER_4096	4096	// Zircon CSQC collide against monsters and other network entities
 
 #define AREA_GRID 128
 #define AREA_GRIDNODES (AREA_GRID * AREA_GRID)

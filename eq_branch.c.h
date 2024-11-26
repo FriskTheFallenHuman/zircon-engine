@@ -21,6 +21,7 @@ static void br_execute_variable_or_inline (equat_t *eq, eq_node_t *pbr)
 
 	case word_alphanumeric_1:
 		if (pbr->cConst) {
+			// Baker: PI or such
 			pbr->val = pbr->cConst->val;
 			break;
 		}
@@ -49,7 +50,13 @@ static void br_execute_variable_or_inline (equat_t *eq, eq_node_t *pbr)
 		break;
 
 	case word_numeric_2:
-		pbr->val = atof (pbr->word);
+		if (String_Starts_With (pbr->word, "0x")) {
+			// Convert the hexadecimal string to a long long integer
+			int64_t ourhex64 = STRTOI64_FN (pbr->word, /*end pointer*/ NULL, HEX_BASE_16);   // aka strtoll str to long long
+			pbr->val = ourhex64;
+		} else {
+			pbr->val = atof (pbr->word);
+		}
 		break;
 	}
 

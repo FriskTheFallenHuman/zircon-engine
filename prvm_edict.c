@@ -1087,6 +1087,29 @@ static qbool Replacer_Did_Change (char *valuebuf, size_t valuebuf_size, ccs **pk
 	return true;
 }
 
+// colormod
+static qbool Colorizer_Did_Change (char *valuebuf, size_t valuebuf_size)
+{
+	ccs *data = valuebuf;
+	//colormod       '0.378733814 0.378733814 0.378733814'
+	if (data[0] == CHAR_SQUOTE_39)
+		data ++;
+	vec3_t vcolor = {0,0,0};
+	COM_Parse_Basic(&data);	vcolor[0] = atof(com_token);
+	COM_Parse_Basic(&data); vcolor[1] = atof(com_token);
+	COM_Parse_Basic(&data);	vcolor[2] = atof(com_token);
+
+	
+
+	ccs *colorcode_za = Color_Code_ZAlloc_Or_Null(vcolor);
+	if (!colorcode_za)
+		return false; // No change
+	
+	va_super (colorstamp, 256, " (%sCOLOR" CON_WHITE")", colorcode_za);
+	strlcat  (valuebuf, colorstamp, valuebuf_size);
+	Mem_FreeNull_ (colorcode_za);
+	return true;
+}
 
 qbool Edict_Value_Fixup_Did_Change (ccs *key, char *valuebuf, size_t valuebuf_size)
 {	
@@ -1120,6 +1143,9 @@ qbool Edict_Value_Fixup_Did_Change (ccs *key, char *valuebuf, size_t valuebuf_si
 		};
 		
 		return Replacer_Did_Change (valuebuf, valuebuf_size, movetypes, ARRAY_COUNT(movetypes));
+	}
+	if (String_Isin1(key, "colormod")) {
+		return Colorizer_Did_Change(valuebuf, valuebuf_size);
 	}
 	if (String_Isin3(key, "flags", "spawnflags", "items")) {
 		//ccs *fl_flags[] = {
@@ -1728,8 +1754,10 @@ no_sort:
 
 	mdef_t			*key_2	= PRVM_ED_FindField(prog, Cmd_Argv(cmd, 2));
 
-	if (key_2 == NULL)
-		Con_PrintLinef ("Key %s not found!", key_2);
+	if (key_2 == NULL) {
+		Con_PrintLinef ("Key %s not found!", Cmd_Argv(cmd, 2));
+		return;
+	}
 
 	if (is_get) { // Baker: EDICT GET instead
 		// Do edict get		
@@ -3194,7 +3222,8 @@ const char *PRVM_Prog_Load(prvm_prog_t *prog, const char * filename, unsigned ch
 						goto fail;
 				}
 				// 9 is length of "autocvar_" prefix
-				cvar = Cvar_Get(prog->console_cmd->cvars, name + 9, value, prog->console_cmd->cvars_flagsmask, /*description*/ NULL);
+				cvar = Cvar_Get(prog->console_cmd->cvars, name + 9, 
+					value, prog->console_cmd->cvars_flagsmask, /*description*/ NULL);
 				if ((prog->globaldefs[i].type & ~DEF_SAVEGLOBAL) == ev_string) {
 					val->string = PRVM_SetEngineString(prog, cvar->string);
 					cvar->globaldefindex_stringno[prog - prvm_prog_list] = val->string;
@@ -4347,9 +4376,9 @@ void PRVM_InitOnce (void)
 	Cmd_AddCommand(CF_SHARED, "prvm_fields", PRVM_Fields_f, "prints usage statistics on properties (how many entities have non-zero values) in the selected VM (server, client, menu)");
 	Cmd_AddCommand(CF_SHARED, "prvm_globals", PRVM_Globals_f, "prints all global variables in the selected VM (server, client, menu)");
 	Cmd_AddCommand(CF_SHARED, "prvm_global", PRVM_Global_f, "prints value of a specified global variable in the selected VM (server, client, menu)");
-	Cmd_AddCommand(CF_SHARED, "prvm_globalset", PRVM_GlobalSet_f, "sets value of a specified global variable in the selected VM (server, client, menu)");
-	Cmd_AddCommand(CF_SHARED, "prvm_edictset", PRVM_ED_EdictSet_f, "changes value of a specified property of a specified entity in the selected VM (server, client, menu)");
-	Cmd_AddCommand(CF_SHARED, "eset", PRVM_ED_Eset_f, "prvm_edictset for server [Zircon]");
+	Cmd_AddCommand(CF_SHARED | CF_CHEAT, "prvm_globalset", PRVM_GlobalSet_f, "sets value of a specified global variable in the selected VM (server, client, menu)");
+	Cmd_AddCommand(CF_SHARED | CF_CHEAT, "prvm_edictset", PRVM_ED_EdictSet_f, "changes value of a specified property of a specified entity in the selected VM (server, client, menu)");
+	Cmd_AddCommand(CF_SHARED | CF_CHEAT, "eset", PRVM_ED_Eset_f, "prvm_edictset for server [Zircon]");
 	Cmd_AddCommand(CF_SHARED, "prvm_edictget", PRVM_ED_EdictGet_f, "retrieves the value of a specified property of a specified entity in the selected VM (server, client menu) into a cvar or to the console");
 	Cmd_AddCommand(CF_SHARED, "prvm_globalget", PRVM_ED_GlobalGet_f, "retrieves the value of a specified global variable in the selected VM (server, client menu) into a cvar or to the console");
 	Cmd_AddCommand(CF_SHARED, "prvm_printfunction", PRVM_PrintFunction_f, "prints a disassembly (QuakeC instructions) of the specified function in the selected VM (server, client, menu)");
@@ -4493,7 +4522,7 @@ WARP_X_ (PRVM_ED_FindField ZDev_Fields_Feed_Shall_Stop_Fn)
 // But I still can't figure out the pattern, anyway, check unique.  There are dups
 // The last one is float	modelindex (1 and 318); to string_t	noise3 (119/372);
 WARP_X_ (entvars_s)
-WARP_X_ (VM_numentityfields VM_entityfieldtype)
+WARP_X_ (VM_numentityfields VM_entityfieldtype ZDev_Fields_Feed_Shall_Stop_Fn)
 void PRVM_Fields_Query (prvm_prog_t *prog, feed_fn_t myfeed_shall_stop)
 {
 	//int count = 0;

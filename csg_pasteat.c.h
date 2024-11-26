@@ -64,7 +64,102 @@ typedef struct {
 // Returns dbpool
 WARP_X_ (BrushFacer_ZA brush_entry_s)
 
-static int ReadBrushRow_Numbers_IsOk (map_reader_s *pread, brushrow_s *pbr)
+#if 0
+static int ReadBrushRow_Numbers_OldQ1_IsOk (map_reader_s *pread, brushrow_s *pbr)
+{
+#define READMORE if (COM_Parse_Basic(&pread->datasrc) == false) return false /*NOT OK*/
+
+//( 480 704 -260 ) ( 480 672 -260 ) ( 480 704 -132 ) 
+//				common/caulk [ 0 1 0 0 ] [ 0 0 -1 0 ] -0 1 1 0 160 0
+
+// Q1 :( 672 -1312 232 ) ( 672 -1440 232 ) ( 672 -1440 224 ) WMET4_8 0 0 0 1.000000 1.000000
+
+	READMORE;	pbr->a[0] = atof(com_token);			//  480
+	READMORE;	pbr->a[1] = atof(com_token);			//  704
+	READMORE;	pbr->a[2] = atof(com_token);			// -260
+	READMORE;	if (com_token[0] != ')') return false;		// )
+	
+	READMORE;	if (com_token[0] != '(') return false;		// (
+	READMORE;	pbr->b[0] = atof(com_token);				//	480
+	READMORE;	pbr->b[1] = atof(com_token);				//	672
+	READMORE;	pbr->b[2] = atof(com_token);				// -260
+	READMORE;	if (com_token[0] != ')') return false;		// )
+	
+	READMORE;	if (com_token[0] != '(') return false;		// (
+	READMORE;	pbr->c[0] = atof(com_token);				//	480
+	READMORE;	pbr->c[1] = atof(com_token);				//	704
+	READMORE;	pbr->c[2] = atof(com_token);				// -132
+	READMORE;	if (com_token[0] != ')') return false;		// )
+
+//( 480 704 -260 ) ( 480 672 -260 ) ( 480 704 -132 ) 
+//				common/caulk [ 0 1 0 0 ] [ 0 0 -1 0 ] -0 1 1 0 160 0
+
+// <x_shift> <y_shift>   ... <rotation> <x_scale> <y_scale> <content_flags> <surface_flags> <value>
+	READMORE;	pbr->pbrtexture = Z_StrDup(com_token); //	common/caulk
+	READMORE;	if (com_token[0] != '[') return false;		// [
+	READMORE;	pbr->xtra1[0] = atof(com_token);			//	0
+	READMORE;	pbr->xtra1[1] = atof(com_token);			//	1
+	READMORE;	pbr->xtra1[2] = atof(com_token);			//	0
+	READMORE;	pbr->xtra1[3] = atof(com_token);			//	0
+	READMORE;	if (com_token[0] != ']') return false;		// ]
+	READMORE;	if (com_token[0] != '[') return false;		// [
+	READMORE;	pbr->xtra2[0] = atof(com_token);			//	0
+	READMORE;	pbr->xtra2[1] = atof(com_token);			//	0
+	READMORE;	pbr->xtra2[2] = atof(com_token);			// -1
+	READMORE;	pbr->xtra2[3] = atof(com_token);			//	0
+	READMORE;	if (com_token[0] != ']') return false;		// ]
+
+//( 32768 -34816 10240 ) ( 32768 -34816 -512 ) ( 32768 34816 10240 ) sky/treefall_nite_sky [ 0 1 0 -0 ] 
+//		[ 0 0 -1 -0 ] 0 0.5 0.5 // 3 numbers
+//( 34816 34816 10240 ) ( 34816 34816 -512 ) ( 34816 -34816 10240 ) common/caulk [ 0 1 0 -0 ] [ 0 0 -1 -0 ] 
+//		              0 0.5 0.5 0 160 0 // 6 numbers
+
+	READMORE;	pbr->ftrail[0] = atof(com_token);			// -0
+	READMORE;	pbr->ftrail[1] = atof(com_token);			//	1
+	READMORE;	pbr->ftrail[2] = atof(com_token);			//	1
+
+	pbr->trail_count = 3;
+	ccs *rollback;
+
+	rollback = pread->datasrc;
+	READMORE;
+	if (isin2(com_token[0], '(', '}') == false) {
+		pbr->ftrail[3] = atof(com_token);			//	0
+//		if (String_Starts_With (com_token, "536870")) {
+//			int j = 5;
+//		}
+		pbr->trail_count ++; // 3 --> 4
+	} else {
+		pread->datasrc = rollback;
+		return true;
+	}
+
+	rollback = pread->datasrc;
+	READMORE;
+	if (isin2(com_token[0], '(', '}') == false) {
+		pbr->ftrail[4] = atof(com_token);			//	0
+		pbr->trail_count ++; // 3 --> 4
+	} else {
+		pread->datasrc = rollback;
+		return true;
+	}
+
+	rollback = pread->datasrc;
+	READMORE;
+	if (isin2(com_token[0], '(', '}') == false) {
+		pbr->ftrail[5] = atof(com_token);			//	0
+		pbr->trail_count ++; // 3 --> 4
+	} else {
+		pread->datasrc = rollback;
+		return true;
+	}
+
+
+	return true; // SUCCESS!
+}
+#endif
+
+static int ReadBrushRow_Numbers_220_IsOk (map_reader_s *pread, brushrow_s *pbr)
 {
 #define READMORE if (COM_Parse_Basic(&pread->datasrc) == false) return false /*NOT OK*/
 
@@ -162,7 +257,7 @@ static int ReadBrushRows_Thru_CurlyClose_IsOk (map_reader_s *pread, brush_s *p_b
 
 		brushrow_s	*p_brushrow = brushrowlist_add (&p_brush->brushrowlist);
 		pread->p_brushrow = p_brushrow;
-		int is_ok = ReadBrushRow_Numbers_IsOk (pread, p_brushrow);
+		int is_ok = ReadBrushRow_Numbers_220_IsOk (pread, p_brushrow);
 		if (is_ok == false)
 			return false;
 
@@ -335,4 +430,11 @@ entity_read_value:
 	} // While
 
 }
+
+// TODO: Or maybe not.
+int entitylist_parsemaptxt_old_q1 (entitylist_t *plist, ccs *txt) // Returns a (baker_string_t *) or NULL if no data
+{
+	return 0;
+}
+
 

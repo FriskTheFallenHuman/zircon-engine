@@ -747,7 +747,7 @@ char *qw_monsters[] = {
 	"progs/fish.mdl",		// 9
 	"progs/hknight.mdl",	// 10
 	"progs/shalrath.mdl",	// 11
-	"progs/tarbaby",		// 12
+	"progs/tarbaby.mdl",	// 12
 };
 
 
@@ -786,7 +786,7 @@ qbool QW_Is_Step_Dead (int qw_monster_id, int frame)
 	return false; // It's alive
 }
 
-WARP_X_ (QW_Is_Step_ModelIndex, QW_Is_Step_Dead)
+WARP_X_ (QW_Is_Step_ModelIndex, QW_Is_Step_Dead qw_monsters)
 void QW_CL_FindModelNumbers (void)
 {
 	//memset (cl.qw_monsters_modelindexes, 0, sizeof(qw_monsters_modelindexes) );
@@ -813,7 +813,7 @@ void QW_CL_FindModelNumbers (void)
 	} // model
 
 filled_it:
-	; // Baker: obligatory null statement :(
+	cl.did_qw_modelindexes = true; // Baker: obligatory null statement :(
 }
 
 
@@ -1001,7 +1001,7 @@ void CL_Models_Query (feed_fn_t myfeed_shall_stop)
 		return;
 
 	for (int j = 1; j < MAX_MODELS_8192 && cl.model_name[j][0]; j ++) {
-		WARP_X_ (EZDev_Models_Feed_Shall_Stop_Fn)
+		WARP_X_ (EZDev_Models_Feed_Shall_Stop_Fn EZDev_Sounds_Feed_Shall_Stop_Fn)
 		int num_tri = 0;
 
 		char sizea[64] = {0};
@@ -2316,7 +2316,7 @@ static void CL_ParseStatic (int is_large_model_index, int fitz_version)
 	// Baker: Fitz supports static and scale on these.
 	entity_t *ent;
 // HEREON
-	if (cl.num_static_entities >= cl.max_static_entities)
+	if (cl.num_static_entities >= cl.max_static_entities) // MAX_STATICENTITIES_4096
 		Host_Error_Line ("Too many static entities");
 	ent = &cl.static_entities[cl.num_static_entities++];
 	CL_ParseBaseline (ent, is_large_model_index, fitz_version, q_is_static_true);
@@ -3471,6 +3471,8 @@ void CL_ParseHint (const char *str)
 	// hint skill 1
 	// hint game quake3_quake1
 	// hint qex 1
+	// hint stor 6 204 0 0 0 4 16
+	// hint @ 204 4 // alpha noshadow
 	if (scursor[0] == SPACE_CHAR_32 && scursor[1] > SPACE_CHAR_32) {
 		// Found arg2
 		scursor[0] = 0; // null after cmd
@@ -3483,6 +3485,25 @@ void CL_ParseHint (const char *str)
 			cls.zirconprotocolextensions = atoi (scmd_arg1);
 			if (developer_zext.integer)
 				Con_PrintLinef ("CL_StuffText: Server reporting shared zirconprotocolextensions %d", cls.zirconprotocolextensions);
+		}
+		else if (String_Match (scmd_arg0, "@"))	{ // Stor V2
+			// ZIRCON_EXT_STATIC_ENT_ALPHA_COLORMOD_SCALE_32
+			// hint @ 204 4 // alpha noshadow
+			// stor [number of units max is 14]
+			// 204 0 0 0 4 16
+			int c = ztokenize_console_argc(scmd_arg1);
+			if (c == 2) {
+				int alpha_byte0 = atoi(ztoken_argv[0]); // 204
+				int noshadow1   = atoi(ztoken_argv[1]); // 4
+				//num_stor = bound (0, num_stor, (int)ARRAY_COUNT(cls.storr) - 1);
+				cls.storr[0] = 6; // Indicate the count
+				cls.storr[1] = alpha_byte0; // Indicate the count
+				cls.storr[2] = 0; // Indicate the count
+				cls.storr[3] = 0; // Indicate the count
+				cls.storr[4] = 0; // Indicate the count
+				cls.storr[5] = noshadow1; // Indicate the count
+				cls.storr[6] = 16; // Scale 1
+			} // c == 2
 		}
 		else if (String_Match (scmd_arg0, "stor"))	{
 			// ZIRCON_EXT_STATIC_ENT_ALPHA_COLORMOD_SCALE_32
@@ -3520,6 +3541,20 @@ void CL_ParseHint (const char *str)
 
 		Con_DPrintLinef ("Game hint: " QUOTED_S " to " QUOTED_S, scmd_arg0, scmd_arg1);
 	}
+}
+
+void CL_ParseHintShortHand (const char *str)
+{
+	// 3alpha4
+	// find arg
+	cls.storr[0] = 6; // Indicate the count
+	cls.storr[1] = (unsigned char)str[3]; //alpha_byte0; // Indicate the count
+	cls.storr[2] = 0; // Indicate the count
+	cls.storr[3] = 0; // Indicate the count
+	cls.storr[4] = 0; // Indicate the count
+	cls.storr[5] = (unsigned char)str[4]; // noshadow1; // Indicate the count
+	cls.storr[6] = 16; // Scale 1
+	Con_DPrintLinef ("Shorthand game hint: alpha %d effects %d", cls.storr[1], cls.storr[5]);
 }
 
 // Baker: We read but do nothing with it
@@ -3757,6 +3792,14 @@ void CL_ParseServerMessage(void)
 				Con_DPrintLinef ("Received server hint: %s", str);
 				str += strlen (HINT_MESSAGE_PREFIX);
 				CL_ParseHint (str);
+				break; // Do not continue.
+			}
+
+			//                            01234
+			if (String_Starts_With (str, "//!")) {
+				Con_DPrintLinef ("Received server hint: %s", str);
+				//str += strlen (HINT_MESSAGE_PREFIX);
+				CL_ParseHintShortHand (str); // 3alpha4
 				break; // Do not continue.
 			}
 
@@ -4265,3 +4308,61 @@ void CL_Parse_Init(void)
 void CL_Parse_Shutdown(void)
 {
 }
+
+#if 0
+//blic bool IsPointInPolygon( Point p, Point[] polygon )
+WARP_X_ (floats_add1)
+qbool IsPointInPolygon (vec2_t p, vec2_t *points, int numpoints)
+{
+	vec2_t minz = { points[0].x, points[0].y};
+	vec2_t maxz = { points[0].x, points[0].y};
+    //double minX = polygon[ 0 ].X;
+    //double maxX = polygon[ 0 ].X;
+    //double minY = polygon[ 0 ].Y;
+    //double maxY = polygon[ 0 ].Y;
+    for (int i = 1; i < numpoints; i ++) {
+        vec2_t *q = points[i];
+		minz[0] = Smallest (q[0], minz[0]);
+		minz[1] = Smallest (q[1], minz[1]);
+		maxz[0] = Largest  (q[0], maxz[0]);
+		maxz[1] = Largest  (q[1], maxz[1]);
+        //minX = Math.Min( q.X, minX );
+        //maxX = Math.Max( q.X, maxX );
+        //minY = Math.Min( q.Y, minY );
+        //maxY = Math.Max( q.Y, maxY );
+    } // for
+
+    //if ( p.X < minX || p.X > maxX || p.Y < minY || p.Y > maxY ) {
+	if (in_range(minz[0], p[0], maxz[0]) == false)
+		return false;
+	if (in_range(minz[1], p[1], maxz[1]) == false)
+		return false;
+		//< minz[0] || p.X > maxX || p.Y < minY || p.Y > maxY ) {
+        
+    }
+#if 0
+    // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html
+    qbool inside = false;
+    for (int i = 0, j = numpoints - 1 ; i < polygon.Length ; j = i++ ) {
+        if ( ( polygon[ i ].Y > p.Y ) != ( polygon[ j ].Y > p.Y ) &&
+             p.X < ( polygon[ j ].X - polygon[ i ].X ) * 
+			 ( p.Y - polygon[ i ].Y ) / ( polygon[ j ].Y - polygon[ i ].Y ) + polygon[ i ].X )
+        {
+            inside = !inside;
+        }
+    }
+#endif
+    //for (int i = 0, j = polygon.Length - 1 ; i < polygon.Length ; j = i++ ) {
+    //    if ( ( polygon[ i ].Y > p.Y ) != ( polygon[ j ].Y > p.Y ) &&
+    //         p.X < ( polygon[ j ].X - polygon[ i ].X ) * 
+			 //( p.Y - polygon[ i ].Y ) / ( polygon[ j ].Y - polygon[ i ].Y ) + polygon[ i ].X )
+    //    {
+    //        inside = !inside;
+    //    }
+    //}
+
+    return inside;
+}
+#endif
+
+

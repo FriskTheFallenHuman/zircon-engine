@@ -325,13 +325,64 @@ const char **Cvar_CompleteBuildList(cvar_state_t *cvars, const char *partial, in
 	return buf;
 }
 
+// Baker: October 30 2024 - We get a crash with demo1 trying to autocomplete "mod"
+// But DarkPlaces Beta does not?
+
+// Zircon Beta is loading the map first. NO.
 void Cvar_PrintHelp(cvar_t *cvar, const char *name, qbool full)
 {
+// BAKER: Probe for autocvar_ that is a vector
+// if so and it has color ranges, color code it.
+	char *s_color_escape_za = NULL;
+
+	for (int prog_idx = 0; prog_idx <  PRVM_PROG_MAX_3; prog_idx ++) {
+		prvm_prog_t *prog = &prvm_prog_list[prog_idx];
+
+#if 1 // Baker: October 30 2024 - Bug fix for autocvar vector color detection that crashed autocomplete for demo1.dem
+		if (!prog->loaded)
+			continue; // Not loaded
+#endif
+
+		if (cvar->globaldefindex[prog_idx] < 0)
+			continue;
+		
+		// autocvar_
+		int glob_idx = cvar->globaldefindex[prog_idx];
+		
+		if ((prog->globaldefs[glob_idx].type & ~DEF_SAVEGLOBAL) != ev_vector)
+			break; // Found and not a vector
+
+		vec_t *v = PRVM_GLOBALFIELDVECTOR(prog->globaldefs[cvar->globaldefindex[prog_idx]].ofs);
+		int is_empty = !v[0] && !v[1] && !v[2];
+		if (is_empty)
+			break; // No values at all
+
+		s_color_escape_za = Color_Code_ZAlloc_Or_Null (v);
+		
+		// if s_color_escape_za == NULL, not a color otherwise it is.
+		break;	
+	} // for
+
+// END BAKER MOD
+
 	if (String_NOT_Match (cvar->name, name))
-		Con_Printf (CON_BRONZE "%s" CON_WHITE " (alias of " CON_BRONZE "%s" CON_WHITE ")", name, cvar->name); // Baker: purple to bronze.
+		Con_Printf (CON_BRONZE "%s" CON_WHITE " (alias of " CON_BRONZE "%s" 
+		CON_WHITE ")", name, cvar->name); // Baker: purple to bronze.
 	else
 		Con_Printf (CON_BRONZE "%s" CON_WHITE, name);
-	Con_Printf (" is " QUOTED_S CON_WHITE " [" QUOTED_S CON_WHITE "]", ((cvar->flags & CF_PRIVATE) ? "********"/*hunter2*/ : cvar->string), cvar->defstring);
+
+	if (s_color_escape_za) {
+		Con_Printf (" is " QUOTED_S CON_WHITE " (%sCOLOR" CON_WHITE ") [" QUOTED_S CON_WHITE "]", 
+			((cvar->flags & CF_PRIVATE) ? "********"/*hunter2*/ : cvar->string), 
+			s_color_escape_za,
+			cvar->defstring);
+		
+		Mem_FreeNull_ (s_color_escape_za);
+	} else {
+		Con_Printf (" is " QUOTED_S CON_WHITE " [" QUOTED_S CON_WHITE "]", 
+			((cvar->flags & CF_PRIVATE) ? "********"/*hunter2*/ : cvar->string), cvar->defstring);
+
+	}
 	if (full)
 		Con_Printf (" %s", cvar->description);
 	Con_Print("\n");
@@ -345,11 +396,11 @@ void Cvar_CompleteCvarPrint(cvar_state_t *cvars, const char *partial, int needed
 	// Loop through the command list and print all matches
 	for (cvar = cvars->vars; cvar; cvar = cvar->next)
 		if (!strncasecmp(partial, cvar->name, len) && (cvar->flags & neededflags))
-			Cvar_PrintHelp(cvar, cvar->name, true);
+			Cvar_PrintHelp(cvar, cvar->name, /*full?*/ true);
 		else
 			for (char **alias = cvar->aliases; alias && *alias; alias++)
 				if (!strncasecmp (partial, *alias, len) && (cvar->flags & neededflags))
-					Cvar_PrintHelp(cvar, *alias, true);
+					Cvar_PrintHelp(cvar, *alias, /*full?*/ true);
 
 
 }
@@ -754,6 +805,7 @@ Cvar_Get
 Adds a newly allocated variable to the variable list or sets its value.
 ============
 */
+// Baker: This can create a cvar (autocvar_)
 cvar_t *Cvar_Get(cvar_state_t *cvars, const char *name, const char *value, int flags, const char *newdescription)
 {
 	cvar_t *cvar;
@@ -1001,7 +1053,7 @@ void Cvar_RestoreInitState(cvar_state_t *cvars)
 			// Baker r9002: DarkPlaces Beta gamedir switch crash bug-fix
 			for (hash_cur = cvars->hashtable[hashindex]; hash_cur; hash_cur = hash_cur->next) {
 				cvar_t *cvar_current = hash_cur->cvar;
-				Con_PrintLinef ("Unlinking %s", c->name);
+				Con_DPrintLinef ("Unlinking %s", c->name);
 				if (cvar_current == c) {
 					// Destroy the hash struct, it was Z_ allocated
 					if (hash_prev) {
@@ -1269,6 +1321,9 @@ void Cvar_List_f(cmd_state_t *cmd)
 }
 
 // 2000-01-09 CvarList command by Maddes
+// Baker: Xonotic example ...
+// set hud_configure_teamcolorforced 0 "1 = force display of team colors in configure mode"
+
 void Cvar_Set_f(cmd_state_t *cmd)
 {
 	cvar_state_t *cvars = cmd->cvars;
@@ -1294,7 +1349,8 @@ void Cvar_Set_f(cmd_state_t *cmd)
 }
 
 
-
+// Baker: Xonotic example ...
+// seta hud_configure_teamcolorforced 0 "1 = force display of team colors in configure mode"
 void Cvar_SetA_f(cmd_state_t *cmd)
 {
 	cvar_state_t *cvars = cmd->cvars;

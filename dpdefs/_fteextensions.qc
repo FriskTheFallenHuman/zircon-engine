@@ -527,7 +527,7 @@ int trace_surfaceflags;
 int trace_brush_id;
 int trace_brush_faceid;
 int trace_surface_id;	/* 1-based. 0 if not known. */
-int trace_bone_id;	/* 1-based. 0 if not known. typically needs MOVE_HITMODEL. */
+int trace_bone_id;	/* 1-based. 0 if not known. typically needs MOVE_HITMODEL_4. */
 int trace_triangle_id;	/* 1-based. 0 if not known. */
 #endif
 #ifdef CSQC
@@ -1124,11 +1124,11 @@ const float FL_FINDABLE_NONSOLID = 16384;	/* Allows this entity to be found with
 const float FL_LAGGEDMOVE = 65536;	/* Enables anti-lag on rockets etc. */
 #endif
 #if defined(CSQC) || defined(SSQC)
-const float MOVE_NORMAL = 0;
-const float MOVE_NOMONSTERS = 1;	/* The trace will ignore all non-solid_bsp entities. */
-const float MOVE_MISSILE = 2;	/* The trace will use a bbox size of +/- 15 against entities with FL_MONSTER set. */
-const float MOVE_WORLDONLY = 3;	/* The trace will ignore everything but the worldmodel. This is useful for to prevent the q3bsp pvs+culling issues that come with spectator modes leaving the world . */
-const float MOVE_HITMODEL = 4;	/* Traces will impact the actual mesh of the model instead of merely their bounding box. Should generally only be used for tracelines. Note that this flag is unreliable as an object can animate through projectiles. The bounding box MUST be set to completely encompass the entity or those extra areas will be non-solid (leaving a hole for things to go through). */
+const float MOVE_NORMAL_0 = 0;
+const float MOVE_NOMONSTERS_1 = 1;	/* The trace will ignore all non-solid_bsp entities. */
+const float MOVE_MISSILE_2 = 2;	/* The trace will use a bbox size of +/- 15 against entities with FL_MONSTER set. */
+const float MOVE_WORLDONLY_3 = 3;	/* The trace will ignore everything but the worldmodel. This is useful for to prevent the q3bsp pvs+culling issues that come with spectator modes leaving the world . */
+const float MOVE_HITMODEL_4 = 4;	/* Traces will impact the actual mesh of the model instead of merely their bounding box. Should generally only be used for tracelines. Note that this flag is unreliable as an object can animate through projectiles. The bounding box MUST be set to completely encompass the entity or those extra areas will be non-solid (leaving a hole for things to go through). */
 const float MOVE_TRIGGERS = 16;	/* This trace type will impact only triggers. It will ignore non-solid entities. */
 const float MOVE_EVERYTHING = 32;	/* This type of trace will hit solids and triggers alike. Even non-solid entities. */
 #endif
@@ -1691,9 +1691,9 @@ void(vector v1, vector v2, float flags, entity ent) traceline = #16; /*
 		Will not collide with ent, ent.owner, or any entity who's owner field refers to ent.
 		The passed entity will also be used to determine whether to use a capsule trace, the contents that the trace should impact, and a couple of other extra fields that define the trace.
 		There are no side effects beyond the trace_* globals being written.
-		flags&MOVE_NOMONSTERS will not impact on non-bsp entities.
-		flags&MOVE_MISSILE will impact with increased size.
-		flags&MOVE_HITMODEL will impact upon model meshes, instead of their bounding boxes.
+		flags&MOVE_NOMONSTERS_1 will not impact on non-bsp entities.
+		flags&MOVE_MISSILE_2 will impact with increased size.
+		flags&MOVE_HITMODEL_4 will impact upon model meshes, instead of their bounding boxes.
 		flags&MOVE_TRIGGERS will also stop on triggers
 		flags&MOVE_EVERYTHING will stop if it hits anything, even non-solid entities.
 		flags&MOVE_LAGGED will backdate entity positions for the purposes of this builtin according to the indicated player ent's latency, to provide lag compensation. */
@@ -3128,7 +3128,9 @@ void(entity e, string s) clientcommand = #440; /* Part of KRIMZON_SV_PARSECLIENT
 float(string s) tokenize = #441; /* Part of KRIMZON_SV_PARSECLIENTCOMMAND*/
 string(float n) argv = #442; /* Part of KRIMZON_SV_PARSECLIENTCOMMAND*/
 void(entity e, entity tagentity, string tagname) setattachment = #443; /* Part of DP_GFX_QUAKE3MODELTAGS*/
-searchhandle(string pattern, enumflags:float{SB_CASEINSENSITIVE=1<<0,SB_FULLPACKAGEPATH=1<<1,SB_ALLOWDUPES=1<<2,SB_FORCESEARCH=1<<3} flags, float quiet, optional string filterpackage) search_begin = #444; /* Part of DP_QC_FS_SEARCH, DP_QC_FS_SEARCH_PACKFILE
+searchhandle(string pattern, enumflags:float{SB_CASEINSENSITIVE=1<<0,SB_FULLPACKAGEPATH=1<<1,
+			 SB_ALLOWDUPES=1<<2,SB_FORCESEARCH=1<<3} flags, 
+			 float quiet, optional string filterpackage) search_begin = #444; /* Part of DP_QC_FS_SEARCH, DP_QC_FS_SEARCH_PACKFILE
 		initiate a filesystem scan based upon filenames. Be sure to call search_end on the returned handle. SB_FULLPACKAGEPATH interprets the filterpackage arg as a full package path to avoid gamedir ambiguity, equivelent to whichpack's WP_FULLPACKAGEPATH flag. SB_ALLOWDUPES allows returning multiple entries with the same name (but different package, useful with search_fopen). SB_FORCESEARCH requires use of the filterpackage and SB_FULLPACKAGEPATH flag, initiating searches from gamedirs/packages which are not currently active. */
 
 void(searchhandle handle) search_end = #445; /* Part of DP_QC_FS_SEARCH, DP_QC_FS_SEARCH_PACKFILE*/

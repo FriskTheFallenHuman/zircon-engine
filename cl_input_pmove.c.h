@@ -25,7 +25,7 @@ static void CL_ClientMovement_UpdateStatus (cl_clientmovement_state_t *s, int co
 		// low ceiling first
 		if (s->crouched) {
 			trace = CL_TraceBox (s->origin, cl.playerstandmins, cl.playerstandmaxs, s->origin,
-				MOVE_NORMAL, s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP,
+				MOVE_NORMAL_0, s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP,
 				0, 0, collision_extendmovelength.value, q_hitbrush_true,
 				/*HITT_PLAYERS_1*/ collide_type, q_hitnetwork_ent_NULL, q_hitcsqcents_true);
 			if (!trace.startsolid)
@@ -45,7 +45,7 @@ static void CL_ClientMovement_UpdateStatus (cl_clientmovement_state_t *s, int co
 	VectorSet (origin2, s->origin[0], s->origin[1], s->origin[2] - 1); // -2 causes clientside doublejump bug at above 150fps, raising that to 300fps :)
 
 	int icollide;
-	trace = CL_TraceBox(origin1, s->mdl_mins, s->mdl_maxs, origin2, MOVE_NORMAL, s->self,
+	trace = CL_TraceBox(origin1, s->mdl_mins, s->mdl_maxs, origin2, MOVE_NORMAL_0, s->self,
 		SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP, 0, 0,
 		collision_extendmovelength.value, q_hitbrush_true,
 		/*HITT_PLAYERS_1*/ collide_type, &icollide /*q_hitnetwork_ent_NULL*/, q_hitcsqcents_true);
@@ -63,16 +63,16 @@ static void CL_ClientMovement_UpdateStatus (cl_clientmovement_state_t *s, int co
 	// set watertype/waterlevel
 	VectorSet(origin1, s->origin[0], s->origin[1], s->origin[2] + s->mdl_mins[2] + 1);
 	s->waterlevel = WATERLEVEL_NONE_0;
-	s->watertype = CL_TracePoint(origin1, MOVE_NOMONSTERS,
+	s->watertype = CL_TracePoint(origin1, MOVE_NOMONSTERS_1,
 		s->self, 0, 0, 0, q_hitbrush_true, HITT_NOPLAYERS_0, q_hitnetwork_ent_NULL, q_hitcsqcents_false).startsupercontents & SUPERCONTENTS_LIQUIDSMASK;
 
 	if (s->watertype) {
 		s->waterlevel = WATERLEVEL_WETFEET_1;
 		origin1[2] = s->origin[2] + (s->mdl_mins[2] + s->mdl_maxs[2]) * 0.5f;
-		if (CL_TracePoint(origin1, MOVE_NOMONSTERS, s->self, 0, 0, 0, q_hitbrush_true, HITT_NOPLAYERS_0, q_hitnetwork_ent_NULL, q_hitcsqcents_false).startsupercontents & SUPERCONTENTS_LIQUIDSMASK) {
+		if (CL_TracePoint(origin1, MOVE_NOMONSTERS_1, s->self, 0, 0, 0, q_hitbrush_true, HITT_NOPLAYERS_0, q_hitnetwork_ent_NULL, q_hitcsqcents_false).startsupercontents & SUPERCONTENTS_LIQUIDSMASK) {
 			s->waterlevel = WATERLEVEL_SWIMMING_2;
 			origin1[2] = s->origin[2] + 22;
-			if (CL_TracePoint(origin1, MOVE_NOMONSTERS, s->self, 0, 0, 0, q_hitbrush_true, HITT_NOPLAYERS_0, q_hitnetwork_ent_NULL, q_hitcsqcents_false).startsupercontents & SUPERCONTENTS_LIQUIDSMASK)
+			if (CL_TracePoint(origin1, MOVE_NOMONSTERS_1, s->self, 0, 0, 0, q_hitbrush_true, HITT_NOPLAYERS_0, q_hitnetwork_ent_NULL, q_hitcsqcents_false).startsupercontents & SUPERCONTENTS_LIQUIDSMASK)
 				s->waterlevel = WATERLEVEL_SUBMERGED_3;
 		}
 	}
@@ -102,7 +102,7 @@ static void CL_ClientMovement_Move (cl_clientmovement_state_t *s, int collide_ty
 	for (bump = 0, t = s->cmd.clx_frametime; bump < 8 && VectorLength2(s->velocity) > 0;bump++) {
 		VectorMA(s->origin, t, s->velocity, neworigin);
 		int icollide = 0;
-		trace = CL_TraceBox(s->origin, s->mdl_mins, s->mdl_maxs, neworigin, MOVE_NORMAL,
+		trace = CL_TraceBox(s->origin, s->mdl_mins, s->mdl_maxs, neworigin, MOVE_NORMAL_0,
 			s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP,
 			0, 0, collision_extendmovelength.value, q_hitbrush_true, /*HITT_PLAYERS_1*/ collide_type,
 			&icollide /*q_hitnetwork_ent_NULL*/, q_hitcsqcents_true);
@@ -113,7 +113,7 @@ static void CL_ClientMovement_Move (cl_clientmovement_state_t *s, int collide_ty
 			// first move forward at a higher level
 			VectorSet(currentorigin2, s->origin[0], s->origin[1], s->origin[2] + cl.movevars_stepheight);
 			VectorSet(neworigin2, neworigin[0], neworigin[1], s->origin[2] + cl.movevars_stepheight);
-			trace2 = CL_TraceBox(currentorigin2, s->mdl_mins, s->mdl_maxs, neworigin2, MOVE_NORMAL,
+			trace2 = CL_TraceBox(currentorigin2, s->mdl_mins, s->mdl_maxs, neworigin2, MOVE_NORMAL_0,
 				s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP,
 				SUPERCONTENTS_SKIP_NONE_0, MATERIALFLAG_NONE_0,
 				collision_extendmovelength.value, q_hitbrush_true,
@@ -123,7 +123,7 @@ static void CL_ClientMovement_Move (cl_clientmovement_state_t *s, int collide_ty
 				// then move down from there
 				VectorCopy(trace2.endpos, currentorigin2);
 				VectorSet(neworigin2, trace2.endpos[0], trace2.endpos[1], s->origin[2]);
-				trace3 = CL_TraceBox(currentorigin2, s->mdl_mins, s->mdl_maxs, neworigin2, MOVE_NORMAL, s->self,
+				trace3 = CL_TraceBox(currentorigin2, s->mdl_mins, s->mdl_maxs, neworigin2, MOVE_NORMAL_0, s->self,
 					SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP, 0, 0,
 					collision_extendmovelength.value, q_hitbrush_true,
 					/*HITT_PLAYERS_1*/ collide_type, q_hitnetwork_ent_NULL, q_hitcsqcents_true);
@@ -179,10 +179,10 @@ static void CL_ClientMovement_Physics_Swim (cl_clientmovement_state_t *s, int co
 		AngleVectors(yawangles, forward, NULL, NULL);
 		VectorMA(s->origin, 24, forward, spot);
 		spot[2] += 8;
-		if (CL_TracePoint(spot, MOVE_NOMONSTERS, s->self, 0, 0, 0, true, HITT_NOPLAYERS_0, NULL, false).startsolid)
+		if (CL_TracePoint(spot, MOVE_NOMONSTERS_1, s->self, 0, 0, 0, true, HITT_NOPLAYERS_0, NULL, false).startsolid)
 		{
 			spot[2] += 24;
-			if (!CL_TracePoint(spot, MOVE_NOMONSTERS, s->self, 0, 0, 0, true, HITT_NOPLAYERS_0, NULL, false).startsolid) {
+			if (!CL_TracePoint(spot, MOVE_NOMONSTERS_1, s->self, 0, 0, 0, true, HITT_NOPLAYERS_0, NULL, false).startsolid) {
 				VectorScale(forward, 50, s->velocity);
 				s->velocity[2] = 310;
 				s->waterjumptime = 2;
@@ -520,10 +520,10 @@ static void CL_ClientMovement_Physics_Walk (cl_clientmovement_state_t *s, int co
 				VectorSet(neworigin2, s->origin[0] + s->velocity[0]*(16/speed), s->origin[1] + s->velocity[1]*(16/speed), s->origin[2] + s->mdl_mins[2]);
 				VectorSet(neworigin3, neworigin2[0], neworigin2[1], neworigin2[2] - 34);
 				if (cls.protocol == PROTOCOL_QUAKEWORLD)
-					trace = CL_TraceBox (neworigin2, s->mdl_mins, s->mdl_maxs, neworigin3, MOVE_NORMAL, s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP, 0, 0, collision_extendmovelength.value, true,
+					trace = CL_TraceBox (neworigin2, s->mdl_mins, s->mdl_maxs, neworigin3, MOVE_NORMAL_0, s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP, 0, 0, collision_extendmovelength.value, true,
 					/*HITT_PLAYERS_1*/ collide_type, q_hitnetwork_ent_NULL, q_hitcsqcents_true);
 				else
-					trace = CL_TraceLine(neworigin2, neworigin3, MOVE_NORMAL, s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP, 0, 0, collision_extendmovelength.value, true,
+					trace = CL_TraceLine(neworigin2, neworigin3, MOVE_NORMAL_0, s->self, SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP, 0, 0, collision_extendmovelength.value, true,
 					/*HITT_PLAYERS_1*/ collide_type, q_hitnetwork_ent_NULL, q_hitcsqcents_true, q_hitsuraces_false);
 				if (trace.fraction == 1 && !trace.startsolid)
 					friction *= cl.movevars_edgefriction;
@@ -641,7 +641,7 @@ static void PM_CheckWaterJump (cl_clientmovement_state_t *s)
 	spot[2] += 8;
 
 	int pmove_contents =
-		CL_TracePoint(spot, MOVE_NOMONSTERS,
+		CL_TracePoint(spot, MOVE_NOMONSTERS_1,
 		s->self, /*hit skip skip*/ 0, 0, 0, q_hitbrush_true, HITT_NOPLAYERS_0,
 		q_hitnetwork_ent_NULL, q_hitcsqcents_false).startsupercontents;// & SUPERCONTENTS_LIQUIDSMASK;
 
@@ -649,7 +649,7 @@ static void PM_CheckWaterJump (cl_clientmovement_state_t *s)
 	if (Have_Flag (pmove_contents, SUPERCONTENTS_SOLID) == false)
 		return;
 	spot[2] += 24;
-	pmove_contents = 		CL_TracePoint(spot, MOVE_NOMONSTERS,
+	pmove_contents = 		CL_TracePoint(spot, MOVE_NOMONSTERS_1,
 		s->self, /*hit skip skip*/ 0, 0, 0, q_hitbrush_true, HITT_NOPLAYERS_0,
 		q_hitnetwork_ent_NULL, q_hitcsqcents_false).startsupercontents;// & SUPERCONTENTS_LIQUIDSMASK;
 
@@ -720,7 +720,7 @@ int Is_In_Bad_Place_Ent_Plus1 (cl_clientmovement_state_t *s, int collide_type)
 	// Do we really want water check here?
 
 	check_our_player_trace = CL_TraceBox (s->origin, cl.playerstandmins, cl.playerstandmaxs, s->origin,
-		MOVE_NORMAL, s->self,
+		MOVE_NORMAL_0, s->self,
 		/*hit these*/  SUPERCONTENTS_SOLID | SUPERCONTENTS_BODY | SUPERCONTENTS_PLAYERCLIP,
 		/*skip these*/ SUPERCONTENTS_SKIP_NONE_0,
 		/*skip these*/ MATERIALFLAG_NONE_0,

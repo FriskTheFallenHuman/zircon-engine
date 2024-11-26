@@ -34,7 +34,7 @@ void GoogleRobotoFont_Check(void)
 			WARP_X_ (Font_UnloadFont)
 			zdev_dpfont = (dp_font_t *)Mem_Alloc(fonts_mempool, sizeof(dp_font_t) * ONE_CHAR_1);
 
-			size_t mem_length = sizeof(roboto_medium_bin);	
+			size_t mem_length = sizeof(roboto_medium_bin); // Source: roboto.medium.ttf.bin.h	
 			const byte *mem = (const byte *)roboto_medium_bin; // const byte *mem = Bundle_Pointer (3, &mem_length);
 			byte *font_memcopy = (byte *)Mem_DupZ (fonts_mempool, mem, mem_length); // Font system expects to free this and it uses the fonts mempool		
 

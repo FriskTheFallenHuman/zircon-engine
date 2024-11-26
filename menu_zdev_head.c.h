@@ -67,8 +67,8 @@ typedef enum {
 	lw_csqc_ents_9		= 9,
 	lw_csqc_globals_10	= 10,
 	lw_csqc_fields_11	= 11,
-	lw_obs_zircon_extras_12	= 12,
-	lw_obs_count_13		= 13,
+	//lw_obs_zircon_extras_12	= 12,
+	//lw_obs_count_13		= 13,
 
 	lw_quake_rc_12		= 12,
 	lw_default_cfg_13	= 13,
@@ -76,6 +76,10 @@ typedef enum {
 	lw_config_cfg_15	= 15,
 	lw_map_ents_16		= 16,
 	lw_rtlights_17		= 17,
+	lw_zircfeatures_18	= 18,
+	lw_zircdev_19		= 19,
+	lw_zircpreproces_20 = 20,
+	lw_obs_count_21		= 21,
 } lw_e; // list_what
 
 typedef struct _theme_s {
@@ -120,10 +124,10 @@ void MZ_Reset (void)
 void DEV_Category_Rotate (int dir)
 {
 	mz->list_what += dir;
-	if (mz->list_what >= lw_obs_count_13)
+	if (mz->list_what >= lw_obs_count_21)
 		mz->list_what = 0;
 	else if (mz->list_what < 0)
-		mz->list_what = lw_obs_count_13 - 1;
+		mz->list_what = lw_obs_count_21 - 1;
 
 	mz->table_is_clean = false;	
 }
@@ -212,6 +216,7 @@ void CL_Sounds_Query (feed_fn_t myfeed_shall_stop);
 
 //char *PRVM_Entities_Query_EdictNum_ZAlloc (prvm_prog_t *prog, int edict_num, ccs *fieldname);
 
+WARP_X_CALLERS_ (M_ZDev_Draw)
 void Data_Dirty_Check (void)
 {
 	if (mz->table_is_clean) return;
@@ -327,10 +332,6 @@ void Data_Dirty_Check (void)
 		}
 
 		PRVM_Entities_Query_Fieldname (SVVM_prog, ZDev_Entities_Feed_Shall_Stop_Fn, "classname");
-		break;
-
-	case lw_obs_zircon_extras_12:
-		stringlistappend (&mz->list, "Zircon extras");
 		break;
 
 	default:

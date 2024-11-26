@@ -1,0 +1,461 @@
+Zircon Features Added
+
+Partial List - November 5 2024. Updated November 7 2024.
+===================================================================================================
+
+- Mouse-driven menu.
+- ALT-ENTER window fullscreen switch, resizable window.
+- Quake Re-Release Support
+
+- "devinfo" console command displays developer info in a mouse-driven interface.
+- "tool_inspector 1" to visually examine entities.
+
+- Maps menu (replaces Help/Ordering).
+- Automatic 2D scaling to nearest 360P height.
+
+- Save games menu with screenshots ("sv_save_screenshots 0" to disable).
+- Save games have screenshots embedded in them (Quakespasm / DarkPlaces compatible = they ignore).
+- Save games store background music playback progress (Quakespasm / DarkPlaces compatible = they ignore).
+
+- Multiplayer Menu - server list sortable by map/player count shows who is playing.
+- Windows is able to do WinQuake style dedicated server:  i.e. "c:\quake\zircon.exe -dedicated 8 +coop 1 +map start"
+- WinQuake style dedicated server console can be pasted into.
+
+- DarkPlaces effects levels in Menu->Options (effects tiers that group many settings).
+
+- "eq" equation processor.  i.e. type "eq 2 + 2 + sin(1) + sqrt(4)" or "eq 0xFF" (hex) in the console.
+
+- Multiple monster "brightening" options available in Menu->Options
+- Windows sound start will fallback, reduce and retry if setup not available (instead of no sound).
+
+- Supports mirror textures, .md3 and .obj models, the Quake 3 map format and .OBJ as a map format.
+  (See KleskBY Qualker 0.2 for examples of Blender made OBJ models as a map.  Qualker 0.3 uses Q3 bsp.)
+
+Console
+===================================================================================================
+
+The Zircon console supports selecting text, copying, pasting, select all (CTRL-A), undo (CTRL-Z)
+and autocompletion from nothing (CTRL-SPACE).
+
+Zircon has console autocompletion of over 50 types of fields.  It will complete your map name, your
+model name, QuakeC entity fields, texture names, sounds names, demo names and many other types.
+
+- "copy" command to copy console.
+- "folder" command opens specified folder (no arguments opens current -game folder like "id1"). 
+- Thin console cursor, no cursor overwrite mode.
+- Size the console: Ctrl-Up, Ctrl-Down adjust size the console size like JoeQuake.
+- Zoom: CTRL-PLUS zoom in, CTRL-MINUS zoom out, CTRL-ZERO reset zoom.
+- Mouse-select rows and press CTRL-C to copy to clipboard.
+
+- CTRL-SHIFT-Z is redo.
+- CTRL-L clears console.
+
+The following may disable selecting text at this time:
+
+* Activating unicode ("utf8_enable 1")
+* Use of a variable width console font like Arial.
+* Colored text (^^3 ^3 I AM BRONZE^7) or (^^x888 ^x888 I am Gray^7)
+
+Single Player Improvements
+===================================================================================================
+
+- Loads and renders fog like Quakespasm (DarkPlaces totally obscured sky with any fog).
+- WinQuake underwater (r_waterwarp 2).
+- WinQuake twisty water texture (r_waterdeform 1: water/slime, r_waterdeform 2: lava/teleporters too).
+- Quake Remaster HUD (Quake 64 style HUD).
+- FitzQuake/Quakespasm noclipping behavior + do not touch triggers (sv_altnoclipmove 0 to disable).
+- Fence texture model support for Q1 .mdl (xmas jam 2020 shades map trees was test case).
+- Several commands similar to Quakespasm for familiarity: "game", "setpos", "freezeall", "edicts" ..
+- Key setup streamlined order, elimination of "???" for unbound keys.
+- "sv_gameplayfix_fiendjumpfix 1" (default is 0, due to issues with Quake 1.5 sliding corpses).
+- "snd_waterfx 1" -- muffles sound underwater (default is 1).
+- gl_texturemode in menu and saves to config (Menu->Options->Video Mode).
+- Fix for save game issues with saving special characters from ITdevkc ("wickedstart").
+- Capable of playing Quakespasm protocol 666/999 demos (and as connecting as client or server).
+- "shot1sid" shotgun shells texture fix almost all non-DarkPlaces engines have (see DM3 bridge shotgun shells).
+
+- Handles quake.rc without default.cfg present in the file (SMEJ2)
+- "record" a demo at any time
+- Quake bronze color replaces DarkPlaces bright yellow for "bronzed text".
+- "cl_beams_polygons 0" classic lightning is the default lightning gun effect.
+- "mod_q3shader_default_polygonoffset -48" default for better Q3 decal projection. (Was -2 = flickers).
+
+- +zoom is available.  "bind mouse2 +zoom".
+
+DarkPlaces Protocol 7 Enhancements
+===================================================================================================
+
+Zircon extends DarkPlaces protocol 7 retaining full compatibility, a DarkPlaces 
+client can connect to a Zircon server for example.
+
+Zircon Protocol Extensions:
+
+- FTEQW Chunked downloads (ZIRCON_EXT_CHUNKED_2)
+  40-200 times faster than DarkPlaces normal download.
+  
+- Support for alpha, colormod, fullbright, noshadow, scale, additive for static 
+  entities. (ZIRCON_EXT_STATIC_ENT_ALPHA_COLORMOD_SCALE_32)
+  
+- Zircon also sends more data on entity solidity, bounding box -- this allows
+  better client-side prediction (ZIRCON_EXT_NONSOLID_FLAG_8, 
+  ZIRCON_EXT_32BIT_RENDER_FLAGS_16, ZIRCON_EXT_SERVER_SENDS_BBOX_TO_CLIENT_64).
+  
+- Zircon also has experimental "1000 ping server mode" and players can walk
+  through players capability to support full-client side movement cooperative
+  game play with truly terrible ping. "Zircon Free Move".
+
+Quakeworld
+===================================================================================================
+
+Zircon took DarkPlaces support for playing Quakeworld and improved it greatly:
+
+1. Support for some FTE extensions for better cooperative play (Freewill's Let's QW Coop is great).
+   PEXT_256PACKETENTITIES PEXT_ENTITYDBL PEXT_ENTITYDBL2
+        
+2. Support for FTE chunked downloads (super-fast, 40 to 200 times faster).  
+   Chunked downloads are faster because the server does not wait for a reply
+   before sending more data.
+   
+3. "join" and "observe" support.
+
+4. Better spectator support.  (TODO: Detail of what was improved.)
+
+5. "force_centerview" resets rollangle.
+
+Zircon Console Keys
+=============================
+
+CTRL-SPACE      Force autocompletion attempt
+
+CTRL-L  Clear Console
+CTRL-I  Inspector
+CTRL-P  Pause Freeze
+CTRL-T  Traceline
+
+CTRL +  Zoom In
+CTRL -  Zoom Out
+CTRL 0  Zoom Reset
+
+CTRL-SHIFT-P    Showpos
+CTRL-SHIFT-S    Hide HUD (Screenshot Prep)
+
+CTRL UP         Size Console
+CTRL Down       Size Console
+
+CTRL-R  Recall Find
+
+CTRL-F  Find in history
+CTRL-Q  Cancel current command and store in history.
+CTRL-,  Goto first line in history
+CTRL-.  Goto last line in history
+
+Quake 3 Map Packaging Command: "pak_this_map"
+===================================================================================================
+
+Load a Quake 3 format map and type "pak_this_map myfolder" now search through the bsp and find
+textures, shader snippets and any .ogg or .wav files that the map has in entity fields and will put 
+those in the folder -- ready to make a .pk3
+
+TODO: Document "pak_this_map" aggregation mode.
+
+Developer Quick List
+===================================================================================================
+
+1. "cvar_reset fov" resets fov to default.
+2. "tool_marker 200 200 200" will display a marker at that position on the map (no depth check).
+3. "tool_inspector 1" will display entity numbers on-screen with classname and model name.
+
+4. "pos" print current position.  
+5. "copy ents" entities text to clipboard (sv_saveentfile except to clipboard).
+6. "showpos 1; showangles 1" show current position and angles.
+7. "showtex 1" show texture name.  "copy tex" texture name to clipboard. "shaderprint" shader text.
+8. "r_drawentities 29" will only draw entity 29.  On the start map, this is a wall zombie by lava.
+
+9. Autocvars that are vectors will print a color key if values are in the correct ranges.
+
+    ]particle_color1
+    particle_color4 is "128 0 128" (^x808COLOR^7) ["128 0 128"] custom cvar
+
+10. "edict" enhanced display (sorted, extra detail, flags bits, color key):
+
+        ]edict 12
+        classname      monster_shambler
+        colormod       '6.03999996 1 1' (^xF33COLOR^7) // * color key
+        enemy          entity 1
+        flags          131616 ^3(32 + 512 + 131072)^7 // * flag combination
+        model          progs/shambler.mdl
+        modelindex     46
+        movetype       4 ^3(movetype_step)^7 // * movetype constant displayed
+        nextthink      4.81874228
+        origin         '-141.548157 -1011.69043 24.03125'
+        solid          3 ^3(solid_slidebox)^7 // * solid constant displayed
+
+11. "edicts door" finds all entities with "classname" containing "door".
+12. "edicts targetname door1" finds all entities with targetname containing "door1".
+
+13.  "v_viewheight 28" for Half-Life. Quake is "v_viewheight 22". Crouching: "v_viewheight -20".
+    
+    For testing only as this is totally *not* at all the "right" way to do this.
+    
+    QuakeC: client.qc -> PutClientInServer -> self.view_ofs = '0 0 22'; // Right way to do this.
+
+14. "map" shows how many triangles ==> num triangles  136 (verts: 274)
+
+15. "texturefindpos floor" finds location in the map with "floor" in name (replacement textures).
+16. "r_replacemaptexture city4_6 textures/apple.png" replace start map floor texture with apple.png.
+
+17. "playvideo babel.gif" will play the animated gif "quake\id1\video\babel.gif" as a video.
+18. Animated GIF to shader: "giftoshader myfile.gif" makes .tga files from quake/id1/myfile.gif, 
+    shader text to clipboard.
+===================================================================================================
+
+19. "devinfo" -> "Models" shows triangle counts for every model.
+20. "purgeall" clears all maps/models so they must completely reload (does not purge textures).
+21. "showmodel progs/zombie.mdl" make func_illusionary model 200 units forward of player (model testing).
+
+22. "modeldecompile" in Zircon supports submodels (func_door, func_wall .. they have names like "*38").
+    "modeldecompile *38" will take start map func_bossgate floor of atrium and write a .obj model.    
+
+23. "devinfo" -> "Map" shows all worldspawn keys ...
+
+        "classname" "worldspawn"
+        "_q3map2_version" "2.5.17ry_baker_2024_July_6"
+        "_q3map2_cmdline" "-bsp -meta -mv 1000000 -mi 6000000 -samplesize 8; -vis -saveprt -fast; -light -deluxe -faster -cheapgrid -filter -gamma 0.5"
+        "_generator" "J.A.C.K. 1.1.3773 Freeware (vpQuake3)"
+        "_minlight" "24"
+        "sky" "moonrise_"
+        "fog" "0.04 0.3 0.2 0.3" // [density] [red] [green] [blue] [optional alpha few maps use causing Quakespasm to default r_skyfog 0.5]
+        "sounds" "5" // This sound track ... sound/cdtracks/track005.ogg
+        "message" "Welcome To This Map"        
+
+24. "shaderprint" (with "showtex 1" on), prints shader text of texture looked at.
+
+        ]shaderprint
+        textures/savdm6ish/#teleport 
+        { 
+         qer_editorimage textures/zz_liquids/ruiner_teleport.jpg 
+         qer_nocarve 
+         surfaceparm noimpact 
+         surfaceparm nolightmap 
+         q3map_surfacelight 1000 
+         cull disable 
+         { 
+          map textures/zz_liquids/ruiner_teleport.jpg 
+          tcMod turb 0 0.2 0 0.04 
+         } 
+        }
+
+===================================================================================================
+25. Mass JPEG convert: "jpegsplit textures/ambientcg go" TGA/PNG + alpha channel as tex01_alpha.jpg.
+
+    This was used to help turn the 5.4 GB Quake Rivarez Edition into a JPEG Version of 1.2 GB with 
+    no loss of detail that I could notice, in part because the textures in Rivarez Edition are huge.
+    
+    Note that Quake 3 map format use of alpha channels in textures requires a shader.
+    
+        textures/fence01
+        {
+         surfaceparm alphashadow // light phase of Q3Map2 use alpha channel mask for casting shadows
+         surfaceparm trans // pre-computed visibility should not be blocked by this surface
+         cull disable // default is cullback
+         {
+          map textures/fence01.tga
+          alphaFunc GT0 // GT0 or LT128 or GE128
+         }
+         {
+          map $lightmap
+          blendfunc filter // shorthand for "blend gl_zero gl_src_color"
+         }
+        }
+
+
+26. MD3 Tags for Quake 1 .mdl:
+
+    progs/shambler.mdl.md3tags contents ...
+
+    // progs/shambler.mdl.md3tags
+    // mdl tag file indicating triangles to tag (supports // comments)
+    tagfacecenter,96,tagfacetop,121,tagfront1,95
+  
+    Example QuakeC that would put sunglasses on the Shambler:
+    
+        entity xt = spawn();
+        xt.movetype = MOVETYPE_NOCLIP;
+        xt.solid = SOLID_NOT_0;                 
+        xt.classname = "attachment";            
+        setattachment (xt, self, "tagfacecenter");
+        xt.origin = '5 0 -3';
+        xt.angles = '0 180 190';
+        xt.scale = 0.4;
+        xt.model = xt.mdl = "models/rayban.obj";
+        precache_model  (xt.mdl);
+        setmodel (xt, xt.mdl);           
+
+27. MD3 Tags for OBJ Model:
+
+    Here are how the MD3 Tags are defined in a OBJ (which is a text file model format):
+
+        # File: models/vehicle/helicopter.obj
+        mtllib unused.mtl
+        #
+        tagname propellor_topp -50.2 0.0 26.8
+        tagname propellor_rear 102.8 0.7 20.6
+
+Zircon Specific
+===================================================================================================
+
+1. Intermap Travel.  Return to a map and the entities from last exit persist.  Single player (ish).
+
+   Example: Zircon Intermap Travel Demo
+
+2. Shader: deformVertexes roundwave <radius> <wavesize> <radiusexponent> <x> <y> <z> {wavefunc}
+
+   Source Blood Omnicide DarkPlaces.  Example map: park.bsp in Zircon Intermap Travel Demo.
+   
+   Example:
+   
+        textures/liquids/water4_wave
+        { 
+         qer_editorimage textures/zz_liquids/waterfall_alpha_72 
+         surfaceparm water 
+         surfaceparm noimpact 
+         surfaceparm nolightmap 
+         surfaceparm trans 
+         cull disable 
+        //<radius> <wavesize> <radiusexponent> <x> <y> <z> {wavefunc} 
+         deformVertexes roundwave 200 200 0.5 -1660 666 3 sin 0 12.00  0.0 0.5 
+         
+
+         tessSize 64 
+         q3map_globaltexture   
+         dpGlossIntensityMod 0.75 
+         dpGlossExponentMod 2.0 
+         dpReflectCube cubemaps/dev_cubemap_ 
+         q3map_bounceScale 1.50   
+         {   
+          map textures/zz_liquids/waterfall_alpha_72  
+          rgbGen vertex 
+          tcMod turb 0 0.2 0 0.08    
+         } 
+        }   
+
+3. Shader deformation: deformVertexes bulge <bulgeWidth> <bulgeHeight> <bulgeSpeed>
+   deformVertexes bulge 10 3 3 0.18 
+
+4. Shader Framemap.  Allows buttons to change texture based on .frame.
+
+        textures/trak5x_sh/buttonoid
+        {
+         qer_editorimage textures/trak5x/misc_button1.tga
+         surfaceparm nolightmap
+         {
+          framemap textures/trak5x/misc_button1.tga textures/trak5x/misc_button2.tga
+         }
+        }
+
+===================================================================================================
+
+5. Zircon static entities support: alpha scale colormod EF_ADDITIVE EF_FULLBRIGHT EF_NOSHADOW
+
+6. Zircon CSQC traceline constant MOVE_NETWORK_ENTITIES_BAKER_4096:
+
+   Traceline to collides with (solid) network entities in CSQC like a Shambler.
+   
+   Zircon protocol extensions send bounding box mins, maxs and a "non-solid" flag for 
+   func_illusionary type entities that render but are not solid.
+
+7. Zircon CSQC getentity expansion (ZIRCON_GETENTITY_1 /*WIP*/):
+
+   Examples: CSQC Monster Box Outliner, CSQC Quake With Health Bars, CSQC Monster Radar
+
+   Mirroring FTEQW: 
+   
+   GE_MAXENTS_NEG1 (-1), GE_MODELINDEX_200, GE_EFFECTS_202, GE_FRAME_203, GE_ANGLES_204
+   
+   Zircon Added:
+   
+   GE_HEALTH_500, GE_MAX_HEALTH_501, GE_MONSTERTYPEHACK_503, GE_RENDERFLAGS_504, 
+   GE_MONSTERTYPEQW_505,  GE_ENTITYBOX2D_506, GE_MONSTERCHAINFIND_512, GE_MONSTERCHAIN_OPEN_513, 
+   GE_MONSTERCHAIN_GET_514, GE_PP_SECRETCHAIN_OPEN_520, GE_PP_SECRETCHAIN_GET_521
+   
+8. QuakeC "soundlength" bug-fix.  Zircon provides accurate sound length in seconds (bug fix).
+
+9. MD3 Tags for .mdl (based on triangle number) and MD3 Tags for .obj
+
+===================================================================================================
+
+10. "csqc_polygons_darkplaces_classic_3d 1" cvar.  Causes Zircon to use DarkPlaces 2014 CSQC 
+    R_BeginPolygon system instead of the more flexible DarkPlaces Beta CSQC R_BeginPolygon system.  
+    
+    The new polygon system can't do CSQC Pac-Man arcade machine + other of my CSQC experiments.
+    
+11. Zircon has CSQC texture precache fixes which may or may not be relevant, but I recall coding 
+    them as sometimes vid_restart would crash out with issues about textures used in 3D drawing.  
+    
+    TODO: This note is "unreliable", but I cannot recall the details if resolution required shutdown 
+    changes or some other nature resolved the issue or if precache of textures resolved.  
+    
+    TODO: See if we can recall how issue was conclusively resolved.
+
+    The bottom line: Zircon does not have issue with reload/vid_restart of 3D only textures and 
+    DarkPlaces 2014 definitely did.
+  
+12. Keyboard Setup (menu_keylist.txt to customize Menu -> Options -> Keyboard Setup) without using MenuQC
+
+	Example: Create a file c:\quake\id1\menu_keylist.txt
+	
+	Contents of file:
+	
+	// menu_keylist.txt
+	// bind			description
+	"+attack" 		"attack"
+	"+jump" 		"jump"
+	"+zoom" 		"zoom"
+	"" 			""
+	"flashlight" 		"flashlight"
+	"placeexplosive" 	"place explosive"
+	"" 			""
+	"nextweapon" 		"next weapon"
+	"prevweapon" 		"previous weapon"
+	"" 			""
+	"+forward" 		"move forward"
+	"+back" 		"move back"
+	"+moveleft" 		"move left"
+	"+moveright" 		"move right"
+	"" 			""
+	"+left" 		"turn left"
+	"+right" 		"turn right"
+	"+moveup"		"swim up"
+	"+movedown"		"swim down"
+	"+run" 			"run"
+	"" 			""
+	"messagemode" 		"talk"	
+	
+	The engine will use the above template for Menu -> Options -> Keyboard Setup
+	
+	Zircon Intermap Travel Demo is an example.
+	
+13. "csqc_full_width_height 1" allows a mod to access full screen resolution.
+
+    Zircon indicates ability to offer full screen canvas to CSQC via checking the "csqc_full_width_height_available" cvar.
+    
+    If this cvar is 1 (Zircon engine), the CSQC can ask for a fullscreen canvas via cvar_set ("csqc_full_width_height",	"1");
+    
+    This will cause Zircon to separate CSQC 2D drawing to its own canvas that is independent from console and menu drawing.
+    
+    This gives CSQC the ability to have maximum high defintion of the entire screen for crisp, high resolution rendering in CSQC
+    while getting the benefit of using engine scaled menu and console.
+
+    CSQC example:
+    
+	if (cvar("csqc_full_width_height_available")) {
+		cvar_set ("csqc_full_width_height", "1"	);
+		ov.have_fullscreen = true;
+	} else {
+		ov.have_fullscreen = false;
+	}
+
+
+===================================================================================================
+
+

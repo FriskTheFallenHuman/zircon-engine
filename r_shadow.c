@@ -1909,7 +1909,7 @@ static float R_Shadow_BounceGrid_RefractiveIndexAtPoint(vec3_t point)
 	int skipsupercontentsmask = 0;
 	int skipmaterialflagsmask = MATERIALFLAG_CUSTOMBLEND;
 	trace_t trace = CL_TracePoint(point, 
-		r_shadow_bouncegrid_state.settings.staticmode ? MOVE_WORLDONLY : (r_shadow_bouncegrid_state.settings.hitmodels ? MOVE_HITMODEL : MOVE_NOMONSTERS), 
+		r_shadow_bouncegrid_state.settings.staticmode ? MOVE_WORLDONLY_3 : (r_shadow_bouncegrid_state.settings.hitmodels ? MOVE_HITMODEL_4 : MOVE_NOMONSTERS_1), 
 		NULL, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, true, HITT_NOPLAYERS_0_NOTAMOVE, NULL, true);
 	if (trace.starttexture && (trace.starttexture->currentmaterialflags & (MATERIALFLAG_REFRACTION | MATERIALFLAG_WATERSHADER)))
 		return trace.starttexture->refractive_index;
@@ -2620,12 +2620,12 @@ static void R_Shadow_BounceGrid_TracePhotons_Shot(r_shadow_bouncegrid_photon_t *
 	{
 		// static mode fires a LOT of rays but none of them are identical, so they are not cached
 		// non-stable random in dynamic mode also never reuses a direction, so there's no reason to cache it
-		cliptrace = CL_TraceLine(shotstart, shotend, r_shadow_bouncegrid_state.settings.staticmode ? MOVE_WORLDONLY : (r_shadow_bouncegrid_state.settings.hitmodels ? MOVE_HITMODEL : MOVE_NOMONSTERS), NULL, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value, true, false, NULL, true, true);
+		cliptrace = CL_TraceLine(shotstart, shotend, r_shadow_bouncegrid_state.settings.staticmode ? MOVE_WORLDONLY_3 : (r_shadow_bouncegrid_state.settings.hitmodels ? MOVE_HITMODEL_4 : MOVE_NOMONSTERS_1), NULL, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value, true, false, NULL, true, true);
 	}
 	else
 	{
 		// dynamic mode fires many rays and most will match the cache from the previous frame
-		cliptrace = CL_Cache_TraceLineSurfaces(shotstart, shotend, r_shadow_bouncegrid_state.settings.staticmode ? MOVE_WORLDONLY : (r_shadow_bouncegrid_state.settings.hitmodels ? MOVE_HITMODEL : MOVE_NOMONSTERS), hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+		cliptrace = CL_Cache_TraceLineSurfaces(shotstart, shotend, r_shadow_bouncegrid_state.settings.staticmode ? MOVE_WORLDONLY_3 : (r_shadow_bouncegrid_state.settings.hitmodels ? MOVE_HITMODEL_4 : MOVE_NOMONSTERS_1), hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
 	}
 	VectorCopy(cliptrace.endpos, shothit);
 	if ((remainingbounces == r_shadow_bouncegrid_state.settings.maxbounce || r_shadow_bouncegrid_state.settings.includedirectlighting) && p->numpaths < PHOTON_MAX_PATHS)
@@ -4531,7 +4531,7 @@ static void R_DrawCorona(rtlight_t *rtlight, float cscale, float scale)
 	}
 	else
 	{
-		if (CL_Cache_TraceLineSurfaces(r_refdef.view.origin, rtlight->shadoworigin, MOVE_NORMAL, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT).fraction < 1)
+		if (CL_Cache_TraceLineSurfaces(r_refdef.view.origin, rtlight->shadoworigin, MOVE_NORMAL_0, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT).fraction < 1)
 			return;
 	}
 	VectorScale(rtlight->currentcolor, cscale, color);
@@ -4843,7 +4843,7 @@ static void R_Shadow_SelectLightInView(void)
 		if (rating >= 0.95)
 		{
 			rating /= (1 + 0.0625f * sqrt(DotProduct(temp, temp)));
-			if (bestrating < rating && CL_TraceLine(light->origin, r_refdef.view.origin, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true).fraction == 1.0f)
+			if (bestrating < rating && CL_TraceLine(light->origin, r_refdef.view.origin, MOVE_NORMAL_0, NULL, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true).fraction == 1.0f)
 			{
 				bestrating = rating;
 				best = light;
@@ -5337,7 +5337,7 @@ static void R_Shadow_SetCursorLocationForView(void)
 	vec3_t dest, endpos;
 	trace_t trace;
 	VectorMA(r_refdef.view.origin, r_editlights_cursordistance.value, r_refdef.view.forward, dest);
-	trace = CL_TraceLine(r_refdef.view.origin, dest, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
+	trace = CL_TraceLine(r_refdef.view.origin, dest, MOVE_NORMAL_0, NULL, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true);
 	if (trace.fraction < 1)
 	{
 		dist = trace.fraction * r_editlights_cursordistance.value;
@@ -6176,7 +6176,7 @@ void R_CompleteLightPoint(float *ambient, float *diffuse, float *lightdir, const
 			intensity = min(1.0f, (1.0f - dist) * r_shadow_lightattenuationlinearscale.value / (r_shadow_lightattenuationdividebias.value + dist*dist)) * r_shadow_lightintensityscale.value;
 			if (intensity <= 0.0f)
 				continue;
-			if (light->shadow && CL_TraceLine(p, light->shadoworigin, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true).fraction < 1)
+			if (light->shadow && CL_TraceLine(p, light->shadoworigin, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true).fraction < 1)
 				continue;
 			for (q = 0; q < 3; q++)
 				color[q] = light->currentcolor[q] * intensity;
@@ -6210,7 +6210,7 @@ void R_CompleteLightPoint(float *ambient, float *diffuse, float *lightdir, const
 			intensity = (1.0f - dist) * r_shadow_lightattenuationlinearscale.value / (r_shadow_lightattenuationdividebias.value + dist*dist) * r_shadow_lightintensityscale.value;
 			if (intensity <= 0.0f)
 				continue;
-			if (light->shadow && CL_TraceLine(p, light->shadoworigin, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true).fraction < 1)
+			if (light->shadow && CL_TraceLine(p, light->shadoworigin, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID, 0, MATERIALFLAGMASK_TRANSLUCENT, collision_extendmovelength.value, true, false, NULL, false, true).fraction < 1)
 				continue;
 			for (q = 0; q < 3; q++)
 				color[q] = light->currentcolor[q] * intensity;

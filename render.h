@@ -211,6 +211,7 @@ extern cvar_t gl_overbright_world;
 extern cvar_t r_wateralpha;
 extern cvar_t r_waterdeform; // Baker r0083
 extern cvar_t r_dynamic;
+extern cvar_t r_minlight;
 
 extern cvar_t r_q1bsp_lightmap_updates_enabled;
 extern cvar_t r_q1bsp_lightmap_updates_combine;

@@ -842,12 +842,12 @@ qbool LoadWAL_GetMetadata(const unsigned char *f, int filesize, int *retwidth, i
 // gfx/* wad lumps and gfx/*.lmp files are simply width and height and paletted pixels, with color 255 as transparent
 static unsigned char *LoadLMP_BGRA(const unsigned char *f, int filesize, int *miplevel)
 {
+	// OUM?
 	unsigned char *image_buffer;
 	int i;
 
-	if (filesize < 9)
-	{
-		Con_Print("Bad lmp file\n");
+	if (filesize < 9) {
+		Con_PrintLinef ("Bad lmp file");
 		return NULL;
 	}
 
@@ -856,14 +856,14 @@ static unsigned char *LoadLMP_BGRA(const unsigned char *f, int filesize, int *mi
 
 	if (image_width > 32768 || image_height > 32768 || image_width <= 0 || image_height <= 0 || image_width * image_height > filesize - 8)
 	{
-		Con_Print("Bad lmp file\n");
+		Con_PrintLinef ("Bad lmp file");
 		return NULL;
 	}
 
 	image_buffer = (unsigned char *)Mem_Alloc(tempmempool, image_width*image_height * 4);
 	if (!image_buffer)
 	{
-		Con_Printf ("LoadLMP: not enough memory for %d by %d image\n", image_width, image_height);
+		Con_PrintLinef ("LoadLMP: not enough memory for %d by %d image", image_width, image_height);
 		return NULL;
 	}
 
@@ -889,7 +889,7 @@ static unsigned char *LoadConChars_BGRA(const unsigned char *f, int filesize, in
 	image_height = 128;
 	if (image_width * image_height > filesize)
 	{
-		Con_Print("Bad lmp file\n");
+		Con_PrintLinef ("Bad lmp file");
 		return NULL;
 	}
 
@@ -1083,6 +1083,7 @@ unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool 
 		firstformat = imageformats_nopath;
 	else
 		firstformat = imageformats_other;
+
 	// now try all the formats in the selected list
 	for (format = firstformat;format->formatstring;format++)
 	{
@@ -1090,12 +1091,21 @@ unsigned char *loadimagepixelsbgra (const char *filename, qbool complain, qbool 
 
 		FS_SanitizePath(name);
 
+#if 1 // OUM hackage - November 9 2024
+		if (String_Match ("gfx/conchars.lmp", name) && fs_numgamedirs && String_Match (fs_gamedirs[0], "oum")) {
+			if (format->loadfunc == LoadLMP_BGRA)
+				continue;
+		}
+#endif
+
+
 		if (FS_FileExists(name) && (f = FS_LoadFile(name, tempmempool, fs_quiet_true, &filesize)) != NULL)
 		{
 			mymiplevel = miplevel ? *miplevel : 0;
 			image_width = 0;
 			image_height = 0;
-			data = format->loadfunc(f, (int)filesize, &mymiplevel);
+
+			data = format->loadfunc(f, (int)filesize, &mymiplevel);  // OUM (1)
 			Mem_Free(f);
 			if (data)
 			{

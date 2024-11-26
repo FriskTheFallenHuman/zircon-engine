@@ -3,6 +3,134 @@
 Zircon is DarkPlaces with a mouse-driven menu, ALT-ENTER fullscreen/windowed switch,
 cut/copy/paste in console and enhancements mostly focusing on user-interface.
 
+
+// Zircon Beta Release 79
+
+1. Savegame menu did not show monster totals when kills > 100, fixed.
+
+2. Fixed typo of "progs/demon.mdl" (resulted in "Monster" instead of "Fiend" for getentity queries)
+
+3. Quakespasm "overbright" saves to config.
+
+4. Removed "unlinking" cvar spams when gamedir changes (developer prints now).
+
+5. vid_magnification_factor cvar that shows current 2D magnification multiplier.
+
+// Zircon Beta Release 78
+
+1. Automatic save games "sv_autosave 1" // defaults on
+   Menu -> Single Player -> Load -> _auto_save_0
+
+2. Another update to texturefindpos to find animated textures better based on feedback from jakub1.
+
+3. Zerstorer zer1m3 fix cvar "sv_gameplayfix_nosquashentities 1" makes zer1m3 key not fall in lava.
+   But after reading hemebond's notes, as a whole Zerstorer is not playable in a DarkPlaces-based engine
+   for other reasons including modification of constant variables.
+
+4. OUM conchars hardcode "fix".
+
+// Zircon Beta Release 77
+
+1. Update to texturefindpos to find animated textures better.
+
+2. Q3 Map Pre-Preprocessor - "_clone_trigger" supports transforming entity into a "func_group"
+
+3. Console: "devinfo" -> Zircon Manual updated include some features that were not documented.
+
+// Zircon Beta Release 76
+
+1. console type "devinfo", click Zircon Manual
+
+2. Implemented lightning_hunter save position of background music to save game.
+
+3. "_clone_trigger" "trigger_push" Q3 .Map Preprocessor takes any func_group with this
+   and creates a trigger brush of specified classname covered in "common/trigger".
+
+4. Touch ups.
+
+// Zircon Beta Release 75
+
+1. Arcane Dimension should be fully supported "out of the box".  In particular, AD Sepulcher
+   now loads with static torches receiving EF_NOSHADOW and alpha where indicated.
+
+2. "getentity" expanded to include GE_ENTITYBOX2D_506, which returns the bottom right
+   2D coordinate for rendering a box around the entity (based on server setsize bounding box, not 
+   render bounding box).  Calling 
+   
+    vector box_maxes = getentity (your_entnum, GE_ENTITYBOX2D_506); // bottom right of 2D box
+	vector box_mins = v_up; // v_up is by getentity GE_ENTITYBOX2D_506 to the left top of 2D box
+
+
+// Zircon Beta Release 74
+
+1. Better autocompletes for prvm_edictset, prvm_edictget, eset (alias of prvm_edictset server).
+
+2. Fixed map levelshots stale on re-entering maps menu.
+
+3. Fixed typo for Quakeworld protocol coop for "progs/tarbaby.mdl".  It was missing the .mdl extension.
+
+4. New: "getentity" GE_MONSTERCHAINFIND_512, GE_MONSTERCHAIN_OPEN_513  (z-depth sorted), 
+   GE_MONSTERCHAIN_GET_514, GE_MONSTERTYPEQW_505, GE_PP_SECRETCHAIN_OPEN_520, GE_PP_SECRETCHAIN_GET_521
+
+5. Console: "hex 33" prints "21" (temporary hex console command).
+
+6. Console: "eq" equation calculator now supports hex with 0x prefix like C and other languages.
+   Example: "eq 0xFF" prints "255".  "eq" now supports 0x as hexadecimal numbers.
+
+7. "colorpcts" improved and displays closest representable color:
+     "colorpcts 0xffcc33"
+     "colorpcts 255 255 0"
+	 "colorpcts 1.0 1.0 0.0"
+
+8. Fixed "key not found" for "eset" command (shorthand for "prvm_edictset server")
+
+9. Fixed autocvar_ autocomplete crash when demo1 was playing (was not checking for progs->loaded)
+   before checking progs information.
+
+10. "edict" command: colormod is now colorkeyed, overbright colors get normalized to 1.
+
+TODO: Sometimes larger Quakeworld entity numbers are wrong.  Fix.
+
+
+// Zircon Beta Release 73
+
+1. Zircon CSQC traceline constant MOVE_NETWORK_ENTITIES_BAKER_4096 to indicate collision
+   with monster network entities (monsters).
+
+2. "getentity" supports GE_RENDERFLAGS_504, in particular to identify monsters using RENDER_STEP_1
+
+3. r_minlight 3 is now one of the "overbright" choices in the Options in the menu.  A different way
+   to brighten up "too dark monsters".
+
+// Zircon Beta Release 72
+
+1. More CSQC "getentity" and "getentityvec" field support.   Supports GE_MAXENTS_NEG1, GE_EFFECTS_202, 
+   GE_FRAME_203, GE_ANGLES_204, GE_MODELINDEX_200.  And CSQC Extension: ZIRCON_GETENTITY_1 new fields:
+   GE_HEALTH_500, GE_MAX_HEALTH_501, GE_MONSTERTYPEHACK_503.
+
+   GE_MONSTERTYPEHACK_503 returns a value like MONSTER_INFO_WIZARD_23 or MONSTER_INFO_ZOMBIE_24 based
+   off matching the model name with traditional Quake model names like "progs/zombie.mdl".
+
+2. COLOR PRINT of autocvars_ that are vectors with values that in color range (0 to 1.0, like colormod) or
+   (0 - 255 range) like effectinfo.txt particles colors print to console with a color key in
+   the closest color that can be represented.
+
+3. Protocol extension: ZIRCON_EXT_SERVER_SENDS_MONSTER_INFO_256 which causes FL_MONSTER flagged 
+   models to send health/max health for entities.
+
+4. VM_drawfill and VM_drawstring warnings about non-zero for _z value now only prints if
+   developer 1.  fteqcc apparently doesn't format 3rd vector component and it isn't used in these
+   functions and it shouldn't require zero filling to avoid a warning for something that isn't used
+   and not expected to be used.
+
+   In particular, cs_project fills a 3rd vector value indicating Z depth.  That third component 
+   should not need to be set to 0 to be used as a 2D vector without printing warnings.
+
+5. tagmodel data was mistakenly printing.  Changed it to require "developer_loading 1"
+
+6. "-q13" .map pre-processor converts Quake 1 maps in Valve 220 map format to Quake 3.  This was used
+   to convert DM6 to the Quake 3 map format.
+
 // Zircon Beta Release 71
 
 1. "edict" command lists the constant name for "solid" and "movetype".
@@ -2091,7 +2219,6 @@ TODO: SCREENSHOT ALL THE MAPS
 
 Zircon Beta has always been slow to do the icon Windows.  This is inherited.
 
-PUNT 6. "tool_inspector" "2" displays entity data.
 
 Autosave save games?
 
@@ -2099,13 +2226,30 @@ $diffuse
 Issue with framemap?
 
 BUG: If a selection is active in the console, PASTE always causes an issue. (FIXED)
+BUG: can't paste in console bug. (FIXED)
+BUG: Re-enter the maps menu the texture is fuct (FIXED)
+
 BUG: Maps prefix fucks up map menu 
 BUG: Unresponsive after a while bug
 BUG: Scroll up selection bug
-BUG: can't paste in console bug. (FIXED)
-BUG: Re-enter the maps menu the texture is fuct
 
 CRASH: MAP PRE-PROCESSOR ... AAFTER.map --- a post-processed map .. crashes us.  Should it?  Can we avoid it?
+
+PUNT 6. "tool_inspector" "2" traceline collide? displays entity data.
+
+Can trigger brushes be non-cubeoid?
+
+1) Ages are wrong in autosave on Linux?
+2) Lookspring 1 ... does not work? ... does not work in classic either
+3) Considering fixing mouse for Linux WSL?
+infobar
+
+TODO: Check QW entity numbers on maps with very high monster counts.  Find out roll angle can
+	  sometimes get changed.
+
+unicode paths
+new DarkPlaces SDL improvements that do not require vid_restart?
+"devinfo" sometimes does not get vid_restart coordinates?
 
 
 

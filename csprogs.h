@@ -93,6 +93,158 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define RF_DYNAMICMODELLIGHT    8192 // origin-dependent model light
 
 
+#define MONSTER_QW_UNKNOWN_NEG_2	-2	// Attempted to identify and failed.
+
+#define MONSTER_QW_ARMY_0			0
+#define MONSTER_QW_DOG_1			1
+#define MONSTER_QW_DEMON_2			2
+#define MONSTER_QW_OGRE_3			3
+#define MONSTER_QW_SHAMBLER_4		4
+#define MONSTER_QW_KNIGHT_5			5
+#define MONSTER_QW_ZOMBIE_6			6
+#define MONSTER_QW_WIZARD_7			7
+#define MONSTER_QW_ENFORCER_8		8
+#define MONSTER_QW_FISH_9			9
+#define MONSTER_QW_HELL_KNIGHT_10	10
+#define MONSTER_QW_SHALRATH_11		11
+#define MONSTER_QW_TARBABY_12		12
+
+// Baker: Made similar to JoeQuake and ezQuake stuff ...
+//cl_modelnames[mi_monster1] = "progs/soldier.mdl";
+//cl_modelnames[mi_m2] = "progs/dog.mdl";
+//cl_modelnames[mi_m3] = "progs/demon.mdl";
+//cl_modelnames[mi_m4] = "progs/ogre.mdl";
+//cl_modelnames[mi_m5] = "progs/shambler.mdl";
+//cl_modelnames[mi_m6] = "progs/knight.mdl";
+//cl_modelnames[mi_m7] = "progs/zombie.mdl";
+//cl_modelnames[mi_m8] = "progs/wizard.mdl";
+//cl_modelnames[mi_m9] = "progs/enforcer.mdl";
+//cl_modelnames[mi_m10] = "progs/fish.mdl";
+//cl_modelnames[mi_m11] = "progs/hknight.mdl";
+//cl_modelnames[mi_m12] = "progs/shalrath.mdl";
+//cl_modelnames[mi_m13] = "progs/tarbaby";
+
+
+#define MONSTER_QW_255_NOT_FOUND	255
+
+
+
+WARP_X_ (RENDER_STEP)
+
+#define MONSTER_INFO_PLAYER_1			1
+#define MONSTER_INFO_UNKNOWN_MONSTER_2	2
+#define MONSTER_INFO_ARMY_10			10
+#define MONSTER_INFO_BOSS_11			11
+#define MONSTER_INFO_DEMON_12			12
+#define MONSTER_INFO_DOG_13				13
+#define MONSTER_INFO_ENFORCER_14		14
+#define MONSTER_INFO_FISH_15			15
+#define MONSTER_INFO_HELL_KNIGHT_16		16
+#define MONSTER_INFO_KNIGHT_17			17
+#define MONSTER_INFO_OGRE_18			18
+#define MONSTER_INFO_OLDONE_19			19
+#define MONSTER_INFO_SHALRATH_20		20
+#define MONSTER_INFO_SHAMBLER_21		21
+#define MONSTER_INFO_TARBABY_22			22
+#define MONSTER_INFO_WIZARD_23			23
+#define MONSTER_INFO_ZOMBIE_24			24
+
+// Baker: DarkPlaces supports 0 to 16 (in theory)
+#define GE_HEALTH_500					500		// if (is_monster) Server 
+#define GE_MAX_HEALTH_501				501		// if (is_monster)
+#define GE_MODELNAME_502				502		// Baker: Take modelindex .. look in cl precache
+#define GE_MONSTERTYPEHACK_503			503		// Baker: Take modelindex .. look in cl precache
+#define GE_RENDERFLAGS_504				504		// Baker: Take modelindex .. look in cl precache
+#define GE_MONSTERTYPEQW_505			505		// Baker: Take modelindex .. look in cl precache
+#define GE_ENTITYBOX2D_506				506		// Returns 4 corners of model 2D projection 
+												// based on mins/maxs.
+
+// Return values is maxs (BOTTOM RIGHT), (LEFT TOP) mins is returned in v_up (UP = TOP ... get it?)
+
+
+
+#define GE_MONSTERCHAINFIND_512			512		// Baker: Finds chain of monsters that are active.  Returns first.
+
+#define	GE_MONSTERCHAIN_OPEN_513		513		// Limit 256, sorts by zdepth.
+// float count = getentity(NULL, GE_MONSTERCHAIN_OPEN_513);
+// Finds all ACTIVE monsters (RENDER_STEP) and Z depth sorts them.
+// Returns count
+
+#define	GE_MONSTERCHAIN_GET_514			514		// Limit 256, sorts by zdepth.
+// for (float idx; idx < count; idx ++) {
+//     float entnum = getentity(idx, GE_MONSTERCHAIN_GET_514);
+//		// GE_MONSTERCHAIN_GET_514 sets
+//		// v_forward	= origin
+//		// v_right		= 2d origin
+//		// v_up			= 2d origin above the monster (origin + bbox->maxz)
+//		// trace_dphitconstants	= QW monster type id
+//									 MONSTER_QW_UNKNOWN_NEG_2 (identification failed)
+//									 MONSTER_QW_SHAMBLER_4
+// }
+// reply is entity number
+// sets: v_forward = origin
+// sets: 
+
+// PP is .map pre-processor
+#define	GE_PP_SECRETCHAIN_OPEN_520		520		// Limit 256, sorts by zdepth.
+// float num_secrets_in_bsp_ent = getentity(NULL, GE_PP_SECRETCHAIN_OPEN_520);
+// Finds all "trigger_secret" in .bsp entities segment. Q1/Q3.
+// Returns number found.
+
+#define	GE_PP_SECRETCHAIN_GET_521		521		// Limit 256, sorts by zdepth.
+// Returns 10 if the model was *10, 50 is the model was *50.
+// for (float idx; idx < num_secrets_in_bsp_ent; idx ++) {
+//     float star_brush_number = getentity(idx, GE_PP_SECRETCHAIN_GET_521);
+//		// v_forward	= origin -- center of the "trigger_secret" brush.
+//		// v_up			= size 3d
+// }
+
+#define GE_MAXENTS_NEG1				-1	/* Valid for getentity, ignores the entity argument. Returns the maximum number of entities which may be valid, to avoid having to poll 65k when only 100 are used. */
+#define GE_ACTIVE_0					0	/* Valid for getentity. Returns whether this entity is known to the client or not. */
+#define GE_ORIGIN_1					1	/* Valid for getentity. Returns the interpolated .origin. */
+#define GE_FORWARD_2				2	/* Valid for getentity. Returns the interpolated forward vector. */
+#define GE_RIGHT_3					3	/* Valid for getentity. Returns the entity's right vector. */
+#define GE_UP_4						4	/* Valid for getentity. Returns the entity's up vector. */
+#define GE_SCALE_5					5	/* Valid for getentity. Returns the entity .scale. */
+#define GE_ORIGIN5ANDVECTORS_6  	6	/* Valid for getentity. Returns interpolated .origin, but also sets v_forward, v_right, and v_up accordingly. Use vectoangles(v_forward,v_up) to determine the angles. */
+#define GE_ALPHA_7					7	/* Valid for getentity. Returns the entity alpha. */
+#define GE_COLORMOD_8				8	/* Valid for getentity. Returns the colormod vector. */
+#define GE_PANTSCOLOR_9				9	/* Valid for getentity. Returns the entity's lower color (from .colormap), as a palette range value. */
+#define GE_SHIRTCOLOR_10			10	/* Valid for getentity. Returns the entity's lower color (from .colormap), as a palette range value. */
+#define GE_SKIN_11					11	/* Valid for getentity. Returns the entity's .skin index. */
+#define GE_MINS_12					12	/* Valid for getentity. Guesses the entity's .min vector. */
+#define GE_MAXS_13					13	/* Valid for getentity. Guesses the entity's .max vector. */
+#define GE_ABSMIN_14				14	/* Valid for getentity. Guesses the entity's .absmin vector. */
+#define GE_ABSMAX_15				15	/* Valid for getentity. Guesses the entity's .absmax vector. */
+
+#define GE_MODELLIGHT_AMBIENT_16	16	// FTE no have 16
+
+#define GE_MODELINDEX_200			200	/*ZIRCON*/ /* Valid for getentity. Guesses the entity's .modelindex float. */
+#define GE_MODELINDEX2_201			201	/*I think is a QW thing*/ /* Valid for getentity. Guesses the entity's .vw_index float. */
+#define GE_EFFECTS_202				202	/*ZIRCON*/ /* Valid for getentity. Guesses the entity's .effects float. */
+#define GE_FRAME_203				203	/*ZIRCON*/ /* Valid for getentity. Guesses the entity's .frame float. */
+#define GE_ANGLES_204				204	/*ZIRCON*/ /* Valid for getentity. Guesses the entity's .angles vector. */
+#define GE_FATNESS_205				205	/*FTE FEATURE*/ /* Valid for getentity. Guesses the entity's .fatness float. */ // Baker: weight
+#define GE_DRAWFLAGS_206			206	/*FTE HEXEN2 ?*/ /* Valid for getentity. Guesses the entity's .drawflags float. */
+#define GE_ABSLIGHT_207				207	/*NEED TO SEE WHAT THIS IS*/ /* Valid for getentity. Guesses the entity's .abslight float. */
+
+// Baker: glowmod is a dynamic light ... and a byte palette one, right?
+#define GE_GLOWMOD_208				208	/*DOABLE LOW PRIORITY*/ /* Valid for getentity. Guesses the entity's .glowmod vector. */
+#define GE_GLOWSIZE_209				209	/*DOABLE LOW PRIORITY*/ /* Valid for getentity. Guesses the entity's .glowsize float. */
+#define GE_GLOWCOLOUR_210			210	/*DOABLE LOW PRIORITY*/ /* Valid for getentity. Guesses the entity's .glowcolor float. */
+
+#define GE_RTSTYLE_211				211	/*DOABLE LOW PRIORITY*/ /* Valid for getentity. Guesses the entity's .style float. */
+#define GE_RTPFLAGS_212				212	/*DOABLE LOW PRIORITY*/ /* Valid for getentity. Guesses the entity's .pflags float. */
+#define GE_RTCOLOUR_213				213	/*DOABLE LOW PRIORITY*/ /* Valid for getentity. Guesses the entity's .color vector. */
+#define GE_RTRADIUS_214				214 /*DOABLE LOW PRIORITY*/ /* Valid for getentity. Guesses the entity's .light_lev float. */
+
+#define GE_TAGENTITY_215			215 /*PROBABLY POSSIBLE*/ /* Valid for getentity. Guesses the entity's .tag_entity float. */
+#define GE_TAGINDEX_216				216 /*PROBABLY POSSIBLE*/ /* Valid for getentity. Guesses the entity's .tag_index float. */
+
+#define GE_GRAVITYDIR_217			217	/*FTE FEATURE*/ /* Valid for getentity. Guesses the entity's .gravitydir vector. */
+#define GE_TRAILEFFECTNUM_218		218	/*PROBABLY POSSIBLE*/ /* Valid for getentity. Guesses the entity's .traileffectnum float. */
+
+
 extern cvar_t csqc_enable;		// Baker r0101:  csqc_enable
 extern cvar_t csqc_progname;	//[515]: csqc crc check and right csprogs name according to progs.dat
 extern cvar_t csqc_progcrc;

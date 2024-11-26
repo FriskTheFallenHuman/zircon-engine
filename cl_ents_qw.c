@@ -1,7 +1,7 @@
 #include "quakedef.h"
 #include "protocol.h"
 
-WARP_X_ (QW_CL_FindModelNumbers)
+WARP_X_ (QW_CL_FindModelNumbers qw_monsters)
 int QW_Is_Step_ModelIndex_Plus1(int qw_modelindex)
 {
 	if (!qw_modelindex)

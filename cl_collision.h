@@ -25,6 +25,6 @@ trace_t CL_TraceBox(const vec3_t start, const vec3_t mins, const vec3_t maxs, co
 trace_t CL_TraceLine(const vec3_t start, const vec3_t end, int type, prvm_edict_t *passedict, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask, float extend, qbool hitnetworkbrushmodels, int hitnetworkplayers, int *hitnetworkentity, qbool hitcsqcentities, qbool hitsurfaces);
 trace_t CL_TracePoint(const vec3_t start, int type, prvm_edict_t *passedict, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask, qbool hitnetworkbrushmodels, int hitnetworkplayers, int *hitnetworkentity, qbool hitcsqcentities);
 trace_t CL_Cache_TraceLineSurfaces(const vec3_t start, const vec3_t end, int type, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask);
-#define CL_PointSuperContents(point) (CL_TracePoint((point), sv_gameplayfix_swiminbmodels.integer ? MOVE_NOMONSTERS : MOVE_WORLDONLY, NULL, 0, 0, 0, true, HITT_NOPLAYERS_0_NOTAMOVE, NULL, false).startsupercontents)
+#define CL_PointSuperContents(point) (CL_TracePoint((point), sv_gameplayfix_swiminbmodels.integer ? MOVE_NOMONSTERS_1 : MOVE_WORLDONLY_3, NULL, 0, 0, 0, true, HITT_NOPLAYERS_0_NOTAMOVE, NULL, false).startsupercontents)
 
 #endif // ! CL_COLLISION_H

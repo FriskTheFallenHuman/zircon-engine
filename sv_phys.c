@@ -145,10 +145,10 @@ trace_t SV_TracePoint(const vec3_t start, int type, prvm_edict_t *passedict, int
 	cliptrace.worldstartsolid = cliptrace.bmodelstartsolid = cliptrace.startsolid;
 	if (cliptrace.startsolid || cliptrace.fraction < 1)
 		cliptrace.ent = prog->edicts;
-	if (type == MOVE_WORLDONLY)
+	if (type == MOVE_WORLDONLY_3)
 		goto finished;
 
-	if (type == MOVE_MISSILE)
+	if (type == MOVE_MISSILE_2)
 	{
 		// LadyHavoc: modified this, was = -15, now -= 15
 		for (i = 0;i < 3;i++)
@@ -198,7 +198,7 @@ trace_t SV_TracePoint(const vec3_t start, int type, prvm_edict_t *passedict, int
 
 		if (PRVM_serveredictfloat(touch, solid) < SOLID_BBOX_2)
 			continue;
-		if (type == MOVE_NOMONSTERS && PRVM_serveredictfloat(touch, solid) != SOLID_BSP_4)
+		if (type == MOVE_NOMONSTERS_1 && PRVM_serveredictfloat(touch, solid) != SOLID_BSP_4)
 			continue;
 
 		if (passedict)
@@ -216,7 +216,7 @@ trace_t SV_TracePoint(const vec3_t start, int type, prvm_edict_t *passedict, int
 			if (clipgroup && clipgroup == (int)PRVM_serveredictfloat(touch, clipgroup))
 				continue;
 			// don't clip points against points (they can't collide)
-			if (VectorCompare(PRVM_serveredictvector(touch, mins), PRVM_serveredictvector(touch, maxs)) && (type != MOVE_MISSILE || !((int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)))
+			if (VectorCompare(PRVM_serveredictvector(touch, mins), PRVM_serveredictvector(touch, maxs)) && (type != MOVE_MISSILE_2 || !((int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)))
 				continue;
 		}
 
@@ -224,7 +224,7 @@ trace_t SV_TracePoint(const vec3_t start, int type, prvm_edict_t *passedict, int
 
 		// might interact, so do an exact clip
 		model = NULL;
-		if ((int) PRVM_serveredictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL)
+		if ((int) PRVM_serveredictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL_4)
 		{
 			model = SV_GetModelFromEdict(touch);
 			pitchsign = SV_GetPitchSign(prog, touch);
@@ -239,7 +239,7 @@ trace_t SV_TracePoint(const vec3_t start, int type, prvm_edict_t *passedict, int
 		VM_UpdateEdictSkeleton(prog, touch, model, touch->priv.server->frameblend);
 		VectorCopy(PRVM_serveredictvector(touch, mins), touchmins);
 		VectorCopy(PRVM_serveredictvector(touch, maxs), touchmaxs);
-		if (type == MOVE_MISSILE && (int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)
+		if (type == MOVE_MISSILE_2 && (int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)
 			Collision_ClipToGenericEntity(&trace, model, touch->priv.server->frameblend, &touch->priv.server->skeleton, touchmins, touchmaxs, bodysupercontents, &matrix, &imatrix, clipstart, clipmins2, clipmaxs2, clipstart, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, 0.0f);
 		else
 			Collision_ClipPointToGenericEntity(&trace, model, touch->priv.server->frameblend, &touch->priv.server->skeleton, touchmins, touchmaxs, bodysupercontents, &matrix, &imatrix, clipstart, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
@@ -300,10 +300,10 @@ trace_t SV_TraceLine(const vec3_t start, const vec3_t end, int type, prvm_edict_
 	cliptrace.worldstartsolid = cliptrace.bmodelstartsolid = cliptrace.startsolid;
 	if (cliptrace.startsolid || cliptrace.fraction < 1)
 		cliptrace.ent = prog->edicts;
-	if (type == MOVE_WORLDONLY)
+	if (type == MOVE_WORLDONLY_3)
 		goto finished;
 
-	if (type == MOVE_MISSILE)
+	if (type == MOVE_MISSILE_2)
 	{
 		// LadyHavoc: modified this, was = -15, now -= 15
 		for (i = 0;i < 3;i++)
@@ -353,7 +353,7 @@ trace_t SV_TraceLine(const vec3_t start, const vec3_t end, int type, prvm_edict_
 
 		if (PRVM_serveredictfloat(touch, solid) < SOLID_BBOX_2)
 			continue;
-		if (type == MOVE_NOMONSTERS && PRVM_serveredictfloat(touch, solid) != SOLID_BSP_4)
+		if (type == MOVE_NOMONSTERS_1 && PRVM_serveredictfloat(touch, solid) != SOLID_BSP_4)
 			continue;
 
 		if (passedict)
@@ -371,7 +371,7 @@ trace_t SV_TraceLine(const vec3_t start, const vec3_t end, int type, prvm_edict_
 			if (clipgroup && clipgroup == (int)PRVM_serveredictfloat(touch, clipgroup))
 				continue;
 			// don't clip points against points (they can't collide)
-			if (VectorCompare(PRVM_serveredictvector(touch, mins), PRVM_serveredictvector(touch, maxs)) && (type != MOVE_MISSILE || !((int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)))
+			if (VectorCompare(PRVM_serveredictvector(touch, mins), PRVM_serveredictvector(touch, maxs)) && (type != MOVE_MISSILE_2 || !((int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)))
 				continue;
 		}
 
@@ -379,7 +379,7 @@ trace_t SV_TraceLine(const vec3_t start, const vec3_t end, int type, prvm_edict_
 
 		// might interact, so do an exact clip
 		model = NULL;
-		if ((int) PRVM_serveredictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL)
+		if ((int) PRVM_serveredictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL_4)
 		{
 			model = SV_GetModelFromEdict(touch);
 			pitchsign = SV_GetPitchSign(prog, touch);
@@ -394,7 +394,7 @@ trace_t SV_TraceLine(const vec3_t start, const vec3_t end, int type, prvm_edict_
 		VM_UpdateEdictSkeleton(prog, touch, model, touch->priv.server->frameblend);
 		VectorCopy(PRVM_serveredictvector(touch, mins), touchmins);
 		VectorCopy(PRVM_serveredictvector(touch, maxs), touchmaxs);
-		if (type == MOVE_MISSILE && (int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)
+		if (type == MOVE_MISSILE_2 && (int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)
 			Collision_ClipToGenericEntity(&trace, model, touch->priv.server->frameblend, &touch->priv.server->skeleton, touchmins, touchmaxs, bodysupercontents, &matrix, &imatrix, clipstart, clipmins2, clipmaxs2, clipend, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, extend);
 		else
 			Collision_ClipLineToGenericEntity(&trace, model, touch->priv.server->frameblend, &touch->priv.server->skeleton, touchmins, touchmaxs, bodysupercontents, &matrix, &imatrix, clipstart, clipend, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, extend, false);
@@ -475,10 +475,10 @@ trace_t SV_TraceBox(const vec3_t start, const vec3_t mins, const vec3_t maxs, co
 	cliptrace.worldstartsolid = cliptrace.bmodelstartsolid = cliptrace.startsolid;
 	if (cliptrace.startsolid || cliptrace.fraction < 1)
 		cliptrace.ent = prog->edicts;
-	if (type == MOVE_WORLDONLY)
+	if (type == MOVE_WORLDONLY_3)
 		goto finished;
 
-	if (type == MOVE_MISSILE)
+	if (type == MOVE_MISSILE_2)
 	{
 		// LadyHavoc: modified this, was = -15, now -= 15
 		for (i = 0;i < 3;i++)
@@ -539,7 +539,7 @@ trace_t SV_TraceBox(const vec3_t start, const vec3_t mins, const vec3_t maxs, co
 
 		if (PRVM_serveredictfloat(touch, solid) < SOLID_BBOX_2)
 			continue;
-		if (type == MOVE_NOMONSTERS && PRVM_serveredictfloat(touch, solid) != SOLID_BSP_4)
+		if (type == MOVE_NOMONSTERS_1 && PRVM_serveredictfloat(touch, solid) != SOLID_BSP_4)
 			continue;
 
 		if (passedict)
@@ -557,7 +557,7 @@ trace_t SV_TraceBox(const vec3_t start, const vec3_t mins, const vec3_t maxs, co
 			if (clipgroup && clipgroup == (int)PRVM_serveredictfloat(touch, clipgroup))
 				continue;
 			// don't clip points against points (they can't collide)
-			if (pointtrace && VectorCompare(PRVM_serveredictvector(touch, mins), PRVM_serveredictvector(touch, maxs)) && (type != MOVE_MISSILE || !((int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)))
+			if (pointtrace && VectorCompare(PRVM_serveredictvector(touch, mins), PRVM_serveredictvector(touch, maxs)) && (type != MOVE_MISSILE_2 || !((int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)))
 				continue;
 		}
 
@@ -565,7 +565,7 @@ trace_t SV_TraceBox(const vec3_t start, const vec3_t mins, const vec3_t maxs, co
 
 		// might interact, so do an exact clip
 		model = NULL;
-		if ((int) PRVM_serveredictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL)
+		if ((int) PRVM_serveredictfloat(touch, solid) == SOLID_BSP_4 || type == MOVE_HITMODEL_4)
 		{
 			model = SV_GetModelFromEdict(touch);
 			pitchsign = SV_GetPitchSign(prog, touch);
@@ -580,7 +580,7 @@ trace_t SV_TraceBox(const vec3_t start, const vec3_t mins, const vec3_t maxs, co
 		VM_UpdateEdictSkeleton(prog, touch, model, touch->priv.server->frameblend);
 		VectorCopy(PRVM_serveredictvector(touch, mins), touchmins);
 		VectorCopy(PRVM_serveredictvector(touch, maxs), touchmaxs);
-		if (type == MOVE_MISSILE && (int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)
+		if (type == MOVE_MISSILE_2 && (int)PRVM_serveredictfloat(touch, flags) & FL_MONSTER_32)
 			Collision_ClipToGenericEntity(&trace, model, touch->priv.server->frameblend, &touch->priv.server->skeleton, touchmins, touchmaxs, bodysupercontents, &matrix, &imatrix, clipstart, clipmins2, clipmaxs2, clipend, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, extend);
 		else
 			Collision_ClipToGenericEntity(&trace, model, touch->priv.server->frameblend, &touch->priv.server->skeleton, touchmins, touchmaxs, bodysupercontents, &matrix, &imatrix, clipstart, clipmins, clipmaxs, clipend, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, extend);
@@ -943,7 +943,7 @@ static int SV_TestEntityPosition (prvm_edict_t *ent, vec3_t offset)
 	VectorCopy(PRVM_serveredictvector(ent, origin), entorigin);
 	VectorCopy(PRVM_serveredictvector(ent, mins), entmins);
 	VectorCopy(PRVM_serveredictvector(ent, maxs), entmaxs);
-	trace = SV_TraceBox(org, entmins, entmaxs, entorigin, ((PRVM_serveredictfloat(ent, movetype) == MOVETYPE_FLY_WORLDONLY_33) ? MOVE_WORLDONLY : MOVE_NOMONSTERS), ent, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value);
+	trace = SV_TraceBox(org, entmins, entmaxs, entorigin, ((PRVM_serveredictfloat(ent, movetype) == MOVETYPE_FLY_WORLDONLY_33) ? MOVE_WORLDONLY_3 : MOVE_NOMONSTERS_1), ent, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value);
 	if (trace.startsupercontents & hitsupercontentsmask)
 		return true;
 	else
@@ -982,7 +982,7 @@ static int SV_TestEntityPosition (prvm_edict_t *ent, vec3_t offset)
 #else
 		// verify if the endpos is REALLY outside solid
 		VectorCopy(trace.endpos, org);
-		trace = SV_TraceBox(org, entmins, entmaxs, org, MOVE_NOMONSTERS, ent, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value);
+		trace = SV_TraceBox(org, entmins, entmaxs, org, MOVE_NOMONSTERS_1, ent, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value);
 		if (trace.startsolid)
 			Con_Printf ("SV_TestEntityPosition: trace.endpos detected to be in solid. NOT using it.\n");
 		else
@@ -1478,7 +1478,7 @@ static int SV_FlyMove (prvm_edict_t *ent, float time, qbool applygravity, float 
 	{
 		// LadyHavoc: fix the 'fall to your death in a wedge corner' glitch
 		// flag ONGROUND if there's ground under it
-		trace = SV_TraceBox(PRVM_serveredictvector(ent, origin), PRVM_serveredictvector(ent, mins), PRVM_serveredictvector(ent, maxs), end, MOVE_NORMAL, ent, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
+		trace = SV_TraceBox(PRVM_serveredictvector(ent, origin), PRVM_serveredictvector(ent, mins), PRVM_serveredictvector(ent, maxs), end, MOVE_NORMAL_0, ent, hitsupercontentsmask, skipsupercontentsmask, skipmaterialflagsmask);
 	}
 	*/
 
@@ -1560,7 +1560,7 @@ static qbool SV_NudgeOutOfSolid_PivotIsKnownGood(prvm_edict_t *ent, vec3_t pivot
 				testorigin[coord] += stuckmins[coord] - goodmins[coord];
 			}
 
-			stucktrace = SV_TraceBox(stuckorigin, goodmins, goodmaxs, testorigin, MOVE_NOMONSTERS, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value);
+			stucktrace = SV_TraceBox(stuckorigin, goodmins, goodmaxs, testorigin, MOVE_NOMONSTERS_1, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value);
 			if (stucktrace.bmodelstartsolid)
 			{
 				// BAD BAD, can't fix that
@@ -1631,7 +1631,7 @@ qbool SV_NudgeOutOfSolid(prvm_edict_t *ent)
 		VectorCopy(PRVM_serveredictvector(ent, origin), stuckorigin);
 		for (bump = 0;bump < 10;bump++)
 		{
-			stucktrace = SV_TraceBox(stuckorigin, stuckmins, stuckmaxs, stuckorigin, pass ? MOVE_WORLDONLY : MOVE_NOMONSTERS, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value);
+			stucktrace = SV_TraceBox(stuckorigin, stuckmins, stuckmaxs, stuckorigin, pass ? MOVE_WORLDONLY_3 : MOVE_NOMONSTERS_1, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value);
 			if (!stucktrace.bmodelstartsolid || stucktrace.startdepth >= 0)
 			{
 				// found a good location, use it
@@ -1687,13 +1687,13 @@ static qbool SV_PushEntity (trace_t *trace, prvm_edict_t *ent, vec3_t push, qboo
 	VectorAdd(start, push, end);
 
 	if (movetype == MOVETYPE_FLYMISSILE_9)
-		type = MOVE_MISSILE;
+		type = MOVE_MISSILE_2;
 	else if (movetype == MOVETYPE_FLY_WORLDONLY_33)
-		type = MOVE_WORLDONLY;
+		type = MOVE_WORLDONLY_3;
 	else if (solid == SOLID_TRIGGER_1 || solid == SOLID_NOT_0)
-		type = MOVE_NOMONSTERS; // only clip against bmodels
+		type = MOVE_NOMONSTERS_1; // only clip against bmodels
 	else
-		type = MOVE_NORMAL;
+		type = MOVE_NORMAL_0;
 
 	*trace = SV_TraceBox(start, mins, maxs, end, type, ent, SV_GenericHitSuperContentsMask(ent), 0, 0, collision_extendmovelength.value);
 
@@ -1970,7 +1970,7 @@ static void SV_PushMove (prvm_edict_t *pusher, float movetime)
 			VectorCopy(PRVM_serveredictvector(check, mins), checkmins);
 			VectorCopy(PRVM_serveredictvector(check, maxs), checkmaxs);
 			Collision_ClipToGenericEntity(&trace, pushermodel, pusher->priv.server->frameblend, &pusher->priv.server->skeleton, pushermins, pushermaxs, SUPERCONTENTS_BODY, &pusherfinalmatrix, &pusherfinalimatrix, checkorigin, checkmins, checkmaxs, checkorigin, checkcontents, 0, 0, collision_extendmovelength.value);
-			//trace = SV_TraceBox(PRVM_serveredictvector(check, origin), PRVM_serveredictvector(check, mins), PRVM_serveredictvector(check, maxs), PRVM_serveredictvector(check, origin), MOVE_NOMONSTERS, check, checkcontents);
+			//trace = SV_TraceBox(PRVM_serveredictvector(check, origin), PRVM_serveredictvector(check, mins), PRVM_serveredictvector(check, maxs), PRVM_serveredictvector(check, origin), MOVE_NOMONSTERS_1, check, checkcontents);
 			if (!trace.startsolid) {
 				// Con_PrintLinef ("- not in solid");
 				continue;
@@ -2080,11 +2080,14 @@ static void SV_PushMove (prvm_edict_t *pusher, float movetime)
 			// fail the move
 			if (PRVM_serveredictvector(check, mins)[0] == PRVM_serveredictvector(check, maxs)[0])
 				continue;
-			if (PRVM_serveredictfloat(check, solid) == SOLID_NOT_0 || PRVM_serveredictfloat(check, solid) == SOLID_TRIGGER_1)
-			{
+			if (isin2(PRVM_serveredictfloat(check, solid), SOLID_NOT_0, SOLID_TRIGGER_1)) {
 				// corpse
-				PRVM_serveredictvector(check, mins)[0] = PRVM_serveredictvector(check, mins)[1] = 0;
-				VectorCopy (PRVM_serveredictvector(check, mins), PRVM_serveredictvector(check, maxs));
+				if (sv_gameplayfix_nosquashentities.integer == 0) {
+					// is crushed by a mover, preventing it from being interacted with again
+					PRVM_serveredictvector(check, mins)[0] = PRVM_serveredictvector(check, mins)[1] = 0;
+					VectorCopy (PRVM_serveredictvector(check, mins), PRVM_serveredictvector(check, maxs));
+				}
+				
 				continue;
 			}
 
@@ -2483,13 +2486,13 @@ static void SV_WalkMove (prvm_edict_t *ent)
 			VectorSet(upmove, PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2] + 1);
 			VectorSet(downmove, PRVM_serveredictvector(ent, origin)[0], PRVM_serveredictvector(ent, origin)[1], PRVM_serveredictvector(ent, origin)[2] - 1);
 			if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_FLYMISSILE_9)
-				type = MOVE_MISSILE;
+				type = MOVE_MISSILE_2;
 			else if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_FLY_WORLDONLY_33)
-				type = MOVE_WORLDONLY;
+				type = MOVE_WORLDONLY_3;
 			else if (PRVM_serveredictfloat(ent, solid) == SOLID_TRIGGER_1 || PRVM_serveredictfloat(ent, solid) == SOLID_NOT_0)
-				type = MOVE_NOMONSTERS; // only clip against bmodels
+				type = MOVE_NOMONSTERS_1; // only clip against bmodels
 			else
-				type = MOVE_NORMAL;
+				type = MOVE_NORMAL_0;
 			VectorCopy(PRVM_serveredictvector(ent, mins), entmins);
 			VectorCopy(PRVM_serveredictvector(ent, maxs), entmaxs);
 			trace = SV_TraceBox(upmove, entmins, entmaxs, downmove, type, ent, SV_GenericHitSuperContentsMask(ent), skipsupercontentsmask, skipmaterialflagsmask, collision_extendmovelength.value);

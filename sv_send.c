@@ -647,8 +647,13 @@ static qbool SV_PrepareEntityForSending (prvm_edict_t *ent, entity_state_t *cs, 
 	int is_monster = Have_Flag ((int)PRVM_serveredictfloat(ent, flags), FL_MONSTER_32);
 	if (PRVM_serveredictfloat(ent, movetype) == MOVETYPE_STEP_4)
 		cs->sflags |= RENDER_STEP;
-	else if (sv_gameplayfix_monsterinterpolate.integer && is_monster)
+	else if (sv_gameplayfix_monsterinterpolate.integer /*d:1 Zircon*/ && is_monster)
 		cs->sflags |= RENDER_STEP;
+
+	if (is_monster) {
+		cs->health_z = PRVM_serveredictfloat(ent, health); // E5_ZIRCON_MONSTER_INFO_28 (unsigned short)
+		cs->max_health_z = PRVM_serveredictfloat(ent, max_health); // E5_ZIRCON_MONSTER_INFO_28 (unsigned short)
+	}
 
 	// Baker: For free movement prediction, these are types that a player does not collide with
 	WARP_X_ (E5_ALPHA, E5_NON_SOLID_S27)

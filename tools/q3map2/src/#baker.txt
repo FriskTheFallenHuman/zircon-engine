@@ -1,3 +1,0 @@
-
-// http://q3map2.robotrenegade.com/docs/shader_manual/
-// http://q3map2.robotrenegade.com/docs/shader_manual/light-emitting-shaders.html

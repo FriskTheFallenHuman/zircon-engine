@@ -687,13 +687,15 @@ static void CL_PrintEntities_f (cmd_state_t *cmd)
 	int ent_num;
 	int expanded = (Cmd_Argc (cmd) > 1);
 
-	SET___ int collide_type = cl_movement_collide_models.integer ?
+	SET___ int collide_type = cl_movement_collide_models.integer /*d:1*/ ?
 			(cls.protocol == PROTOCOL_QUAKEWORLD ? HITT_PLAYERS_PLUS_ONLY_MONSTERS_QW_3 :
-			Have_Zircon_Ext_Flag_CLS (ZIRCON_EXT_NONSOLID_FLAG_8) ? (Have_Zircon_Ext_Flag_CLS(ZIRCON_EXT_WALKTHROUGH_PLAYERS_IS_ACTIVE_128) ? HITT_PLAYERS_PLUS_SOLIDS_NO_PLAYERS_6 : HITT_PLAYERS_PLUS_SOLIDS_2) :
+			Have_Zircon_Ext_Flag_CLS (ZIRCON_EXT_NONSOLID_FLAG_8) ? 
+				(Have_Zircon_Ext_Flag_CLS(ZIRCON_EXT_WALKTHROUGH_PLAYERS_IS_ACTIVE_128) ? HITT_PLAYERS_PLUS_SOLIDS_NO_PLAYERS_6 : HITT_PLAYERS_PLUS_SOLIDS_2) :
 			HITT_PLAYERS_1) :  HITT_PLAYERS_1;
 
 	Con_PrintLinef ("cls.zirconprotocolextensions = %d", cls.zirconprotocolextensions);
 	Con_PrintLinef ("collide_type = %d", collide_type);
+	Con_PrintLinef ("cl.num_entities = %d", cl.num_entities);
 	vec3_t world_size;
 	VectorSubtract (cl.entities[0].render.maxs, cl.entities[0].render.mins, world_size);
 	Con_PrintLinef ("World bounds mins " VECTOR3_5d1F " maxs " VECTOR3_5d1F " size " VECTOR3_5d1F, 
@@ -1766,7 +1768,7 @@ static void CL_LinkNetworkEntity(entity_t *e)
 		trace_t trace;
 		matrix4x4_t tempmatrix;
 		Matrix4x4_Transform(&e->render.matrix, muzzleflashorigin, v2);
-		trace = CL_TraceLine(origin, v2, MOVE_NOMONSTERS, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
+		trace = CL_TraceLine(origin, v2, MOVE_NOMONSTERS_1, NULL, SUPERCONTENTS_SOLID | SUPERCONTENTS_SKY, 0, 0, collision_extendmovelength.value, true, false, NULL, false, false);
 		Matrix4x4_Normalize(&tempmatrix, &e->render.matrix);
 		Matrix4x4_SetOrigin(&tempmatrix, trace.endpos[0], trace.endpos[1], trace.endpos[2]);
 		Matrix4x4_Scale(&tempmatrix, 150, 1);

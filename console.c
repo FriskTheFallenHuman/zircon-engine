@@ -965,10 +965,10 @@ static void Con_Copy_Ents_f(void)
 	if ((entities = (char *)FS_LoadFile(entname, tempmempool, fs_quiet_true, fs_size_ptr_null))) {
 		Clipboard_Set_Text(entities); // AUTH: Copy ents
 		Mem_Free(entities);
-		Con_PrintLinef ("Entities from .ent copied console to clipboard");
+		Con_PrintLinef ("Entities from .ent copied to clipboard");
 	} else {
 		Clipboard_Set_Text(sv.worldmodel->brush.entities); // AUTH: copy ents
-		Con_PrintLinef ("Entities from .bsp copied console to clipboard");
+		Con_PrintLinef ("Entities from .bsp copied to clipboard");
 	}
 }
 
@@ -996,7 +996,7 @@ static void Con_Copy_Tex_f(void)
 	cltrace.fraction = 2.0;
 
 	trace_t CL_TraceLine(const vec3_t start, const vec3_t end, int type, prvm_edict_t *passedict, int hitsupercontentsmask, int skipsupercontentsmask, int skipmaterialflagsmask, float extend, qbool hitnetworkbrushmodels, int hitnetworkplayers, int *hitnetworkentity, qbool hitcsqcentities, qbool hitsurfaces);
-	cltrace = CL_TraceLine(org, dest, MOVE_HITMODEL, NULL,
+	cltrace = CL_TraceLine(org, dest, MOVE_HITMODEL_4, NULL,
 			SUPERCONTENTS_SOLID | SUPERCONTENTS_WATER | SUPERCONTENTS_SLIME |
 			SUPERCONTENTS_LAVA | SUPERCONTENTS_SKY
 		,
@@ -1009,7 +1009,7 @@ static void Con_Copy_Tex_f(void)
 		c_strlcpy (texstring, "(no texture hit)");
 
 	Clipboard_Set_Text (texstring); // AUTH: copy tex
-	Con_PrintLinef ("texturename " QUOTED_S " copied console to clipboard", texstring);
+	Con_PrintLinef ("texturename " QUOTED_S " copied to clipboard", texstring);
 }
 
 WARP_X_(Con_ConDump_f)
@@ -3201,102 +3201,159 @@ int Con_CompleteCommandLine_Zircon(cmd_state_t *cmd, qbool is_console, qbool is_
 	search_partial_offset ++;
 
 	ac->search_partial_offset = search_partial_offset;
+
+
+	// Baker: October 30 2024 - This is START OF ITEM TO COMPLETE "map e4" is "e4"
 	ac->p_text_partial_start = &key_line[ac->search_partial_offset];		// what we wish to find
 
+	// Baker: October 30 2024 - This is BEYOND THE CURRENT SEARCH TERM.
 	ac->p_text_beyond_autocomplete = &key_line[key_linepos];
 	setstr (ac->text_after_autocomplete_a, ac->p_text_beyond_autocomplete);
 
 	//
 	// LINE TERMINATED AT CURSOR START ...
 	//
-		int saved_cursor_char = ac->p_text_beyond_autocomplete[0];
-		ac->p_text_beyond_autocomplete[0] = NULL_CHAR_0;
+	int saved_cursor_char = ac->p_text_beyond_autocomplete[0];
+	ac->p_text_beyond_autocomplete[0] = NULL_CHAR_0;
 
-		// Sys_PrintToTerminal2 (va3("new Partial Set to: " QUOTED_S "\n", spartial512));
-		if (ac->p_text_partial_start[0] == 0 && ac->is_from_nothing == false) {
-			// Rejected empty autocomplete.
-			ac->p_text_beyond_autocomplete[0] = saved_cursor_char;
+	// Sys_PrintToTerminal2 (va3("new Partial Set to: " QUOTED_S "\n", spartial512));
+	if (ac->p_text_partial_start[0] == 0 && ac->is_from_nothing == false) {
+		// Rejected empty autocomplete.
+		ac->p_text_beyond_autocomplete[0] = saved_cursor_char;
 exit_possible:
-			return key_linepos; // Does this happen? "map " <-- press TAB, yes
-		}
+		return key_linepos; // Does this happen? "map " <-- press TAB, yes
+	}
 
-		// This process only works because we null terminated at cursor
-		setstr (ac->s_search_partial_a, ac->p_text_partial_start);
+	// This process only works because we null terminated at cursor
+	setstr (ac->s_search_partial_a, ac->p_text_partial_start);
 
-		char *start_command = &key_line[1]; // After bracket "]map e2"
-		char *s_last_semicolon_before = dp_strstr_reverse(&key_line[1], ";"); // dp_strstr_reverse is REVERSE strstr
+	char *start_command = &key_line[1]; // After bracket "]map e2"
+	// dp_strstr_reverse is REVERSE strstr
 
-		// "color 4; map e2" --> in this situation, s_command0 is "map" not "color"
-		if (s_last_semicolon_before)
-			start_command = String_Skip_WhiteSpace_Including_Space(&s_last_semicolon_before[1]);
+	// Baker: October 30 2024 - This works due to null termination above.
+	char *s_last_semicolon_before = dp_strstr_reverse(&key_line[1], ";"); 
 
-		char *space = strchr(&start_command[1], ' '); // Find first space after the command
+	// "color 4; map e2" --> in this situation, s_command0 is "map" not "color"
+	if (s_last_semicolon_before)
+		start_command = String_Skip_WhiteSpace_Including_Space(&s_last_semicolon_before[1]);
 
-		// Check if the first space after the command is where the partial is
-		// "map "
-		ac->is_at_first_arg = space && ac->p_text_partial_start == &space[1];
+	// Baker: October 30 2024 - Last
+#define MAX_WORDS_16 16
+	char words_count = 0;
+	char words[MAX_WORDS_16][256];
+	char whole_line[1024];
+	c_strlcpy (whole_line, start_command);
+	ccs *data = start_command;
+	for (int idx = 0; idx < MAX_WORDS_16; idx ++) {
+		if (!COM_ParseToken_Console (&data))
+			break;
+		//size_t sz =sizeof(words[idx]); // Veryify is 256 ... it is verified
+		c_strlcpy (words[idx], com_token);
+		words_count ++;
+	}
 
-		if (space) {
-			int saved = space[0];
-			space[0] = NULL_CHAR_0;
-			setstr (ac->s_command0_a, start_command); // Length?
-			space[0] = saved;
-		}
+	// Baker: words_count - 1 is where we are
 
-		ac->is_at_first_arg = ac->s_command0_a && &space[1] == ac->p_text_partial_start;
+	int in_arg_number = words_count - 1; // 0 is the command
 
-		// Determine search type
-		char *command = ac->s_command0_a;
-		if (ac->is_at_first_arg) {
+	if (isin2(*ac->p_text_partial_start, NULL_CHAR_0, SPACE_CHAR_32)) {
+		// "map " .. shows 1 arg but we are completing #2 from nothing.
+		in_arg_number ++;
+	}
 
-				 if (String_Isin3 (command, "map", "changelevel", "changelevel2") )	ac->searchtype = 1;
-			else if (String_Isin3 (command, "save", "load", "jpegextract" ) )		ac->searchtype = 2;
-			else if (String_Isin3 (command, "playdemo", "record", "timedemo") )		ac->searchtype = 3;
-			else if (String_Isin2 (command, "game", "gamdir")		)				ac->searchtype = 4;
-			else if (String_Isin2 (command, "exec", "saveconfig")	)				ac->searchtype = 5;
-			else if (String_Isin2 (command, "sky", "loadsky") /**/)					ac->searchtype = 6;
-			else if (String_Isin1 (command, "gl_texturemode") /**/)					ac->searchtype = 7;
-			else if (String_Isin1 (command, "copy") /**/)							ac->searchtype = 8;
-			else if (String_Isin1 (command, "edicts") /**/)							ac->searchtype = 9;
-			else if (String_Isin1 (command, "r_editlights_edit") /**/)				ac->searchtype = 10;
-			else if (String_Isin1 (command, "sv_cmd") /**/)							ac->searchtype = 11;
-			else if (String_Isin1 (command, "cl_cmd") /**/)							ac->searchtype = 12;
+	char *space = strchr(&start_command[1], ' '); // Find first space after the command
+
+	// Check if the first space after the command is where the partial is
+	// "map "
+	ac->is_at_first_arg = space && ac->p_text_partial_start == &space[1];
+
+	if (space) {
+		int saved = space[0];
+		space[0] = NULL_CHAR_0;
+		setstr (ac->s_command0_a, start_command); // Length?
+		space[0] = saved;
+	}
+
+	ac->is_at_first_arg = ac->s_command0_a && &space[1] == ac->p_text_partial_start;
+
+	// Determine search type
+	char *command = ac->s_command0_a;
+
+	//in_arg_number = ac->is_at_first_arg ?
+	//if (ac->is_at_first_arg) {
+	switch (in_arg_number) {
+	case 0: // Command
+		break;
+
+	case 1: // Arg 1
+		// First arg.
+
+			 if (String_Isin3 (command, "map", "changelevel", "changelevel2") )	ac->searchtype = 1;
+		else if (String_Isin3 (command, "save", "load", "jpegextract" ) )		ac->searchtype = 2;
+		else if (String_Isin3 (command, "playdemo", "record", "timedemo") )		ac->searchtype = 3;
+		else if (String_Isin2 (command, "game", "gamdir")		)				ac->searchtype = 4;
+		else if (String_Isin2 (command, "exec", "saveconfig")	)				ac->searchtype = 5;
+		else if (String_Isin2 (command, "sky", "loadsky") /**/)					ac->searchtype = 6;
+		else if (String_Isin1 (command, "gl_texturemode") /**/)					ac->searchtype = 7;
+		else if (String_Isin1 (command, "copy") /**/)							ac->searchtype = 8;
+		else if (String_Isin1 (command, "edicts") /**/)							ac->searchtype = 9;
+		else if (String_Isin1 (command, "r_editlights_edit") /**/)				ac->searchtype = 10;
+		else if (String_Isin1 (command, "sv_cmd") /**/)							ac->searchtype = 11;
+		else if (String_Isin1 (command, "cl_cmd") /**/)							ac->searchtype = 12;
 //			else if (String_Isin1 (command, "menu_cmd") /**/)						ac->searchtype = 13;
-			else if (String_Isin2 (command, "modelprecache","modeldecompile") )		ac->searchtype = 14;
-			else if (String_Isin2 (command, "play","playvol") /**/)					ac->searchtype = 15;
-			else if (String_Isin2 (command, "r_replacemaptexture", "texturefindpos") /**/)			ac->searchtype = 16;
-			else if (String_Isin2 (command, "bind","unbind") /**/)					ac->searchtype = 17;
-			else if (String_Isin4 (command, "folder","dir","ls", "jpegsplit") /**/)	ac->searchtype = 18;
-			else if (String_Isin1 (command, "cvarlist") /**/)						ac->searchtype = 20;
-			else if (String_Isin1 (command, "sv_protocolname") /**/)				ac->searchtype = 21;
-			else if (String_Isin1 (command, "loadfont"))							ac->searchtype = 22;
-			else if (String_Isin4 (command, "showmodel", "objmodeladjust", "objmodelsplit", "playermodel") /**/)	ac->searchtype = 23;
-			else if (String_Isin1 (command, "envmap") /**/)							ac->searchtype = 24;
-			else if (String_Isin1 (command, "zipinfo") /**/)						ac->searchtype = 25;
-			else if (String_Isin1 (command, "parse") /**/)							ac->searchtype = 26;
-			else if (String_Isin1 (command, "shaderprint") /**/)					ac->searchtype = 27;
-			else if (String_Isin2 (command, "effectinfo_dump", "effectinfo_list"))	ac->searchtype = 28;
-			else if (String_Isin1 (command, "playvideo"))							ac->searchtype = 29;
-			else if (String_Isin1 (command, "zf"))									ac->searchtype = 31;
-			else if (String_Isin1 (command, "printfile"))							ac->searchtype = 32;
-			else if (String_Isin1 (command, "vegetationmake"))						ac->searchtype = 33;
-			else if (String_Isin2 (command, "giftoshader","gifclip"))				ac->searchtype = 34;
-			//else if (String_Isin1 (command, "objmake"))								ac->searchtype = 35;
-			else if (String_Isin1 (command, "barmake"))								ac->searchtype = 23; // showmodel completion
-			else if (String_Isin1 (command, "which"))								ac->searchtype = 36; // showmodel completion
-			
+		else if (String_Isin2 (command, "modelprecache","modeldecompile") )		ac->searchtype = 14;
+		else if (String_Isin2 (command, "play","playvol") /**/)					ac->searchtype = 15;
+		else if (String_Isin2 (command, "r_replacemaptexture", "texturefindpos") /**/)			ac->searchtype = 16;
+		else if (String_Isin2 (command, "bind","unbind") /**/)					ac->searchtype = 17;
+		else if (String_Isin4 (command, "folder","dir","ls", "jpegsplit") /**/)	ac->searchtype = 18;
+		else if (String_Isin1 (command, "cvarlist") /**/)						ac->searchtype = 20;
+		else if (String_Isin1 (command, "sv_protocolname") /**/)				ac->searchtype = 21;
+		else if (String_Isin1 (command, "loadfont"))							ac->searchtype = 22;
+		else if (String_Isin4 (command, "showmodel", "objmodeladjust", "objmodelsplit", "playermodel") /**/)	ac->searchtype = 23;
+		else if (String_Isin1 (command, "envmap") /**/)							ac->searchtype = 24;
+		else if (String_Isin1 (command, "zipinfo") /**/)						ac->searchtype = 25;
+		else if (String_Isin1 (command, "parse") /**/)							ac->searchtype = 26;
+		else if (String_Isin1 (command, "shaderprint") /**/)					ac->searchtype = 27;
+		else if (String_Isin2 (command, "effectinfo_dump", "effectinfo_list"))	ac->searchtype = 28;
+		else if (String_Isin1 (command, "playvideo"))							ac->searchtype = 29;
+		else if (String_Isin1 (command, "zf"))									ac->searchtype = 31;
+		else if (String_Isin1 (command, "printfile"))							ac->searchtype = 32;
+		else if (String_Isin1 (command, "vegetationmake"))						ac->searchtype = 33;
+		else if (String_Isin2 (command, "giftoshader","gifclip"))				ac->searchtype = 34;
+		//else if (String_Isin1 (command, "objmake"))								ac->searchtype = 35;
+		else if (String_Isin1 (command, "barmake"))								ac->searchtype = 23; // showmodel completion
+		else if (String_Isin1 (command, "which"))								ac->searchtype = 36; // showmodel completion
+		else if (String_Isin2 (command, "prvm_edictset", "prvm_edictget") /**/) ac->searchtype = 38; // fields?
+		
 //			else if (String_Isin1 (command, "loadfont"))							
 //				ac->searchtype = 30;
-		}
-		else if (ac->s_command0_a) {
-			// We are 2nd argument or further down (or someone typed multiple spaces that's on them)
-		         if (String_Isin1 (command, "r_replacemaptexture") /**/)			ac->searchtype = 19;
-			else if (String_Isin1 (command, "loadfont") /**/)						ac->searchtype = 30;
-			else if (String_Isin1 (command, "barmake") /**/)						ac->searchtype = 33; // .tga, .jpg, .png
-			 // end
-		}
 
-		ac->p_text_beyond_autocomplete[0] = saved_cursor_char;
+		break;
+	
+	case 2:
+		// SECOND ARGUMENT "map e4"
+	//else if (ac->s_command0_a) {
+		// We are 2nd argument or further down (or someone typed multiple spaces that's on them)
+	         if (String_Isin1 (command, "r_replacemaptexture") /**/)			ac->searchtype = 19;
+		else if (String_Isin1 (command, "loadfont") /**/)						ac->searchtype = 30;
+		else if (String_Isin1 (command, "barmake") /**/)						ac->searchtype = 33; // .tga, .jpg, .png
+		else if (String_Isin1 (command, "eset") /**/)							ac->searchtype = 37; // fields?
+		 // end
+		break;
+
+	case 3:
+		// 0    1   2
+		// eset 30 origin
+		// 0             1      2 3      4
+		// prvm_edictset server # origin 5
+		if (String_Isin2 (command, "prvm_edictset", "prvm_edictget") /**/) ac->searchtype = 37; // fields?
+		break;
+
+	default:
+		break;
+	} // sw
+
+	ac->p_text_beyond_autocomplete[0] = saved_cursor_char;
 
 	//
 	// LINE TERMINATED AT CURSOR END ...
@@ -3358,6 +3415,10 @@ autocomplete_go:
 		case 34: GetAnimatedGIF_Count	(s);	break;
 		case 35: GetFileList_Count		(q_folder_NULL, s, "*.txt", q_strip_exten_false); break; // objmake source looks for .txt
 		case 36: GetFileList_Count		(q_folder_NULL, s, "", q_strip_exten_false); break;
+		case 37: 
+			GetFieldListServer_Count		(s); 
+			break;
+		case 38: GetCommad_Count		(s, "client,menu,server"); break; // sv_protocolname
 		} // switch
 
 		if (ac->s_match_alphatop_a == NULL) {
